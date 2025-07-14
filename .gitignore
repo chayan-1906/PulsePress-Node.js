@@ -1,0 +1,28 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+.idea/
+
+# dependencies
+node_modules/
+build/
+dist/
+package-lock.json
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*
+
+# typescript
+*.tsbuildinfo
+
+#credentials
+android-credentials.json
+ios-credentials.plist
+web-credentials.json

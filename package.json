@@ -1,0 +1,30 @@
+{
+  "name": "pulsepress",
+  "version": "1.0.0",
+  "description": "",
+  "author": "Padmanabha Das",
+  "keywords": [],
+  "license": "ISC",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "nodemon --exec 'ts-node' src/server.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "colors": "^1.4.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.0",
+    "express": "^5.1.0",
+    "mongoose": "^8.16.3",
+    "morgan": "^1.10.0",
+    "nanoid": "^5.1.5"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.23",
+    "@types/morgan": "^1.9.10",
+    "nodemon": "^3.1.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}
