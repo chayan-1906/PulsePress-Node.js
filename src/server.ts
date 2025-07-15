@@ -5,6 +5,7 @@ import express from 'express';
 import {PORT} from "./config/config";
 import getLocalIp from "./utils/getLocalIP";
 import {connectDB} from "./config/connectDB";
+import newsRoutes from "./routes/NewsRoutes";
 
 // rest object
 const app = express();
@@ -13,6 +14,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
+
+// routes
+app.use('/api/v1/news', newsRoutes);
 
 app.get('/', function (req, res) {
     return res.status(200).send('<h1>Welcome to PulsePress Server</h1>');
