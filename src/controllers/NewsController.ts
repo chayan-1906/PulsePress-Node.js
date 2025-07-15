@@ -1,7 +1,7 @@
 import "colors";
 import {Request, Response} from "express";
-import {RSSFeedParams, TopHeadlinesParams} from "../types/news";
 import {ApiResponse} from "../utils/ApiResponse";
+import {RSSFeedParams, TopHeadlinesParams} from "../types/news";
 import {fetchRSSFeed, fetchTopHeadlines} from "../services/NewsService";
 
 const getAllTopHeadlinesController = async (req: Request, res: Response) => {
@@ -9,7 +9,7 @@ const getAllTopHeadlinesController = async (req: Request, res: Response) => {
     try {
         const {country, category, sources, q, pageSize, page}: Partial<TopHeadlinesParams> = req.query;
 
-        let pageSizeNumber = 1, pageNumber = 1;
+        let pageSizeNumber = 10, pageNumber = 1;
         if (pageSize && !isNaN(pageSize)) {
             pageSizeNumber = Number(pageSize);
         }
@@ -37,13 +37,16 @@ const getAllTopHeadlinesController = async (req: Request, res: Response) => {
 const getAllRSSFeedsController = async (req: Request, res: Response) => {
     console.log('getAllRSSFeedsController called');
     try {
-        const {sources, page}: Partial<RSSFeedParams> = req.query;
+        const {sources, pageSize, page}: Partial<RSSFeedParams> = req.query;
 
-        let pageNumber = 1;
+        let pageSizeNumber = 10, pageNumber = 1;
+        if (pageSize && !isNaN(pageSize)) {
+            pageSizeNumber = Number(pageSize);
+        }
         if (page && !isNaN(page)) {
             pageNumber = Number(page);
         }
-        const rssFeeds = await fetchRSSFeed({sources, page});
+        const rssFeeds = await fetchRSSFeed({sources, pageSize: pageSizeNumber, page: pageNumber});
         console.log('rss feeds:'.green.bold, rssFeeds);
 
         res.status(200).send(new ApiResponse({

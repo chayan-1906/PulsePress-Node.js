@@ -25,12 +25,10 @@ const fetchTopHeadlines = async ({country, category, sources, q, pageSize, page}
     }
 }
 
-const fetchRSSFeed = async ({sources, page = 1}: RSSFeedParams) => {
+const fetchRSSFeed = async ({sources, pageSize = 20, page = 1}: RSSFeedParams) => {
     try {
         const sourcesToFetch = sources ? sources.split(',') : Object.keys(RSS_SOURCES);
-        const itemsPerPage = 10;
-        const currentPage = page || 1;
-        const startIndex = (currentPage - 1) * itemsPerPage;
+        const startIndex = (page - 1) * pageSize;
 
         const promises = sourcesToFetch.map(source => {
             const url = RSS_SOURCES[source as keyof typeof RSS_SOURCES];
@@ -42,7 +40,7 @@ const fetchRSSFeed = async ({sources, page = 1}: RSSFeedParams) => {
             .filter(r => r.status === 'fulfilled' && r.value)
             .flatMap(r => (r as PromiseFulfilledResult<RSSFeed[]>).value)
             .sort(() => Math.random() - 0.5)
-            .slice(startIndex, startIndex + itemsPerPage);
+            .slice(startIndex, startIndex + pageSize);
 
         return allItems;
     } catch (error: any) {

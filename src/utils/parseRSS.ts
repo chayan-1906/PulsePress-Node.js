@@ -15,7 +15,7 @@ const parseRSS = async (rssFeedUrl: string): Promise<RSSFeed[]> => {
         publishedAt: pubDate,
         content: content?.trim(),
         contentSnippet: contentSnippet?.trim(),
-        categories,
+        categories: categories?.map(item => item.replace(/\n/g, '').trim()),
     }));
     // console.log('formattedFeed:', formattedFeed);
     return formattedFeed;

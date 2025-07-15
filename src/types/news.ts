@@ -50,5 +50,6 @@ export interface TopHeadlinesParams {
 
 export interface RSSFeedParams {
     sources?: string;
+    pageSize?: number;
     page?: number;
 }
