@@ -6,7 +6,7 @@ async function connectDB() {
         await mongoose.connect(MONGO_URI!);
         console.log(`Connected to database ${mongoose.connection.host}`.bgYellow.black.bold);
     } catch (error) {
-        console.log('inside catch of connectDB:'.red.bold, error);
+        console.log('ERROR: inside catch of connectDB:'.red.bold, error);
     }
 }
 
