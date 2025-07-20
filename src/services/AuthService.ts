@@ -15,7 +15,9 @@ import {
     RefreshTokenParams,
     RefreshTokenResponse,
     RegisterParams,
-    RegisterResponse
+    RegisterResponse,
+    UpdateUserParams,
+    UpdateUserResponse
 } from "../types/auth";
 
 const registerUser = async ({name, email, password, confirmPassword}: RegisterParams): Promise<RegisterResponse> => {
@@ -68,7 +70,7 @@ const loginUser = async ({email, password}: LoginParams): Promise<LoginResponse>
             return {error: generateMissingCode('password')};
         }
 
-        const user: IUser | null = await UserModel.findOne({email});
+        const user: IUser | null = await getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
@@ -149,6 +151,39 @@ const loginWithGoogle = async ({code}: LoginWithGoogleParams): Promise<LoginResp
     }
 }
 
+const updateUser = async ({email, name, password, profilePicture}: UpdateUserParams): Promise<UpdateUserResponse> => {
+    try {
+        if (!email) {
+            return {error: generateMissingCode('email')};
+        }
+
+        const user: IUser | null = await getUserByEmail({email});
+        if (!user) {
+            return {error: generateNotFoundCode('user')};
+        }
+
+        if (name) {
+            user.name = name;
+        }
+        if (password) {
+            if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*])(?=.{6,})/.test(password)) {
+                return {error: generateInvalidCode('password')};
+            }
+            user.password = await hashPassword(password);
+        }
+        user.profilePicture = profilePicture;   // user can remove profile picture
+        const updatedUser: IUser | null = await user.save();
+        if (!user) {
+            return {error: 'UPDATE_USER_FAILED'};
+        }
+        console.log('user updated:', {user: updatedUser});
+        return {user: updatedUser};
+    } catch (error: any) {
+        console.error('ERROR: inside catch of updateUser:'.red.bold, error);
+        throw error;
+    }
+}
+
 const hashPassword = async (password: string): Promise<string> => {
     try {
         const hashedPassword = await bcryptjs.hash(password, 10);
@@ -193,13 +228,13 @@ const verifyPassword = async (password: string, hashedPassword: string): Promise
 const generateJWT = async (user: IUser): Promise<GenerateJWTResponse> => {
     try {
         const accessToken = jwt.sign(
-            {userExternalId: user.userExternalId},
+            {userExternalId: user.userExternalId, email: user.email},
             ACCESS_TOKEN_SECRET!,
             {expiresIn: ACCESS_TOKEN_EXPIRY as SignOptions['expiresIn']},
         );
 
         const refreshToken = jwt.sign(
-            {userExternalId: user.userExternalId},
+            {userExternalId: user.userExternalId, email: user.email},
             REFRESH_TOKEN_SECRET!,
             {expiresIn: REFRESH_TOKEN_EXPIRY as SignOptions['expiresIn']},
         );
@@ -228,4 +263,4 @@ const getUserByEmail = async ({email}: GetUserByEmailParams): Promise<IUser | nu
     }
 }
 
-export {registerUser, loginUser, refreshToken, loginWithGoogle, hashPassword, comparePassword, getUserByEmail};
+export {registerUser, loginUser, refreshToken, loginWithGoogle, updateUser, hashPassword, comparePassword, getUserByEmail};

@@ -1,16 +1,17 @@
 import "colors";
 import {Request, Response} from "express";
-import {ApiResponse} from "../utils/ApiResponse";
 import {getAuthUrl} from "../utils/OAuth";
-import {LoginParams, RefreshTokenParams, RegisterParams} from "../types/auth";
-import {loginUser, loginWithGoogle, refreshToken, registerUser} from "../services/AuthService";
+import {IUser} from "../models/UserSchema";
+import {ApiResponse} from "../utils/ApiResponse";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
+import {AuthRequest, LoginParams, RefreshTokenParams, RegisterParams, UpdateUserParams} from "../types/auth";
+import {getUserByEmail, loginUser, loginWithGoogle, refreshToken, registerUser, updateUser} from "../services/AuthService";
 
 const registerUserController = async (req: Request, res: Response) => {
     console.info('registerUserController called'.bgMagenta.white.italic);
 
     try {
-        const {name, email, password, confirmPassword}: Partial<RegisterParams> = req.body;
+        const {name, email, password, confirmPassword}: RegisterParams = req.body;
         if (!name) {
             console.error('Name is missing'.yellow.italic);
             res.status(400).send(new ApiResponse({
@@ -99,7 +100,7 @@ const loginController = async (req: Request, res: Response) => {
     console.info('loginController called'.bgMagenta.white.italic);
 
     try {
-        const {email, password}: Partial<LoginParams> = req.body;
+        const {email, password}: LoginParams = req.body;
         if (!email) {
             console.error('Email address is missing'.yellow.italic);
             res.status(400).send(new ApiResponse({
@@ -161,7 +162,7 @@ const refreshTokenController = async (req: Request, res: Response) => {
     console.info('refreshTokenController called'.bgMagenta.white.italic);
 
     try {
-        const {refreshToken: rawRefreshToken}: Partial<RefreshTokenParams> = req.body;
+        const {refreshToken: rawRefreshToken}: RefreshTokenParams = req.body;
         if (!rawRefreshToken) {
             console.error('Refresh token is missing'.yellow.italic);
             res.status(400).send(new ApiResponse({
@@ -236,4 +237,105 @@ const loginWithGoogleController = async (req: Request, res: Response) => {
     }
 }
 
-export {registerUserController, loginController, refreshTokenController, redirectToGoogle, loginWithGoogleController};
+const getUserProfileController = async (req: Request, res: Response) => {
+    console.info('getUserProfileController called'.bgMagenta.white.italic);
+
+    try {
+        const email = (req as AuthRequest).email;
+
+        const user: IUser | null = await getUserByEmail({email});
+        if (!user) {
+            console.error('User not found'.yellow.italic);
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
+            }));
+            return;
+        }
+
+        console.log('user profile:'.cyan.italic, {user});
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'User profile fetched 🎉',
+            user,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of getUserProfileController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            errorCode: error.errorCode,
+            errorMsg: error.message || 'Something went wrong',
+        }));
+    }
+}
+
+const updateUserController = async (req: Request, res: Response) => {
+    console.info('updateUserController called'.bgMagenta.white.italic);
+
+    try {
+        const email = (req as AuthRequest).email;
+        const {name, password, profilePicture}: UpdateUserParams = req.body;
+        if ('name' in req.body && (typeof name !== 'string' || !name.trim() || name.trim() === 'null')) {
+            console.error('Invalid name'.yellow.italic);
+            return res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateInvalidCode('name'),
+                errorMsg: 'Invalid name',
+            }));
+        }
+        if ('password' in req.body && (typeof password !== 'string' || !password.trim() || password.trim() === 'null')) {
+            console.error('Invalid password'.yellow.italic);
+            return res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateInvalidCode('password'),
+                errorMsg: 'Invalid password',
+            }));
+        }
+
+        const {user, error} = await updateUser({email, name, password, profilePicture});
+        if (error === generateNotFoundCode('user')) {
+            console.error('User not found'.yellow.italic);
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
+            }));
+            return;
+        }
+        if (error === generateInvalidCode('password')) {
+            console.error('Invalid password'.yellow.italic);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateInvalidCode('password'),
+                errorMsg: 'Password must contain lowercase, uppercase, special character, minimum 6 characters',
+            }));
+            return;
+        }
+        if (error === 'UPDATE_USER_FAILED') {
+            console.error('Update user failed'.yellow.italic);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'UPDATE_USER_FAILED',
+                errorMsg: 'Couldn\'t update user',
+            }));
+            return;
+        }
+        console.log('user updated:'.cyan.italic, {user});
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'User updated 🎉',
+            // user,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of updateUserController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            errorCode: error.errorCode,
+            errorMsg: error.message || 'Something went wrong',
+        }));
+    }
+}
+
+export {registerUserController, loginController, refreshTokenController, redirectToGoogle, loginWithGoogleController, getUserProfileController, updateUserController};

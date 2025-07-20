@@ -2,6 +2,7 @@ import {Request} from "express";
 
 export interface AuthRequest extends Request {
     userExternalId: string;
+    email: string;
 }
 
 /** ------------- API response types ------------- */
@@ -22,6 +23,11 @@ export interface LoginResponse {
 
 export interface RefreshTokenResponse {
     accessToken?: string;
+    error?: string;
+}
+
+export interface UpdateUserResponse {
+    user?: object | null;
     error?: string;
 }
 
@@ -46,6 +52,13 @@ export interface LoginParams {
 
 export interface RefreshTokenParams {
     refreshToken: string;
+}
+
+export interface UpdateUserParams {
+    email: string;
+    name?: string;
+    password?: string;
+    profilePicture?: string;
 }
 
 export interface GetUserByEmailParams {
