@@ -51,3 +51,7 @@ export interface RefreshTokenParams {
 export interface GetUserByEmailParams {
     email: string;
 }
+
+export interface LoginWithGoogleParams {
+    code: string;
+}

@@ -1,12 +1,13 @@
 import "colors";
 import {Request, Response} from "express";
-import {LoginParams, RefreshTokenParams, RegisterParams} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
-import {loginUser, refreshToken, registerUser} from "../services/AuthService";
+import {getAuthUrl} from "../utils/OAuth";
+import {LoginParams, RefreshTokenParams, RegisterParams} from "../types/auth";
+import {loginUser, loginWithGoogle, refreshToken, registerUser} from "../services/AuthService";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 
 const registerUserController = async (req: Request, res: Response) => {
-    console.log('registerUserController called');
+    console.info('registerUserController called'.bgMagenta.white.italic);
 
     try {
         const {name, email, password, confirmPassword}: Partial<RegisterParams> = req.body;
@@ -95,7 +96,7 @@ const registerUserController = async (req: Request, res: Response) => {
 }
 
 const loginController = async (req: Request, res: Response) => {
-    console.log('loginController called');
+    console.info('loginController called'.bgMagenta.white.italic);
 
     try {
         const {email, password}: Partial<LoginParams> = req.body;
@@ -150,13 +151,14 @@ const loginController = async (req: Request, res: Response) => {
         console.error('ERROR: inside catch of loginController:'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
+            errorCode: error.errorCode,
             errorMsg: error.message || 'Something went wrong',
         }));
     }
 }
 
 const refreshTokenController = async (req: Request, res: Response) => {
-    console.log('refreshTokenController called');
+    console.info('refreshTokenController called'.bgMagenta.white.italic);
 
     try {
         const {refreshToken: rawRefreshToken}: Partial<RefreshTokenParams> = req.body;
@@ -182,9 +184,56 @@ const refreshTokenController = async (req: Request, res: Response) => {
         console.error('ERROR: inside catch of refreshTokenController:'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
+            errorCode: error.errorCode,
             errorMsg: error.message || 'Something went wrong',
         }));
     }
 }
 
-export {registerUserController, loginController, refreshTokenController};
+const redirectToGoogle = async (req: Request, res: Response) => {
+    res.redirect(await getAuthUrl());
+}
+
+const loginWithGoogleController = async (req: Request, res: Response) => {
+    console.info('loginWithGoogleController called'.bgMagenta.white.italic);
+    try {
+        const code = req.query.code as string;
+        if (!code) {
+            console.error('No code provided'.yellow.italic);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateInvalidCode('code'),
+                errorMsg: 'No code provided',
+            }));
+            return;
+        }
+
+        const {error, user, accessToken, refreshToken} = await loginWithGoogle({code});
+        if (error === generateInvalidCode('email_address')) {
+            console.error('Invalid email address'.yellow.italic);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateInvalidCode('email_address'),
+                errorMsg: 'Invalid email address',
+            }));
+            return;
+        }
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'Login successful 🎉',
+            user,
+            accessToken,
+            refreshToken,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of loginWithGoogleController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            errorCode: error.errorCode,
+            errorMsg: error.message || 'Something went wrong',
+        }));
+    }
+}
+
+export {registerUserController, loginController, refreshTokenController, redirectToGoogle, loginWithGoogleController};

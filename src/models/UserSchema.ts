@@ -39,7 +39,9 @@ const UserSchema = new Schema<IUser>({
     },
     password: {
         type: String,
-        required: true,
+        required() {
+            return !this.googleId;
+        }, // Only required if not Google user
         trim: true,
     },
     profilePicture: {
