@@ -39,12 +39,6 @@ const UserSchema = new Schema<IUser>({
     },
     password: {
         type: String,
-        validate: {
-            validator: function (password: string) {
-                return /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*])(?=.{6,})/.test(password);
-            },
-            message: 'Password must contain lowercase, uppercase, special character, minimum 6 characters'
-        },
         required: true,
         trim: true,
     },
@@ -60,14 +54,14 @@ const UserSchema = new Schema<IUser>({
     timestamps: true,
     toJSON: {
         transform(doc, ret) {
-            delete ret.password;
-
+            ret.userId = String(ret._id);
             (ret as any)._id = undefined;
             (ret as any).__v = undefined;
+            (ret as any).password = undefined;
 
             return ret;
         },
-    },
+    }
 });
 
 const UserModel: IUserModel = model<IUser, IUserModel>('User', UserSchema);

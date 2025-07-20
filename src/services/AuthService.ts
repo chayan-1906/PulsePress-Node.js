@@ -1,17 +1,42 @@
 import "colors";
 import bcryptjs from "bcryptjs";
 import jwt, {SignOptions} from "jsonwebtoken";
-import {AuthRequest} from "../types/auth";
 import UserModel, {IUser} from "../models/UserSchema";
+import {AuthRequest, GenerateJWTResponse, GetUserByEmailParams, LoginParams, LoginResponse, RefreshTokenParams, RefreshTokenResponse, RegisterParams, RegisterResponse} from "../types/auth";
+import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {ACCESS_TOKEN_EXPIRY, ACCESS_TOKEN_SECRET, REFRESH_TOKEN_EXPIRY, REFRESH_TOKEN_SECRET} from "../config/config";
 
-const registerUser = async (name: string, email: string, password: string, confirmPassword: string) => {
+const registerUser = async ({name, email, password, confirmPassword}: RegisterParams): Promise<RegisterResponse> => {
     try {
+        if (!name) {
+            return {error: generateMissingCode('name')};
+        }
+        if (!email) {
+            return {error: generateMissingCode('email')};
+        }
+        if (!password) {
+            return {error: generateMissingCode('password')};
+        }
+        if (!confirmPassword) {
+            return {error: generateMissingCode('confirm_password')};
+        }
+        if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*])(?=.{6,})/.test(password)) {
+            return {error: generateInvalidCode('password')};
+        }
+
         const hashedPassword = await hashPassword(password);
         const isMatched = comparePassword(password, confirmPassword);
         if (!isMatched) {
-            return;
+            return {error: 'PASSWORD_MISMATCH'};
         }
+
+        const user = await getUserByEmail({email});
+        console.log('user in registerUserService'.red.bold, {user});
+        if (user) {
+            console.info('user exists'.green);
+            return {error: 'ALREADY_REGISTERED'};
+        }
+
         const newUser: IUser | null = await UserModel.create({name, email, password: hashedPassword});
         const {accessToken, refreshToken} = await generateJWT(newUser);
 
@@ -23,22 +48,23 @@ const registerUser = async (name: string, email: string, password: string, confi
     }
 }
 
-const loginUser = async (email: string, password: string) => {
+const loginUser = async ({email, password}: LoginParams): Promise<LoginResponse> => {
     try {
         if (!email) {
-            throw new Error('Invalid email');
-        } else if (!password) {
-            throw new Error('Invalid password');
+            return {error: generateMissingCode('email')};
+        }
+        if (!password) {
+            return {error: generateMissingCode('password')};
         }
 
         const user: IUser | null = await UserModel.findOne({email});
         if (!user) {
-            throw new Error('No user found');
+            return {error: generateNotFoundCode('user')};
         }
 
         const isMatched = await verifyPassword(password, user.password!);
         if (!isMatched) {
-            return;
+            return {error: generateInvalidCode('credentials')};
         }
 
         const {accessToken, refreshToken} = await generateJWT(user);
@@ -50,7 +76,7 @@ const loginUser = async (email: string, password: string) => {
     }
 }
 
-const hashPassword = async (password: string) => {
+const hashPassword = async (password: string): Promise<string> => {
     try {
         const hashedPassword = await bcryptjs.hash(password, 10);
         console.log('hashPassword:'.cyan.italic, hashedPassword);
@@ -61,11 +87,12 @@ const hashPassword = async (password: string) => {
     }
 }
 
-const comparePassword = (password1: string, password2: string) => {
+const comparePassword = (password1: string, password2: string): boolean => {
     try {
         const isMatched = password1 === password2;
         if (!isMatched) {
-            throw new Error('Passwords don\'t match');
+            // throw new Error('Passwords don\'t match');
+            return false;
         }
 
         return isMatched;
@@ -75,11 +102,12 @@ const comparePassword = (password1: string, password2: string) => {
     }
 }
 
-const verifyPassword = async (password: string, hashedPassword: string) => {
+const verifyPassword = async (password: string, hashedPassword: string): Promise<boolean> => {
     try {
         const isMatched = await bcryptjs.compare(password, hashedPassword);
         if (!isMatched) {
-            throw new Error('Invalid credentials');
+            // throw new Error('Invalid credentials');
+            return false;
         }
 
         return isMatched;
@@ -89,7 +117,7 @@ const verifyPassword = async (password: string, hashedPassword: string) => {
     }
 }
 
-const generateJWT = async (user: IUser) => {
+const generateJWT = async (user: IUser): Promise<GenerateJWTResponse> => {
     try {
         const accessToken = jwt.sign(
             {userExternalId: user.userExternalId},
@@ -116,16 +144,16 @@ const generateJWT = async (user: IUser) => {
     }
 }
 
-const refreshToken = async (rawRefreshToken: string) => {
+const refreshToken = async ({refreshToken: rawRefreshToken}: RefreshTokenParams): Promise<RefreshTokenResponse> => {
     try {
         if (!rawRefreshToken) {
-            throw new Error('Invalid refresh token');
+            return {error: generateMissingCode('refreshToken')};
         }
 
         const decoded = jwt.verify(rawRefreshToken, REFRESH_TOKEN_SECRET!) as AuthRequest;
         const user: IUser | null = await UserModel.findOne({userExternalId: decoded.userExternalId, refreshToken: rawRefreshToken}).select('+refreshToken');
         if (!user) {
-            throw new Error('No user found');
+            return {error: generateNotFoundCode('user')};
         }
 
         const newAccessToken = jwt.sign(
@@ -141,4 +169,15 @@ const refreshToken = async (rawRefreshToken: string) => {
     }
 }
 
-export {registerUser, loginUser, hashPassword, comparePassword, refreshToken};
+const getUserByEmail = async ({email}: GetUserByEmailParams): Promise<IUser | null> => {
+    try {
+        const user: IUser | null = await UserModel.findOne({email});
+        console.log('userByEmail:'.cyan.italic, {user})
+        return user;
+    } catch (error: any) {
+        console.error('ERROR: inside catch of getUserByEmail:'.red.bold, error);
+        throw error;
+    }
+}
+
+export {registerUser, loginUser, hashPassword, comparePassword, refreshToken, getUserByEmail};

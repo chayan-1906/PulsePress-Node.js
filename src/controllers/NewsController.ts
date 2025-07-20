@@ -17,7 +17,7 @@ const getAllTopHeadlinesController = async (req: Request, res: Response) => {
             pageNumber = Number(page);
         }
         const topHeadlines = await fetchTopHeadlines({country, category, sources, q, pageSize: pageSizeNumber, page: pageNumber});
-        console.log('top headlines:'.green.bold, topHeadlines);
+        console.log('top headlines:'.cyan.italic, topHeadlines);
 
         res.status(200).send(new ApiResponse({
             success: true,

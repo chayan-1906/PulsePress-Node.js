@@ -15,7 +15,7 @@ export class ApiResponse {
 
     [key: string]: any;
 
-    constructor({success = false, message = null, errorCode = null, errorMsg = null, debugError = null, ...rest}: ApiResponseParams) {
+    constructor({success = false, message = null, errorCode = 'INTERNAL_SERVER_ERROR', errorMsg = null, debugError = null, ...rest}: ApiResponseParams) {
         this.success = success;
 
         if (success && message !== null) this.message = message;
