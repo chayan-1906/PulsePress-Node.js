@@ -3,6 +3,7 @@ import cors from 'cors';
 import morgan from "morgan";
 import express from 'express';
 import {PORT} from "./config/config";
+import aiRoutes from "./routes/AIRoutes";
 import getLocalIp from "./utils/getLocalIP";
 import {connectDB} from "./config/connectDB";
 import newsRoutes from "./routes/NewsRoutes";
@@ -19,6 +20,7 @@ app.use(morgan('dev'));
 // routes
 app.use('/api/v1/news', newsRoutes);
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/ai', aiRoutes);
 
 app.get('/', function (req, res) {
     return res.status(200).send('<h1>Welcome to PulsePress Server</h1>');
