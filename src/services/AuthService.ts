@@ -9,6 +9,7 @@ import {
     AuthRequest,
     GenerateJWTResponse,
     GetUserByEmailParams,
+    GetUserByEmailResponse,
     LoginParams,
     LoginResponse,
     LoginWithGoogleParams,
@@ -24,9 +25,6 @@ const registerUser = async ({name, email, password, confirmPassword}: RegisterPa
     try {
         if (!name) {
             return {error: generateMissingCode('name')};
-        }
-        if (!email) {
-            return {error: generateMissingCode('email')};
         }
         if (!password) {
             return {error: generateMissingCode('password')};
@@ -44,7 +42,7 @@ const registerUser = async ({name, email, password, confirmPassword}: RegisterPa
             return {error: 'PASSWORD_MISMATCH'};
         }
 
-        const user: IUser | null = await getUserByEmail({email});
+        const {user} = await getUserByEmail({email});
         if (user) {
             console.info('user exists'.bgMagenta.white.italic);
             return {error: 'ALREADY_REGISTERED'};
@@ -63,14 +61,11 @@ const registerUser = async ({name, email, password, confirmPassword}: RegisterPa
 
 const loginUser = async ({email, password}: LoginParams): Promise<LoginResponse> => {
     try {
-        if (!email) {
-            return {error: generateMissingCode('email')};
-        }
         if (!password) {
             return {error: generateMissingCode('password')};
         }
 
-        const user: IUser | null = await getUserByEmail({email});
+        const {user} = await getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
@@ -130,11 +125,8 @@ const loginWithGoogle = async ({code}: LoginWithGoogleParams): Promise<LoginResp
         const userInfoResponse = await oauth2.userinfo.get();
 
         const {id: googleId, name, email, picture: profilePicture} = userInfoResponse.data;
-        if (!email) {
-            return {error: generateInvalidCode('email_address')};
-        }
 
-        const user: IUser | null = await getUserByEmail({email});
+        const {user} = await getUserByEmail({email});
         if (user) {
             console.info('user exists'.bgMagenta.white.italic);
             const {accessToken, refreshToken} = await generateJWT(user);
@@ -153,11 +145,7 @@ const loginWithGoogle = async ({code}: LoginWithGoogleParams): Promise<LoginResp
 
 const updateUser = async ({email, name, password, profilePicture}: UpdateUserParams): Promise<UpdateUserResponse> => {
     try {
-        if (!email) {
-            return {error: generateMissingCode('email')};
-        }
-
-        const user: IUser | null = await getUserByEmail({email});
+        const {user} = await getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
@@ -252,11 +240,18 @@ const generateJWT = async (user: IUser): Promise<GenerateJWTResponse> => {
     }
 }
 
-const getUserByEmail = async ({email}: GetUserByEmailParams): Promise<IUser | null> => {
+const getUserByEmail = async ({email}: GetUserByEmailParams): Promise<GetUserByEmailResponse> => {
     try {
+        if (!email) {
+            return {error: generateMissingCode('email')};
+        }
         const user: IUser | null = await UserModel.findOne({email});
+        if (!user) {
+            return {error: generateNotFoundCode('user')};
+        }
+
         console.log('userByEmail:'.cyan.italic, {user})
-        return user;
+        return {user};
     } catch (error: any) {
         console.error('ERROR: inside catch of getUserByEmail:'.red.bold, error);
         throw error;

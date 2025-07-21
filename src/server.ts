@@ -8,6 +8,7 @@ import getLocalIp from "./utils/getLocalIP";
 import {connectDB} from "./config/connectDB";
 import newsRoutes from "./routes/NewsRoutes";
 import authRoutes from "./routes/AuthRoutes";
+import bookmarkRoutes from "./routes/BookmarkRoutes";
 
 // rest object
 const app = express();
@@ -21,6 +22,7 @@ app.use(morgan('dev'));
 app.use('/api/v1/news', newsRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/ai', aiRoutes);
+app.use('/api/v1/bookmark', bookmarkRoutes);
 
 app.get('/', function (req, res) {
     return res.status(200).send('<h1>Welcome to PulsePress Server</h1>');

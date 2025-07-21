@@ -1,7 +1,6 @@
 import "colors";
 import {createHash} from 'crypto';
 import {GoogleGenerativeAI} from "@google/generative-ai";
-import {IUser} from "../models/UserSchema";
 import {getUserByEmail} from "./AuthService";
 import {Translate} from '@google-cloud/translate/build/src/v2';
 import {GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY} from "../config/config";
@@ -27,7 +26,7 @@ const summarizeArticle = async ({email, content, language = 'en', style = 'stand
             return {error: generateMissingCode('email')};
         }
 
-        const user: IUser | null = await getUserByEmail({email});
+        const {user} = await getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }

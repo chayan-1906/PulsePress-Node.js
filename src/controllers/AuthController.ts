@@ -1,7 +1,6 @@
 import "colors";
 import {Request, Response} from "express";
 import {getAuthUrl} from "../utils/OAuth";
-import {IUser} from "../models/UserSchema";
 import {ApiResponse} from "../utils/ApiResponse";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {AuthRequest, LoginParams, RefreshTokenParams, RegisterParams, UpdateUserParams} from "../types/auth";
@@ -243,7 +242,7 @@ const getUserProfileController = async (req: Request, res: Response) => {
     try {
         const email = (req as AuthRequest).email;
 
-        const user: IUser | null = await getUserByEmail({email});
+        const {user} = await getUserByEmail({email});
         if (!user) {
             console.error('User not found'.yellow.italic);
             res.status(404).send(new ApiResponse({

@@ -1,4 +1,5 @@
 import {Request} from "express";
+import {IUser} from "../models/UserSchema";
 
 export interface AuthRequest extends Request {
     userExternalId: string;
@@ -36,6 +37,12 @@ export interface GenerateJWTResponse {
     refreshToken?: string;
 }
 
+export interface GetUserByEmailResponse {
+    user?: IUser | null;
+    error?: string;
+}
+
+
 /** ------------- function params ------------- */
 
 export interface RegisterParams {
@@ -62,7 +69,7 @@ export interface UpdateUserParams {
 }
 
 export interface GetUserByEmailParams {
-    email: string;
+    email?: string | null;
 }
 
 export interface LoginWithGoogleParams {
