@@ -1,4 +1,61 @@
 export type SummarizationStyle = 'concise' | 'standard' | 'detailed';
+export type SupportedLanguage =
+// English
+    | 'en'
+    // Major International
+    | 'es'    // Spanish
+    | 'fr'    // French
+    | 'de'    // German
+    | 'pt'    // Portuguese
+    | 'ru'    // Russian
+    | 'ja'    // Japanese
+    | 'ko'    // Korean
+    | 'zh'    // Chinese (Simplified)
+    | 'ar'    // Arabic
+    // Indian Languages
+    | 'hi'    // Hindi
+    | 'bn'    // Bengali
+    | 'te'    // Telugu
+    | 'ta'    // Tamil
+    | 'mr'    // Marathi
+    | 'gu'    // Gujarati
+    | 'kn'    // Kannada
+    | 'ml'    // Malayalam
+    | 'pa'    // Punjabi
+    | 'or'    // Odia
+    | 'as'    // Assamese
+    | 'ur'    // Urdu
+    | 'ne'    // Nepali
+    | 'si'    // Sinhala
+    | 'my';   // Myanmar
+
+export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
+    'en': 'English',
+    'es': 'Español',
+    'fr': 'Français',
+    'de': 'Deutsch',
+    'pt': 'Português',
+    'ru': 'Русский',
+    'ja': '日本語',
+    'ko': '한국어',
+    'zh': '中文',
+    'ar': 'العربية',
+    'hi': 'हिंदी',
+    'bn': 'বাংলা',
+    'te': 'తెలుగు',
+    'ta': 'தமிழ்',
+    'mr': 'मराठी',
+    'gu': 'ગુજરાતી',
+    'kn': 'ಕನ್ನಡ',
+    'ml': 'മലയാളം',
+    'pa': 'ਪੰਜਾਬੀ',
+    'or': 'ଓଡ଼ିଆ',
+    'as': 'অসমীয়া',
+    'ur': 'اردو',
+    'ne': 'नेपाली',
+    'si': 'සිංහල',
+    'my': 'မြန်မာ'
+};
 
 /** ------------- API response types ------------- */
 
@@ -18,23 +75,28 @@ export interface GenerateContentHashResponse {
 export interface SummarizeArticleParams {
     email: string;  // for authMiddleware
     content: string;
-    language?: string;
+    language?: SupportedLanguage;
     style?: SummarizationStyle;
 }
 
 export interface GenerateContentHashParams {
     content: string;
-    language?: string;
+    language?: SupportedLanguage;
     style?: SummarizationStyle;
 }
 
 export interface SaveSummaryToCacheParams {
     contentHash: string;
     summary: string;
-    language?: string;
+    language?: SupportedLanguage;
     style?: SummarizationStyle;
 }
 
 export interface GetCachedSummaryParams {
     contentHash: string;
+}
+
+export interface TranslateTextParams {
+    text: string;
+    targetLanguage: SupportedLanguage;
 }

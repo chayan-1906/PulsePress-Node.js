@@ -3,15 +3,25 @@ import {createHash} from 'crypto';
 import {GoogleGenerativeAI} from "@google/generative-ai";
 import {IUser} from "../models/UserSchema";
 import {getUserByEmail} from "./AuthService";
-import {GEMINI_API_KEY} from "../config/config";
+import {Translate} from '@google-cloud/translate/build/src/v2';
+import {GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY} from "../config/config";
 import CachedSummaryModel, {ICachedSummary} from "../models/CachedSummarySchema";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
-import {GenerateContentHashParams, GenerateContentHashResponse, GetCachedSummaryParams, SaveSummaryToCacheParams, SummarizeArticleParams, SummarizeArticleResponse} from "../types/ai";
+import {
+    GenerateContentHashParams,
+    GenerateContentHashResponse,
+    GetCachedSummaryParams,
+    SaveSummaryToCacheParams,
+    SummarizeArticleParams,
+    SummarizeArticleResponse,
+    TranslateTextParams
+} from "../types/ai";
 
 // Initialize with API key
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
+const translate = new Translate({key: GOOGLE_TRANSLATE_API_KEY});
 
-const summarizeArticle = async ({email, content, language = 'English', style = 'standard'}: SummarizeArticleParams): Promise<SummarizeArticleResponse> => {
+const summarizeArticle = async ({email, content, language = 'en', style = 'standard'}: SummarizeArticleParams): Promise<SummarizeArticleResponse> => {
     try {
         if (!email) {
             return {error: generateMissingCode('email')};
@@ -40,11 +50,11 @@ const summarizeArticle = async ({email, content, language = 'English', style = '
 
         let prompt = '';
         if (style === 'concise') {
-            prompt = `Summarize the following news article in 20% of its original length in ${language}. Focus only on the key facts and avoid unnecessary details.\n Content: ${content}`;
+            prompt = `Summarize the following news article in 20% of its original length. Focus only on the key facts and avoid unnecessary details.\n Content: ${content}`;
         } else if (style === 'standard') {
-            prompt = `Provide a balanced summary of the following news article in 40% of its original length in ${language}. Include the main points while keeping the core context intact.\n Content: ${content}`;
+            prompt = `Provide a balanced summary of the following news article in 40% of its original length. Include the main points while keeping the core context intact.\n Content: ${content}`;
         } else if (style === 'detailed') {
-            prompt = `Summarize the following news article in 60% of its original length in ${language}. Include more context and background to preserve the depth of the article.\n Content: ${content}`;
+            prompt = `Summarize the following news article in 60% of its original length. Include more context and background to preserve the depth of the article.\n Content: ${content}`;
         }
 
         const summarizedArticleResponse = await model.generateContent(prompt);
@@ -53,12 +63,17 @@ const summarizeArticle = async ({email, content, language = 'English', style = '
             return {error: 'SUMMARIZATION_FAILED'};
         }
 
+        let finalSummary = text;
+        if (language !== 'en') {
+            finalSummary = await translateText({text, targetLanguage: language});
+        }
+
         // After AI generates summary, save to cache:
-        await saveSummaryToCache({contentHash: hash, summary: text, language, style});
+        await saveSummaryToCache({contentHash: hash, summary: finalSummary, language, style});
 
         return {
-            summary: text,
-            powered_by: 'Google Gemini AI',
+            summary: finalSummary,
+            powered_by: 'Google Gemini AI' + (language !== 'en' ? ' + Translate' : ''),
         };
     } catch (error: any) {
         console.error('ERROR: inside catch of summarizeArticle:'.red.bold, error);
@@ -66,7 +81,7 @@ const summarizeArticle = async ({email, content, language = 'English', style = '
     }
 }
 
-const generateContentHash = async ({content, language = 'English', style = 'standard'}: GenerateContentHashParams): Promise<GenerateContentHashResponse> => {
+const generateContentHash = async ({content, language = 'en', style = 'standard'}: GenerateContentHashParams): Promise<GenerateContentHashResponse> => {
     try {
         if (!content) {
             return {error: generateMissingCode('content')};
@@ -103,6 +118,20 @@ const getCachedSummary = async ({contentHash}: GetCachedSummaryParams): Promise<
     });
     console.log('cachedSummary'.cyan.italic, cachedSummary);
     return cachedSummary;
+}
+
+const translateText = async ({text, targetLanguage}: TranslateTextParams): Promise<string> => {
+    console.log('translateText:', {text, targetLanguage});
+    try {
+        const [translation] = await translate.translate(text, {
+            to: targetLanguage, // 'bn' for Bengali, 'hi' for Hindi, etc.
+        });
+        console.log('translation:'.cyan.italic, translation);
+        return translation;
+    } catch (error: any) {
+        console.error('ERROR: inside catch of translateText:'.red.bold, error);
+        return text; // fallback to original text
+    }
 }
 
 export {summarizeArticle};

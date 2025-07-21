@@ -56,6 +56,7 @@ const summarizeArticleController = async (req: Request, res: Response) => {
             success: true,
             message: 'Article summarized 🎉',
             summary,
+            powered_by,
         }));
     } catch (error: any) {
         console.error('ERROR: inside catch of summarizeArticleController:'.red.bold, error);
