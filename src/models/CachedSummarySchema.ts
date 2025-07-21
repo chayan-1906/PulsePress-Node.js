@@ -1,8 +1,5 @@
 import {Document, Model, model, Schema} from "mongoose";
-import {SummarizationStyle, SupportedLanguage} from "../types/ai";
-
-const SUMMARIZATION_STYLES: SummarizationStyle[] = ['concise', 'standard', 'detailed'];
-const SUPPORTED_LANGUAGES: SupportedLanguage[] = ['en', 'es', 'fr', 'de', 'pt', 'ru', 'ja', 'ko', 'zh', 'ar', 'hi', 'bn', 'te', 'ta', 'mr', 'gu', 'kn', 'ml', 'pa', 'or', 'as', 'ur', 'ne', 'si', 'my'];
+import {SUMMARIZATION_STYLES, SummarizationStyle, SUPPORTED_LANGUAGES} from "../types/ai";
 
 export interface ICachedSummary extends Document {
     contentHash: string;    // content + language + style
