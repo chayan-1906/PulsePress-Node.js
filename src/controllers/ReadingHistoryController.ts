@@ -2,7 +2,7 @@ import "colors";
 import {Request, Response} from "express";
 import {AuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
-import {generateMissingCode} from "../utils/generateErrorCodes";
+import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {CompleteArticleParams, GetReadingHistoryParams, ModifyReadingHistoryParams} from "../types/reading-history";
 import {clearHistory, completeArticle, getReadingAnalytics, getReadingHistories, modifyReadingHistory} from "../services/ReadingHistoryService";
 
@@ -46,6 +46,15 @@ const modifyReadingHistoryController = async (req: Request, res: Response) => {
                 success: false,
                 errorCode: generateMissingCode('email'),
                 errorMsg: 'Email is missing',
+            }));
+            return;
+        }
+        if (error === generateNotFoundCode('user')) {
+            console.error('User not found'.yellow.italic);
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
             }));
             return;
         }
@@ -98,6 +107,15 @@ const getReadingHistoriesController = async (req: Request, res: Response) => {
             }));
             return;
         }
+        if (error === generateNotFoundCode('user')) {
+            console.error('User not found'.yellow.italic);
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
+            }));
+            return;
+        }
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -139,6 +157,15 @@ const completeArticleController = async (req: Request, res: Response) => {
                 success: false,
                 errorCode: generateMissingCode('email'),
                 errorMsg: 'Email is missing',
+            }));
+            return;
+        }
+        if (error === generateNotFoundCode('user')) {
+            console.error('User not found'.yellow.italic);
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
             }));
             return;
         }
@@ -191,6 +218,15 @@ const clearHistoryController = async (req: Request, res: Response) => {
             }));
             return;
         }
+        if (error === generateNotFoundCode('user')) {
+            console.error('User not found'.yellow.italic);
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
+            }));
+            return;
+        }
 
         if (isCleared) {
             res.status(200).send(new ApiResponse({
@@ -220,6 +256,24 @@ const getReadingHistoryAnalyticsController = async (req: Request, res: Response)
         const email = (req as AuthRequest).email;
 
         const {analytics, error} = await getReadingAnalytics({email});
+        if (error === generateMissingCode('email')) {
+            console.error('Email is missing'.yellow.italic);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('email'),
+                errorMsg: 'Email is missing',
+            }));
+            return;
+        }
+        if (error === generateNotFoundCode('user')) {
+            console.error('User not found'.yellow.italic);
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
+            }));
+            return;
+        }
         if (error) {
             res.status(500).send(new ApiResponse({
                 success: false,

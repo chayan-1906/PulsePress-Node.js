@@ -39,6 +39,15 @@ const modifyUserPreferenceController = async (req: Request, res: Response) => {
             }));
             return;
         }
+        if (error === generateNotFoundCode('user')) {
+            console.error('User not found'.yellow.italic);
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
+            }));
+            return;
+        }
 
         if (error === 'MODIFY_USER_PREFERENCE_FAILED') {
             res.status(500).send(new ApiResponse({
@@ -87,6 +96,15 @@ const getUserPreferenceController = async (req: Request, res: Response) => {
             }));
             return;
         }
+        if (error === generateNotFoundCode('user')) {
+            console.error('User not found'.yellow.italic);
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
+            }));
+            return;
+        }
 
         if (error === 'GET_USER_PREFERENCE_FAILED') {
             res.status(500).send(new ApiResponse({
@@ -124,6 +142,15 @@ const resetUserPreferenceController = async (req: Request, res: Response) => {
                 success: false,
                 errorCode: generateMissingCode('email'),
                 errorMsg: 'Email is missing',
+            }));
+            return;
+        }
+        if (error === generateNotFoundCode('user')) {
+            console.error('User not found'.yellow.italic);
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
             }));
             return;
         }
