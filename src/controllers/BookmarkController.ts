@@ -61,7 +61,7 @@ const toggleBookmarkController = async (req: Request, res: Response) => {
 
         if (added) {
             // bookmarked
-            res.status(200).send(new ApiResponse({
+            res.status(201).send(new ApiResponse({
                 success: true,
                 message: 'Article bookmarked 🎉',
                 bookmarked: true,
@@ -152,7 +152,15 @@ const getAllBookmarksController = async (req: Request, res: Response) => {
         const email = (req as AuthRequest).email;
         const {pageSize, page}: Partial<GetAllBookmarksParams> = req.query;
 
-        const {bookmarkedArticles, totalCount, currentPage, totalPages, error} = await getAllBookmarks({email, pageSize, page});
+        let pageSizeNumber, pageNumber;
+        if (pageSize && !isNaN(pageSize)) {
+            pageSizeNumber = Number(pageSize);
+        }
+        if (page && !isNaN(page)) {
+            pageNumber = Number(page);
+        }
+
+        const {bookmarkedArticles, totalCount, currentPage, totalPages, error} = await getAllBookmarks({email, pageSize: pageSizeNumber, page: pageNumber});
         if (error === generateMissingCode('email')) {
             console.error('Email is missing'.yellow.italic);
             res.status(400).send(new ApiResponse({

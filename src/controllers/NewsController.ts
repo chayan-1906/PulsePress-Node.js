@@ -9,7 +9,7 @@ const getAllTopHeadlinesController = async (req: Request, res: Response) => {
     try {
         const {country, category, sources, q, pageSize, page}: Partial<TopHeadlinesParams> = req.query;
 
-        let pageSizeNumber = 10, pageNumber = 1;
+        let pageSizeNumber, pageNumber;
         if (pageSize && !isNaN(pageSize)) {
             pageSizeNumber = Number(pageSize);
         }
@@ -39,7 +39,7 @@ const getAllRSSFeedsController = async (req: Request, res: Response) => {
     try {
         const {sources, pageSize, page}: Partial<RSSFeedParams> = req.query;
 
-        let pageSizeNumber = 10, pageNumber = 1;
+        let pageSizeNumber, pageNumber;
         if (pageSize && !isNaN(pageSize)) {
             pageSizeNumber = Number(pageSize);
         }

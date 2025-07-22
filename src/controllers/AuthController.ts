@@ -78,7 +78,7 @@ const registerUserController = async (req: Request, res: Response) => {
         }
         console.log('new user created:'.cyan.italic, {user, accessToken, refreshToken});
 
-        res.status(200).send(new ApiResponse({
+        res.status(201).send(new ApiResponse({
             success: true,
             message: 'Registration successful 🎉',
             user,
@@ -140,7 +140,7 @@ const loginController = async (req: Request, res: Response) => {
         }
         console.log('user loggedIn:'.cyan.italic, {user, accessToken, refreshToken});
 
-        res.status(200).send(new ApiResponse({
+        res.status(201).send(new ApiResponse({
             success: true,
             message: 'Login successful 🎉',
             user,
@@ -175,7 +175,7 @@ const refreshTokenController = async (req: Request, res: Response) => {
         const {accessToken} = await refreshToken({refreshToken: rawRefreshToken});
         console.log('token refreshed:'.cyan.italic, {accessToken});
 
-        res.status(200).send(new ApiResponse({
+        res.status(201).send(new ApiResponse({
             success: true,
             message: 'Token refreshed 🎉',
             accessToken,
@@ -219,7 +219,7 @@ const loginWithGoogleController = async (req: Request, res: Response) => {
             return;
         }
 
-        res.status(200).send(new ApiResponse({
+        res.status(201).send(new ApiResponse({
             success: true,
             message: 'Login successful 🎉',
             user,

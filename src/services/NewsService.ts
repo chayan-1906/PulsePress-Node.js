@@ -7,7 +7,7 @@ import {buildHeader} from "../utils/buildHeader";
 import {RSSFeed, RSSFeedParams, TopHeadlinesAPIResponse, TopHeadlinesParams} from "../types/news";
 
 // https://newsapi.org/docs/endpoints/top-headlines
-const fetchTopHeadlines = async ({country, category, sources, q, pageSize, page}: TopHeadlinesParams) => {
+const fetchTopHeadlines = async ({country, category, sources, q, pageSize = 10, page = 1}: TopHeadlinesParams) => {
     try {
         const {data: topHeadlinesResponse} = await axios.get<TopHeadlinesAPIResponse>(apis.topHeadlinesApi({country: country || 'us', category, sources, q, pageSize, page}), {headers: buildHeader()});
         console.log('topHeadlines:'.cyan.italic, topHeadlinesResponse);
@@ -25,7 +25,7 @@ const fetchTopHeadlines = async ({country, category, sources, q, pageSize, page}
     }
 }
 
-const fetchRSSFeed = async ({sources, pageSize = 20, page = 1}: RSSFeedParams) => {
+const fetchRSSFeed = async ({sources, pageSize = 10, page = 1}: RSSFeedParams) => {
     try {
         const sourcesToFetch = sources ? sources.split(',') : Object.keys(RSS_SOURCES);
         const startIndex = (page - 1) * pageSize;
