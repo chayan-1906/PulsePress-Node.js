@@ -27,6 +27,7 @@ const CachedSummarySchema = new Schema<ICachedSummary>({
     style: {
         type: String,
         required: true,
+        default: 'standard',
         enum: SUMMARIZATION_STYLES,
     },
     language: {

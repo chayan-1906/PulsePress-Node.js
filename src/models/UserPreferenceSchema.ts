@@ -1,7 +1,10 @@
 import {Document, Model, model, Schema} from "mongoose";
+import generateNanoIdWithAlphabet from "../utils/generateUUID";
 import {SUMMARIZATION_STYLES, SummarizationStyle, SUPPORTED_LANGUAGES, SupportedLanguage} from "../types/ai";
 
 export interface IUserPreference extends Document {
+    userPreferenceId: string;
+    userPreferenceExternalId: string;
     userExternalId: string;
     preferredLanguage: SupportedLanguage;
     preferredCategories: string[];
@@ -15,6 +18,12 @@ interface IUserPreferenceModel extends Model<IUserPreference> {
 }
 
 const UserPreferenceSchema = new Schema<IUserPreference>({
+    userPreferenceExternalId: {
+        type: String,
+        unique: true,
+        required: true,
+        default: () => generateNanoIdWithAlphabet(),
+    },
     userExternalId: {
         type: String,
         unique: true,
@@ -42,6 +51,7 @@ const UserPreferenceSchema = new Schema<IUserPreference>({
     timestamps: true,
     toJSON: {
         transform(doc, ret) {
+            ret.userPreferenceId = String(ret._id);
             (ret as any)._id = undefined;
             (ret as any).__v = undefined;
 

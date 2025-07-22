@@ -1,0 +1,163 @@
+import "colors";
+import {Request, Response} from "express";
+import {AuthRequest} from "../types/auth";
+import {ApiResponse} from "../utils/ApiResponse";
+import {ModifyUserPreferenceParams} from "../types/user-preference";
+import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
+import {getUserPreference, modifyUserPreference, resetUserPreference} from "../services/UserPreferenceService";
+
+const modifyUserPreferenceController = async (req: Request, res: Response) => {
+    console.log('modifyUserPreferenceController called');
+    try {
+        const email = (req as AuthRequest).email;
+        const {preferredLanguage, preferredCategories, preferredSources, summaryStyle}: ModifyUserPreferenceParams = req.body;
+
+        if (preferredCategories && !Array.isArray(preferredCategories)) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateInvalidCode('preferred_categories'),
+                errorMsg: 'Preferred categories must be an array of strings',
+            }));
+            return;
+        }
+        if (preferredSources && !Array.isArray(preferredSources)) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateInvalidCode('preferred_sources'),
+                errorMsg: 'Preferred sources must be an array of strings',
+            }));
+            return;
+        }
+
+        const {userPreference, error} = await modifyUserPreference({email, preferredLanguage, preferredCategories, preferredSources, summaryStyle});
+        if (error === generateMissingCode('email')) {
+            console.error('Email is missing'.yellow.italic);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('email'),
+                errorMsg: 'Email is missing',
+            }));
+            return;
+        }
+
+        if (error === 'MODIFY_USER_PREFERENCE_FAILED') {
+            res.status(500).send(new ApiResponse({
+                success: false,
+                errorCode: 'MODIFY_USER_PREFERENCE_FAILED',
+                errorMsg: 'Failed to modify user preference',
+            }));
+            return;
+        }
+        if (error === generateNotFoundCode('user_preference')) {
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user_preference'),
+                errorMsg: 'User preference not found',
+            }));
+            return;
+        }
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'User preference has been modified 🎉',
+            userPreference,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of modifyUserPreferenceController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: 'Something went wrong',
+        }));
+    }
+}
+
+const getUserPreferenceController = async (req: Request, res: Response) => {
+    console.log('getUserPreferenceController called');
+    try {
+        const email = (req as AuthRequest).email;
+
+        const {userPreference, error} = await getUserPreference({email});
+        if (error === generateMissingCode('email')) {
+            console.error('Email is missing'.yellow.italic);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('email'),
+                errorMsg: 'Email is missing',
+            }));
+            return;
+        }
+
+        if (error === 'GET_USER_PREFERENCE_FAILED') {
+            res.status(500).send(new ApiResponse({
+                success: false,
+                errorCode: 'GET_USER_PREFERENCE_FAILED',
+                errorMsg: 'Failed to get user preference',
+            }));
+            return;
+        }
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'User preference has been fetched 🎉',
+            userPreference,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of getUserPreferenceController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: 'Something went wrong',
+        }));
+    }
+}
+
+const resetUserPreferenceController = async (req: Request, res: Response) => {
+    console.log('resetUserPreferenceController called');
+    try {
+        const email = (req as AuthRequest).email;
+
+        const {isReset, error} = await resetUserPreference({email});
+        if (error === generateMissingCode('email')) {
+            console.error('Email is missing'.yellow.italic);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('email'),
+                errorMsg: 'Email is missing',
+            }));
+            return;
+        }
+
+        if (error === 'RESET_USER_PREFERENCE_FAILED') {
+            res.status(500).send(new ApiResponse({
+                success: false,
+                errorCode: 'RESET_USER_PREFERENCE_FAILED',
+                errorMsg: 'Failed to reset user preference',
+            }));
+            return;
+        }
+        if (error === generateNotFoundCode('user_preference')) {
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user_preference'),
+                errorMsg: 'User preference not found',
+            }));
+            return;
+        }
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'User preference has been reset 🎉',
+            isReset,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of resetUserPreferenceController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: 'Something went wrong',
+        }));
+    }
+}
+
+export {modifyUserPreferenceController, getUserPreferenceController, resetUserPreferenceController};

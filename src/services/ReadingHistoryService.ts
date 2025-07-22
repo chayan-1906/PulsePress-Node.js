@@ -22,10 +22,10 @@ const modifyReadingHistory = async ({email, articleUrl, readAt, readDuration, co
         }
 
         if (!articleUrl) {
-            return {error: generateMissingCode('articleUrl')};
+            return {error: generateMissingCode('article_url')};
         }
         if (!readAt) {
-            return {error: generateMissingCode('readAt')};
+            return {error: generateMissingCode('read_at')};
         }
         if (completed === null || typeof completed === 'undefined') {
             return {error: generateMissingCode('completed')};
@@ -86,7 +86,7 @@ const completeArticle = async ({email, articleUrl}: CompleteArticleParams): Prom
         }
 
         if (!articleUrl) {
-            return {error: generateMissingCode('articleUrl')};
+            return {error: generateMissingCode('article_url')};
         }
 
         const updatedArticleHistory = await ReadingHistoryModel.findOneAndUpdate(
