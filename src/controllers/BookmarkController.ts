@@ -8,6 +8,7 @@ import {GetAllBookmarksParams, IsBookmarkedParams, ToggleBookmarkParams} from ".
 
 const toggleBookmarkController = async (req: Request, res: Response) => {
     console.log('toggleBookmarkController called');
+
     try {
         const email = (req as AuthRequest).email;
         const {articleUrl, title, source, description, imageUrl}: Partial<ToggleBookmarkParams> = req.body;
@@ -63,7 +64,7 @@ const toggleBookmarkController = async (req: Request, res: Response) => {
             // bookmarked
             res.status(201).send(new ApiResponse({
                 success: true,
-                message: 'Article bookmarked 🎉',
+                message: 'Article has been bookmarked 🎉',
                 bookmarked: true,
                 bookmark,
             }));
@@ -72,7 +73,7 @@ const toggleBookmarkController = async (req: Request, res: Response) => {
             // bookmark deleted
             res.status(200).send(new ApiResponse({
                 success: true,
-                message: 'Article removed from bookmark 🎉',
+                message: 'Article has been removed from bookmark 🎉',
                 bookmarked: false,
             }));
             return;
@@ -97,6 +98,7 @@ const toggleBookmarkController = async (req: Request, res: Response) => {
 
 const isBookmarkedController = async (req: Request, res: Response) => {
     console.log('isBookmarkedController called');
+
     try {
         const email = (req as AuthRequest).email;
         const {articleUrl}: Partial<IsBookmarkedParams> = req.query;
@@ -133,7 +135,7 @@ const isBookmarkedController = async (req: Request, res: Response) => {
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Fetched bookmark status 🎉',
+            message: 'Bookmark status has been fetched 🎉',
             isBookmarked,
         }));
     } catch (error: any) {
@@ -148,6 +150,7 @@ const isBookmarkedController = async (req: Request, res: Response) => {
 
 const getAllBookmarksController = async (req: Request, res: Response) => {
     console.log('getAllBookmarksController called');
+
     try {
         const email = (req as AuthRequest).email;
         const {pageSize, page}: Partial<GetAllBookmarksParams> = req.query;
@@ -183,7 +186,7 @@ const getAllBookmarksController = async (req: Request, res: Response) => {
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Bookmarked articles fetched 🎉',
+            message: 'Bookmarked articles has been fetched 🎉',
             bookmarks: bookmarkedArticles,
             totalCount,
             currentPage,
@@ -201,6 +204,7 @@ const getAllBookmarksController = async (req: Request, res: Response) => {
 
 const getBookmarkCountController = async (req: Request, res: Response) => {
     console.log('getBookmarkCountController called');
+
     try {
         const email = (req as AuthRequest).email;
 
@@ -227,7 +231,7 @@ const getBookmarkCountController = async (req: Request, res: Response) => {
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'No. of bookmarked articles fetched 🎉',
+            message: 'No. of bookmarked articles has been fetched 🎉',
             bookmarkCount: count,
         }));
     } catch (error: any) {

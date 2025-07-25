@@ -52,9 +52,9 @@ const summarizeArticleController = async (req: Request, res: Response) => {
         }
         console.log('article summarized:'.cyan.italic, {summary, powered_by});
 
-        res.status(201).send(new ApiResponse({
+        res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Article summarized 🎉',
+            message: 'Article has been summarized 🎉',
             summary,
             powered_by,
         }));

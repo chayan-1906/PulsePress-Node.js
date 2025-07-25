@@ -21,7 +21,7 @@ const getAllTopHeadlinesController = async (req: Request, res: Response) => {
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Top headlines found 🎉',
+            message: 'Top headlines have been found 🎉',
             topHeadlines,
         }));
     } catch (error: any) {
@@ -51,7 +51,7 @@ const getAllRSSFeedsController = async (req: Request, res: Response) => {
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'RSS Feeds found 🎉',
+            message: 'RSS Feeds have been found 🎉',
             totalResults: rssFeeds.length,
             rssFeeds,
         }));

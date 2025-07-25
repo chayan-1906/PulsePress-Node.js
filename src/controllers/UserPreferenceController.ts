@@ -8,6 +8,7 @@ import {getUserPreference, modifyUserPreference, resetUserPreference} from "../s
 
 const modifyUserPreferenceController = async (req: Request, res: Response) => {
     console.log('modifyUserPreferenceController called');
+
     try {
         const email = (req as AuthRequest).email;
         const {preferredLanguage, preferredCategories, preferredSources, summaryStyle}: ModifyUserPreferenceParams = req.body;
@@ -83,6 +84,7 @@ const modifyUserPreferenceController = async (req: Request, res: Response) => {
 
 const getUserPreferenceController = async (req: Request, res: Response) => {
     console.log('getUserPreferenceController called');
+
     try {
         const email = (req as AuthRequest).email;
 

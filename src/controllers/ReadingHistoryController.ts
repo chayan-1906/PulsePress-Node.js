@@ -8,6 +8,7 @@ import {clearHistory, completeArticle, getReadingAnalytics, getReadingHistories,
 
 const modifyReadingHistoryController = async (req: Request, res: Response) => {
     console.log('modifyReadingHistoryController called');
+
     try {
         const email = (req as AuthRequest).email;
         const {articleUrl, readAt, readDuration, completed}: ModifyReadingHistoryParams = req.body;
@@ -62,7 +63,7 @@ const modifyReadingHistoryController = async (req: Request, res: Response) => {
         if (isModified) {
             res.status(200).send(new ApiResponse({
                 success: true,
-                message: 'Reading history modified 🎉',
+                message: 'Reading history has been modified 🎉',
                 isModified,
             }));
         } else {
@@ -85,6 +86,7 @@ const modifyReadingHistoryController = async (req: Request, res: Response) => {
 
 const getReadingHistoriesController = async (req: Request, res: Response) => {
     console.log('getReadingHistoryController called');
+
     try {
         const email = (req as AuthRequest).email;
         const {pageSize, page}: Partial<GetReadingHistoryParams> = req.query;
@@ -119,7 +121,7 @@ const getReadingHistoriesController = async (req: Request, res: Response) => {
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Reading histories fetched 🎉',
+            message: 'Reading histories have been fetched 🎉',
             readingHistories,
             totalCount,
             currentPage,
@@ -137,6 +139,7 @@ const getReadingHistoriesController = async (req: Request, res: Response) => {
 
 const completeArticleController = async (req: Request, res: Response) => {
     console.log('completeArticleController called');
+
     try {
         const email = (req as AuthRequest).email;
         const {articleUrl}: CompleteArticleParams = req.body;
@@ -190,7 +193,7 @@ const completeArticleController = async (req: Request, res: Response) => {
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Article marked as completed 🎉',
+            message: 'Article has been marked as completed 🎉',
             isCompleted,
         }));
     } catch (error: any) {
@@ -205,6 +208,7 @@ const completeArticleController = async (req: Request, res: Response) => {
 
 const clearHistoryController = async (req: Request, res: Response) => {
     console.log('clearHistoryController called');
+
     try {
         const email = (req as AuthRequest).email;
 
@@ -231,7 +235,7 @@ const clearHistoryController = async (req: Request, res: Response) => {
         if (isCleared) {
             res.status(200).send(new ApiResponse({
                 success: true,
-                message: 'Reading history cleared 🎉',
+                message: 'Reading history has been cleared 🎉',
             }));
         } else {
             res.status(500).send(new ApiResponse({
@@ -252,6 +256,7 @@ const clearHistoryController = async (req: Request, res: Response) => {
 
 const getReadingHistoryAnalyticsController = async (req: Request, res: Response) => {
     console.log('getReadingHistoryAnalyticsController called');
+
     try {
         const email = (req as AuthRequest).email;
 
@@ -285,7 +290,7 @@ const getReadingHistoryAnalyticsController = async (req: Request, res: Response)
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Reading history analytics fetched 🎉',
+            message: 'Reading history analytics have been fetched 🎉',
             analytics,
         }));
     } catch (error: any) {

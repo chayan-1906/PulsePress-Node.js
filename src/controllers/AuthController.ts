@@ -159,7 +159,7 @@ const loginController = async (req: Request, res: Response) => {
         }
         console.log('user loggedIn:'.cyan.italic, {user, accessToken, refreshToken});
 
-        res.status(201).send(new ApiResponse({
+        res.status(200).send(new ApiResponse({
             success: true,
             message: 'Login successful 🎉',
             user,
@@ -194,9 +194,9 @@ const refreshTokenController = async (req: Request, res: Response) => {
         const {accessToken} = await refreshToken({refreshToken: rawRefreshToken});
         console.log('token refreshed:'.cyan.italic, {accessToken});
 
-        res.status(201).send(new ApiResponse({
+        res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Token refreshed 🎉',
+            message: 'Token has been refreshed 🎉',
             accessToken,
         }));
     } catch (error: any) {
@@ -215,6 +215,7 @@ const redirectToGoogle = async (req: Request, res: Response) => {
 
 const loginWithGoogleController = async (req: Request, res: Response) => {
     console.info('loginWithGoogleController called'.bgMagenta.white.italic);
+
     try {
         const code = req.query.code as string;
         if (!code) {
@@ -238,7 +239,7 @@ const loginWithGoogleController = async (req: Request, res: Response) => {
             return;
         }
 
-        res.status(201).send(new ApiResponse({
+        res.status(200).send(new ApiResponse({
             success: true,
             message: 'Login successful 🎉',
             user,
@@ -275,7 +276,7 @@ const getUserProfileController = async (req: Request, res: Response) => {
         console.log('user profile:'.cyan.italic, {user});
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'User profile fetched 🎉',
+            message: 'User profile has been fetched 🎉',
             user,
         }));
     } catch (error: any) {
@@ -343,7 +344,7 @@ const updateUserController = async (req: Request, res: Response) => {
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'User updated 🎉',
+            message: 'User has been updated 🎉',
             // user,
         }));
     } catch (error: any) {
