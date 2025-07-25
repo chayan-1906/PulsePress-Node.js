@@ -6,6 +6,7 @@ import ReadingHistoryModel from "../models/ReadingHistorySchema";
 import UserPreferenceModel from "../models/UserPreferenceSchema";
 import {generateNotFoundCode} from "../utils/generateErrorCodes";
 import {GetContentRecommendationsParams, GetContentRecommendationsResponse, RecommendedArticle} from "../types/content-recommendation";
+import {sourceMap, SupportedSource} from "../types/news";
 
 const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecommendationsParams): Promise<GetContentRecommendationsResponse> => {
     try {
@@ -22,7 +23,9 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
         ]);
 
         // Analyze reading patterns
-        const readingSources = readingHistory.map(h => extractSourceFromUrl(h.articleUrl));
+        const readingSources: SupportedSource[] = readingHistory
+            .map(h => extractSourceFromUrl(h.articleUrl))
+            .filter((s): s is SupportedSource => s !== null);
         const sourceFrequency = countFrequency(readingSources);
         const readUrls = new Set(readingHistory.map(h => h.articleUrl));
 
@@ -56,7 +59,11 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
             .filter(article => !(!article.url || readUrls.has(article.url)))
             .map(article => {
                 let score = 0;
-                const source = extractSourceFromUrl(article.url);
+                const source: SupportedSource | null = extractSourceFromUrl(article.url);
+                if (!source) {
+                    // handle unknown or skip
+                    return null;
+                }
 
                 // Boost score for frequently read sources
                 if (sourceFrequency[source]) {
@@ -69,7 +76,9 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
                 }
 
                 // Boost score for bookmarked sources
-                const bookmarkedSources = bookmarks.map(b => extractSourceFromUrl(b.articleUrl));
+                const bookmarkedSources: SupportedSource[] = bookmarks
+                    .map(b => extractSourceFromUrl(b.articleUrl))
+                    .filter((s): s is SupportedSource => s !== null);
                 if (bookmarkedSources.includes(source)) {
                     score += 2;
                 }
@@ -85,6 +94,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
                     recommendationReason: getRecommendationReason(source, sourceFrequency, preferences, bookmarkedSources)
                 };
             })
+            .filter((article): article is RecommendedArticle => article !== null)
             .sort((a, b) => b.recommendationScore - a.recommendationScore)
             .slice(0, pageSize);
 
@@ -110,25 +120,12 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
 }
 
 // Helper functions
-const extractSourceFromUrl = (url: string): string => {
+const extractSourceFromUrl = (url: string): SupportedSource | null => {
     try {
         const domain = new URL(url).hostname.replace('www.', '');
-        const sourceMap: { [key: string]: string } = {
-            'techcrunch.com': 'techcrunch',
-            'bbc.co.uk': 'bbc_tech',
-            'wired.com': 'wired',
-            'arstechnica.com': 'ars_technica',
-            'engadget.com': 'engadget',
-            'theverge.com': 'verge',
-            'cnet.com': 'cnet',
-            'mashable.com': 'mashable',
-            'zdnet.com': 'zdnet',
-            'techradar.com': 'techradar',
-            'gizmodo.com': 'gizmodo'
-        };
-        return sourceMap[domain] || domain;
+        return sourceMap[domain] ?? null;
     } catch {
-        return 'unknown';
+        return null;
     }
 }
 

@@ -1,5 +1,6 @@
 import {SummarizationStyle, SupportedLanguage} from "./ai";
 import {IUserPreference} from "../models/UserPreferenceSchema";
+import {SupportedCategory, SupportedSource} from "./news";
 
 
 /** ------------- API response types ------------- */
@@ -25,8 +26,8 @@ export interface ResetUserPreferenceResponse {
 export interface ModifyUserPreferenceParams {
     email: string;
     preferredLanguage?: SupportedLanguage;
-    preferredCategories: string[];
-    preferredSources: string[];
+    preferredCategories: SupportedCategory[];
+    preferredSources: SupportedSource[];
     summaryStyle: SummarizationStyle;
 }
 

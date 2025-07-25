@@ -1,5 +1,6 @@
 import {Document, Model, model, Schema} from "mongoose";
 import generateNanoIdWithAlphabet from "../utils/generateUUID";
+import {SUPPORTED_CATEGORIES, SUPPORTED_SOURCES, SupportedCategory, SupportedSource} from "../types/news";
 import {SUMMARIZATION_STYLES, SummarizationStyle, SUPPORTED_LANGUAGES, SupportedLanguage} from "../types/ai";
 
 export interface IUserPreference extends Document {
@@ -7,8 +8,8 @@ export interface IUserPreference extends Document {
     userPreferenceExternalId: string;
     userExternalId: string;
     preferredLanguage: SupportedLanguage;
-    preferredCategories: string[];
-    preferredSources: string[];
+    preferredCategories: SupportedCategory[];
+    preferredSources: SupportedSource[];
     summaryStyle: SummarizationStyle;
     createdAt: Date;
     updatedAt: Date;
@@ -37,10 +38,12 @@ const UserPreferenceSchema = new Schema<IUserPreference>({
     preferredCategories: {
         type: [String],
         required: true,
+        enum: SUPPORTED_CATEGORIES,
     },
     preferredSources: {
         type: [String],
         required: true,
+        enum: SUPPORTED_SOURCES,
     },
     summaryStyle: {
         type: String,
