@@ -77,6 +77,10 @@ const loginUser = async ({email, password}: LoginParams): Promise<LoginResponse>
             return {error: generateNotFoundCode('user')};
         }
 
+        if (user.googleId && !user.password) {
+            return {error: 'GOOGLE_USER_USE_OAUTH'};
+        }
+
         const isMatched = await verifyPassword(password, user.password!);
         if (!isMatched) {
             return {error: generateInvalidCode('credentials')};

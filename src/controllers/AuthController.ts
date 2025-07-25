@@ -147,6 +147,16 @@ const loginController = async (req: Request, res: Response) => {
             }));
             return;
         }
+        if (error === 'GOOGLE_USER_USE_OAUTH') {
+            console.error('Google user trying email login'.yellow.italic);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'GOOGLE_USER_USE_OAUTH',
+                errorMsg: 'This account uses Google Sign-In. Please use Google authentication',
+                // errorMsg: 'Please sign in with Google instead. Use the "Continue with Google" button',
+            }));
+            return;
+        }
         console.log('user loggedIn:'.cyan.italic, {user, accessToken, refreshToken});
 
         res.status(201).send(new ApiResponse({
