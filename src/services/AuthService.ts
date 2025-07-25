@@ -3,6 +3,7 @@ import bcryptjs from "bcryptjs";
 import jwt, {SignOptions} from "jsonwebtoken";
 import {getOAuth2Client} from "../utils/OAuth";
 import UserModel, {IUser} from "../models/UserSchema";
+import {modifyUserPreference} from "./UserPreferenceService";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {ACCESS_TOKEN_EXPIRY, ACCESS_TOKEN_SECRET, REFRESH_TOKEN_EXPIRY, REFRESH_TOKEN_SECRET} from "../config/config";
 import {
@@ -50,8 +51,14 @@ const registerUser = async ({name, email, password, confirmPassword}: RegisterPa
 
         const newUser: IUser | null = await UserModel.create({name, email, password: hashedPassword});
         const {accessToken, refreshToken} = await generateJWT(newUser);
-
         console.log('user created:'.cyan.italic, newUser);
+
+        const {userPreference, error} = await modifyUserPreference({email, preferredLanguage: 'en', preferredCategories: [], preferredSources: [], summaryStyle: 'standard'});
+        if (error) {
+            return {error: 'CREATE_USER_PREFERENCE_FAILED'};
+        }
+        console.log('user preference created:'.cyan.italic, userPreference);
+
         return {user: newUser, accessToken, refreshToken};
     } catch (error: any) {
         console.error('ERROR: inside catch of registerUser:'.red.bold, error);
@@ -135,6 +142,13 @@ const loginWithGoogle = async ({code}: LoginWithGoogleParams): Promise<LoginResp
 
         const newUser: IUser | null = await UserModel.create({googleId, name, email, profilePicture});
         const {accessToken, refreshToken} = await generateJWT(newUser);
+        console.log('user created:'.cyan.italic, newUser);
+
+        const {userPreference, error} = await modifyUserPreference({email: email || '', preferredLanguage: 'en', preferredCategories: [], preferredSources: [], summaryStyle: 'standard'});
+        if (error) {
+            return {error: 'CREATE_USER_PREFERENCE_FAILED'};
+        }
+        console.log('user preference created:'.cyan.italic, userPreference);
 
         return {user: newUser, accessToken, refreshToken};
     } catch (error: any) {

@@ -76,6 +76,15 @@ const registerUserController = async (req: Request, res: Response) => {
             }));
             return;
         }
+        if (error === 'CREATE_USER_PREFERENCE_FAILED') {
+            console.error('User already exists'.yellow.italic);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'CREATE_USER_PREFERENCE_FAILED',
+                errorMsg: 'Failed to create user preference',
+            }));
+            return;
+        }
         console.log('new user created:'.cyan.italic, {user, accessToken, refreshToken});
 
         res.status(201).send(new ApiResponse({
