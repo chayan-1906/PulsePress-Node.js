@@ -11,10 +11,14 @@ export const SUPPORTED_CATEGORIES = [
 ] as const;
 export type SupportedCategory = typeof SUPPORTED_CATEGORIES[number];
 
-export const SUPPORTED_SOURCES = Object.keys(RSS_SOURCES) as Array<keyof typeof RSS_SOURCES>;
-export type SupportedSource = typeof SUPPORTED_SOURCES[number];
+export const SUPPORTED_SOURCES: string[] = Object.values(RSS_SOURCES).flatMap(langSources => Object.keys(langSources));
+export type SupportedSource = string;
+
+export const SUPPORTED_NEWS_LANGUAGES = ['english', 'bengali', 'hindi'];
+export type SupportedNewsLanguage = string;
 
 export const sourceMap: Record<string, SupportedSource> = {
+    // english
     'techcrunch.com': 'techcrunch',
     'bbc.co.uk': 'bbc_tech',
     'wired.com': 'wired',
@@ -26,7 +30,22 @@ export const sourceMap: Record<string, SupportedSource> = {
     'zdnet.com': 'zdnet',
     'techradar.com': 'techradar',
     'gizmodo.com': 'gizmodo',
-    'news.ycombinator.com': 'hacker_news', // optional if needed
+    'news.ycombinator.com': 'hacker_news',
+    'timesofindia.indiatimes.com': 'timesofindia',
+
+    // bengali
+    'bartamanpatrika.com': 'bartaman',
+    'sangbadpratidin.in': 'sangbad_pratidin',
+    'prothomalo.com': 'prothom_alo',
+    'kalerkantho.com': 'kaler_kantho',
+    'bengali.oneindia.com': 'oneindia_bengali',
+    'bengali.abplive.com': 'abp_live_home',
+
+    // hindi
+    'amarujala.com': 'amar_ujala_breaking',
+    'hindi.oneindia.com': 'oneindia_hindi',
+    'abplive.com': 'abp_live_home',
+    'zeenews.india.com': 'zeenews_india',
 };
 
 interface Article {
@@ -81,6 +100,7 @@ export interface TopHeadlinesParams {
 
 export interface RSSFeedParams {
     sources?: string;
+    language?: SupportedNewsLanguage;
     pageSize?: number;
     page?: number;
 }

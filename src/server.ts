@@ -17,7 +17,15 @@ import contentRecommendationRoutes from "./routes/ContentRecommendationRoutes";
 const app = express();
 
 // middlewares
-app.use(cors());
+app.use(cors({
+    origin: [
+        'http://localhost:3000',                // Development
+        'https://pulsepress.vercel.app',        // Production web - yet to be decided
+        'exp://192.168.1.100:8081',             // Expo development
+    ],
+    credentials: true,                          // Allow cookies
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+}));
 app.use(express.json());
 app.use(morgan('dev'));
 
