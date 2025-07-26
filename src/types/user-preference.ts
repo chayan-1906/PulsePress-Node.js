@@ -1,6 +1,8 @@
 import {SummarizationStyle, SupportedLanguage} from "./ai";
 import {IUserPreference} from "../models/UserPreferenceSchema";
 import {SupportedCategory, SupportedSource} from "./news";
+import {ClientSession} from "mongoose";
+import {IUser} from "../models/UserSchema";
 
 
 /** ------------- API response types ------------- */
@@ -25,10 +27,12 @@ export interface ResetUserPreferenceResponse {
 
 export interface ModifyUserPreferenceParams {
     email: string;
+    user?: IUser | null;
     preferredLanguage?: SupportedLanguage;
     preferredCategories: SupportedCategory[];
     preferredSources: SupportedSource[];
     summaryStyle: SummarizationStyle;
+    session?: ClientSession;
 }
 
 export interface GetUserPreferenceParams {

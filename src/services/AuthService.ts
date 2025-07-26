@@ -2,12 +2,17 @@ import "colors";
 import bcryptjs from "bcryptjs";
 import jwt, {SignOptions} from "jsonwebtoken";
 import {getOAuth2Client} from "../utils/OAuth";
+import BookmarkModel from "../models/BookmarkSchema";
 import UserModel, {IUser} from "../models/UserSchema";
 import {modifyUserPreference} from "./UserPreferenceService";
+import ReadingHistoryModel from "../models/ReadingHistorySchema";
+import UserPreferenceModel from "../models/UserPreferenceSchema";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {ACCESS_TOKEN_EXPIRY, ACCESS_TOKEN_SECRET, REFRESH_TOKEN_EXPIRY, REFRESH_TOKEN_SECRET} from "../config/config";
 import {
     AuthRequest,
+    DeleteAccountByEmailParams,
+    DeleteAccountByEmailResponse,
     GenerateJWTResponse,
     GetUserByEmailParams,
     GetUserByEmailResponse,
@@ -21,6 +26,7 @@ import {
     UpdateUserParams,
     UpdateUserResponse
 } from "../types/auth";
+import mongoose from "mongoose";
 
 const registerUser = async ({name, email, password, confirmPassword}: RegisterParams): Promise<RegisterResponse> => {
     try {
@@ -49,17 +55,39 @@ const registerUser = async ({name, email, password, confirmPassword}: RegisterPa
             return {error: 'ALREADY_REGISTERED'};
         }
 
-        const newUser: IUser | null = await UserModel.create({name, email, password: hashedPassword});
-        const {accessToken, refreshToken} = await generateJWT(newUser);
-        console.log('user created:'.cyan.italic, newUser);
+        const session = await mongoose.startSession();
+        session.startTransaction();
 
-        const {userPreference, error} = await modifyUserPreference({email, preferredLanguage: 'en', preferredCategories: [], preferredSources: [], summaryStyle: 'standard'});
-        if (error) {
-            return {error: 'CREATE_USER_PREFERENCE_FAILED'};
+        try {
+            const [newUser] = await UserModel.create([{name, email, password: hashedPassword}], {session});
+            const {accessToken, refreshToken} = await generateJWT(newUser);
+            console.log('user created:'.cyan.italic, newUser);
+
+            const {userPreference, error} = await modifyUserPreference({
+                email,
+                user: newUser,
+                preferredLanguage: 'en',
+                preferredCategories: [],
+                preferredSources: [],
+                summaryStyle: 'standard',
+                session
+            });
+            if (error) {
+                console.log('ERROR: creating user preference failed:'.yellow.italic, error);
+                await session.abortTransaction();
+                return {error: 'CREATE_USER_PREFERENCE_FAILED'};
+            }
+            console.log('user preference created:'.cyan.italic, userPreference);
+
+            await session.commitTransaction();
+            return {user: newUser, accessToken, refreshToken};
+        } catch (error: any) {
+            console.error('ERROR: inside catch of registerUser > userPreference:'.red.bold, error);
+            await session.abortTransaction();
+            throw error;
+        } finally {
+            await session.endSession();
         }
-        console.log('user preference created:'.cyan.italic, userPreference);
-
-        return {user: newUser, accessToken, refreshToken};
     } catch (error: any) {
         console.error('ERROR: inside catch of registerUser:'.red.bold, error);
         throw error;
@@ -144,17 +172,39 @@ const loginWithGoogle = async ({code}: LoginWithGoogleParams): Promise<LoginResp
             return {user, accessToken, refreshToken};
         }
 
-        const newUser: IUser | null = await UserModel.create({googleId, name, email, profilePicture});
-        const {accessToken, refreshToken} = await generateJWT(newUser);
-        console.log('user created:'.cyan.italic, newUser);
+        const session = await mongoose.startSession();
+        session.startTransaction();
 
-        const {userPreference, error} = await modifyUserPreference({email: email || '', preferredLanguage: 'en', preferredCategories: [], preferredSources: [], summaryStyle: 'standard'});
-        if (error) {
-            return {error: 'CREATE_USER_PREFERENCE_FAILED'};
+        try {
+            const [newUser] = await UserModel.create([{googleId, name, email, profilePicture}], {session});
+            const {accessToken, refreshToken} = await generateJWT(newUser);
+            console.log('user created:'.cyan.italic, newUser);
+
+            const {userPreference, error} = await modifyUserPreference({
+                email: email || '',
+                user: newUser,
+                preferredLanguage: 'en',
+                preferredCategories: [],
+                preferredSources: [],
+                summaryStyle: 'standard',
+                session,
+            });
+            if (error) {
+                console.log('ERROR: creating user preference failed:'.yellow.italic, error);
+                await session.abortTransaction();
+                return {error: 'CREATE_USER_PREFERENCE_FAILED'};
+            }
+            console.log('user preference created:'.cyan.italic, userPreference);
+
+            await session.commitTransaction();
+            return {user: newUser, accessToken, refreshToken};
+        } catch (error: any) {
+            console.error('ERROR: inside catch of loginWithGoogle > userPreference:'.red.bold, error);
+            await session.abortTransaction();
+            throw error;
+        } finally {
+            await session.endSession();
         }
-        console.log('user preference created:'.cyan.italic, userPreference);
-
-        return {user: newUser, accessToken, refreshToken};
     } catch (error: any) {
         console.error('ERROR: inside catch of loginWithGoogle:'.red.bold, error);
         throw error;
@@ -276,4 +326,39 @@ const getUserByEmail = async ({email}: GetUserByEmailParams): Promise<GetUserByE
     }
 }
 
-export {registerUser, loginUser, refreshToken, loginWithGoogle, updateUser, hashPassword, comparePassword, getUserByEmail};
+const deleteAccount = async ({email}: DeleteAccountByEmailParams): Promise<DeleteAccountByEmailResponse> => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        if (!email) {
+            return {error: generateMissingCode('email')};
+        }
+        const user: IUser | null = await UserModel.findOne({email});
+        if (!user) {
+            return {error: generateNotFoundCode('user')};
+        }
+
+        // Delete in dependency order
+        await ReadingHistoryModel.deleteMany({userExternalId: user.userExternalId}, {session});
+        await BookmarkModel.deleteMany({userExternalId: user.userExternalId}, {session});
+        await UserPreferenceModel.deleteMany({userExternalId: user.userExternalId}, {session});
+        const {deletedCount} = await UserModel.deleteOne({userExternalId: user.userExternalId}, {session});
+
+        if (deletedCount === 0) {
+            await session.abortTransaction();
+            return {error: 'DELETE_ACCOUNT_FAILED'};
+        }
+
+        await session.commitTransaction();  // ✅ ALL operations succeeded - save changes
+        return {isDeleted: true};
+    } catch (error: any) {
+        console.error('ERROR: inside catch of getUserByEmail:'.red.bold, error);
+        await session.abortTransaction();   // ❌ Something failed - UNDO everything
+        throw error;
+    } finally {
+        await session.endSession();               // Clean up the session
+    }
+}
+
+export {registerUser, loginUser, refreshToken, loginWithGoogle, updateUser, hashPassword, comparePassword, getUserByEmail, deleteAccount};

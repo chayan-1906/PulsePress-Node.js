@@ -1,4 +1,5 @@
 import "colors";
+import {ClientSession} from "mongoose";
 import {getUserByEmail} from "./AuthService";
 import UserPreferenceModel, {IUserPreference} from "../models/UserPreferenceSchema";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
@@ -11,14 +12,11 @@ import {
     ResetUserPreferenceResponse,
 } from "../types/user-preference";
 
-const modifyUserPreference = async ({email, preferredLanguage, preferredCategories, preferredSources, summaryStyle}: ModifyUserPreferenceParams): Promise<ModifyUserPreferenceResponse> => {
+const modifyUserPreference = async (
+    {email, user, preferredLanguage, preferredCategories, preferredSources, summaryStyle, session}: ModifyUserPreferenceParams): Promise<ModifyUserPreferenceResponse> => {
     try {
-        if (!email) {
-            return {error: generateMissingCode('email')};
-        }
-
-        const {user} = await getUserByEmail({email});
-        if (!user) {
+        const targetUser = user || (await getUserByEmail({email})).user;
+        if (!targetUser) {
             return {error: generateNotFoundCode('user')};
         }
 
@@ -36,10 +34,15 @@ const modifyUserPreference = async ({email, preferredLanguage, preferredCategori
         if (typeof preferredSources !== 'undefined') updateFields.preferredSources = preferredSources;
         if (typeof summaryStyle !== 'undefined') updateFields.summaryStyle = summaryStyle;
 
+        const options: { upsert: boolean; new: boolean; runValidators: boolean; session?: ClientSession; } = {upsert: true, new: true, runValidators: true};
+        if (session) {
+            options.session = session;
+        }
+
         const modifiedUserPreference: IUserPreference | null = await UserPreferenceModel.findOneAndUpdate(
-            {userExternalId: user.userExternalId},
+            {userExternalId: targetUser.userExternalId},
             {$set: updateFields},
-            {upsert: true, new: true, runValidators: true},
+            options,
         );
         if (!modifiedUserPreference) {
             return {error: 'MODIFY_USER_PREFERENCE_FAILED'};

@@ -42,6 +42,11 @@ export interface GetUserByEmailResponse {
     error?: string;
 }
 
+export interface DeleteAccountByEmailResponse {
+    isDeleted?: boolean;
+    error?: string;
+}
+
 
 /** ------------- function params ------------- */
 
@@ -61,6 +66,10 @@ export interface RefreshTokenParams {
     refreshToken: string;
 }
 
+export interface LoginWithGoogleParams {
+    code: string;
+}
+
 export interface UpdateUserParams {
     email: string;
     name?: string;
@@ -72,6 +81,6 @@ export interface GetUserByEmailParams {
     email?: string | null;
 }
 
-export interface LoginWithGoogleParams {
-    code: string;
+export interface DeleteAccountByEmailParams {
+    email?: string | null;
 }

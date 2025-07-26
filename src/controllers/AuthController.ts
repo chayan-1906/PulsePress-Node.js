@@ -4,7 +4,7 @@ import {getAuthUrl} from "../utils/OAuth";
 import {ApiResponse} from "../utils/ApiResponse";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {AuthRequest, LoginParams, RefreshTokenParams, RegisterParams, UpdateUserParams} from "../types/auth";
-import {getUserByEmail, loginUser, loginWithGoogle, refreshToken, registerUser, updateUser} from "../services/AuthService";
+import {deleteAccount, getUserByEmail, loginUser, loginWithGoogle, refreshToken, registerUser, updateUser} from "../services/AuthService";
 
 const registerUserController = async (req: Request, res: Response) => {
     console.info('registerUserController called'.bgMagenta.white.italic);
@@ -77,7 +77,7 @@ const registerUserController = async (req: Request, res: Response) => {
             return;
         }
         if (error === 'CREATE_USER_PREFERENCE_FAILED') {
-            console.error('User already exists'.yellow.italic);
+            console.error('Failed to create user preference while creating user'.yellow.italic, error);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: 'CREATE_USER_PREFERENCE_FAILED',
@@ -357,4 +357,45 @@ const updateUserController = async (req: Request, res: Response) => {
     }
 }
 
-export {registerUserController, loginController, refreshTokenController, redirectToGoogle, loginWithGoogleController, getUserProfileController, updateUserController};
+const deleteAccountController = async (req: Request, res: Response) => {
+    console.info('deleteAccountController called'.bgMagenta.white.italic);
+
+    try {
+        const email = (req as AuthRequest).email;
+
+        const {isDeleted, error} = await deleteAccount({email});
+        if (error === generateNotFoundCode('user')) {
+            console.error('User not found'.yellow.italic);
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
+            }));
+            return;
+        }
+        if (error === 'DELETE_ACCOUNT_FAILED') {
+            console.error('Delete account failed'.yellow.italic);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'DELETE_ACCOUNT_FAILED',
+                errorMsg: 'Couldn\'t delete account',
+            }));
+            return;
+        }
+        console.log('account deleted:'.cyan.italic, isDeleted);
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'Account has been deleted 🎉',
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of deleteAccountController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            errorCode: error.errorCode,
+            errorMsg: error.message || 'Something went wrong',
+        }));
+    }
+}
+
+export {registerUserController, loginController, refreshTokenController, redirectToGoogle, loginWithGoogleController, getUserProfileController, updateUserController, deleteAccountController};
