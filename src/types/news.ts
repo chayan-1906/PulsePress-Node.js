@@ -97,6 +97,17 @@ export interface RSSFeedParams {
     page?: number;
 }
 
+export interface FetchEverythingParams {
+    sources?: string;
+    from?: string;
+    to?: string
+    sortBy?: string
+    language?: string
+    q?: string;
+    pageSize?: number;
+    page?: number;
+}
+
 export interface ScrapeWebsiteParams {
     url?: string;
 }

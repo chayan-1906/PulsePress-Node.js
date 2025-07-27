@@ -8,7 +8,7 @@ import {parseRSS} from "../utils/parseRSS";
 import {RSS_SOURCES} from "../utils/constants";
 import {buildHeader} from "../utils/buildHeader";
 import {generateMissingCode} from "../utils/generateErrorCodes";
-import {RSSFeed, RSSFeedParams, ScrapeMultipleWebsitesParams, ScrapeWebsiteParams, SUPPORTED_NEWS_LANGUAGES, TopHeadlinesAPIResponse, TopHeadlinesParams} from "../types/news";
+import {FetchEverythingParams, RSSFeed, RSSFeedParams, ScrapeMultipleWebsitesParams, ScrapeWebsiteParams, SUPPORTED_NEWS_LANGUAGES, TopHeadlinesAPIResponse, TopHeadlinesParams} from "../types/news";
 
 const RSS_CACHE = new Map<string, { data: RSSFeed[], timestamp: number }>();
 const CACHE_DURATION = 10 * 60 * 1000;  // 10 min
@@ -86,6 +86,18 @@ const fetchRSSFeed = async ({sources, languages = 'english', pageSize = 10, page
         return allItems.slice(startIndex, startIndex + pageSize);
     } catch (error: any) {
         console.error('ERROR: inside catch of fetchRSSFeed:'.red.bold, error);
+        throw error;
+    }
+}
+
+const fetchEverything = async ({sources, from, to, sortBy, language, q, pageSize = 10, page = 1}: FetchEverythingParams) => {
+    try {
+        const {data: everything} = await axios.get<TopHeadlinesAPIResponse>(apis.fetchEverythingApi({sources, from, to, sortBy, language, q, pageSize, page}), {headers: buildHeader()});
+        console.log('everything:'.cyan.italic, everything);
+
+        return everything;
+    } catch (error: any) {
+        console.error('ERROR: inside catch of fetchEverything:'.red.bold, error);
         throw error;
     }
 }
@@ -199,4 +211,4 @@ const scrapeMultipleArticles = async ({urls}: ScrapeMultipleWebsitesParams) => {
     return results;
 }
 
-export {fetchTopHeadlines, fetchRSSFeed, scrapeMultipleArticles};
+export {fetchTopHeadlines, fetchRSSFeed, fetchEverything, scrapeMultipleArticles};

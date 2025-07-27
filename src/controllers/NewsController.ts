@@ -3,8 +3,8 @@ import {Request, Response} from "express";
 import {isListEmpty} from "../utils/list";
 import {ApiResponse} from "../utils/ApiResponse";
 import {generateMissingCode} from "../utils/generateErrorCodes";
-import {fetchRSSFeed, fetchTopHeadlines, scrapeMultipleArticles} from "../services/NewsService";
-import {RSSFeedParams, ScrapeMultipleWebsitesParams, SUPPORTED_NEWS_LANGUAGES, TopHeadlinesParams} from "../types/news";
+import {fetchEverything, fetchRSSFeed, fetchTopHeadlines, scrapeMultipleArticles} from "../services/NewsService";
+import {FetchEverythingParams, RSSFeedParams, ScrapeMultipleWebsitesParams, SUPPORTED_NEWS_LANGUAGES, TopHeadlinesParams} from "../types/news";
 
 const getAllTopHeadlinesController = async (req: Request, res: Response) => {
     console.info('getAllTopHeadlinesController called'.bgMagenta.white.italic);
@@ -92,6 +92,46 @@ const getAllRSSFeedsController = async (req: Request, res: Response) => {
     }
 }
 
+const fetchEverythingController = async (req: Request, res: Response) => {
+    console.info('fetchEverythingController called'.bgMagenta.white.italic);
+    try {
+        const {sources, from, to, sortBy, language, q, pageSize, page}: Partial<FetchEverythingParams> = req.query;
+
+        if (!sources && !q) {
+            console.error('sources and q both are missing'.red.italic);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'MISSING_SEARCH_PARAMS',
+                errorMsg: 'Either sources or q (query) parameter is required',
+            }));
+            return;
+        }
+
+        let pageSizeNumber, pageNumber;
+        if (pageSize && !isNaN(pageSize)) {
+            pageSizeNumber = Number(pageSize);
+        }
+        if (page && !isNaN(page)) {
+            pageNumber = Number(page);
+        }
+        const everything = await fetchEverything({sources, from, to, sortBy, language, q, pageSize: pageSizeNumber, page: pageNumber});
+        console.log('everything:'.cyan.italic, everything);
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'Search results have been found 🎉',
+            searchResults: everything,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of fetchEverythingController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: 'Something went wrong',
+        }));
+    }
+}
+
 const scrapeWebsiteController = async (req: Request, res: Response) => {
     console.info('scrapeWebsiteController called'.bgMagenta.white.italic);
     try {
@@ -132,4 +172,4 @@ const scrapeWebsiteController = async (req: Request, res: Response) => {
     }
 }
 
-export {getAllTopHeadlinesController, getAllRSSFeedsController, scrapeWebsiteController};
+export {getAllTopHeadlinesController, getAllRSSFeedsController, fetchEverythingController, scrapeWebsiteController};
