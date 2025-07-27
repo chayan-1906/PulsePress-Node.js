@@ -4,7 +4,7 @@ import {apis} from "../utils/apis";
 import {parseRSS} from "../utils/parseRSS";
 import {RSS_SOURCES} from "../utils/constants";
 import {buildHeader} from "../utils/buildHeader";
-import {RSSFeed, RSSFeedParams, TopHeadlinesAPIResponse, TopHeadlinesParams} from "../types/news";
+import {RSSFeed, RSSFeedParams, SUPPORTED_NEWS_LANGUAGES, TopHeadlinesAPIResponse, TopHeadlinesParams} from "../types/news";
 
 // https://newsapi.org/docs/endpoints/top-headlines
 const fetchTopHeadlines = async ({country, category, sources, q, pageSize = 10, page = 1}: TopHeadlinesParams) => {
@@ -25,30 +25,46 @@ const fetchTopHeadlines = async ({country, category, sources, q, pageSize = 10, 
     }
 }
 
-const fetchRSSFeed = async ({sources, language = 'english', pageSize = 10, page = 1}: RSSFeedParams) => {
+const fetchRSSFeed = async ({sources, languages = 'english', pageSize = 10, page = 1}: RSSFeedParams) => {
     try {
-        const languageSources = RSS_SOURCES[language as keyof typeof RSS_SOURCES] || RSS_SOURCES.english;
-        const allSources = Object.keys(languageSources);
+        const languageList = languages
+            ? languages.split(',').map(l => l.trim().toLowerCase()).filter(Boolean)
+            : [];
 
-        let sourcesToFetch: string[];
+        const validLanguages = languageList.filter(lang => SUPPORTED_NEWS_LANGUAGES.includes(lang));
+        const languagesToFetch = validLanguages.length ? validLanguages : ['english'];
+
+        let inputSources: string[] = [];
 
         if (sources) {
-            sourcesToFetch = sources.split(',');
-        } else {
-            const shuffled = [...allSources].sort(() => Math.random() - 0.5);
-            sourcesToFetch = shuffled.slice(0, pageSize);
+            inputSources = sources.split(',').map(s => s.trim()).filter(Boolean);
         }
 
-        const promises = sourcesToFetch.map(source => {
-            const url = languageSources[source as keyof typeof languageSources];
-            return url ? parseRSS(url).catch(() => null) : Promise.resolve(null);
+        const seenURLs = new Set<string>();
+        const promises: Promise<any>[] = [];
+
+        languagesToFetch.forEach(language => {
+            const languageSources = RSS_SOURCES[language as keyof typeof RSS_SOURCES];
+            const availableSources = Object.keys(languageSources);
+
+            const selectedSources = inputSources.length
+                ? inputSources.filter(src => src in languageSources)
+                : [...availableSources].sort(() => Math.random() - 0.5);
+
+            selectedSources.forEach(source => {
+                const url = languageSources[source as keyof typeof languageSources];
+                if (url && !seenURLs.has(url)) {
+                    seenURLs.add(url);
+                    promises.push(parseRSS(url).catch(() => null));
+                }
+            });
         });
 
         const results = await Promise.allSettled(promises);
         const allItems = results
             .filter(r => r.status === 'fulfilled' && r.value)
             .flatMap(r => (r as PromiseFulfilledResult<RSSFeed[]>).value)
-            .sort(() => Math.random() - 0.5);
+            .sort(() => Math.random() - 0.5); // shuffle results
 
         const startIndex = (page - 1) * pageSize;
         return allItems.slice(startIndex, startIndex + pageSize);

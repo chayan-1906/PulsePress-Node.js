@@ -1,6 +1,7 @@
 import "colors";
 import {Request, Response} from "express";
 import {ApiResponse} from "../utils/ApiResponse";
+import {isListEmpty} from "../utils/list";
 import {fetchRSSFeed, fetchTopHeadlines} from "../services/NewsService";
 import {RSSFeedParams, SUPPORTED_NEWS_LANGUAGES, TopHeadlinesParams} from "../types/news";
 
@@ -37,14 +38,26 @@ const getAllTopHeadlinesController = async (req: Request, res: Response) => {
 const getAllRSSFeedsController = async (req: Request, res: Response) => {
     console.log('getAllRSSFeedsController called');
     try {
-        const {sources, language, pageSize, page}: Partial<RSSFeedParams> = req.query;
+        const {sources, languages, pageSize, page}: Partial<RSSFeedParams> = req.query;
 
-        if (language && !SUPPORTED_NEWS_LANGUAGES.includes(language)) {
-            console.error('Language not supported:'.yellow.italic, language);
+        const sourceList = sources ? sources.split(',').map((source: string) => source.trim().toLowerCase()).filter(Boolean) : [];
+        if (!isListEmpty(sourceList) && sourceList.every(lang => !SUPPORTED_NEWS_LANGUAGES.includes(lang))) {
+            console.error('Sources not supported:'.yellow.italic, sources);
             res.status(400).send(new ApiResponse({
                 success: false,
-                errorCode: 'LANGUAGE_NOT_SUPPORTED',
-                errorMsg: `${language} is not supported`,
+                errorCode: 'SOURCES_NOT_SUPPORTED',
+                errorMsg: `${sourceList.join(', ')} are not supported`,
+            }));
+            return;
+        }
+
+        const languageList = languages ? languages.split(',').map((lang: string) => lang.trim().toLowerCase()).filter(Boolean) : [];
+        if (!isListEmpty(languageList) && languageList.every(lang => !SUPPORTED_NEWS_LANGUAGES.includes(lang))) {
+            console.error('Languages not supported:'.yellow.italic, languageList);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'LANGUAGES_NOT_SUPPORTED',
+                errorMsg: `${languageList.join(', ')} are not supported`,
             }));
             return;
         }
@@ -58,7 +71,7 @@ const getAllRSSFeedsController = async (req: Request, res: Response) => {
         }
 
         console.time('RSS_FETCH_TIME'.bgMagenta.white.italic);
-        const rssFeeds = await fetchRSSFeed({sources, language, pageSize: pageSizeNumber, page: pageNumber});
+        const rssFeeds = await fetchRSSFeed({sources, languages, pageSize: pageSizeNumber, page: pageNumber});
         console.timeEnd('RSS_FETCH_TIME'.bgMagenta.white.italic);
         console.log('rss feeds:'.green.bold, rssFeeds.length);
 

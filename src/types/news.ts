@@ -1,21 +1,13 @@
 import {RSS_SOURCES} from "../utils/constants";
 
-export const SUPPORTED_CATEGORIES = [
-    'business',
-    'entertainment',
-    'general',
-    'health',
-    'science',
-    'sports',
-    'technology',
-] as const;
+export const SUPPORTED_CATEGORIES = ['business', 'entertainment', 'general', 'health', 'science', 'sports', 'technology', 'country'];
 export type SupportedCategory = typeof SUPPORTED_CATEGORIES[number];
 
 export const SUPPORTED_SOURCES: string[] = Object.values(RSS_SOURCES).flatMap(langSources => Object.keys(langSources));
 export type SupportedSource = string;
 
 export const SUPPORTED_NEWS_LANGUAGES = ['english', 'bengali', 'hindi'];
-export type SupportedNewsLanguage = string;
+export type SupportedNewsLanguage = typeof SUPPORTED_NEWS_LANGUAGES[number];
 
 export const sourceMap: Record<string, SupportedSource> = {
     // english
@@ -100,7 +92,7 @@ export interface TopHeadlinesParams {
 
 export interface RSSFeedParams {
     sources?: string;
-    language?: SupportedNewsLanguage;
+    languages?: SupportedNewsLanguage;
     pageSize?: number;
     page?: number;
 }

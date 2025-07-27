@@ -1,6 +1,8 @@
 import "colors";
 import {ClientSession} from "mongoose";
+import {hasInvalidItems} from "../utils/list";
 import {getUserByEmail} from "./AuthService";
+import {SUPPORTED_CATEGORIES, SUPPORTED_NEWS_LANGUAGES, SUPPORTED_SOURCES} from "../types/news";
 import UserPreferenceModel, {IUserPreference} from "../models/UserPreferenceSchema";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {
@@ -13,19 +15,32 @@ import {
 } from "../types/user-preference";
 
 const modifyUserPreference = async (
-    {email, user, preferredLanguage, preferredCategories, preferredSources, summaryStyle, session}: ModifyUserPreferenceParams): Promise<ModifyUserPreferenceResponse> => {
+    {email, user, preferredLanguage, preferredCategories, preferredSources, summaryStyle, newsLanguages, session}: ModifyUserPreferenceParams): Promise<ModifyUserPreferenceResponse> => {
     try {
         const targetUser = user || (await getUserByEmail({email})).user;
         if (!targetUser) {
             return {error: generateNotFoundCode('user')};
         }
 
-        // no need to check preferredLanguage and summaryStyle as they are already type-safe
         if (preferredCategories && !Array.isArray(preferredCategories)) {
             return {error: generateInvalidCode('preferred_categories')};
         }
+        if (preferredCategories && hasInvalidItems(preferredCategories, SUPPORTED_CATEGORIES)) {
+            return {error: generateInvalidCode('preferred_categories')};
+        }
+
         if (preferredSources && !Array.isArray(preferredSources)) {
             return {error: generateInvalidCode('preferred_sources')};
+        }
+        if (preferredSources && hasInvalidItems(preferredSources, SUPPORTED_SOURCES)) {
+            return {error: generateInvalidCode('preferred_sources')};
+        }
+
+        if (newsLanguages && !Array.isArray(newsLanguages)) {
+            return {error: generateInvalidCode('news_languages')};
+        }
+        if (newsLanguages && hasInvalidItems(newsLanguages, SUPPORTED_NEWS_LANGUAGES)) {
+            return {error: generateInvalidCode('news_languages')};
         }
 
         const updateFields: Partial<IUserPreference> = {};
@@ -33,6 +48,7 @@ const modifyUserPreference = async (
         if (typeof preferredCategories !== 'undefined') updateFields.preferredCategories = preferredCategories;
         if (typeof preferredSources !== 'undefined') updateFields.preferredSources = preferredSources;
         if (typeof summaryStyle !== 'undefined') updateFields.summaryStyle = summaryStyle;
+        if (typeof newsLanguages !== 'undefined') updateFields.newsLanguages = newsLanguages;
 
         const options: { upsert: boolean; new: boolean; runValidators: boolean; session?: ClientSession; } = {upsert: true, new: true, runValidators: true};
         if (session) {
@@ -91,7 +107,7 @@ const resetUserPreference = async ({email}: ResetUserPreferenceParams): Promise<
 
         const {modifiedCount, acknowledged} = await UserPreferenceModel.updateOne(
             {userExternalId: user.userExternalId},
-            {$set: {preferredLanguage: 'en', preferredCategories: [], preferredSources: [], summaryStyle: 'standard'}},
+            {$set: {preferredLanguage: 'en', preferredCategories: [], preferredSources: [], summaryStyle: 'standard', newsLanguages: []}},
             {runValidators: true},
         );
         if (!acknowledged) {

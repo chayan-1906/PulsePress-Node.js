@@ -70,7 +70,8 @@ const registerUser = async ({name, email, password, confirmPassword}: RegisterPa
                 preferredCategories: [],
                 preferredSources: [],
                 summaryStyle: 'standard',
-                session
+                newsLanguages: ['english'],
+                session,
             });
             if (error) {
                 console.log('ERROR: creating user preference failed:'.yellow.italic, error);
@@ -187,6 +188,7 @@ const loginWithGoogle = async ({code}: LoginWithGoogleParams): Promise<LoginResp
                 preferredCategories: [],
                 preferredSources: [],
                 summaryStyle: 'standard',
+                newsLanguages: ['english'],
                 session,
             });
             if (error) {

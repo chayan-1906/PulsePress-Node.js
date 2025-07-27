@@ -2,9 +2,9 @@ import "colors";
 import {Request, Response} from "express";
 import {AuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
-import {SummarizeArticleParams} from "../types/ai";
+import {SUMMARIZATION_STYLES, SummarizeArticleParams} from "../types/ai";
 import {summarizeArticle} from "../services/AIService";
-import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
+import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 
 const summarizeArticleController = async (req: Request, res: Response) => {
     console.info('summarizeArticleController called'.bgMagenta.white.italic);
@@ -18,6 +18,15 @@ const summarizeArticleController = async (req: Request, res: Response) => {
                 success: false,
                 errorCode: generateMissingCode('content'),
                 errorMsg: 'Content is missing',
+            }));
+            return;
+        }
+        if (style && !SUMMARIZATION_STYLES.includes(style)) {
+            console.error('Invalid style:'.yellow.italic, style);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateInvalidCode('style'),
+                errorMsg: `Style must be one of: ${SUMMARIZATION_STYLES.join(', ')}`,
             }));
             return;
         }

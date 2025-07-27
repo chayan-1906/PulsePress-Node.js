@@ -1,17 +1,19 @@
 import "colors";
 import {Request, Response} from "express";
 import {AuthRequest} from "../types/auth";
+import {hasInvalidItems} from "../utils/list";
 import {ApiResponse} from "../utils/ApiResponse";
 import {ModifyUserPreferenceParams} from "../types/user-preference";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {getUserPreference, modifyUserPreference, resetUserPreference} from "../services/UserPreferenceService";
+import {SUPPORTED_CATEGORIES, SUPPORTED_NEWS_LANGUAGES, SUPPORTED_SOURCES} from "../types/news";
 
 const modifyUserPreferenceController = async (req: Request, res: Response) => {
     console.log('modifyUserPreferenceController called');
 
     try {
         const email = (req as AuthRequest).email;
-        const {preferredLanguage, preferredCategories, preferredSources, summaryStyle}: ModifyUserPreferenceParams = req.body;
+        const {preferredLanguage, preferredCategories, preferredSources, summaryStyle, newsLanguages}: ModifyUserPreferenceParams = req.body;
 
         if (preferredCategories && !Array.isArray(preferredCategories)) {
             res.status(400).send(new ApiResponse({
@@ -21,6 +23,15 @@ const modifyUserPreferenceController = async (req: Request, res: Response) => {
             }));
             return;
         }
+        if (preferredCategories && hasInvalidItems(preferredCategories, SUPPORTED_CATEGORIES)) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateInvalidCode('preferred_categories'),
+                errorMsg: `Preferred categories must be one of: ${SUPPORTED_CATEGORIES.join(', ')}`,
+            }));
+            return;
+        }
+
         if (preferredSources && !Array.isArray(preferredSources)) {
             res.status(400).send(new ApiResponse({
                 success: false,
@@ -29,8 +40,33 @@ const modifyUserPreferenceController = async (req: Request, res: Response) => {
             }));
             return;
         }
+        if (preferredSources && hasInvalidItems(preferredSources, SUPPORTED_SOURCES)) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateInvalidCode('preferred_sources'),
+                errorMsg: `Preferred sources must be one of: ${SUPPORTED_SOURCES.join(', ')}`,
+            }));
+            return;
+        }
 
-        const {userPreference, error} = await modifyUserPreference({email, preferredLanguage, preferredCategories, preferredSources, summaryStyle});
+        if (newsLanguages && !Array.isArray(newsLanguages)) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateInvalidCode('news_languages'),
+                errorMsg: 'News languages must be an array of strings',
+            }));
+            return;
+        }
+        if (newsLanguages && hasInvalidItems(newsLanguages, SUPPORTED_NEWS_LANGUAGES)) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateInvalidCode('news_languages'),
+                errorMsg: `News languages must be one of: ${SUPPORTED_NEWS_LANGUAGES.join(', ')}`,
+            }));
+            return;
+        }
+
+        const {userPreference, error} = await modifyUserPreference({email, preferredLanguage, preferredCategories, preferredSources, summaryStyle, newsLanguages});
         if (error === generateMissingCode('email')) {
             console.error('Email is missing'.yellow.italic);
             res.status(400).send(new ApiResponse({

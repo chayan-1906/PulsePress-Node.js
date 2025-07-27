@@ -1,6 +1,6 @@
 import {SummarizationStyle, SupportedLanguage} from "./ai";
 import {IUserPreference} from "../models/UserPreferenceSchema";
-import {SupportedCategory, SupportedSource} from "./news";
+import {SupportedCategory, SupportedNewsLanguage, SupportedSource} from "./news";
 import {ClientSession} from "mongoose";
 import {IUser} from "../models/UserSchema";
 
@@ -29,9 +29,10 @@ export interface ModifyUserPreferenceParams {
     email: string;
     user?: IUser | null;
     preferredLanguage?: SupportedLanguage;
-    preferredCategories: SupportedCategory[];
-    preferredSources: SupportedSource[];
-    summaryStyle: SummarizationStyle;
+    preferredCategories?: SupportedCategory[];
+    preferredSources?: SupportedSource[];
+    summaryStyle?: SummarizationStyle;
+    newsLanguages?: SupportedNewsLanguage[];
     session?: ClientSession;
 }
 

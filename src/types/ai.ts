@@ -1,7 +1,12 @@
-export const SUMMARIZATION_STYLES: SummarizationStyle[] = ['concise', 'standard', 'detailed'];
-export const SUPPORTED_LANGUAGES: SupportedLanguage[] = ['en', 'es', 'fr', 'de', 'pt', 'ru', 'ja', 'ko', 'zh', 'ar', 'hi', 'bn', 'te', 'ta', 'mr', 'gu', 'kn', 'ml', 'pa', 'or', 'as', 'ur', 'ne', 'si', 'my'];
-export type SummarizationStyle = 'concise' | 'standard' | 'detailed';
-export type SupportedLanguage =
+/*export const SUMMARIZATION_STYLES: SummarizationStyle[] = ['concise', 'standard', 'detailed'];
+export type SummarizationStyle = 'concise' | 'standard' | 'detailed';*/
+
+export const SUMMARIZATION_STYLES = ['concise', 'standard', 'detailed'];
+export type SummarizationStyle = typeof SUMMARIZATION_STYLES[number];
+
+export const SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'pt', 'ru', 'ja', 'ko', 'zh', 'ar', 'hi', 'bn', 'te', 'ta', 'mr', 'gu', 'kn', 'ml', 'pa', 'or', 'as', 'ur', 'ne', 'si', 'my'];
+export type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
+/*export type SupportedLanguage =
 // English
     | 'en'
     // Major International
@@ -29,7 +34,7 @@ export type SupportedLanguage =
     | 'ur'    // Urdu
     | 'ne'    // Nepali
     | 'si'    // Sinhala
-    | 'my';   // Myanmar
+    | 'my';   // Myanmar*/
 
 export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
     'en': 'English',
@@ -58,6 +63,7 @@ export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
     'si': 'සිංහල',
     'my': 'မြန်မာ'
 };
+
 
 /** ------------- API response types ------------- */
 

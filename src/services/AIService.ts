@@ -1,16 +1,17 @@
 import "colors";
 import {createHash} from 'crypto';
 import {GoogleGenerativeAI} from "@google/generative-ai";
-import {getUserByEmail} from "./AuthService";
 import {Translate} from '@google-cloud/translate/build/src/v2';
+import {getUserByEmail} from "./AuthService";
 import {GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY} from "../config/config";
 import CachedSummaryModel, {ICachedSummary} from "../models/CachedSummarySchema";
-import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
+import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {
     GenerateContentHashParams,
     GenerateContentHashResponse,
     GetCachedSummaryParams,
     SaveSummaryToCacheParams,
+    SUMMARIZATION_STYLES,
     SummarizeArticleParams,
     SummarizeArticleResponse,
     TranslateTextParams
@@ -24,6 +25,10 @@ const summarizeArticle = async ({email, content, language = 'en', style = 'stand
     try {
         if (!email) {
             return {error: generateMissingCode('email')};
+        }
+        if (style && !SUMMARIZATION_STYLES.includes(style)) {
+            console.error('Invalid style:'.yellow.italic, style);
+            return {error: generateInvalidCode('style')};
         }
 
         const {user} = await getUserByEmail({email});
