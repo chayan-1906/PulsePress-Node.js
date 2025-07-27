@@ -82,13 +82,14 @@ export interface GenerateContentHashResponse {
 
 export interface SummarizeArticleParams {
     email: string;  // for authMiddleware
-    content: string;
+    content?: string;
+    urls?: string[];
     language?: SupportedLanguage;
     style?: SummarizationStyle;
 }
 
 export interface GenerateContentHashParams {
-    content: string;
+    articleContent: string;
     language?: SupportedLanguage;
     style?: SummarizationStyle;
 }

@@ -1,10 +1,14 @@
 import "colors";
 import axios from "axios";
+import {JSDOM, VirtualConsole} from 'jsdom';
+import {Readability} from "@mozilla/readability";
 import {apis} from "../utils/apis";
+import {isListEmpty} from "../utils/list";
 import {parseRSS} from "../utils/parseRSS";
 import {RSS_SOURCES} from "../utils/constants";
 import {buildHeader} from "../utils/buildHeader";
-import {RSSFeed, RSSFeedParams, SUPPORTED_NEWS_LANGUAGES, TopHeadlinesAPIResponse, TopHeadlinesParams} from "../types/news";
+import {generateMissingCode} from "../utils/generateErrorCodes";
+import {RSSFeed, RSSFeedParams, ScrapeMultipleWebsitesParams, ScrapeWebsiteParams, SUPPORTED_NEWS_LANGUAGES, TopHeadlinesAPIResponse, TopHeadlinesParams} from "../types/news";
 
 // https://newsapi.org/docs/endpoints/top-headlines
 const fetchTopHeadlines = async ({country, category, sources, q, pageSize = 10, page = 1}: TopHeadlinesParams) => {
@@ -74,4 +78,113 @@ const fetchRSSFeed = async ({sources, languages = 'english', pageSize = 10, page
     }
 }
 
-export {fetchTopHeadlines, fetchRSSFeed};
+const scrapeArticle = async ({url}: ScrapeWebsiteParams) => {
+    console.info('scrapeArticle called:'.bgMagenta.white.italic, url);
+    try {
+        if (!url) {
+            return {error: generateMissingCode('url')};
+        }
+
+        const userAgents = [
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'
+        ];
+
+        let response: any;
+        for (const userAgent of userAgents) {
+            try {
+                response = await axios.get(url, {
+                    headers: {
+                        'User-Agent': userAgent,
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                        'Accept-Language': 'en-US,en;q=0.5',
+                        'Accept-Encoding': 'gzip, deflate',
+                        'Referer': 'https://www.google.com/',
+                    },
+                    timeout: 10000,
+                });
+                break; // Success - exit loop
+            } catch (error) {
+                if (userAgent === userAgents[userAgents.length - 1]) {
+                    throw error; // Last attempt failed
+                }
+                continue; // Try next user agent
+            }
+        }
+
+        const virtualConsole = new VirtualConsole();
+        virtualConsole.on('error', () => {
+        }); // Silent
+        virtualConsole.on('warn', () => {
+        }); // Silent
+
+        const dom = new JSDOM(response.data, {
+            url,
+            virtualConsole,
+            pretendToBeVisual: false,
+            resources: 'usable',
+        });
+
+        const reader = new Readability(dom.window.document);
+        const article = reader.parse();
+
+        if (!article) {
+            throw new Error('Failed to parse article content');
+        }
+
+        return {
+            url,
+            title: article.title || '',
+            content: article.textContent || '',
+            excerpt: article.excerpt || '',
+            byline: article.byline || '',
+            length: article.length || 0,
+            readingTimeMinutes: Math.ceil((article.length || 0) / 200),
+            timestamp: new Date().toISOString(),
+            method: 'readability',
+            status: 200,
+        };
+    } catch (error: any) {
+        console.error('ERROR: inside catch of scrapeArticle:'.red.bold, error);
+        throw error;
+    }
+}
+
+const scrapeMultipleArticles = async ({urls}: ScrapeMultipleWebsitesParams) => {
+    const results = [];
+
+    if (isListEmpty(urls)) {
+        return [];
+    }
+
+    const isValidUrl = (url: string) => {
+        try {
+            new URL(url);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    for (const url of urls.filter(isValidUrl)) {
+        try {
+            const article = await scrapeArticle({url});
+            results.push(article);
+        } catch (error: any) {
+            results.push({
+                url,
+                status: error.status,
+                error: {
+                    code: error.code,
+                    message: error.message,
+                },
+                timestamp: new Date().toISOString(),
+            });
+        }
+    }
+
+    return results;
+}
+
+export {fetchTopHeadlines, fetchRSSFeed, scrapeMultipleArticles};

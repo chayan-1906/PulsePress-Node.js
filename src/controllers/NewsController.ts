@@ -1,12 +1,13 @@
 import "colors";
 import {Request, Response} from "express";
-import {ApiResponse} from "../utils/ApiResponse";
 import {isListEmpty} from "../utils/list";
-import {fetchRSSFeed, fetchTopHeadlines} from "../services/NewsService";
-import {RSSFeedParams, SUPPORTED_NEWS_LANGUAGES, TopHeadlinesParams} from "../types/news";
+import {ApiResponse} from "../utils/ApiResponse";
+import {generateMissingCode} from "../utils/generateErrorCodes";
+import {fetchRSSFeed, fetchTopHeadlines, scrapeMultipleArticles} from "../services/NewsService";
+import {RSSFeedParams, ScrapeMultipleWebsitesParams, SUPPORTED_NEWS_LANGUAGES, TopHeadlinesParams} from "../types/news";
 
 const getAllTopHeadlinesController = async (req: Request, res: Response) => {
-    console.log('getAllTopHeadlinesController called');
+    console.info('getAllTopHeadlinesController called'.bgMagenta.white.italic);
     try {
         const {country, category, sources, q, pageSize, page}: Partial<TopHeadlinesParams> = req.query;
 
@@ -36,7 +37,7 @@ const getAllTopHeadlinesController = async (req: Request, res: Response) => {
 }
 
 const getAllRSSFeedsController = async (req: Request, res: Response) => {
-    console.log('getAllRSSFeedsController called');
+    console.info('getAllRSSFeedsController called'.bgMagenta.white.italic);
     try {
         const {sources, languages, pageSize, page}: Partial<RSSFeedParams> = req.query;
 
@@ -91,4 +92,44 @@ const getAllRSSFeedsController = async (req: Request, res: Response) => {
     }
 }
 
-export {getAllTopHeadlinesController, getAllRSSFeedsController};
+const scrapeWebsiteController = async (req: Request, res: Response) => {
+    console.info('scrapeWebsiteController called'.bgMagenta.white.italic);
+    try {
+        const {urls}: Partial<ScrapeMultipleWebsitesParams> = req.body;
+
+        if (isListEmpty(urls)) {
+            console.error('URLs is missing'.yellow.italic);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('urls'),
+                errorMsg: 'URLs is either missing or empty',
+            }));
+            return;
+        }
+
+        const scrapedArticles = await scrapeMultipleArticles({urls});
+        console.log('scraped contents:'.cyan.italic, scrapedArticles);
+
+        const total = urls.length;
+        const successCount = scrapedArticles.filter(scrapedArticle => scrapedArticle.status === 200).length;
+        const failureCount = total - successCount;
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: `Scraped ${successCount} of ${total} website${total > 1 ? 's' : ''} successfully 🎉`,
+            totalResults: total,
+            successful: successCount,
+            failed: failureCount,
+            contents: scrapedArticles,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of scrapeWebsiteController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: 'Something went wrong',
+        }));
+    }
+}
+
+export {getAllTopHeadlinesController, getAllRSSFeedsController, scrapeWebsiteController};

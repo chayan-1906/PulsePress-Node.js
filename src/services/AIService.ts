@@ -2,7 +2,9 @@ import "colors";
 import {createHash} from 'crypto';
 import {GoogleGenerativeAI} from "@google/generative-ai";
 import {Translate} from '@google-cloud/translate/build/src/v2';
+import {isListEmpty} from "../utils/list";
 import {getUserByEmail} from "./AuthService";
+import {scrapeMultipleArticles} from "./NewsService";
 import {GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY} from "../config/config";
 import CachedSummaryModel, {ICachedSummary} from "../models/CachedSummarySchema";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
@@ -21,15 +23,43 @@ import {
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
 const translate = new Translate({key: GOOGLE_TRANSLATE_API_KEY});
 
-const summarizeArticle = async ({email, content, language = 'en', style = 'standard'}: SummarizeArticleParams): Promise<SummarizeArticleResponse> => {
+const summarizeArticle = async ({email, content, urls, language = 'en', style = 'standard'}: SummarizeArticleParams): Promise<SummarizeArticleResponse> => {
+    console.info('summarizeArticle called'.bgMagenta.white.italic, {content, urls});
     try {
         if (!email) {
             return {error: generateMissingCode('email')};
+        }
+
+        if (!content && isListEmpty(urls)) {
+            console.error('content and urls both invalid:'.yellow.italic, {content, urls});
+            return {error: 'CONTENT_OR_URL_REQUIRED'};
+        }
+        if (content && !isListEmpty(urls)) {
+            console.error('content and urls both valid:'.yellow.italic, {content, urls});
+            return {error: 'CONTENT_AND_URL_CONFLICT'};
         }
         if (style && !SUMMARIZATION_STYLES.includes(style)) {
             console.error('Invalid style:'.yellow.italic, style);
             return {error: generateInvalidCode('style')};
         }
+
+        let articleContent = content || '';
+        if (!content && !isListEmpty(urls)) {
+            console.info('inside !content && !isListEmpty(urls)'.bgMagenta.white.italic);
+            const scrapedArticles = await scrapeMultipleArticles({urls});
+            if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
+                console.error('Scraping failed:'.red.bold, {count: scrapedArticles.length}, {error: scrapedArticles[0].error})
+                return {error: 'SCRAPING_FAILED'};
+            }
+
+            console.log('content:', scrapedArticles);
+            articleContent = scrapedArticles[0]?.content || '';
+        }
+
+        if (!articleContent) {
+            return {error: generateMissingCode('content')};
+        }
+        console.info('articleContent'.bgMagenta.white.italic, articleContent);
 
         const {user} = await getUserByEmail({email});
         if (!user) {
@@ -37,7 +67,7 @@ const summarizeArticle = async ({email, content, language = 'en', style = 'stand
         }
 
         // Generate hash and check cache
-        const {hash} = await generateContentHash({content, language, style});
+        const {hash} = await generateContentHash({articleContent, language, style});
         if (!hash) {
             return {error: 'HASH_FAILED'};
         }
@@ -54,11 +84,11 @@ const summarizeArticle = async ({email, content, language = 'en', style = 'stand
 
         let prompt = '';
         if (style === 'concise') {
-            prompt = `Summarize the following news article in 20% of its original length. Focus only on the key facts and avoid unnecessary details.\n Content: ${content}`;
+            prompt = `Summarize the following news article in 20% of its original length. Focus only on the key facts and avoid unnecessary details.\n Content: ${articleContent}`;
         } else if (style === 'standard') {
-            prompt = `Provide a balanced summary of the following news article in 40% of its original length. Include the main points while keeping the core context intact.\n Content: ${content}`;
+            prompt = `Provide a balanced summary of the following news article in 40% of its original length. Include the main points while keeping the core context intact.\n Content: ${articleContent}`;
         } else if (style === 'detailed') {
-            prompt = `Summarize the following news article in 60% of its original length. Include more context and background to preserve the depth of the article.\n Content: ${content}`;
+            prompt = `Summarize the following news article in 60% of its original length. Include more context and background to preserve the depth of the article.\n Content: ${articleContent}`;
         }
 
         const summarizedArticleResponse = await model.generateContent(prompt);
@@ -85,13 +115,13 @@ const summarizeArticle = async ({email, content, language = 'en', style = 'stand
     }
 }
 
-const generateContentHash = async ({content, language = 'en', style = 'standard'}: GenerateContentHashParams): Promise<GenerateContentHashResponse> => {
+const generateContentHash = async ({articleContent, language = 'en', style = 'standard'}: GenerateContentHashParams): Promise<GenerateContentHashResponse> => {
     try {
-        if (!content) {
+        if (!articleContent) {
             return {error: generateMissingCode('content')};
         }
 
-        const data = `${content}::${language}::${style}`;
+        const data = `${articleContent}::${language}::${style}`;
         const contentHash = createHash('sha256')
             .update(data)
             .digest('hex');

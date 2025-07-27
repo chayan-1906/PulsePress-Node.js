@@ -1,9 +1,10 @@
 import "colors";
 import {Request, Response} from "express";
 import {AuthRequest} from "../types/auth";
+import {isListEmpty} from "../utils/list";
 import {ApiResponse} from "../utils/ApiResponse";
-import {SUMMARIZATION_STYLES, SummarizeArticleParams} from "../types/ai";
 import {summarizeArticle} from "../services/AIService";
+import {SUMMARIZATION_STYLES, SummarizeArticleParams} from "../types/ai";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 
 const summarizeArticleController = async (req: Request, res: Response) => {
@@ -11,16 +12,28 @@ const summarizeArticleController = async (req: Request, res: Response) => {
 
     try {
         const email = (req as AuthRequest).email;
-        const {content, language, style}: SummarizeArticleParams = req.body;
-        if (!content) {
-            console.error('Content is missing'.yellow.italic);
+        const {content, urls, language, style}: SummarizeArticleParams = req.body;
+
+        if (!content && isListEmpty(urls)) {
+            console.error('Content and urls both are missing'.yellow.italic);
             res.status(400).send(new ApiResponse({
                 success: false,
-                errorCode: generateMissingCode('content'),
-                errorMsg: 'Content is missing',
+                errorCode: 'CONTENT_OR_URL_REQUIRED',
+                errorMsg: 'Either content or URL must be provided',
             }));
             return;
         }
+
+        if (content && !isListEmpty(urls)) {
+            console.error('Content and urls both are present'.yellow.italic);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'CONTENT_AND_URL_CONFLICT',
+                errorMsg: 'Provide either content or URL, not both',
+            }));
+            return;
+        }
+
         if (style && !SUMMARIZATION_STYLES.includes(style)) {
             console.error('Invalid style:'.yellow.italic, style);
             res.status(400).send(new ApiResponse({
@@ -31,7 +44,7 @@ const summarizeArticleController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {summary, powered_by, error} = await summarizeArticle({email, content, language, style});
+        const {summary, powered_by, error} = await summarizeArticle({email, content, urls, language, style});
         if (error === generateMissingCode('email')) {
             console.error('Email is missing'.yellow.italic);
             res.status(400).send(new ApiResponse({
@@ -47,6 +60,15 @@ const summarizeArticleController = async (req: Request, res: Response) => {
                 success: false,
                 errorCode: generateNotFoundCode('user'),
                 errorMsg: 'User not found',
+            }));
+            return;
+        }
+        if (error === generateMissingCode('content') || error === 'SCRAPING_FAILED') {
+            console.error('Failed to scrape:'.yellow.italic, error);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('content'),
+                errorMsg: 'Failed to scrape website',
             }));
             return;
         }

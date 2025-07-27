@@ -96,3 +96,11 @@ export interface RSSFeedParams {
     pageSize?: number;
     page?: number;
 }
+
+export interface ScrapeWebsiteParams {
+    url?: string;
+}
+
+export interface ScrapeMultipleWebsitesParams {
+    urls?: string[];
+}
