@@ -10,6 +10,9 @@ import {buildHeader} from "../utils/buildHeader";
 import {generateMissingCode} from "../utils/generateErrorCodes";
 import {RSSFeed, RSSFeedParams, ScrapeMultipleWebsitesParams, ScrapeWebsiteParams, SUPPORTED_NEWS_LANGUAGES, TopHeadlinesAPIResponse, TopHeadlinesParams} from "../types/news";
 
+const RSS_CACHE = new Map<string, { data: RSSFeed[], timestamp: number }>();
+const CACHE_DURATION = 10 * 60 * 1000;  // 10 min
+
 // https://newsapi.org/docs/endpoints/top-headlines
 const fetchTopHeadlines = async ({country, category, sources, q, pageSize = 10, page = 1}: TopHeadlinesParams) => {
     try {
@@ -31,6 +34,13 @@ const fetchTopHeadlines = async ({country, category, sources, q, pageSize = 10, 
 
 const fetchRSSFeed = async ({sources, languages = 'english', pageSize = 10, page = 1}: RSSFeedParams) => {
     try {
+        const cacheKey = `${sources}-${languages}-${pageSize}-${page}`;
+        const cached = RSS_CACHE.get(cacheKey);
+
+        if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+            return cached.data;
+        }
+
         const languageList = languages
             ? languages.split(',').map(l => l.trim().toLowerCase()).filter(Boolean)
             : [];
@@ -71,6 +81,8 @@ const fetchRSSFeed = async ({sources, languages = 'english', pageSize = 10, page
             .sort(() => Math.random() - 0.5); // shuffle results
 
         const startIndex = (page - 1) * pageSize;
+
+        RSS_CACHE.set(cacheKey, {data: allItems.slice(startIndex, startIndex + pageSize), timestamp: Date.now()});
         return allItems.slice(startIndex, startIndex + pageSize);
     } catch (error: any) {
         console.error('ERROR: inside catch of fetchRSSFeed:'.red.bold, error);

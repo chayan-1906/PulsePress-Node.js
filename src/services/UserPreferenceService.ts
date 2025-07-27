@@ -1,9 +1,10 @@
 import "colors";
 import {ClientSession} from "mongoose";
-import {hasInvalidItems} from "../utils/list";
 import {getUserByEmail} from "./AuthService";
-import {SUPPORTED_CATEGORIES, SUPPORTED_NEWS_LANGUAGES, SUPPORTED_SOURCES} from "../types/news";
+import {hasInvalidItems} from "../utils/list";
+import {clearRecommendationCache} from "./ContentRecommendationService";
 import UserPreferenceModel, {IUserPreference} from "../models/UserPreferenceSchema";
+import {SUPPORTED_CATEGORIES, SUPPORTED_NEWS_LANGUAGES, SUPPORTED_SOURCES} from "../types/news";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {
     GetUserPreferenceParams,
@@ -63,6 +64,8 @@ const modifyUserPreference = async (
         if (!modifiedUserPreference) {
             return {error: 'MODIFY_USER_PREFERENCE_FAILED'};
         }
+
+        clearRecommendationCache(targetUser.userExternalId);
 
         return {userPreference: modifiedUserPreference};
     } catch (error: any) {
