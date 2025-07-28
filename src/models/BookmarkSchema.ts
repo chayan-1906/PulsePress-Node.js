@@ -7,6 +7,7 @@ export interface IBookmark extends Document {
     source: string;
     description?: string;
     imageUrl?: string;
+    publishedAt: Date;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -43,6 +44,10 @@ const BookmarkSchema = new Schema<IBookmark>({
         type: String,
         required: false,
         trim: true,
+    },
+    publishedAt: {
+        type: Date,
+        required: true,
     },
 }, {
     timestamps: true,

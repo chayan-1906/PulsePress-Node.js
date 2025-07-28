@@ -2,9 +2,20 @@ import "colors";
 import {getUserByEmail} from "./AuthService";
 import BookmarkModel, {IBookmark} from "../models/BookmarkSchema";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
-import {GetAllBookmarksParams, GetAllBookmarksResponse, GetBookmarkCountResponse, IsBookmarkedParams, IsBookmarkedResponse, ToggleBookmarkParams, ToggleBookmarkResponse} from "../types/bookmark";
+import {
+    GetAllBookmarksParams,
+    GetAllBookmarksResponse,
+    GetBookmarkCountResponse,
+    IsBookmarkedParams,
+    IsBookmarkedResponse,
+    SearchBookmarksParams,
+    SearchBookmarksResponse,
+    SUPPORTED_BOOKMARK_SORTINGS,
+    ToggleBookmarkParams,
+    ToggleBookmarkResponse
+} from "../types/bookmark";
 
-const toggleBookmark = async ({email, articleUrl, title, source, description, imageUrl}: ToggleBookmarkParams): Promise<ToggleBookmarkResponse> => {
+const toggleBookmark = async ({email, articleUrl, title, source, description, imageUrl, publishedAt}: ToggleBookmarkParams): Promise<ToggleBookmarkResponse> => {
     try {
         const {user, error} = await getUserByEmail({email});
         if (!user) {
@@ -20,6 +31,9 @@ const toggleBookmark = async ({email, articleUrl, title, source, description, im
         if (!source) {
             return {error: generateMissingCode('source')};
         }
+        if (!publishedAt) {
+            return {error: generateMissingCode('published_at')};
+        }
 
         const {isBookmarked, error: isBookedMarkedError} = await getBookmarkStatus({email, articleUrl});
         if (!isBookedMarkedError) {
@@ -34,7 +48,7 @@ const toggleBookmark = async ({email, articleUrl, title, source, description, im
                 // not bookmarked → add it
                 const savedBookmark = await BookmarkModel.create({
                     userExternalId: user.userExternalId,
-                    articleUrl, title, source, description, imageUrl,
+                    articleUrl, title, source, description, imageUrl, publishedAt,
                 });
                 console.log('savedBookmark:'.cyan.italic, savedBookmark);
 
@@ -114,4 +128,51 @@ const getBookmarkCount = async ({email}: GetAllBookmarksParams): Promise<GetBook
     }
 }
 
-export {toggleBookmark, getBookmarkStatus, getAllBookmarks, getBookmarkCount};
+const searchBookmarks = async ({email, q, sources, sortBy = 'createdAt', sortOrder = 'desc', pageSize = 10, page = 1}: SearchBookmarksParams): Promise<SearchBookmarksResponse> => {
+    try {
+        const {user, error} = await getUserByEmail({email});
+        if (!user) {
+            return {error: generateNotFoundCode('user')};
+        }
+
+        const skip = (page - 1) * pageSize;
+        const filter: any = {userExternalId: user.userExternalId};
+
+        // Full-text search
+        if (typeof q === 'string' && q.trim()) {
+            const regex = {$regex: q.trim(), $options: 'i'};
+            filter.$or = [
+                {articleUrl: regex},
+                {title: regex},
+                {source: regex},
+                {description: regex},
+            ];
+        }
+
+        // Filter by source(s)
+        const sourceArray = sources?.split(',').map(s => s.trim()).filter(Boolean);
+        if (sourceArray?.length) {
+            filter.source = {$in: sourceArray};
+        }
+
+        const sortField = SUPPORTED_BOOKMARK_SORTINGS.includes(sortBy) ? sortBy : 'createdAt';
+        const sortDirection = sortOrder === 'asc' ? 1 : -1;
+
+        console.info('Filter used in searchBookmarks:'.bgMagenta.white.italic, filter);
+
+        const searchedArticles = await BookmarkModel.find(filter)
+            .sort({[sortField]: sortDirection})
+            .skip(skip)
+            .limit(pageSize);
+
+        const totalCount = await BookmarkModel.countDocuments(filter);
+        console.log('searched bookmarked articles:'.cyan.italic, searchedArticles);
+
+        return {bookmarks: searchedArticles, totalCount, currentPage: page, totalPages: Math.ceil(totalCount / pageSize)};
+    } catch (error: any) {
+        console.error('ERROR: inside catch of searchBookmarks:'.red.bold, error);
+        throw error;
+    }
+}
+
+export {toggleBookmark, getBookmarkStatus, getAllBookmarks, getBookmarkCount, searchBookmarks};

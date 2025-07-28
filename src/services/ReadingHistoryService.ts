@@ -11,24 +11,37 @@ import {
     GetReadingHistoryParams,
     GetReadingHistoryResponse,
     ModifyReadingHistoryParams,
-    ModifyReadingHistoryResponse
+    ModifyReadingHistoryResponse,
+    SearchReadingHistoryParams,
+    SearchReadingHistoryResponse,
+    SUPPORTED_READING_HISTORY_SORTINGS
 } from "../types/reading-history";
 
-const modifyReadingHistory = async ({email, articleUrl, readAt, readDuration, completed}: ModifyReadingHistoryParams): Promise<ModifyReadingHistoryResponse> => {
+const modifyReadingHistory = async (
+    {email, title, articleUrl, source, description, readAt, readDuration, completed, publishedAt}: ModifyReadingHistoryParams): Promise<ModifyReadingHistoryResponse> => {
     try {
         const {user, error} = await getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
 
+        if (!title) {
+            return {error: generateMissingCode('title')};
+        }
         if (!articleUrl) {
             return {error: generateMissingCode('article_url')};
+        }
+        if (!source) {
+            return {error: generateMissingCode('source')};
         }
         if (!readAt) {
             return {error: generateMissingCode('read_at')};
         }
         if (completed === null || typeof completed === 'undefined') {
             return {error: generateMissingCode('completed')};
+        }
+        if (!publishedAt) {
+            return {error: generateMissingCode('published_at')};
         }
 
         const existingArticleHistory: IReadingHistory | null = await ReadingHistoryModel.findOne({userExternalId: user.userExternalId, articleUrl});
@@ -44,7 +57,17 @@ const modifyReadingHistory = async ({email, articleUrl, readAt, readDuration, co
             }
         }
 
-        const savedReadingHistory: IReadingHistory | null = await ReadingHistoryModel.create({userExternalId: user.userExternalId, articleUrl, readAt, readDuration, completed});
+        const savedReadingHistory: IReadingHistory | null = await ReadingHistoryModel.create({
+            userExternalId: user.userExternalId,
+            title,
+            articleUrl,
+            source,
+            description,
+            readAt,
+            readDuration,
+            completed,
+            publishedAt
+        });
         console.log('savedReadingHistory:'.cyan.italic, savedReadingHistory);
 
         return {isModified: savedReadingHistory !== null};
@@ -136,14 +159,7 @@ const getReadingAnalytics = async ({email}: GetReadingAnalyticsParams): Promise<
         const startOfWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
         const startOfMonth = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-        const [
-            totalArticles,
-            articlesToday,
-            articlesWeek,
-            articlesMonth,
-            completedArticles,
-            readingTimeStats
-        ] = await Promise.all([
+        const [totalArticles, articlesToday, articlesWeek, articlesMonth, completedArticles, readingTimeStats] = await Promise.all([
             // total articles read ever
             ReadingHistoryModel.countDocuments({userExternalId: user.userExternalId}),
 
@@ -206,4 +222,62 @@ const getReadingAnalytics = async ({email}: GetReadingAnalyticsParams): Promise<
     }
 }
 
-export {modifyReadingHistory, getReadingHistories, completeArticle, clearHistory, getReadingAnalytics};
+const searchReadingHistories = async (
+    {email, q, sources, sortBy = 'readAt', sortOrder = 'desc', pageSize = 10, page = 1,}: SearchReadingHistoryParams): Promise<SearchReadingHistoryResponse> => {
+    /**
+     * userExternalId — filters for the specific user (AND)
+     * source (if provided) — filters by source (AND)
+     * $or — searches title, articleUrl, description, source for keyword q (OR)
+     * */
+
+    try {
+        const {user} = await getUserByEmail({email});
+        if (!user) {
+            return {error: generateNotFoundCode('user')};
+        }
+
+        const skip = (page - 1) * pageSize;
+        const filter: any = {userExternalId: user.userExternalId};
+
+        // Full-text search
+        if (typeof q === 'string' && q.trim()) {
+            const regex = {$regex: q.trim(), $options: 'i'};
+            filter.$or = [
+                {title: regex},
+                {articleUrl: regex},
+                {source: regex},
+                {description: regex},
+            ];
+        }
+
+        // Filter by source(s)
+        const sourceArray = sources?.split(',').map(s => s.trim()).filter(Boolean);
+        if (sourceArray?.length) {
+            filter.source = {$in: sourceArray};
+        }
+
+        const sortField = SUPPORTED_READING_HISTORY_SORTINGS.includes(sortBy) ? sortBy : 'createdAt';
+        const sortDirection = sortOrder === 'asc' ? 1 : -1;
+
+        console.log('Filter used in searchReadingHistories:', filter);
+
+        const readingHistories = await ReadingHistoryModel.find(filter)
+            .sort({[sortField]: sortDirection})
+            .skip(skip)
+            .limit(pageSize);
+
+        const totalCount = await ReadingHistoryModel.countDocuments(filter);
+
+        return {
+            readingHistories,
+            totalCount,
+            currentPage: page,
+            totalPages: Math.ceil(totalCount / pageSize),
+        };
+    } catch (error: any) {
+        console.error('ERROR in searchReadingHistories:', error);
+        throw error;
+    }
+}
+
+export {modifyReadingHistory, getReadingHistories, completeArticle, clearHistory, getReadingAnalytics, searchReadingHistories};

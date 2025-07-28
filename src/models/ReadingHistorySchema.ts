@@ -5,10 +5,14 @@ export interface IReadingHistory extends Document {
     readingHistoryId: string;
     readingHistoryExternalId: string;
     userExternalId: string;
+    title: string;
     articleUrl: string;
+    source: string;
+    description?: string;
     readAt: Date;
     readDuration?: number;
     completed: boolean;
+    publishedAt: Date;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -27,9 +31,23 @@ const ReadingHistorySchema = new Schema<IReadingHistory>({
         type: String,
         required: true,
     },
+    title: {
+        type: String,
+        required: true,
+        trim: true,
+    },
     articleUrl: {
         type: String,
         required: true,
+        trim: true,
+    },
+    source: {
+        type: String,
+        required: true,
+        trim: true,
+    },
+    description: {
+        type: String,
         trim: true,
     },
     readAt: {
@@ -43,6 +61,10 @@ const ReadingHistorySchema = new Schema<IReadingHistory>({
     completed: {
         type: Boolean,
         required: false,
+    },
+    publishedAt: {
+        type: Date,
+        required: true,
     },
 }, {
     timestamps: true,

@@ -1,4 +1,8 @@
+import {SupportedSource} from "./news";
 import {IReadingHistory} from "../models/ReadingHistorySchema";
+
+export const SUPPORTED_READING_HISTORY_SORTINGS = ['title', 'articleUrl', 'source', 'readAt', 'readDuration', 'createdAt', 'publishedAt'];
+type SupportedReadingHistorySorting = typeof SUPPORTED_READING_HISTORY_SORTINGS[number];
 
 
 /** ------------- API response types ------------- */
@@ -40,15 +44,27 @@ export interface GetReadingAnalyticsResponse {
     error?: string;
 }
 
+export interface SearchReadingHistoryResponse {
+    readingHistories?: IReadingHistory[] | null;
+    totalCount?: number;
+    currentPage?: number;
+    totalPages?: number;
+    error?: string;
+}
+
 
 /** ------------- function params ------------- */
 
 export interface ModifyReadingHistoryParams {
     email: string;
+    title: string;
     articleUrl: string;
+    source: string;
+    description?: string;
     readAt: String;
     readDuration?: number;  // in seconds
     completed: boolean;
+    publishedAt: Date;
 }
 
 export interface GetReadingHistoryParams {
@@ -68,4 +84,14 @@ export interface ClearHistoryParams {
 
 export interface GetReadingAnalyticsParams {
     email: string;
+}
+
+export interface SearchReadingHistoryParams {
+    email: string;
+    q?: string;
+    sources?: SupportedSource;
+    sortBy?: SupportedReadingHistorySorting;
+    sortOrder?: 'asc' | 'desc';
+    pageSize?: number;
+    page?: number;
 }

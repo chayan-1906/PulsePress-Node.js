@@ -3,21 +3,39 @@ import {Request, Response} from "express";
 import {AuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
-import {CompleteArticleParams, GetReadingHistoryParams, ModifyReadingHistoryParams} from "../types/reading-history";
-import {clearHistory, completeArticle, getReadingAnalytics, getReadingHistories, modifyReadingHistory} from "../services/ReadingHistoryService";
+import {CompleteArticleParams, GetReadingHistoryParams, ModifyReadingHistoryParams, SearchReadingHistoryParams} from "../types/reading-history";
+import {clearHistory, completeArticle, getReadingAnalytics, getReadingHistories, modifyReadingHistory, searchReadingHistories} from "../services/ReadingHistoryService";
 
 const modifyReadingHistoryController = async (req: Request, res: Response) => {
     console.log('modifyReadingHistoryController called');
 
     try {
         const email = (req as AuthRequest).email;
-        const {articleUrl, readAt, readDuration, completed}: ModifyReadingHistoryParams = req.body;
+        const {title, articleUrl, source, description, readAt, readDuration, completed, publishedAt}: ModifyReadingHistoryParams = req.body;
+        if (!title) {
+            console.error('Title is missing'.yellow.italic);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('title'),
+                errorMsg: 'Title is missing',
+            }));
+            return;
+        }
         if (!articleUrl) {
             console.error('Article URL is missing'.yellow.italic);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateMissingCode('articleUrl'),
                 errorMsg: 'Article URL is missing',
+            }));
+            return;
+        }
+        if (!source) {
+            console.error('Source is missing'.yellow.italic);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('source'),
+                errorMsg: 'Source is missing',
             }));
             return;
         }
@@ -39,8 +57,17 @@ const modifyReadingHistoryController = async (req: Request, res: Response) => {
             }));
             return;
         }
+        if (!publishedAt) {
+            console.error('PublishedAt is missing'.yellow.italic);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('published_at'),
+                errorMsg: 'Published date is missing',
+            }));
+            return;
+        }
 
-        const {isModified, error} = await modifyReadingHistory({email, articleUrl, readAt, readDuration, completed});
+        const {isModified, error} = await modifyReadingHistory({email, title, articleUrl, source, description, readAt, readDuration, completed, publishedAt});
         if (error === generateMissingCode('email')) {
             console.error('Email is missing'.yellow.italic);
             res.status(400).send(new ApiResponse({
@@ -303,4 +330,58 @@ const getReadingHistoryAnalyticsController = async (req: Request, res: Response)
     }
 }
 
-export {modifyReadingHistoryController, getReadingHistoriesController, completeArticleController, clearHistoryController, getReadingHistoryAnalyticsController};
+const searchReadingHistoriesController = async (req: Request, res: Response) => {
+    console.info('searchReadingHistoriesController called'.bgMagenta.white.italic);
+
+    try {
+        const email = (req as AuthRequest).email;
+        const {q, sources, sortBy, sortOrder, pageSize, page}: Partial<SearchReadingHistoryParams> = req.query;
+
+        let pageSizeNumber, pageNumber;
+        if (pageSize && !isNaN(pageSize)) {
+            pageSizeNumber = Number(pageSize);
+        }
+        if (page && !isNaN(page)) {
+            pageNumber = Number(page);
+        }
+
+        const {readingHistories, totalCount, currentPage, totalPages, error} = await searchReadingHistories({email, q, sources, sortBy, sortOrder, pageSize: pageSizeNumber, page: pageNumber});
+        if (error === generateMissingCode('email')) {
+            console.error('Email is missing'.yellow.italic);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('email'),
+                errorMsg: 'Email is missing',
+            }));
+            return;
+        }
+        if (error === generateNotFoundCode('user')) {
+            console.error('User not found'.yellow.italic);
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
+            }));
+            return;
+        }
+        console.log('searched articles count:'.cyan.italic, totalCount);
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'Search results have been found 🎉',
+            searchResults: readingHistories,
+            totalCount,
+            currentPage,
+            totalPages,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of searchReadingHistoriesController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: 'Something went wrong',
+        }));
+    }
+}
+
+export {modifyReadingHistoryController, getReadingHistoriesController, completeArticleController, clearHistoryController, getReadingHistoryAnalyticsController, searchReadingHistoriesController};

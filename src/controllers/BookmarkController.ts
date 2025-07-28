@@ -2,16 +2,16 @@ import "colors";
 import {Request, Response} from "express";
 import {AuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
-import {getAllBookmarks, getBookmarkCount, getBookmarkStatus, toggleBookmark} from "../services/BookmarkService";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
-import {GetAllBookmarksParams, IsBookmarkedParams, ToggleBookmarkParams} from "../types/bookmark";
+import {GetAllBookmarksParams, IsBookmarkedParams, SearchBookmarksParams, ToggleBookmarkParams} from "../types/bookmark";
+import {getAllBookmarks, getBookmarkCount, getBookmarkStatus, searchBookmarks, toggleBookmark} from "../services/BookmarkService";
 
 const toggleBookmarkController = async (req: Request, res: Response) => {
-    console.log('toggleBookmarkController called');
+    console.info('toggleBookmarkController called'.bgMagenta.white.italic);
 
     try {
         const email = (req as AuthRequest).email;
-        const {articleUrl, title, source, description, imageUrl}: Partial<ToggleBookmarkParams> = req.body;
+        const {articleUrl, title, source, description, imageUrl, publishedAt}: Partial<ToggleBookmarkParams> = req.body;
         if (!articleUrl) {
             console.error('Article URL is missing'.yellow.italic);
             res.status(400).send(new ApiResponse({
@@ -39,8 +39,17 @@ const toggleBookmarkController = async (req: Request, res: Response) => {
             }));
             return;
         }
+        if (!publishedAt) {
+            console.error('PublishedAt is missing'.yellow.italic);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('published_at'),
+                errorMsg: 'Published date is missing',
+            }));
+            return;
+        }
 
-        const {bookmark, added, deleted, error} = await toggleBookmark({email, articleUrl, title, source, description, imageUrl});
+        const {bookmark, added, deleted, error} = await toggleBookmark({email, articleUrl, title, source, description, imageUrl, publishedAt});
         if (error === generateMissingCode('email')) {
             console.error('Email is missing'.yellow.italic);
             res.status(400).send(new ApiResponse({
@@ -97,7 +106,7 @@ const toggleBookmarkController = async (req: Request, res: Response) => {
 }
 
 const isBookmarkedController = async (req: Request, res: Response) => {
-    console.log('isBookmarkedController called');
+    console.log('isBookmarkedController called'.bgMagenta.white.italic);
 
     try {
         const email = (req as AuthRequest).email;
@@ -149,7 +158,7 @@ const isBookmarkedController = async (req: Request, res: Response) => {
 }
 
 const getAllBookmarksController = async (req: Request, res: Response) => {
-    console.log('getAllBookmarksController called');
+    console.log('getAllBookmarksController called'.bgMagenta.white.italic);
 
     try {
         const email = (req as AuthRequest).email;
@@ -203,7 +212,7 @@ const getAllBookmarksController = async (req: Request, res: Response) => {
 }
 
 const getBookmarkCountController = async (req: Request, res: Response) => {
-    console.log('getBookmarkCountController called');
+    console.log('getBookmarkCountController called'.bgMagenta.white.italic);
 
     try {
         const email = (req as AuthRequest).email;
@@ -244,4 +253,58 @@ const getBookmarkCountController = async (req: Request, res: Response) => {
     }
 }
 
-export {toggleBookmarkController, isBookmarkedController, getAllBookmarksController, getBookmarkCountController};
+const searchBookmarksController = async (req: Request, res: Response) => {
+    console.info('searchBookmarksController called'.bgMagenta.white.italic);
+
+    try {
+        const email = (req as AuthRequest).email;
+        const {q, sources, sortBy, sortOrder, pageSize, page}: Partial<SearchBookmarksParams> = req.query;
+
+        let pageSizeNumber, pageNumber;
+        if (pageSize && !isNaN(pageSize)) {
+            pageSizeNumber = Number(pageSize);
+        }
+        if (page && !isNaN(page)) {
+            pageNumber = Number(page);
+        }
+
+        const {bookmarks, totalCount, currentPage, totalPages, error} = await searchBookmarks({email, q, sources, sortBy, sortOrder, pageSize: pageSizeNumber, page: pageNumber});
+        if (error === generateMissingCode('email')) {
+            console.error('Email is missing'.yellow.italic);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('email'),
+                errorMsg: 'Email is missing',
+            }));
+            return;
+        }
+        if (error === generateNotFoundCode('user')) {
+            console.error('User not found'.yellow.italic);
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
+            }));
+            return;
+        }
+        console.log('searched articles count:'.cyan.italic, totalCount);
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'Search results have been found 🎉',
+            searchResults: bookmarks,
+            totalCount,
+            currentPage,
+            totalPages,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of searchBookmarksController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: 'Something went wrong',
+        }));
+    }
+}
+
+export {toggleBookmarkController, isBookmarkedController, getAllBookmarksController, getBookmarkCountController, searchBookmarksController};

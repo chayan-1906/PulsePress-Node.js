@@ -1,4 +1,8 @@
+import {SupportedSource} from "./news";
 import {IBookmark} from "../models/BookmarkSchema";
+
+export const SUPPORTED_BOOKMARK_SORTINGS = ['title', 'source', 'createdAt', 'updatedAt', 'publishedAt'];
+type SupportedBookmarkSorting = typeof SUPPORTED_BOOKMARK_SORTINGS[number];
 
 
 /** ------------- API response types ------------- */
@@ -28,6 +32,14 @@ export interface GetBookmarkCountResponse {
     error?: string;
 }
 
+export interface SearchBookmarksResponse {
+    bookmarks?: IBookmark[] | null;
+    totalCount?: number;
+    currentPage?: number;
+    totalPages?: number;
+    error?: string;
+}
+
 
 /** ------------- function params ------------- */
 
@@ -38,6 +50,7 @@ export interface ToggleBookmarkParams {
     source: string
     description?: string;
     imageUrl?: string;
+    publishedAt: Date;
 }
 
 export interface IsBookmarkedParams {
@@ -47,6 +60,16 @@ export interface IsBookmarkedParams {
 
 export interface GetAllBookmarksParams {
     email: string;
+    pageSize?: number;
+    page?: number;
+}
+
+export interface SearchBookmarksParams {
+    email: string;
+    q?: string;
+    sources?: SupportedSource;
+    sortBy?: SupportedBookmarkSorting;
+    sortOrder?: 'asc' | 'desc';
     pageSize?: number;
     page?: number;
 }

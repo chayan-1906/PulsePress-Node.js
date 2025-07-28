@@ -5,7 +5,8 @@ import {
     completeArticleController,
     getReadingHistoriesController,
     getReadingHistoryAnalyticsController,
-    modifyReadingHistoryController
+    modifyReadingHistoryController,
+    searchReadingHistoriesController
 } from "../controllers/ReadingHistoryController";
 
 const router = Router();
@@ -15,5 +16,6 @@ router.get('/', authMiddleware, getReadingHistoriesController);             // /
 router.put('/complete', authMiddleware, completeArticleController);         // /api/v1/reading-history
 router.delete('/', authMiddleware, clearHistoryController);                 // /api/v1/reading-history
 router.get('/stats', authMiddleware, getReadingHistoryAnalyticsController); // /api/v1/reading-history
+router.get('/search', authMiddleware, searchReadingHistoriesController);    // /api/v1/reading-history/search?q=ind&sources=ndtv,timesofindia&sortBy=readDuration&sortOrder=asc
 
 export default router;
