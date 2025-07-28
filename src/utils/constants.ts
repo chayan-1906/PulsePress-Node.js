@@ -13,12 +13,16 @@ const RSS_SOURCES = {
         techradar: 'https://www.techradar.com/rss',
         gizmodo: 'https://gizmodo.com/rss',
         timesofindia: 'https://timesofindia.indiatimes.com/rssfeedstopstories.cms',
+        prothom_alo_english: 'https://prod-qt-images.s3.amazonaws.com/production/prothomalo-english/feed.xml',
     },
     bengali: {
         prothom_alo: 'https://www.prothomalo.com/feed/',
         kaler_kantho: 'https://www.kalerkantho.com/rss.xml',
         oneindia_bengali: 'https://bengali.oneindia.com/rss/bengali-news-fb.xml',
         zeenews_bengali: 'https://zeenews.india.com/bengali/rss.xml',
+
+        // https://bbc.github.io/world-service-rss/
+        bbc_news_bengali: 'https://bbc.github.io/world-service-rss/bengali.html',
 
         // https://bengali.abplive.com/rss
         abp_live_home: 'https://bengali.abplive.com/home/feed',
@@ -41,6 +45,11 @@ const RSS_SOURCES = {
         amar_ujala_wb: 'https://www.amarujala.com/rss/west-bengal.xml',
         amar_ujala_delhi: 'https://www.amarujala.com/rss/delhi.xml',
 
+        // https://bbc.github.io/world-service-rss/
+        bbc_news_hindi: 'https://bbc.github.io/world-service-rss/hindi.html',
+
+        zeenews_hindi: 'https://zeenews.india.com/hindi/rss.xml',
+
         oneindia_hindi: 'https://hindi.oneindia.com/rss/hindi-news-fb.xml',
 
         // https://www.abplive.com/rss
@@ -60,6 +69,9 @@ const RSS_SOURCES = {
         zeenews_sports: 'https://zeenews.india.com/rss/sports-news.xml',
         zeenews_tech: 'https://zeenews.india.com/rss/technology-news.xml'
     },
+    multilingual: {
+        timesofindia: 'https://timesofindia.indiatimes.com/rssfeedstopstories.cms',
+    }
 };
 
 export {RSS_SOURCES};

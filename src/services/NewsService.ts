@@ -46,7 +46,7 @@ const fetchRSSFeed = async ({sources, languages = 'english', pageSize = 10, page
             : [];
 
         const validLanguages = languageList.filter(lang => SUPPORTED_NEWS_LANGUAGES.includes(lang));
-        const languagesToFetch = validLanguages.length ? validLanguages : ['english'];
+        const languagesToFetch = validLanguages.length ? validLanguages : ['english', 'multilingual'];
 
         let inputSources: string[] = [];
 

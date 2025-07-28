@@ -6,7 +6,7 @@ export type SupportedCategory = typeof SUPPORTED_CATEGORIES[number];
 export const SUPPORTED_SOURCES: string[] = Object.values(RSS_SOURCES).flatMap(langSources => Object.keys(langSources));
 export type SupportedSource = string;
 
-export const SUPPORTED_NEWS_LANGUAGES = ['english', 'bengali', 'hindi'];
+export const SUPPORTED_NEWS_LANGUAGES = ['english', 'bengali', 'hindi', 'multilingual'];
 export type SupportedNewsLanguage = typeof SUPPORTED_NEWS_LANGUAGES[number];
 
 export const sourceMap: Record<string, SupportedSource> = {
@@ -26,11 +26,10 @@ export const sourceMap: Record<string, SupportedSource> = {
     'timesofindia.indiatimes.com': 'timesofindia',
 
     // bengali
-    'bartamanpatrika.com': 'bartaman',
-    'sangbadpratidin.in': 'sangbad_pratidin',
-    'prothomalo.com': 'prothom_alo',
+    'prothomalo.com': 'prothom_alo_english',
     'kalerkantho.com': 'kaler_kantho',
     'bengali.oneindia.com': 'oneindia_bengali',
+    'bbc.github.io': 'bbc_news_bengali',
     'bengali.abplive.com': 'abp_live_home',
 
     // hindi

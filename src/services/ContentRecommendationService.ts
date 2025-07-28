@@ -162,12 +162,33 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
 
 // Helper functions
 const extractSourceFromUrl = (url: string): SupportedSource | null => {
-    try {
-        const domain = new URL(url).hostname.replace('www.', '');
-        return sourceMap[domain] ?? null;
-    } catch {
-        return null;
+    const urlObj = new URL(url);
+    const domain = urlObj.hostname.replace('www.', '');
+    const path = urlObj.pathname;
+
+    // zeenews
+    if (domain === 'zeenews.india.com') {
+        if (path.includes('/bengali/')) return 'zeenews_bengali';
+        if (path.includes('/hindi/')) return 'zeenews_hindi';
+        return 'zeenews_india';
     }
+
+    // prothomalp
+    if (domain === 'prothomalo.com') {
+        return 'prothom_alo'; // Bengali version
+    }
+    if (domain === 'prod-qt-images.s3.amazonaws.com' && path.includes('prothomalo-english')) {
+        return 'prothom_alo_english';
+    }
+
+    // bbcnews
+    if (domain === 'bbc.github.io') {
+        if (path.includes('/bengali')) return 'bbc_news_bengali';
+        if (path.includes('/hindi')) return 'bbc_news_hindi';
+        return 'bbc_news_bengali';
+    }
+
+    return sourceMap[domain] ?? null;
 }
 
 const countFrequency = (items: string[]): { [key: string]: number } => {
