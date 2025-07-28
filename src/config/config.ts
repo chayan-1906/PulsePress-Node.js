@@ -18,4 +18,5 @@ export const {
     NEWSAPIORG_API_KEY,
     GEMINI_API_KEY,
     RSS_CACHE_DURATION,
+    RECOMMENDATION_CACHE_DURATION,
 } = process.env;

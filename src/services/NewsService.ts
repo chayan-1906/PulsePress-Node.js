@@ -12,12 +12,23 @@ import {generateMissingCode} from "../utils/generateErrorCodes";
 import {FetchEverythingParams, RSSFeed, RSSFeedParams, ScrapeMultipleWebsitesParams, ScrapeWebsiteParams, SUPPORTED_NEWS_LANGUAGES, TopHeadlinesAPIResponse, TopHeadlinesParams} from "../types/news";
 
 const RSS_CACHE = new Map<string, { data: RSSFeed[], timestamp: number }>();
+const TOPHEADLINES_CACHE = new Map<string, { data: any, timestamp: number }>();
+const EVERYTHING_NEWS_CACHE = new Map<string, { data: any, timestamp: number }>();
 
 // https://newsapi.org/docs/endpoints/top-headlines
 const fetchTopHeadlines = async ({country, category, sources, q, pageSize = 10, page = 1}: TopHeadlinesParams) => {
     try {
+        const cacheKey = `${country}-${category}-${sources}-${q}-${pageSize}-${page}`;
+        const cached = TOPHEADLINES_CACHE.get(cacheKey);
+        if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
+            console.log('returning cached data:'.cyan.italic, cached.data);
+            return cached.data;
+        }
+
         const {data: topHeadlinesResponse} = await axios.get<TopHeadlinesAPIResponse>(apis.topHeadlinesApi({country: country || 'us', category, sources, q, pageSize, page}), {headers: buildHeader()});
         console.log('topHeadlines:'.cyan.italic, topHeadlinesResponse);
+
+        TOPHEADLINES_CACHE.set(cacheKey, {data: topHeadlinesResponse, timestamp: Date.now()});
 
         // fallback → fetch RSS feeds
         if (topHeadlinesResponse.articles.length === 0) {
@@ -92,8 +103,17 @@ const fetchRSSFeed = async ({sources, languages = 'english', pageSize = 10, page
 
 const fetchEverything = async ({sources, from, to, sortBy, language, q, pageSize = 10, page = 1}: FetchEverythingParams) => {
     try {
+        const cacheKey = `${sources}-${from}-${to}-${sortBy}-${language}-${q}-${pageSize}-${page}`;
+        const cached = EVERYTHING_NEWS_CACHE.get(cacheKey);
+        if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
+            console.log('returning cached data:'.cyan.italic, cached.data);
+            return cached.data;
+        }
+
         const {data: everything} = await axios.get<TopHeadlinesAPIResponse>(apis.fetchEverythingApi({sources, from, to, sortBy, language, q, pageSize, page}), {headers: buildHeader()});
         console.log('everything:'.cyan.italic, everything);
+
+        EVERYTHING_NEWS_CACHE.set(cacheKey, {data: everything, timestamp: Date.now()});
 
         return everything;
     } catch (error: any) {

@@ -4,13 +4,13 @@ import {RSS_SOURCES} from "../utils/constants";
 import BookmarkModel from "../models/BookmarkSchema";
 import {sourceMap, SupportedSource} from "../types/news";
 import {fetchRSSFeed, fetchTopHeadlines} from "./NewsService";
+import {RECOMMENDATION_CACHE_DURATION} from "../config/config";
 import ReadingHistoryModel from "../models/ReadingHistorySchema";
 import UserPreferenceModel from "../models/UserPreferenceSchema";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {GetContentRecommendationsParams, GetContentRecommendationsResponse, RecommendedArticle} from "../types/content-recommendation";
 
 const RECOMMENDATION_CACHE = new Map<string, { data: GetContentRecommendationsResponse, timestamp: number }>();
-const RECOMMENDATION_CACHE_DURATION = 15 * 60 * 1000;   // 15 min
 
 const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecommendationsParams): Promise<GetContentRecommendationsResponse> => {
     try {
@@ -26,7 +26,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
         const cacheKey = `${user.userExternalId}-${pageSize}`;
         const cached = RECOMMENDATION_CACHE.get(cacheKey);
 
-        if (cached && Date.now() - cached.timestamp < RECOMMENDATION_CACHE_DURATION) {
+        if (cached && Date.now() - cached.timestamp < Number(RECOMMENDATION_CACHE_DURATION)) {
             console.log('Recommendation cache hit:'.green.italic, cacheKey);
             return cached.data;
         }
