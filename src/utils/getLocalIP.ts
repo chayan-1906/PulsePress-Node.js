@@ -1,6 +1,6 @@
 import * as os from 'os';
 
-function getLocalIp(): string | undefined {
+const getLocalIP = (): string | undefined => {
     const interfaces = os.networkInterfaces();
     for (const name of Object.keys(interfaces)) {
         for (const interfacee of interfaces[name] || []) {
@@ -12,4 +12,4 @@ function getLocalIp(): string | undefined {
     return undefined;
 }
 
-export default getLocalIp;
+export {getLocalIP};

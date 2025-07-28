@@ -12,7 +12,7 @@ const parseRSS = async (rssFeedUrl: string): Promise<RSSFeed[]> => {
         },
         title: title?.trim(),
         url: link,
-        publishedAt: pubDate,
+        publishedAt: pubDate ? new Date(pubDate).toISOString() : undefined,
         content: content?.trim(),
         contentSnippet: contentSnippet?.trim(),
         categories: categories?.map(item => item.replace(/\n/g, '').trim()),

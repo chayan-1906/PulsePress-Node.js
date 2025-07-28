@@ -2,6 +2,7 @@ import "dotenv/config";
 
 export const {
     PORT,
+    NODE_ENV,
     MONGO_URI,
     GOOGLE_CLIENT_SECRET,
     WEB_GOOGLE_CLIENT_ID,
@@ -15,5 +16,6 @@ export const {
     REFRESH_TOKEN_EXPIRY,
     COOKIE_PASSWORD,
     NEWSAPIORG_API_KEY,
-    GEMINI_API_KEY
+    GEMINI_API_KEY,
+    RSS_CACHE_DURATION,
 } = process.env;

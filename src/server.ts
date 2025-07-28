@@ -4,10 +4,10 @@ import morgan from "morgan";
 import express from 'express';
 import {PORT} from "./config/config";
 import aiRoutes from "./routes/AIRoutes";
-import getLocalIp from "./utils/getLocalIP";
 import {connectDB} from "./config/connectDB";
 import newsRoutes from "./routes/NewsRoutes";
 import authRoutes from "./routes/AuthRoutes";
+import {getLocalIP} from "./utils/getLocalIP";
 import bookmarkRoutes from "./routes/BookmarkRoutes";
 import readingHistoryRoutes from "./routes/ReadingHistoryRoutes";
 import userPreferenceRoutes from "./routes/UserPreferenceRoutes";
@@ -53,7 +53,7 @@ const start = async () => {
             } else {
                 console.log(`Server started on ${PORT}`.blue.italic.bold);
                 console.log(`\t- Local:        http://localhost:${PORT}`.blue.bold);
-                console.log(`\t- Network:      http://${getLocalIp()}:${PORT}`.blue.bold);
+                console.log(`\t- Network:      http://${getLocalIP()}:${PORT}`.blue.bold);
             }
         });
     } catch (error: any) {

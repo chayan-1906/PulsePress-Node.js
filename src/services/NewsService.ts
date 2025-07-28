@@ -7,11 +7,11 @@ import {isListEmpty} from "../utils/list";
 import {parseRSS} from "../utils/parseRSS";
 import {RSS_SOURCES} from "../utils/constants";
 import {buildHeader} from "../utils/buildHeader";
+import {NODE_ENV, RSS_CACHE_DURATION} from "../config/config";
 import {generateMissingCode} from "../utils/generateErrorCodes";
 import {FetchEverythingParams, RSSFeed, RSSFeedParams, ScrapeMultipleWebsitesParams, ScrapeWebsiteParams, SUPPORTED_NEWS_LANGUAGES, TopHeadlinesAPIResponse, TopHeadlinesParams} from "../types/news";
 
 const RSS_CACHE = new Map<string, { data: RSSFeed[], timestamp: number }>();
-const CACHE_DURATION = 10 * 60 * 1000;  // 10 min
 
 // https://newsapi.org/docs/endpoints/top-headlines
 const fetchTopHeadlines = async ({country, category, sources, q, pageSize = 10, page = 1}: TopHeadlinesParams) => {
@@ -37,7 +37,7 @@ const fetchRSSFeed = async ({sources, languages = 'english', pageSize = 10, page
         const cacheKey = `${sources}-${languages}-${pageSize}-${page}`;
         const cached = RSS_CACHE.get(cacheKey);
 
-        if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
             return cached.data;
         }
 
@@ -78,7 +78,7 @@ const fetchRSSFeed = async ({sources, languages = 'english', pageSize = 10, page
         const allItems = results
             .filter(r => r.status === 'fulfilled' && r.value)
             .flatMap(r => (r as PromiseFulfilledResult<RSSFeed[]>).value)
-            .sort(() => Math.random() - 0.5); // shuffle results
+            .sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
 
         const startIndex = (page - 1) * pageSize;
 
