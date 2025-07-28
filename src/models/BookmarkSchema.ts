@@ -7,7 +7,7 @@ export interface IBookmark extends Document {
     source: string;
     description?: string;
     imageUrl?: string;
-    publishedAt: Date;
+    publishedAt: Date;  // 2025-07-19T20:05:00Z+00:00 or 2025-07-19T20:05:00Z -- this is UTC
     createdAt: Date;
     updatedAt: Date;
 }

@@ -25,7 +25,7 @@ export interface CompleteArticleResponse {
     error?: string;
 }
 
-export interface ClearHistoryResponse {
+export interface ClearReadingHistoryResponse {
     isCleared?: boolean;
     error?: string;
 }
@@ -49,6 +49,11 @@ export interface SearchReadingHistoryResponse {
     totalCount?: number;
     currentPage?: number;
     totalPages?: number;
+    error?: string;
+}
+
+export interface DeleteReadingHistoryResponse {
+    isDeleted?: boolean;
     error?: string;
 }
 
@@ -78,7 +83,7 @@ export interface CompleteArticleParams {
     articleUrl: string;
 }
 
-export interface ClearHistoryParams {
+export interface ClearReadingHistoryParams {
     email: string;
 }
 
@@ -94,4 +99,9 @@ export interface SearchReadingHistoryParams {
     sortOrder?: 'asc' | 'desc';
     pageSize?: number;
     page?: number;
+}
+
+export interface DeleteReadingHistoryParams {
+    email: string;
+    readingHistoryExternalId: string;
 }

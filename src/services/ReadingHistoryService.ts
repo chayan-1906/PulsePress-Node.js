@@ -2,10 +2,12 @@ import {getUserByEmail} from "./AuthService";
 import ReadingHistoryModel, {IReadingHistory} from "../models/ReadingHistorySchema";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {
-    ClearHistoryParams,
-    ClearHistoryResponse,
+    ClearReadingHistoryParams,
+    ClearReadingHistoryResponse,
     CompleteArticleParams,
     CompleteArticleResponse,
+    DeleteReadingHistoryParams,
+    DeleteReadingHistoryResponse,
     GetReadingAnalyticsParams,
     GetReadingAnalyticsResponse,
     GetReadingHistoryParams,
@@ -14,7 +16,7 @@ import {
     ModifyReadingHistoryResponse,
     SearchReadingHistoryParams,
     SearchReadingHistoryResponse,
-    SUPPORTED_READING_HISTORY_SORTINGS
+    SUPPORTED_READING_HISTORY_SORTINGS,
 } from "../types/reading-history";
 
 const modifyReadingHistory = async (
@@ -129,7 +131,7 @@ const completeArticle = async ({email, articleUrl}: CompleteArticleParams): Prom
     }
 }
 
-const clearHistory = async ({email}: ClearHistoryParams): Promise<ClearHistoryResponse> => {
+const clearReadingHistories = async ({email}: ClearReadingHistoryParams): Promise<ClearReadingHistoryResponse> => {
     try {
         const {user, error} = await getUserByEmail({email});
         if (!user) {
@@ -142,7 +144,7 @@ const clearHistory = async ({email}: ClearHistoryParams): Promise<ClearHistoryRe
 
         return {isCleared};
     } catch (error: any) {
-        console.error('ERROR: inside catch of clearHistory:'.red.bold, error);
+        console.error('ERROR: inside catch of clearReadingHistories:'.red.bold, error);
         throw error;
     }
 }
@@ -280,4 +282,29 @@ const searchReadingHistories = async (
     }
 }
 
-export {modifyReadingHistory, getReadingHistories, completeArticle, clearHistory, getReadingAnalytics, searchReadingHistories};
+const deleteReadingHistory = async ({email, readingHistoryExternalId}: DeleteReadingHistoryParams): Promise<DeleteReadingHistoryResponse> => {
+    try {
+        const {user, error} = await getUserByEmail({email});
+        if (!user) {
+            return {error: generateNotFoundCode('user')};
+        }
+
+        if (!readingHistoryExternalId) {
+            return {error: generateMissingCode('reading_history_external_id')};
+        }
+
+        const {deletedCount, acknowledged} = await ReadingHistoryModel.deleteOne({userExternalId: user.userExternalId, readingHistoryExternalId});
+        if (deletedCount === 0) {
+            return {error: generateNotFoundCode('reading_history')};
+        }
+        const isDeleted = deletedCount === 1 && acknowledged;
+        console.log('isDeleted:'.cyan.italic, acknowledged);
+
+        return {isDeleted};
+    } catch (error: any) {
+        console.error('ERROR: inside catch of deleteReadingHistory:'.red.bold, error);
+        throw error;
+    }
+}
+
+export {modifyReadingHistory, getReadingHistories, completeArticle, clearReadingHistories, getReadingAnalytics, searchReadingHistories, deleteReadingHistory};

@@ -9,7 +9,7 @@ export interface IReadingHistory extends Document {
     articleUrl: string;
     source: string;
     description?: string;
-    readAt: Date;
+    readAt: Date;  // 2025-07-19T20:05:00Z+00:00 or 2025-07-19T20:05:00Z -- this is UTC
     readDuration?: number;
     completed: boolean;
     publishedAt: Date;
