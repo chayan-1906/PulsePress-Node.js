@@ -5,6 +5,7 @@ import {Translate} from '@google-cloud/translate/build/src/v2';
 import {isListEmpty} from "../utils/list";
 import {getUserByEmail} from "./AuthService";
 import {scrapeMultipleArticles} from "./NewsService";
+import {HealthCheckResponse} from "../types/health-check";
 import {GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY} from "../config/config";
 import CachedSummaryModel, {ICachedSummary} from "../models/CachedSummarySchema";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
@@ -21,6 +22,7 @@ import {
 
 // Initialize with API key
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
+const AI_MODEL = 'gemini-1.5-flash';
 const translate = new Translate({key: GOOGLE_TRANSLATE_API_KEY});
 
 const summarizeArticle = async ({email, content, urls, language = 'en', style = 'standard'}: SummarizeArticleParams): Promise<SummarizeArticleResponse> => {
@@ -80,7 +82,7 @@ const summarizeArticle = async ({email, content, urls, language = 'en', style = 
             };
         }
 
-        const model = genAI.getGenerativeModel({model: 'gemini-1.5-flash'});
+        const model = genAI.getGenerativeModel({model: AI_MODEL});
 
         let prompt = '';
         if (style === 'concise') {
@@ -168,4 +170,17 @@ const translateText = async ({text, targetLanguage}: TranslateTextParams): Promi
     }
 }
 
-export {summarizeArticle};
+const checkGeminiAPIHealth = async (): Promise<HealthCheckResponse> => {
+    try {
+        const start = Date.now();
+        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
+        const model = genAI.getGenerativeModel({model: AI_MODEL});
+        await model.generateContent('test');
+        return {status: 'healthy', responseTime: `${Date.now() - start}ms`};
+    } catch (error: any) {
+        console.error('ERROR: inside catch of checkGeminiAPIHealth:'.red.bold, error);
+        return {status: 'unhealthy', error: error.message};
+    }
+}
+
+export {summarizeArticle, checkGeminiAPIHealth};

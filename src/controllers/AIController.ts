@@ -3,8 +3,8 @@ import {Request, Response} from "express";
 import {AuthRequest} from "../types/auth";
 import {isListEmpty} from "../utils/list";
 import {ApiResponse} from "../utils/ApiResponse";
-import {summarizeArticle} from "../services/AIService";
 import {SUMMARIZATION_STYLES, SummarizeArticleParams} from "../types/ai";
+import {checkGeminiAPIHealth, summarizeArticle} from "../services/AIService";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 
 const summarizeArticleController = async (req: Request, res: Response) => {
@@ -99,4 +99,33 @@ const summarizeArticleController = async (req: Request, res: Response) => {
     }
 }
 
-export {summarizeArticleController};
+const checkGeminiAPIHealthController = async (req: Request, res: Response) => {
+    console.info('checkGeminiAPIHealthController called'.bgMagenta.white.italic);
+    try {
+        const healthCheck = await checkGeminiAPIHealth();
+
+        if (healthCheck.status === 'healthy') {
+            res.status(200).send(new ApiResponse({
+                success: true,
+                message: 'Gemini AI health check passed 🎉',
+                health: healthCheck,
+            }));
+        } else {
+            res.status(503).send(new ApiResponse({
+                success: false,
+                errorCode: 'GEMINI_API_UNHEALTHY',
+                errorMsg: 'Gemini AI health check failed',
+                health: healthCheck,
+            }));
+        }
+    } catch (error: any) {
+        console.error('ERROR: inside catch of checkGeminiAPIHealthController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: 'Something went wrong',
+        }));
+    }
+}
+
+export {summarizeArticleController, checkGeminiAPIHealthController};
