@@ -27,9 +27,8 @@ export const sourceMap: Record<string, SupportedSource> = {
 
     // bengali
     'prothomalo.com': 'prothom_alo_english',
-    'kalerkantho.com': 'kaler_kantho',
     'bengali.oneindia.com': 'oneindia_bengali',
-    'bbc.github.io': 'bbc_news_bengali',
+    'feeds.bbci.co.uk': 'bbc_news_bengali',
     'bengali.abplive.com': 'abp_live_home',
 
     // hindi

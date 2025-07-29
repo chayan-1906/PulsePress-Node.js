@@ -1,10 +1,18 @@
 /** ------------- API response types ------------- */
 
 export interface HealthCheckResponse {
-    status: string;
+    status: 'healthy' | 'unhealthy' | 'degraded';
     responseTime?: string;
+    timestamp?: string;
+    version?: string;
+    environment?: string;
+    message?: string;
     data?: any;
-    error?: string;
+    details?: any;
+    error?: {
+        details?: any;
+        message: string;
+    };
 }
 
 

@@ -5,12 +5,11 @@ import {Readability} from "@mozilla/readability";
 import {apis} from "../utils/apis";
 import {isListEmpty} from "../utils/list";
 import {parseRSS} from "../utils/parseRSS";
-import {RSS_SOURCES} from "../utils/constants";
 import {buildHeader} from "../utils/buildHeader";
+import {RSS_SOURCES, userAgents} from "../utils/constants";
 import {NODE_ENV, RSS_CACHE_DURATION} from "../config/config";
 import {generateMissingCode} from "../utils/generateErrorCodes";
 import {FetchEverythingParams, RSSFeed, RSSFeedParams, ScrapeMultipleWebsitesParams, ScrapeWebsiteParams, SUPPORTED_NEWS_LANGUAGES, TopHeadlinesAPIResponse, TopHeadlinesParams} from "../types/news";
-import {HealthCheckResponse} from "../types/health-check";
 
 const RSS_CACHE = new Map<string, { data: RSSFeed[], timestamp: number }>();
 const TOPHEADLINES_CACHE = new Map<string, { data: any, timestamp: number }>();
@@ -130,12 +129,6 @@ const scrapeArticle = async ({url}: ScrapeWebsiteParams) => {
             return {error: generateMissingCode('url')};
         }
 
-        const userAgents = [
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'
-        ];
-
         let response: any;
         for (const userAgent of userAgents) {
             try {
@@ -232,19 +225,4 @@ const scrapeMultipleArticles = async ({urls}: ScrapeMultipleWebsitesParams) => {
     return results;
 }
 
-const checkNewsAPIHealth = async (): Promise<HealthCheckResponse> => {
-    try {
-        const start = Date.now();
-        const {data: topHeadlines} = await axios.get(apis.topHeadlinesApi({country: 'us', pageSize: 1}), {
-            headers: buildHeader(),
-            timeout: 5000,
-        });
-        const responseTime = Date.now() - start;
-        return {status: 'healthy', responseTime: `${responseTime}ms`, data: topHeadlines};
-    } catch (error: any) {
-        console.error('ERROR: inside catch of checkNewsAPIHealth:'.red.bold, error);
-        return {status: 'unhealthy', error: error.message};
-    }
-}
-
-export {fetchTopHeadlines, fetchRSSFeed, fetchEverything, scrapeMultipleArticles, checkNewsAPIHealth};
+export {fetchTopHeadlines, fetchRSSFeed, fetchEverything, scrapeMultipleArticles};

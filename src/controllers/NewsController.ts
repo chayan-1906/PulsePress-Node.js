@@ -3,7 +3,7 @@ import {Request, Response} from "express";
 import {isListEmpty} from "../utils/list";
 import {ApiResponse} from "../utils/ApiResponse";
 import {generateMissingCode} from "../utils/generateErrorCodes";
-import {checkNewsAPIHealth, fetchEverything, fetchRSSFeed, fetchTopHeadlines, scrapeMultipleArticles} from "../services/NewsService";
+import {fetchEverything, fetchRSSFeed, fetchTopHeadlines, scrapeMultipleArticles} from "../services/NewsService";
 import {FetchEverythingParams, RSSFeedParams, ScrapeMultipleWebsitesParams, SUPPORTED_NEWS_LANGUAGES, TopHeadlinesParams} from "../types/news";
 
 const getAllTopHeadlinesController = async (req: Request, res: Response) => {
@@ -172,33 +172,4 @@ const scrapeWebsiteController = async (req: Request, res: Response) => {
     }
 }
 
-const checkNewsAPIHealthController = async (req: Request, res: Response) => {
-    console.info('checkNewsAPIHealthController called'.bgMagenta.white.italic);
-    try {
-        const healthCheck = await checkNewsAPIHealth();
-
-        if (healthCheck.status === 'healthy') {
-            res.status(200).send(new ApiResponse({
-                success: true,
-                message: 'News API health check passed 🎉',
-                health: healthCheck,
-            }));
-        } else {
-            res.status(503).send(new ApiResponse({
-                success: false,
-                errorCode: 'NEWS_API_UNHEALTHY',
-                errorMsg: 'News API health check failed',
-                health: healthCheck,
-            }));
-        }
-    } catch (error: any) {
-        console.error('ERROR: inside catch of topHeadlines:'.red.bold, error);
-        res.status(500).send(new ApiResponse({
-            success: false,
-            error,
-            errorMsg: 'Something went wrong',
-        }));
-    }
-}
-
-export {getAllTopHeadlinesController, getAllRSSFeedsController, fetchEverythingController, scrapeWebsiteController, checkNewsAPIHealthController};
+export {getAllTopHeadlinesController, getAllRSSFeedsController, fetchEverythingController, scrapeWebsiteController};

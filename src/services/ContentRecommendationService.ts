@@ -182,7 +182,7 @@ const extractSourceFromUrl = (url: string): SupportedSource | null => {
     }
 
     // bbcnews
-    if (domain === 'bbc.github.io') {
+    if (domain === 'feeds.bbci.co.uk') {
         if (path.includes('/bengali')) return 'bbc_news_bengali';
         if (path.includes('/hindi')) return 'bbc_news_hindi';
         return 'bbc_news_bengali';

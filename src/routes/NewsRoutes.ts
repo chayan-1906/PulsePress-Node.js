@@ -1,5 +1,5 @@
 import {Router} from "express";
-import {checkNewsAPIHealthController, fetchEverythingController, getAllRSSFeedsController, getAllTopHeadlinesController, scrapeWebsiteController} from "../controllers/NewsController";
+import {fetchEverythingController, getAllRSSFeedsController, getAllTopHeadlinesController, scrapeWebsiteController} from "../controllers/NewsController";
 
 const router = Router();
 
@@ -7,6 +7,5 @@ router.get('/top-headlines', getAllTopHeadlinesController);     // /api/v1/news/
 router.get('/rss', getAllRSSFeedsController);                   // /api/v1/news/rss?sources=prothom_alo,zeenews_bengali&language=bengali&pageSize=12&page=2
 router.get('/search', fetchEverythingController);               // /api/v1/news/search?sources=techcrunch&from=2025-06-27&to=2025-07-27&sortBy=publishedAt&language=spanish&q=tesla
 router.post('/scrape', scrapeWebsiteController);                // /api/v1/news/scrape
-router.get('/health', checkNewsAPIHealthController);            // /api/v1/news/health
 
 export default router;
