@@ -10,6 +10,7 @@ import {buildHeader} from "../utils/buildHeader";
 import {NODE_ENV, RSS_CACHE_DURATION} from "../config/config";
 import {generateMissingCode} from "../utils/generateErrorCodes";
 import {FetchEverythingParams, RSSFeed, RSSFeedParams, ScrapeMultipleWebsitesParams, ScrapeWebsiteParams, SUPPORTED_NEWS_LANGUAGES, TopHeadlinesAPIResponse, TopHeadlinesParams} from "../types/news";
+import {HealthCheckResponse} from "../types/health-check";
 
 const RSS_CACHE = new Map<string, { data: RSSFeed[], timestamp: number }>();
 const TOPHEADLINES_CACHE = new Map<string, { data: any, timestamp: number }>();
@@ -231,4 +232,19 @@ const scrapeMultipleArticles = async ({urls}: ScrapeMultipleWebsitesParams) => {
     return results;
 }
 
-export {fetchTopHeadlines, fetchRSSFeed, fetchEverything, scrapeMultipleArticles};
+const checkNewsAPIHealth = async (): Promise<HealthCheckResponse> => {
+    try {
+        const start = Date.now();
+        const {data: topHeadlines} = await axios.get(apis.topHeadlinesApi({country: 'us', pageSize: 1}), {
+            headers: buildHeader(),
+            timeout: 5000,
+        });
+        const responseTime = Date.now() - start;
+        return {status: 'healthy', responseTime: `${responseTime}ms`, data: topHeadlines};
+    } catch (error: any) {
+        console.error('ERROR: inside catch of checkNewsAPIHealth:'.red.bold, error);
+        return {status: 'unhealthy', error: error.message};
+    }
+}
+
+export {fetchTopHeadlines, fetchRSSFeed, fetchEverything, scrapeMultipleArticles, checkNewsAPIHealth};
