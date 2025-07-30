@@ -12,9 +12,10 @@ export type SupportedNewsLanguage = typeof SUPPORTED_NEWS_LANGUAGES[number];
 export const sourceMap: Record<string, SupportedSource> = {
     // english
     'techcrunch.com': 'techcrunch',
-    'bbc.co.uk': 'bbc_tech',
+    'feeds.bbci.co.uk': 'bbc_tech',
+    'hnrss.org': 'hacker_news',
     'wired.com': 'wired',
-    'arstechnica.com': 'ars_technica',
+    'feeds.arstechnica.com': 'ars_technica',
     'engadget.com': 'engadget',
     'theverge.com': 'verge',
     'cnet.com': 'cnet',
@@ -22,20 +23,24 @@ export const sourceMap: Record<string, SupportedSource> = {
     'zdnet.com': 'zdnet',
     'techradar.com': 'techradar',
     'gizmodo.com': 'gizmodo',
-    'news.ycombinator.com': 'hacker_news',
-    'timesofindia.indiatimes.com': 'timesofindia',
+    'timesofindia.indiatimes.com': 'timesofindia_top',
+    'feeds.feedburner.com': 'ndtv_top',
+    'thehindu.com': 'the_hindu_india',
+    'prod-qt-images.s3.amazonaws.com': 'prothom_alo_english',
 
     // bengali
-    'prothomalo.com': 'prothom_alo_english',
+    'prothomalo.com': 'prothom_alo',
     'bengali.oneindia.com': 'oneindia_bengali',
-    'feeds.bbci.co.uk': 'bbc_news_bengali',
-    'bengali.abplive.com': 'abp_live_home',
+    'zeenews.india.com': 'zeenews_bengali', // Will need path-based handling for different languages
+    'bengali.abplive.com': 'abp_live_bengali_home', // Will need path-based handling
+    'bd24live.com': 'bd24live',
+    'risingbd.com': 'risingbd',
+    'bengali.news18.com': 'bengali_news_18',
 
     // hindi
     'amarujala.com': 'amar_ujala_breaking',
     'hindi.oneindia.com': 'oneindia_hindi',
-    'abplive.com': 'abp_live_home',
-    'zeenews.india.com': 'zeenews_india',
+    'abplive.com': 'abp_live_hindi_home',
 };
 
 interface Article {

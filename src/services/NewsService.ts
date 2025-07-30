@@ -28,7 +28,9 @@ const fetchTopHeadlines = async ({country, category, sources, q, pageSize = 10, 
         const {data: topHeadlinesResponse} = await axios.get<TopHeadlinesAPIResponse>(apis.topHeadlinesApi({country: country || 'us', category, sources, q, pageSize, page}), {headers: buildHeader()});
         console.log('topHeadlines:'.cyan.italic, topHeadlinesResponse);
 
-        TOPHEADLINES_CACHE.set(cacheKey, {data: topHeadlinesResponse, timestamp: Date.now()});
+        if (NODE_ENV === 'production') {
+            TOPHEADLINES_CACHE.set(cacheKey, {data: topHeadlinesResponse, timestamp: Date.now()});
+        }
 
         // fallback → fetch RSS feeds
         if (topHeadlinesResponse.articles.length === 0) {
@@ -93,7 +95,9 @@ const fetchRSSFeed = async ({sources, languages = 'english', pageSize = 10, page
 
         const startIndex = (page - 1) * pageSize;
 
-        RSS_CACHE.set(cacheKey, {data: allItems.slice(startIndex, startIndex + pageSize), timestamp: Date.now()});
+        if (NODE_ENV === 'production') {
+            RSS_CACHE.set(cacheKey, {data: allItems.slice(startIndex, startIndex + pageSize), timestamp: Date.now()});
+        }
         return allItems.slice(startIndex, startIndex + pageSize);
     } catch (error: any) {
         console.error('ERROR: inside catch of fetchRSSFeed:'.red.bold, error);
@@ -113,7 +117,9 @@ const fetchEverything = async ({sources, from, to, sortBy, language, q, pageSize
         const {data: everything} = await axios.get<TopHeadlinesAPIResponse>(apis.fetchEverythingApi({sources, from, to, sortBy, language, q, pageSize, page}), {headers: buildHeader()});
         console.log('everything:'.cyan.italic, everything);
 
-        EVERYTHING_NEWS_CACHE.set(cacheKey, {data: everything, timestamp: Date.now()});
+        if (NODE_ENV === 'production') {
+            EVERYTHING_NEWS_CACHE.set(cacheKey, {data: everything, timestamp: Date.now()});
+        }
 
         return everything;
     } catch (error: any) {
@@ -147,7 +153,7 @@ const scrapeArticle = async ({url}: ScrapeWebsiteParams) => {
                 if (userAgent === userAgents[userAgents.length - 1]) {
                     throw error; // Last attempt failed
                 }
-                continue; // Try next user agent
+                // continue; // Try next user agent
             }
         }
 

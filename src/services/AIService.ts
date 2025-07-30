@@ -3,10 +3,11 @@ import {createHash} from 'crypto';
 import {GoogleGenerativeAI} from "@google/generative-ai";
 import {Translate} from '@google-cloud/translate/build/src/v2';
 import {isListEmpty} from "../utils/list";
+import {AI_MODELS} from "../utils/constants";
 import {getUserByEmail} from "./AuthService";
 import {scrapeMultipleArticles} from "./NewsService";
-import {GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY} from "../config/config";
 import CachedSummaryModel, {ICachedSummary} from "../models/CachedSummarySchema";
+import {GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY, NODE_ENV} from "../config/config";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {
     GenerateContentHashParams,
@@ -74,14 +75,15 @@ const summarizeArticle = async ({email, content, urls, language = 'en', style = 
         }
         const cached = await getCachedSummary({contentHash: hash});
 
-        if (cached) {
+        if (NODE_ENV === 'production' && cached) {
             return {
                 summary: cached.summary,
                 powered_by: 'Cached Result',
             };
         }
 
-        const model = genAI.getGenerativeModel({model: AI_MODEL});
+        let summarizedArticleResponse;
+        let usedModel;
 
         let prompt = '';
         if (style === 'concise') {
@@ -92,8 +94,21 @@ const summarizeArticle = async ({email, content, urls, language = 'en', style = 
             prompt = `Summarize the following news article in 60% of its original length. Include more context and background to preserve the depth of the article.\n Content: ${articleContent}`;
         }
 
-        const summarizedArticleResponse = await model.generateContent(prompt);
-        const text = summarizedArticleResponse.response.text();
+        for (const modelName of AI_MODELS) {
+            try {
+                const model = genAI.getGenerativeModel({model: modelName});
+                summarizedArticleResponse = await model.generateContent(prompt);
+                usedModel = modelName;
+                break; // Success - exit loop
+            } catch (error) {
+                if (modelName === AI_MODELS[AI_MODELS.length - 1]) {
+                    throw error; // Last attempt failed
+                }
+                // continue; // Try next model
+            }
+        }
+
+        const text = summarizedArticleResponse?.response.text();
         if (!text || text.trim() === '') {
             return {error: 'SUMMARIZATION_FAILED'};
         }
@@ -104,11 +119,13 @@ const summarizeArticle = async ({email, content, urls, language = 'en', style = 
         }
 
         // After AI generates summary, save to cache:
-        await saveSummaryToCache({contentHash: hash, summary: finalSummary, language, style});
+        if (NODE_ENV === 'production') {
+            await saveSummaryToCache({contentHash: hash, summary: finalSummary, language, style});
+        }
 
         return {
             summary: finalSummary,
-            powered_by: 'Google Gemini AI' + (language !== 'en' ? ' + Translate' : ''),
+            powered_by: `Google Gemini AI (${usedModel})` + (language !== 'en' ? ' + Translate' : ''),
         };
     } catch (error: any) {
         console.error('ERROR: inside catch of summarizeArticle:'.red.bold, error);

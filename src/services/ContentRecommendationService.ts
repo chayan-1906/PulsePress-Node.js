@@ -166,6 +166,14 @@ const extractSourceFromUrl = (url: string): SupportedSource | null => {
     const domain = urlObj.hostname.replace('www.', '');
     const path = urlObj.pathname;
 
+    // bbc_news
+    if (domain === 'feeds.bbci.co.uk') {
+        if (path.includes('/bengali')) return 'bbc_news_bengali';
+        if (path.includes('/hindi')) return 'bbc_news_hindi';
+        if (path.includes('/technology')) return 'bbc_tech';
+        return 'bbc_tech'; // Default fallback
+    }
+
     // zeenews
     if (domain === 'zeenews.india.com') {
         if (path.includes('/bengali/')) return 'zeenews_bengali';
@@ -173,12 +181,91 @@ const extractSourceFromUrl = (url: string): SupportedSource | null => {
         return 'zeenews_india';
     }
 
-    // prothomalp
+    // times of india
+    if (domain === 'timesofindia.indiatimes.com') {
+        if (path.includes('rssfeedstopstories')) return 'timesofindia_top';
+        if (path.includes('rssfeedmostrecent')) return 'timesofindia_recent';
+        if (path.includes('-2128936835')) return 'timesofindia_india';
+        if (path.includes('296589292')) return 'timesofindia_world';
+        if (path.includes('4719148')) return 'timesofindia_sports';
+        return 'timesofindia_top'; // Default fallback
+    }
+
+    // ndtv
+    if (domain === 'feeds.feedburner.com') {
+        if (path.includes('ndtvnews-top-stories')) return 'ndtv_top';
+        if (path.includes('ndtvnews-latest')) return 'ndtv_latest';
+        if (path.includes('ndtvnews-trending-news')) return 'ndtv_trending';
+        if (path.includes('ndtvnews-india-news')) return 'ndtv_india';
+        if (path.includes('ndtvnews-world-news')) return 'ndtv_world';
+        if (path.includes('ndtvsports-latest')) return 'ndtv_sports';
+        if (path.includes('ndtvsports-cricket')) return 'ndtv_cricket';
+        if (path.includes('gadgets360-latest')) return 'ndtv_tech';
+        if (path.includes('ndtvkhabar-latest')) return 'ndtv_hindi';
+        return 'ndtv_top'; // Default fallback
+    }
+
+    // hindu
+    if (domain === 'thehindu.com') {
+        if (path.includes('/news/national/')) return 'the_hindu_india';
+        if (path.includes('/news/international/')) return 'the_hindu_world';
+        if (path.includes('/sport/cricket/')) return 'the_hindu_cricket';
+        if (path.includes('/business/Economy/')) return 'the_hindu_economy';
+        return 'the_hindu_india'; // Default fallback
+    }
+
+    // prothomalo
     if (domain === 'prothomalo.com') {
         return 'prothom_alo'; // Bengali version
     }
     if (domain === 'prod-qt-images.s3.amazonaws.com' && path.includes('prothomalo-english')) {
         return 'prothom_alo_english';
+    }
+
+    // abp_live (bengali)
+    if (domain === 'bengali.abplive.com') {
+        if (path.includes('/home/')) return 'abp_live_bengali_home';
+        if (path.includes('/news/india/')) return 'abp_live_india';
+        if (path.includes('/district/')) return 'abp_live_district';
+        if (path.includes('/news/kolkata/')) return 'abp_live_kolkata';
+        if (path.includes('/states/')) return 'abp_live_states';
+        if (path.includes('/news/world/')) return 'abp_live_world';
+        if (path.includes('/sports/')) return 'abp_live_sports';
+        if (path.includes('/education/')) return 'abp_live_education';
+        if (path.includes('/technology/')) return 'abp_live_technology';
+        if (path.includes('/elections/')) return 'abp_live_election';
+        if (path.includes('/trending/')) return 'abp_live_trending';
+        return 'abp_live_bengali_home'; // Default fallback
+    }
+
+    // abp_live (hindi)
+    if (domain === 'abplive.com') {
+        if (path.includes('/home/')) return 'abp_live_hindi_home';
+        if (path.includes('/news/world/')) return 'abp_live_world';
+        if (path.includes('/states/')) return 'abp_live_states';
+        if (path.includes('/sports/')) return 'abp_live_sports';
+        if (path.includes('/education/')) return 'abp_live_education';
+        if (path.includes('/education/jobs/')) return 'abp_live_jobs';
+        if (path.includes('/elections/')) return 'abp_live_election';
+        if (path.includes('/trending/')) return 'abp_live_trending';
+        return 'abp_live_hindi_home'; // Default fallback
+    }
+
+    // news18
+    if (domain === 'bengali.news18.com') {
+        if (path.includes('/kolkata')) return 'bengali_news_18';
+        if (path.includes('/politics')) return 'bengali_news_18_politics';
+        if (path.includes('/cricket')) return 'bengali_news_18_cricket';
+        if (path.includes('/elections')) return 'bengali_news_18_elections';
+        return 'bengali_news_18'; // Default fallback
+    }
+
+    // amarujala
+    if (domain === 'amarujala.com') {
+        if (path.includes('breaking-news')) return 'amar_ujala_breaking';
+        if (path.includes('west-bengal')) return 'amar_ujala_wb';
+        if (path.includes('delhi')) return 'amar_ujala_delhi';
+        return 'amar_ujala_breaking'; // Default fallback
     }
 
     // bbcnews
