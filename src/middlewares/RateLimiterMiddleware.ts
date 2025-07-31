@@ -1,7 +1,7 @@
 import {Request} from 'express';
 import rateLimit from 'express-rate-limit';
 import {AuthRequest} from '../types/auth';
-import {AUTH_MAX_REQUESTS, AUTH_WINDOW_MS, NEWS_SCRAPING_MAX_REQUESTS, NEWS_SCRAPING_WINDOW_MS} from "../config/config";
+import {AUTH_MAX_REQUESTS, AUTH_WINDOW_MS, BOOKMARK_MAX_REQUESTS, BOOKMARK_WINDOW_MS, NEWS_SCRAPING_MAX_REQUESTS, NEWS_SCRAPING_WINDOW_MS} from "../config/config";
 
 // AI-specific (summarization) rate limiter
 const aiRateLimiterMiddleware = rateLimit({
@@ -81,4 +81,32 @@ const authRateLimiter = rateLimit({
     skipFailedRequests: false,
 });
 
-export {aiRateLimiterMiddleware, newsScrapingRateLimiter, authRateLimiter};
+// bookmark rate limiter
+const bookmarkRateLimiter = rateLimit({
+    windowMs: Number(BOOKMARK_WINDOW_MS) || 5 * 60 * 1000,   // Default 5 minutes
+    limit: Number(BOOKMARK_MAX_REQUESTS) || 20,              // Default 20 operations per window
+    keyGenerator: (req: Request) => {
+        const authReq = req as AuthRequest;
+        return authReq.userExternalId;
+    },
+
+    message: {
+        success: false,
+        error: {
+            code: 'BOOKMARK_RATE_LIMIT_EXCEEDED',
+            message: `Too many bookmark operations. You can make ${Number(BOOKMARK_MAX_REQUESTS) || 20} requests every ${Math.round((Number(BOOKMARK_WINDOW_MS) || 300000) / 60000)} minutes.`
+        },
+    },
+
+    // Return JSON instead of HTML
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+
+    // Skip successful requests in counting (optional)
+    skipSuccessfulRequests: false,
+
+    // Skip failed requests in counting (optional)
+    skipFailedRequests: false,
+});
+
+export {aiRateLimiterMiddleware, newsScrapingRateLimiter, authRateLimiter, bookmarkRateLimiter};

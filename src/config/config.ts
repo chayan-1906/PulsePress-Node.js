@@ -23,4 +23,6 @@ export const {
     NEWS_SCRAPING_MAX_REQUESTS,
     AUTH_WINDOW_MS,
     AUTH_MAX_REQUESTS,
+    BOOKMARK_WINDOW_MS,
+    BOOKMARK_MAX_REQUESTS,
 } = process.env;
