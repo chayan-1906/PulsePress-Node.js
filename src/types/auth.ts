@@ -6,6 +6,7 @@ export interface AuthRequest extends Request {
     email: string;
 }
 
+
 /** ------------- API response types ------------- */
 
 export interface RegisterResponse {

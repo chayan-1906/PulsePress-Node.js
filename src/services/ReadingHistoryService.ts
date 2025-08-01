@@ -1,4 +1,5 @@
 import {getUserByEmail} from "./AuthService";
+import {updateSourceAnalytics} from "./AnalyticsService";
 import ReadingHistoryModel, {IReadingHistory} from "../models/ReadingHistorySchema";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {
@@ -52,6 +53,13 @@ const modifyReadingHistory = async (
                 {userExternalId: user.userExternalId, articleUrl},
                 {$set: {readDuration, readAt, completed}},
             );
+
+            // Update analytics if reading time changed
+            if (readDuration && readDuration !== existingArticleHistory.readDuration) {
+                await updateSourceAnalytics({source, action: 'view', readingTime: readDuration})
+                    .catch((error: any) => console.error('Analytics update failed:'.red.bold, error));
+            }
+
             if (modifiedCount === 1) {
                 return {isModified: true};
             } else {
@@ -68,9 +76,16 @@ const modifyReadingHistory = async (
             readAt,
             readDuration,
             completed,
-            publishedAt
+            publishedAt,
         });
         console.log('savedReadingHistory:'.cyan.italic, savedReadingHistory);
+
+        // Track analytics for new reading history
+        if (savedReadingHistory) {
+            await updateSourceAnalytics({
+                source, action: 'view', readingTime: readDuration || 0,
+            }).catch((error: any) => console.error('Analytics update failed:'.red.bold, error));
+        }
 
         return {isModified: savedReadingHistory !== null};
     } catch (error: any) {
@@ -123,6 +138,10 @@ const completeArticle = async ({email, articleUrl}: CompleteArticleParams): Prom
             return {error: 'ARTICLE_NOT_IN_HISTORY'};
         }
         console.log('completedArticle:'.cyan.italic, updatedArticleHistory);
+
+        // Track completion analytics
+        await updateSourceAnalytics({source: updatedArticleHistory.source, action: 'complete', readingTime: updatedArticleHistory.readDuration || 0})
+            .catch((error: any) => console.error('Analytics update failed:'.red.bold, error));
 
         return {isCompleted: true};
     } catch (error: any) {

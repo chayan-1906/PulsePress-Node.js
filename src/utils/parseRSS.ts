@@ -1,12 +1,12 @@
 import axios from "axios";
 import Parser from "rss-parser";
 import {RSSFeed} from "../types/news";
-import {userAgents} from "./constants";
+import {USER_AGENTS} from "./constants";
 
 const parseRSS = async (rssFeedUrl: string): Promise<RSSFeed[]> => {
     let lastError;
 
-    for (const userAgent of userAgents) {
+    for (const userAgent of USER_AGENTS) {
         try {
             const response = await axios.get(rssFeedUrl, {
                 headers: {
@@ -53,7 +53,7 @@ const parseRSS = async (rssFeedUrl: string): Promise<RSSFeed[]> => {
         } catch (error: any) {
             lastError = error;
             // Add small delay between retries to avoid rate limiting
-            if (userAgent !== userAgents[userAgents.length - 1]) {
+            if (userAgent !== USER_AGENTS[USER_AGENTS.length - 1]) {
                 await new Promise(resolve => setTimeout(resolve, 500));
             }
         }

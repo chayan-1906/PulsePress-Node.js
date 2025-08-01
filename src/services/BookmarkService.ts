@@ -1,5 +1,6 @@
 import "colors";
 import {getUserByEmail} from "./AuthService";
+import {updateSourceAnalytics} from "./AnalyticsService";
 import BookmarkModel, {IBookmark} from "../models/BookmarkSchema";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {
@@ -12,7 +13,7 @@ import {
     SearchBookmarksResponse,
     SUPPORTED_BOOKMARK_SORTINGS,
     ToggleBookmarkParams,
-    ToggleBookmarkResponse
+    ToggleBookmarkResponse,
 } from "../types/bookmark";
 
 const toggleBookmark = async ({email, articleUrl, title, source, description, imageUrl, publishedAt}: ToggleBookmarkParams): Promise<ToggleBookmarkResponse> => {
@@ -43,6 +44,12 @@ const toggleBookmark = async ({email, articleUrl, title, source, description, im
                 const isDeleted = deletedCount === 1;
                 console.log('Bookmark deleted:'.cyan.italic, isDeleted);
 
+                // Track unbookmark analytics
+                if (isDeleted) {
+                    await updateSourceAnalytics({source, action: 'unbookmark'})
+                        .catch((error: any) => console.error('Analytics update failed:'.red.bold, error));
+                }
+
                 return {deleted: isDeleted};
             } else {
                 // not bookmarked → add it
@@ -51,6 +58,12 @@ const toggleBookmark = async ({email, articleUrl, title, source, description, im
                     articleUrl, title, source, description, imageUrl, publishedAt,
                 });
                 console.log('savedBookmark:'.cyan.italic, savedBookmark);
+
+                // Track bookmark analytics
+                if (savedBookmark) {
+                    await updateSourceAnalytics({source, action: 'bookmark'})
+                        .catch((error: any) => console.error('Analytics update failed:'.red.bold, error));
+                }
 
                 return {added: true, bookmark: savedBookmark};
             }

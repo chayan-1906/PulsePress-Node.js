@@ -10,6 +10,7 @@ import authRoutes from "./routes/AuthRoutes";
 import {getLocalIP} from "./utils/getLocalIP";
 import healthRoutes from "./routes/HealthRoutes";
 import bookmarkRoutes from "./routes/BookmarkRoutes";
+import analyticsRoutes from "./routes/AnalyticsRoutes";
 import readingHistoryRoutes from "./routes/ReadingHistoryRoutes";
 import userPreferenceRoutes from "./routes/UserPreferenceRoutes";
 import contentRecommendationRoutes from "./routes/ContentRecommendationRoutes";
@@ -39,6 +40,7 @@ app.use('/api/v1/reading-history', readingHistoryRoutes);
 app.use('/api/v1/preferences', userPreferenceRoutes);
 app.use('/api/v1/recommendation', contentRecommendationRoutes);
 app.use('/api/v1/health', healthRoutes);
+app.use('/api/v1/analytics', analyticsRoutes);
 
 app.get('/', function (req, res) {
     return res.status(200).send('<h1>Welcome to PulsePress Server</h1>');

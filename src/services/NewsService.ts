@@ -6,7 +6,7 @@ import {apis} from "../utils/apis";
 import {isListEmpty} from "../utils/list";
 import {parseRSS} from "../utils/parseRSS";
 import {buildHeader} from "../utils/buildHeader";
-import {RSS_SOURCES, userAgents} from "../utils/constants";
+import {RSS_SOURCES, USER_AGENTS} from "../utils/constants";
 import {NODE_ENV, RSS_CACHE_DURATION} from "../config/config";
 import {generateMissingCode} from "../utils/generateErrorCodes";
 import {FetchEverythingParams, RSSFeed, RSSFeedParams, ScrapeMultipleWebsitesParams, ScrapeWebsiteParams, SUPPORTED_NEWS_LANGUAGES, TopHeadlinesAPIResponse, TopHeadlinesParams} from "../types/news";
@@ -136,7 +136,7 @@ const scrapeArticle = async ({url}: ScrapeWebsiteParams) => {
         }
 
         let response: any;
-        for (const userAgent of userAgents) {
+        for (const userAgent of USER_AGENTS) {
             try {
                 response = await axios.get(url, {
                     headers: {
@@ -150,7 +150,7 @@ const scrapeArticle = async ({url}: ScrapeWebsiteParams) => {
                 });
                 break; // Success - exit loop
             } catch (error) {
-                if (userAgent === userAgents[userAgents.length - 1]) {
+                if (userAgent === USER_AGENTS[USER_AGENTS.length - 1]) {
                     throw error; // Last attempt failed
                 }
                 // continue; // Try next user agent

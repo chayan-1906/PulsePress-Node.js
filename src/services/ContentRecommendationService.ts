@@ -3,10 +3,11 @@ import {getUserByEmail} from "./AuthService";
 import {RSS_SOURCES} from "../utils/constants";
 import BookmarkModel from "../models/BookmarkSchema";
 import {sourceMap, SupportedSource} from "../types/news";
+import {getTopPerformingSources} from "./AnalyticsService";
 import {fetchRSSFeed, fetchTopHeadlines} from "./NewsService";
-import {RECOMMENDATION_CACHE_DURATION} from "../config/config";
 import ReadingHistoryModel from "../models/ReadingHistorySchema";
 import UserPreferenceModel from "../models/UserPreferenceSchema";
+import {NODE_ENV, RECOMMENDATION_CACHE_DURATION} from "../config/config";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {GetContentRecommendationsParams, GetContentRecommendationsResponse, RecommendedArticle} from "../types/content-recommendation";
 
@@ -33,16 +34,15 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
         console.info('Recommendation cache MISS - fetching fresh:'.bgMagenta.italic, cacheKey);
 
         // Get user data
-        const [readingHistory, bookmarks, preferences] = await Promise.all([
+        const [readingHistory, bookmarks, preferences, topSources] = await Promise.all([
             ReadingHistoryModel.find({userExternalId: user.userExternalId}),
             BookmarkModel.find({userExternalId: user.userExternalId}),
-            UserPreferenceModel.findOne({userExternalId: user.userExternalId})
+            UserPreferenceModel.findOne({userExternalId: user.userExternalId}),
+            getTopPerformingSources({limit: 5, minViews: 5}),
         ]);
 
         // Determine preferred languages (fallback to English if none set)
-        const preferredLanguages = preferences?.newsLanguages?.length
-            ? preferences.newsLanguages
-            : ['english'];
+        const preferredLanguages = preferences?.newsLanguages?.length ? preferences.newsLanguages : ['english'];
 
         // Analyze reading patterns
         const readingSources: SupportedSource[] = readingHistory
@@ -50,6 +50,9 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
             .filter((s): s is SupportedSource => s !== null);
         const sourceFrequency = countFrequency(readingSources);
         const readUrls = new Set(readingHistory.map(h => h.articleUrl));
+
+        // Get top performing sources for boosting
+        const topPerformingSources = topSources.topSources?.map(s => s.source) || [];
 
         // Get fresh articles from preferred languages
         const newsPromises = [];
@@ -61,17 +64,28 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
         preferredLanguages.forEach(language => {
             newsPromises.push(fetchRSSFeed({
                 languages: language,
-                pageSize: rssFetchSize
+                pageSize: rssFetchSize,
             }));
         });
 
-        // Fetch from top reading sources (if any)
-        const topSources = Object.keys(sourceFrequency).slice(0, 3);
-        if (topSources.length > 0) {
+        // Prioritize top performing sources
+        const topSourcesToFetch = topPerformingSources.slice(0, 3);
+        if (topSourcesToFetch.length > 0) {
             newsPromises.push(fetchRSSFeed({
-                sources: topSources.join(','),
+                sources: topSourcesToFetch.join(','),
                 languages: preferredLanguages.join(','),
-                pageSize: rssFetchSize
+                pageSize: rssFetchSize,
+            }));
+        }
+
+        // Fetch from user's frequently read sources (if different from top performing)
+        const topUserSources = Object.keys(sourceFrequency).slice(0, 3);
+        const uniqueUserSources = topUserSources.filter(s => !topSourcesToFetch.includes(s));
+        if (uniqueUserSources.length > 0) {
+            newsPromises.push(fetchRSSFeed({
+                sources: uniqueUserSources.join(','),
+                languages: preferredLanguages.join(','),
+                pageSize: rssFetchSize,
             }));
         }
 
@@ -79,7 +93,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
         if (preferences?.preferredCategories?.length) {
             newsPromises.push(fetchTopHeadlines({
                 category: preferences.preferredCategories[0],
-                pageSize: categoryFetchSize
+                pageSize: categoryFetchSize,
             }));
         }
 
@@ -96,6 +110,11 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
                 const source: SupportedSource | null = extractSourceFromUrl(article.url);
                 if (!source) {
                     return null;
+                }
+
+                // Major boost for top performing sources (analytics-driven)
+                if (topPerformingSources.includes(source)) {
+                    score += 5;
                 }
 
                 // Boost score for frequently read sources
@@ -130,7 +149,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
                 return {
                     ...article,
                     recommendationScore: score,
-                    recommendationReason: getRecommendationReason(source, sourceFrequency, preferences, bookmarkedSources, articleLanguage, preferredLanguages)
+                    recommendationReason: getRecommendationReason(source, sourceFrequency, preferences, bookmarkedSources, articleLanguage, preferredLanguages, topPerformingSources),
                 };
             })
             .filter((article): article is RecommendedArticle => article !== null)
@@ -152,12 +171,29 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
             totalRecommendations: scoredArticles.length,
         };
 
-        RECOMMENDATION_CACHE.set(cacheKey, {data: result, timestamp: Date.now()});
+        if (NODE_ENV === 'production') {
+            RECOMMENDATION_CACHE.set(cacheKey, {data: result, timestamp: Date.now()});
+        }
         return result;
     } catch (error: any) {
         console.error('ERROR: getRecommendations:', error);
         throw error;
     }
+}
+
+const clearRecommendationCache = (userExternalId: string) => {
+    console.info('clearRecommendationCache called:'.bgMagenta.white.italic, userExternalId);
+    console.log('Current cache keys:'.yellow, Array.from(RECOMMENDATION_CACHE.keys()));
+
+    let deletedCount = 0;
+    for (const [key] of RECOMMENDATION_CACHE) {
+        if (key.startsWith(userExternalId)) {
+            RECOMMENDATION_CACHE.delete(key);
+            deletedCount++;
+            console.log('Deleted cache key:'.red, key);
+        }
+    }
+    console.log(`Deleted ${deletedCount} cache entries for user:`.green, userExternalId);
 }
 
 // Helper functions
@@ -311,7 +347,10 @@ const determineArticleLanguage = (url: string): string | null => {
 }
 
 const getRecommendationReason = (source: string, sourceFrequency: { [key: string]: number },
-                                 preferences: any, bookmarkedSources: string[], articleLanguage: string | null, preferredLanguages: string[]): string => {
+                                 preferences: any, bookmarkedSources: string[], articleLanguage: string | null, preferredLanguages: string[], topPerformingSources: string[]): string => {
+    if (topPerformingSources.includes(source)) {
+        return `From top performing source: ${source}`;
+    }
     if (preferences?.preferredSources?.includes(source)) {
         return `From your preferred source: ${source}`;
     }
@@ -325,21 +364,6 @@ const getRecommendationReason = (source: string, sourceFrequency: { [key: string
         return `Similar to articles you bookmarked`;
     }
     return `Trending in your interests`;
-}
-
-const clearRecommendationCache = (userExternalId: string) => {
-    console.info('clearRecommendationCache called:'.bgMagenta.white.italic, userExternalId);
-    console.log('Current cache keys:'.yellow, Array.from(RECOMMENDATION_CACHE.keys()));
-
-    let deletedCount = 0;
-    for (const [key] of RECOMMENDATION_CACHE) {
-        if (key.startsWith(userExternalId)) {
-            RECOMMENDATION_CACHE.delete(key);
-            deletedCount++;
-            console.log('Deleted cache key:'.red, key);
-        }
-    }
-    console.log(`Deleted ${deletedCount} cache entries for user:`.green, userExternalId);
 }
 
 export {getContentRecommendation, clearRecommendationCache};
