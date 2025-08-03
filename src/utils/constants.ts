@@ -36,6 +36,9 @@ const RSS_SOURCES = {
         the_hindu_economy: 'https://www.thehindu.com/business/Economy/feeder/default.rss',
 
         prothom_alo_english: 'https://prod-qt-images.s3.amazonaws.com/production/prothomalo-english/feed.xml',
+
+        // https://www.nytimes.com/rss, https://b2b.economictimes.indiatimes.com/rss
+        // TODO: ADD RSS FEEDS
     },
     bengali: {
         prothom_alo: 'https://www.prothomalo.com/feed/',
@@ -101,12 +104,20 @@ const RSS_SOURCES = {
     },
 };
 
-export const AI_MODELS = [
+export const AI_SUMMARIZATION_MODELS = [
     'gemini-2.5-flash',           // Primary: Best balance, higher limits
     'gemini-2.0-flash-lite',      // Fallback 1: Highest RPM (30/min), good for news
     'gemini-2.0-flash',           // Fallback 2: Latest features, 1M context
     'gemini-2.5-flash-lite-preview-06-17', // Fallback 3: Highest daily limit (1,000)
     'gemini-1.5-flash'            // Last resort: Your current (deprecated)
+];
+
+export const AI_QUERY_PARSING_MODELS = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-2.5-flash-lite-preview',
+    'gemini-1.5-flash',
 ];
 
 const USER_AGENTS = [

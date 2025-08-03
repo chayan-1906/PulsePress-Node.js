@@ -64,6 +64,19 @@ export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
     'my': 'မြန်မာ'
 };
 
+export interface CombinedArticle {
+    source?: {
+        name?: string | null;
+    };
+    title?: string | null;
+    url?: string | null;
+    publishedAt?: string | null;
+    content?: string | null;
+    contentSnippet?: string | null;
+    source_type: 'rss' | 'newsapi';
+    relevance_score: number;
+}
+
 
 /** ------------- API response types ------------- */
 
@@ -77,6 +90,35 @@ export interface GenerateContentHashResponse {
     hash?: string;
     error?: string;
 }
+
+export interface ParseQueryWithAIResponse {
+    entities?: string[];
+    searchTerms?: string[];
+    categories?: string[];
+    recommendedSources?: string[];
+    intent?: string;
+    originalQuery?: string;
+    powered_by?: string;
+    error?: string;
+}
+
+export interface ProcessNaturalQueryResponse {
+    articles?: any;
+    totalResults?: number;
+    searchMetadata?: {
+        originalQuery: string;
+        aiParsed: {
+            entities: string[] | undefined;
+            searchTerms: string[] | undefined;
+            categories: string[] | undefined;
+            intent: string | undefined;
+        };
+        powered_by: string | undefined;
+        timestamp: string;
+    };
+    error?: string;
+}
+
 
 /** ------------- function params ------------- */
 
@@ -108,4 +150,14 @@ export interface GetCachedSummaryParams {
 export interface TranslateTextParams {
     text: string;
     targetLanguage: SupportedLanguage;
+}
+
+export interface ParseQueryWithAIParams {
+    query: string;
+}
+
+export interface ProcessNaturalQueryParams {
+    email: string;
+    query: string;
+    pageSize?: number;
 }

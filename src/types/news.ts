@@ -43,7 +43,7 @@ export const sourceMap: Record<string, SupportedSource> = {
     'abplive.com': 'abp_live_hindi_home',
 };
 
-interface Article {
+export interface Article {
     source: {
         id: string | null;
         name: string | null;
