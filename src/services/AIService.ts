@@ -4,10 +4,11 @@ import {GoogleGenerativeAI} from "@google/generative-ai";
 import {Translate} from '@google-cloud/translate/build/src/v2';
 import {isListEmpty} from "../utils/list";
 import {getUserByEmail} from "./AuthService";
-import {fetchRSSFeed, fetchTopHeadlines, scrapeMultipleArticles} from "./NewsService";
+import {Article, RSSFeed} from "../types/news";
 import CachedSummaryModel, {ICachedSummary} from "../models/CachedSummarySchema";
-import {GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY, NODE_ENV, RSS_CACHE_DURATION} from "../config/config";
+import {fetchEverything, fetchRSSFeed, scrapeMultipleArticles} from "./NewsService";
 import {AI_QUERY_PARSING_MODELS, AI_SUMMARIZATION_MODELS, RSS_SOURCES} from "../utils/constants";
+import {GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY, NODE_ENV, RSS_CACHE_DURATION} from "../config/config";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {
     CombinedArticle,
@@ -24,7 +25,6 @@ import {
     SummarizeArticleResponse,
     TranslateTextParams
 } from "../types/ai";
-import {Article, RSSFeed} from "../types/news";
 
 // Initialize with API key
 export const genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
@@ -296,16 +296,31 @@ const processNaturalQuery = async ({email, query, pageSize = 20}: ProcessNatural
 
         // NewsAPI search with search terms
         searchPromises.push(
-            fetchTopHeadlines({
+            fetchEverything({
                 q: searchTerms?.slice(0, 3).join(' '),
                 pageSize: Math.ceil(pageSize * 0.5),
+                sortBy: 'publishedAt',
+                language: 'en',
             }).catch(() => ({articles: []})),
         );
 
         // Execute searches
         const results = await Promise.allSettled(searchPromises);
-        const rssResults = results[0].status === 'fulfilled' ? results[0].value : [];
-        const newsApiResults = results[1].status === 'fulfilled' ? results[1].value : {articles: []};
+        const rssResults: RSSFeed[] = [];
+        // const newsApiResults = results[1].status === 'fulfilled' ? results[1].value : {articles: []};
+
+        const newsApiResults = await fetchEverything({
+            q: searchTerms?.slice(0, 3).join(' '),
+            pageSize: pageSize, // Use full pageSize since no RSS
+            sortBy: 'publishedAt',
+            language: 'en'
+        }).catch(() => ({articles: []}));
+
+        console.log('NewsAPI results:'.yellow.italic, {
+            query: searchTerms?.slice(0, 3).join(' '),
+            totalResults: newsApiResults?.totalResults || 0,
+            articlesCount: newsApiResults?.articles?.length || 0
+        });
 
         // Combine and rank
         const combinedResults = combineAndRank(
@@ -313,6 +328,7 @@ const processNaturalQuery = async ({email, query, pageSize = 20}: ProcessNatural
             newsApiResults || {articles: []},
             entities || [],
             searchTerms || [],
+            categories || [],
         );
 
         const result = {
@@ -342,24 +358,110 @@ const processNaturalQuery = async ({email, query, pageSize = 20}: ProcessNatural
 }
 
 // Helper functions
-const calculateRelevanceScore = (text: string, entities: string[], searchTerms: string[]): number => {
+const calculateRelevanceScore = (text: string, entities: string[], searchTerms: string[], aiCategories: string[] = []): number => {
     if (!text) return 0;
 
     const normalizedText = text.toLowerCase();
-    let score = 0;
+    let entityScore = 0;
+    let termScore = 0;
+    let contextScore = 0;
+    const matches: string[] = [];
 
-    [...entities, ...searchTerms].forEach(term => {
-        const termLower = term.toLowerCase();
-        if (normalizedText.includes(termLower)) {
-            score += 1;
-            // Bonus for exact word matches
-            if (new RegExp(`\\b${termLower}\\b`).test(normalizedText)) {
-                score += 0.5;
+    // Check entities
+    entities.forEach(entity => {
+        const entityLower = entity.toLowerCase();
+        if (normalizedText.includes(entityLower)) {
+            entityScore += 3;
+            matches.push(`"${entity}" (entity)`);
+
+            if (new RegExp(`\\b${entityLower}\\b`).test(normalizedText)) {
+                entityScore += 1.5;
+                matches.push(`"${entity}" (entity word boundary)`);
             }
         }
     });
 
-    return score;
+    // Check search terms (skip generic terms)
+    searchTerms.forEach(term => {
+        const termLower = term.toLowerCase();
+        if (['today', 'news', 'latest', 'recent'].includes(termLower)) {
+            return;
+        }
+
+        if (normalizedText.includes(termLower)) {
+            termScore += 1;
+            matches.push(`"${term}" (term)`);
+
+            if (new RegExp(`\\b${termLower}\\b`).test(normalizedText)) {
+                termScore += 0.5;
+                matches.push(`"${term}" (term word boundary)`);
+            }
+        }
+    });
+
+    // NEW: Context-aware filtering based on AI categories
+    if (aiCategories.length > 0) {
+        const sportKeywords = ['cricket', 'test', 'match', 'series', 'runs', 'wickets', 'innings', 'captain', 'bowler', 'batsman', 'oval', 'stadium'];
+        const financeKeywords = ['stock', 'price', 'market', 'trading', 'shares', 'investment', 'revenue', 'earnings'];
+        const techKeywords = ['technology', 'software', 'ai', 'tech', 'startup', 'app', 'platform'];
+
+        // Check if content matches the query context
+        if (aiCategories.some(cat => ['Sports', 'Cricket'].includes(cat))) {
+            const hasSportContext = sportKeywords.some(keyword => normalizedText.includes(keyword));
+            if (hasSportContext) {
+                contextScore += 2;
+                matches.push('(sports context)');
+            } else {
+                // Heavy penalty for non-sports content in sports queries
+                contextScore -= 5;
+                matches.push('(wrong context: not sports)');
+            }
+        } else if (aiCategories.some(cat => ['Finance', 'Business', 'Economy'].includes(cat))) {
+            const hasFinanceContext = financeKeywords.some(keyword => normalizedText.includes(keyword));
+            if (hasFinanceContext) {
+                contextScore += 2;
+                matches.push('(finance context)');
+            }
+        } else if (aiCategories.some(cat => ['Technology'].includes(cat))) {
+            const hasTechContext = techKeywords.some(keyword => normalizedText.includes(keyword));
+            if (hasTechContext) {
+                contextScore += 2;
+                matches.push('(tech context)');
+            }
+        }
+    }
+
+    const totalScore = entityScore + termScore + contextScore;
+
+    // STRICT RULES:
+    // 1. Must have entity match
+    // 2. Must have positive context score (or neutral for non-contextual queries)
+    if (entityScore === 0 || (aiCategories.length > 0 && contextScore < 0)) {
+        if (entityScore > 0 || termScore > 0) {
+            console.log(`FILTERED OUT:`.red.bold);
+            console.log(`  Text: "${text.substring(0, 100)}..."`.cyan);
+            console.log(`  Matches: ${matches.join(', ')}`.magenta);
+            console.log(`  EntityScore: ${entityScore}, TermScore: ${termScore}, ContextScore: ${contextScore}`.blue);
+            console.log(`  Total Score: ${totalScore} -> 0 (filtered)`.red.bold);
+            console.log('---');
+        }
+        return 0;
+    }
+
+    // Debug logging
+    if (totalScore > 0) {
+        console.log(`RELEVANCE DEBUG:`.yellow.bold);
+        console.log(`  Text: "${text.substring(0, 100)}..."`.cyan);
+        console.log(`  Entities: [${entities.join(', ')}]`.green);
+        console.log(`  SearchTerms: [${searchTerms.join(', ')}]`.green);
+        console.log(`  Categories: [${aiCategories.join(', ')}]`.green);
+        console.log(`  Matches: ${matches.join(', ')}`.magenta);
+        console.log(`  EntityScore: ${entityScore}, TermScore: ${termScore}, ContextScore: ${contextScore}`.blue);
+        console.log(`  Total Score: ${totalScore}`.red.bold);
+        console.log('---');
+    }
+
+    return totalScore;
 }
 
 const getRecencyBoost = (publishedAt: string): number => {
@@ -371,7 +473,10 @@ const getRecencyBoost = (publishedAt: string): number => {
     return Math.max(0, (24 - hoursOld) / 24);
 }
 
-const combineAndRank = (rssResults: RSSFeed[], newsApiResults: any, entities: string[], searchTerms: string[]) => {
+// Replace your combineAndRank function signature and calls:
+
+// 1. Update combineAndRank function signature:
+const combineAndRank = (rssResults: RSSFeed[], newsApiResults: any, entities: string[], searchTerms: string[], aiCategories: string[] = []) => {
     const combined: CombinedArticle[] = [];
     const seenUrls = new Set<string>();
 
@@ -380,32 +485,40 @@ const combineAndRank = (rssResults: RSSFeed[], newsApiResults: any, entities: st
         rssResults.forEach((item: RSSFeed) => {
             if (item.url && !seenUrls.has(item.url)) {
                 seenUrls.add(item.url);
-                combined.push({
-                    ...item,
-                    source_type: 'rss',
-                    relevance_score: calculateRelevanceScore(item.title + ' ' + item.contentSnippet, entities, searchTerms)
-                });
+                const relevanceScore = calculateRelevanceScore(item.title + ' ' + item.contentSnippet, entities, searchTerms, aiCategories);
+
+                if (relevanceScore > 0) {
+                    combined.push({
+                        ...item,
+                        source_type: 'rss',
+                        relevance_score: relevanceScore
+                    });
+                }
             }
         });
     }
 
-    // Add NewsAPI results (check for duplicates)
+    // Add NewsAPI results
     if (newsApiResults && newsApiResults.articles) {
         newsApiResults.articles.forEach((article: Article) => {
             if (article.url && !seenUrls.has(article.url)) {
                 seenUrls.add(article.url);
-                combined.push({
-                    source: {
-                        name: article.source?.name,
-                    },
-                    title: article.title,
-                    url: article.url,
-                    publishedAt: article.publishedAt,
-                    content: article.content,
-                    contentSnippet: article.description,
-                    source_type: 'newsapi',
-                    relevance_score: calculateRelevanceScore(article.title + ' ' + article.description, entities, searchTerms),
-                });
+                const relevanceScore = calculateRelevanceScore(article.title + ' ' + article.description, entities, searchTerms, aiCategories);
+
+                if (relevanceScore > 0) {
+                    combined.push({
+                        source: {
+                            name: article.source?.name,
+                        },
+                        title: article.title,
+                        url: article.url,
+                        publishedAt: article.publishedAt,
+                        content: article.content,
+                        contentSnippet: article.description,
+                        source_type: 'newsapi',
+                        relevance_score: relevanceScore,
+                    });
+                }
             }
         });
     }
