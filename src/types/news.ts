@@ -91,19 +91,6 @@ export interface GuardianArticle {
     };
 }
 
-export interface GuardianResponse {
-    response: {
-        status: string;
-        userTier: string;
-        total: number;
-        startIndex: number;
-        pageSize: number;
-        currentPage: number;
-        pages: number;
-        results: GuardianArticle[];
-    };
-}
-
 export interface NYTimesArticle {
     _id: string;
     web_url: string;
@@ -159,6 +146,28 @@ export interface NYTimesArticle {
     word_count: number;
 }
 
+
+/** ------------- API response types ------------- */
+
+export interface NEWSORGTopHeadlinesAPIResponse {
+    status: string;
+    totalResults: number;
+    articles: Article[];
+}
+
+export interface GuardianResponse {
+    response: {
+        status: string;
+        userTier: string;
+        total: number;
+        startIndex: number;
+        pageSize: number;
+        currentPage: number;
+        pages: number;
+        results: GuardianArticle[];
+    };
+}
+
 export interface NYTimesSearchResponse {
     status: string;
     copyright: string;
@@ -210,17 +219,10 @@ export interface NYTimesTopStoriesResponse {
     }>;
 }
 
-/** ------------- API response types ------------- */
-
-export interface TopHeadlinesAPIResponse {
-    status: string;
-    totalResults: number;
-    articles: Article[];
-}
 
 /** ------------- function params ------------- */
 
-export interface TopHeadlinesParams {
+export interface NEWSORGTopHeadlinesParams {
     country?: string;
     category?: string;
     sources?: string
@@ -229,15 +231,7 @@ export interface TopHeadlinesParams {
     page?: number;
 }
 
-export interface RSSFeedParams {
-    sources?: string;
-    languages?: SupportedNewsLanguage;
-    // TODO: Add support of search, sortBy, from, to
-    pageSize?: number;
-    page?: number;
-}
-
-export interface FetchEverythingParams {
+export interface NEWSORGEverythingParams {
     sources?: string;
     from?: string;
     to?: string
@@ -270,6 +264,14 @@ export interface NYTimesSearchParams {
 
 export interface NYTimesTopStoriesParams {
     section?: string;
+}
+
+export interface RSSFeedParams {
+    sources?: string;
+    languages?: SupportedNewsLanguage;
+    // TODO: Add support of search, sortBy, from, to
+    pageSize?: number;
+    page?: number;
 }
 
 export interface ScrapeWebsiteParams {

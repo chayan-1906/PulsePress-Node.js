@@ -11,10 +11,12 @@ import {generateMissingCode} from "../utils/generateErrorCodes";
 import {GUARDIAN_API_KEY, NODE_ENV, NYTIMES_API_KEY, RSS_CACHE_DURATION} from "../config/config";
 import {
     Article,
-    FetchEverythingParams,
     GuardianArticle,
     GuardianResponse,
     GuardianSearchParams,
+    NEWSORGEverythingParams,
+    NEWSORGTopHeadlinesAPIResponse,
+    NEWSORGTopHeadlinesParams,
     NYTimesArticle,
     NYTimesSearchParams,
     NYTimesSearchResponse,
@@ -24,9 +26,7 @@ import {
     RSSFeedParams,
     ScrapeMultipleWebsitesParams,
     ScrapeWebsiteParams,
-    SUPPORTED_NEWS_LANGUAGES,
-    TopHeadlinesAPIResponse,
-    TopHeadlinesParams
+    SUPPORTED_NEWS_LANGUAGES
 } from "../types/news";
 
 const RSS_CACHE = new Map<string, { data: RSSFeed[], timestamp: number }>();
@@ -76,6 +76,92 @@ const convertNYTimesToArticle = (nytArticle: NYTimesArticle): Article => ({
     publishedAt: nytArticle.pub_date,
     content: nytArticle.lead_paragraph || null
 });
+
+const fetchNEWSORGTopHeadlines = async ({country, category, sources, q, pageSize = 10, page = 1}: NEWSORGTopHeadlinesParams) => {
+    try {
+        if (q) {
+            return await smartFetchNews({q, category, sources, pageSize, page});
+        }
+
+        const cacheKey = `${country}-${category}-${sources}-${q}-${pageSize}-${page}`;
+        const cached = TOPHEADLINES_CACHE.get(cacheKey);
+        if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
+            console.log('returning cached data:'.cyan.italic, cached.data);
+            return cached.data;
+        }
+
+        // Try NewsAPI first
+        if (newsApiRequestCount < 100) {
+            try {
+                const {data: topHeadlinesResponse} = await axios.get<NEWSORGTopHeadlinesAPIResponse>(
+                    apis.topHeadlinesApi({country: country || 'us', category, sources, q, pageSize, page}),
+                    {headers: buildHeader('newsapi')}
+                );
+                newsApiRequestCount++;
+                console.log('topHeadlines from NewsAPI:'.cyan.italic, topHeadlinesResponse);
+
+                if (NODE_ENV === 'production') {
+                    TOPHEADLINES_CACHE.set(cacheKey, {data: topHeadlinesResponse, timestamp: Date.now()});
+                }
+
+                if (topHeadlinesResponse.articles.length > 0) {
+                    return topHeadlinesResponse;
+                }
+            } catch (error) {
+                console.log('NewsAPI failed, trying fallbacks...'.yellow.italic);
+            }
+        }
+
+        // Fallback chain
+        return await smartFetchNews({category, sources, pageSize, page});
+    } catch (error: any) {
+        console.error('ERROR: inside catch of fetchTopHeadlines:'.red.bold, error);
+        // Final fallback → fetch RSS feeds
+        return await fetchAllRSSFeeds({});
+    }
+}
+
+const fetchNEWSORGEverything = async ({sources, from, to, sortBy, language, q, pageSize = 10, page = 1}: NEWSORGEverythingParams) => {
+    try {
+        // Use smart fetch for queries
+        if (q) {
+            return await smartFetchNews({q, sources, pageSize, page});
+        }
+
+        const cacheKey = `${sources}-${from}-${to}-${sortBy}-${language}-${q}-${pageSize}-${page}`;
+        const cached = EVERYTHING_NEWS_CACHE.get(cacheKey);
+        if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
+            console.log('returning cached data:'.cyan.italic, cached.data);
+            return cached.data;
+        }
+
+        // Try NewsAPI first
+        if (newsApiRequestCount < 100) {
+            try {
+                const {data: everything} = await axios.get<NEWSORGTopHeadlinesAPIResponse>(
+                    apis.fetchEverythingApi({sources, from, to, sortBy, language, q, pageSize, page}),
+                    {headers: buildHeader('newsapi')}
+                );
+                newsApiRequestCount++;
+                console.log('everything from NewsAPI:'.cyan.italic, everything);
+
+                if (NODE_ENV === 'production') {
+                    EVERYTHING_NEWS_CACHE.set(cacheKey, {data: everything, timestamp: Date.now()});
+                }
+
+                return everything;
+            } catch (error) {
+                console.log('NewsAPI failed, trying fallbacks...'.yellow.italic);
+            }
+        }
+
+        // Fallback to other APIs
+        return await smartFetchNews({sources, pageSize, page});
+    } catch (error: any) {
+        console.error('ERROR: inside catch of fetchEverything:'.red.bold, error);
+        throw error;
+    }
+}
 
 const fetchGuardianNews = async ({q, section, fromDate, toDate, orderBy = 'newest', pageSize = 10, page = 1}: GuardianSearchParams) => {
     try {
@@ -230,6 +316,66 @@ const fetchNYTimesTopStories = async ({section = 'home'}: NYTimesTopStoriesParam
     }
 }
 
+const fetchAllRSSFeeds = async ({sources, languages = 'english', pageSize = 10, page = 1}: RSSFeedParams) => {
+    try {
+        const cacheKey = `${sources}-${languages}-${pageSize}-${page}`;
+        const cached = RSS_CACHE.get(cacheKey);
+
+        if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
+            return cached.data;
+        }
+
+        const languageList = languages
+            ? languages.split(',').map(l => l.trim().toLowerCase()).filter(Boolean)
+            : [];
+
+        const validLanguages = languageList.filter(lang => SUPPORTED_NEWS_LANGUAGES.includes(lang));
+        const languagesToFetch = validLanguages.length ? validLanguages : ['english', 'multilingual'];
+
+        let inputSources: string[] = [];
+
+        if (sources) {
+            inputSources = sources.split(',').map(s => s.trim()).filter(Boolean);
+        }
+
+        const seenURLs = new Set<string>();
+        const promises: Promise<any>[] = [];
+
+        languagesToFetch.forEach(language => {
+            const languageSources = RSS_SOURCES[language as keyof typeof RSS_SOURCES];
+            const availableSources = Object.keys(languageSources);
+
+            const selectedSources = inputSources.length
+                ? inputSources.filter(src => src in languageSources)
+                : [...availableSources].sort(() => Math.random() - 0.5);
+
+            selectedSources.forEach(source => {
+                const url = languageSources[source as keyof typeof languageSources];
+                if (url && !seenURLs.has(url)) {
+                    seenURLs.add(url);
+                    promises.push(parseRSS(url).catch(() => null));
+                }
+            });
+        });
+
+        const results = await Promise.allSettled(promises);
+        const allItems = results
+            .filter(r => r.status === 'fulfilled' && r.value)
+            .flatMap(r => (r as PromiseFulfilledResult<RSSFeed[]>).value)
+            .sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
+
+        const startIndex = (page - 1) * pageSize;
+
+        if (NODE_ENV === 'production') {
+            RSS_CACHE.set(cacheKey, {data: allItems.slice(startIndex, startIndex + pageSize), timestamp: Date.now()});
+        }
+        return allItems.slice(startIndex, startIndex + pageSize);
+    } catch (error: any) {
+        console.error('ERROR: inside catch of fetchRSSFeed:'.red.bold, error);
+        throw error;
+    }
+}
+
 // TODO: REMOVE
 const smartFetchNews = async ({q, category, sources, pageSize = 10, page = 1}: {
     q?: string;
@@ -249,8 +395,8 @@ const smartFetchNews = async ({q, category, sources, pageSize = 10, page = 1}: {
         try {
             console.log('Trying NewsAPI...'.cyan.italic);
             const newsApiResult = q
-                ? await fetchEverything({q, sources, pageSize: Math.ceil(pageSize * 0.4), page})
-                : await fetchTopHeadlines({category, sources, pageSize: Math.ceil(pageSize * 0.4), page});
+                ? await fetchNEWSORGEverything({q, sources, pageSize: Math.ceil(pageSize * 0.4), page})
+                : await fetchNEWSORGTopHeadlines({category, sources, pageSize: Math.ceil(pageSize * 0.4), page});
 
             if (newsApiResult && newsApiResult.articles) {
                 results.push(...newsApiResult.articles);
@@ -316,7 +462,7 @@ const smartFetchNews = async ({q, category, sources, pageSize = 10, page = 1}: {
     if (results.length < pageSize) {
         try {
             console.log('Falling back to RSS feeds...'.cyan.italic);
-            const rssResults = await fetchRSSFeed({
+            const rssResults = await fetchAllRSSFeeds({
                 sources,
                 pageSize: pageSize - results.length,
                 page
@@ -362,152 +508,6 @@ const smartFetchNews = async ({q, category, sources, pageSize = 10, page = 1}: {
             },
         },
     };
-}
-
-const fetchTopHeadlines = async ({country, category, sources, q, pageSize = 10, page = 1}: TopHeadlinesParams) => {
-    try {
-        if (q) {
-            return await smartFetchNews({q, category, sources, pageSize, page});
-        }
-
-        const cacheKey = `${country}-${category}-${sources}-${q}-${pageSize}-${page}`;
-        const cached = TOPHEADLINES_CACHE.get(cacheKey);
-        if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
-            console.log('returning cached data:'.cyan.italic, cached.data);
-            return cached.data;
-        }
-
-        // Try NewsAPI first
-        if (newsApiRequestCount < 100) {
-            try {
-                const {data: topHeadlinesResponse} = await axios.get<TopHeadlinesAPIResponse>(
-                    apis.topHeadlinesApi({country: country || 'us', category, sources, q, pageSize, page}),
-                    {headers: buildHeader('newsapi')}
-                );
-                newsApiRequestCount++;
-                console.log('topHeadlines from NewsAPI:'.cyan.italic, topHeadlinesResponse);
-
-                if (NODE_ENV === 'production') {
-                    TOPHEADLINES_CACHE.set(cacheKey, {data: topHeadlinesResponse, timestamp: Date.now()});
-                }
-
-                if (topHeadlinesResponse.articles.length > 0) {
-                    return topHeadlinesResponse;
-                }
-            } catch (error) {
-                console.log('NewsAPI failed, trying fallbacks...'.yellow.italic);
-            }
-        }
-
-        // Fallback chain
-        return await smartFetchNews({category, sources, pageSize, page});
-    } catch (error: any) {
-        console.error('ERROR: inside catch of fetchTopHeadlines:'.red.bold, error);
-        // Final fallback → fetch RSS feeds
-        return await fetchRSSFeed({});
-    }
-}
-
-const fetchRSSFeed = async ({sources, languages = 'english', pageSize = 10, page = 1}: RSSFeedParams) => {
-    try {
-        const cacheKey = `${sources}-${languages}-${pageSize}-${page}`;
-        const cached = RSS_CACHE.get(cacheKey);
-
-        if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
-            return cached.data;
-        }
-
-        const languageList = languages
-            ? languages.split(',').map(l => l.trim().toLowerCase()).filter(Boolean)
-            : [];
-
-        const validLanguages = languageList.filter(lang => SUPPORTED_NEWS_LANGUAGES.includes(lang));
-        const languagesToFetch = validLanguages.length ? validLanguages : ['english', 'multilingual'];
-
-        let inputSources: string[] = [];
-
-        if (sources) {
-            inputSources = sources.split(',').map(s => s.trim()).filter(Boolean);
-        }
-
-        const seenURLs = new Set<string>();
-        const promises: Promise<any>[] = [];
-
-        languagesToFetch.forEach(language => {
-            const languageSources = RSS_SOURCES[language as keyof typeof RSS_SOURCES];
-            const availableSources = Object.keys(languageSources);
-
-            const selectedSources = inputSources.length
-                ? inputSources.filter(src => src in languageSources)
-                : [...availableSources].sort(() => Math.random() - 0.5);
-
-            selectedSources.forEach(source => {
-                const url = languageSources[source as keyof typeof languageSources];
-                if (url && !seenURLs.has(url)) {
-                    seenURLs.add(url);
-                    promises.push(parseRSS(url).catch(() => null));
-                }
-            });
-        });
-
-        const results = await Promise.allSettled(promises);
-        const allItems = results
-            .filter(r => r.status === 'fulfilled' && r.value)
-            .flatMap(r => (r as PromiseFulfilledResult<RSSFeed[]>).value)
-            .sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
-
-        const startIndex = (page - 1) * pageSize;
-
-        if (NODE_ENV === 'production') {
-            RSS_CACHE.set(cacheKey, {data: allItems.slice(startIndex, startIndex + pageSize), timestamp: Date.now()});
-        }
-        return allItems.slice(startIndex, startIndex + pageSize);
-    } catch (error: any) {
-        console.error('ERROR: inside catch of fetchRSSFeed:'.red.bold, error);
-        throw error;
-    }
-}
-
-const fetchEverything = async ({sources, from, to, sortBy, language, q, pageSize = 10, page = 1}: FetchEverythingParams) => {
-    try {
-        // Use smart fetch for queries
-        if (q) {
-            return await smartFetchNews({q, sources, pageSize, page});
-        }
-
-        const cacheKey = `${sources}-${from}-${to}-${sortBy}-${language}-${q}-${pageSize}-${page}`;
-        const cached = EVERYTHING_NEWS_CACHE.get(cacheKey);
-        if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
-            console.log('returning cached data:'.cyan.italic, cached.data);
-            return cached.data;
-        }
-
-        // Try NewsAPI first
-        if (newsApiRequestCount < 100) {
-            try {
-                const {data: everything} = await axios.get<TopHeadlinesAPIResponse>(
-                    apis.fetchEverythingApi({sources, from, to, sortBy, language, q, pageSize, page}),
-                    {headers: buildHeader('newsapi')}
-                );
-                newsApiRequestCount++;
-                console.log('everything from NewsAPI:'.cyan.italic, everything);
-
-                if (NODE_ENV === 'production') {
-                    EVERYTHING_NEWS_CACHE.set(cacheKey, {data: everything, timestamp: Date.now()});
-                }
-
-                return everything;
-            } catch (error) {
-                console.log('NewsAPI failed, trying fallbacks...'.yellow.italic);
-            }
-        }
-
-        // Fallback to other APIs
-        return await smartFetchNews({sources, pageSize, page});
-    } catch (error: any) {
-        console.error('ERROR: inside catch of fetchEverything:'.red.bold, error);
-        throw error;
-    }
 }
 
 const scrapeArticle = async ({url}: ScrapeWebsiteParams) => {
@@ -613,4 +613,4 @@ const scrapeMultipleArticles = async ({urls}: ScrapeMultipleWebsitesParams) => {
     return results;
 }
 
-export {fetchTopHeadlines, fetchRSSFeed, fetchEverything, scrapeMultipleArticles, smartFetchNews, fetchGuardianNews, fetchNYTimesNews, fetchNYTimesTopStories};
+export {fetchNEWSORGTopHeadlines, fetchNEWSORGEverything, fetchGuardianNews, fetchNYTimesNews, fetchNYTimesTopStories, fetchAllRSSFeeds, smartFetchNews, scrapeMultipleArticles};

@@ -3,23 +3,31 @@ import {Request, Response} from "express";
 import {isListEmpty} from "../utils/list";
 import {ApiResponse} from "../utils/ApiResponse";
 import {generateMissingCode} from "../utils/generateErrorCodes";
-import {fetchEverything, fetchGuardianNews, fetchNYTimesNews, fetchNYTimesTopStories, fetchRSSFeed, fetchTopHeadlines, scrapeMultipleArticles, smartFetchNews} from "../services/NewsService";
 import {
-    FetchEverythingParams,
+    fetchAllRSSFeeds,
+    fetchGuardianNews,
+    fetchNEWSORGEverything,
+    fetchNEWSORGTopHeadlines,
+    fetchNYTimesNews,
+    fetchNYTimesTopStories,
+    scrapeMultipleArticles,
+    smartFetchNews
+} from "../services/NewsService";
+import {
     GuardianSearchParams,
+    NEWSORGEverythingParams,
+    NEWSORGTopHeadlinesParams,
     NYTimesSearchParams,
     NYTimesTopStoriesParams,
     RSSFeedParams,
     ScrapeMultipleWebsitesParams,
-    SUPPORTED_NEWS_LANGUAGES,
-    TopHeadlinesParams
+    SUPPORTED_NEWS_LANGUAGES
 } from "../types/news";
 
-// TODO: rename with NEWSAPI
-const getAllTopHeadlinesController = async (req: Request, res: Response) => {
+const fetchNEWSORGTopHeadlinesController = async (req: Request, res: Response) => {
     console.info('getAllTopHeadlinesController called'.bgMagenta.white.italic);
     try {
-        const {country, category, sources, q, pageSize, page}: Partial<TopHeadlinesParams> = req.query;
+        const {country, category, sources, q, pageSize, page}: Partial<NEWSORGTopHeadlinesParams> = req.query;
 
         let pageSizeNumber, pageNumber;
         if (pageSize && !isNaN(pageSize)) {
@@ -28,7 +36,7 @@ const getAllTopHeadlinesController = async (req: Request, res: Response) => {
         if (page && !isNaN(page)) {
             pageNumber = Number(page);
         }
-        const topHeadlines = await fetchTopHeadlines({country, category, sources, q, pageSize: pageSizeNumber, page: pageNumber});
+        const topHeadlines = await fetchNEWSORGTopHeadlines({country, category, sources, q, pageSize: pageSizeNumber, page: pageNumber});
         console.log('top headlines:'.cyan.italic, topHeadlines);
 
         res.status(200).send(new ApiResponse({
@@ -46,68 +54,10 @@ const getAllTopHeadlinesController = async (req: Request, res: Response) => {
     }
 }
 
-// TODO: rename with NEWSAPI
-const getAllRSSFeedsController = async (req: Request, res: Response) => {
-    console.info('getAllRSSFeedsController called'.bgMagenta.white.italic);
-    try {
-        const {sources, languages, pageSize, page}: Partial<RSSFeedParams> = req.query;
-
-        const sourceList = sources ? sources.split(',').map((source: string) => source.trim().toLowerCase()).filter(Boolean) : [];
-        if (!isListEmpty(sourceList) && sourceList.every(lang => !SUPPORTED_NEWS_LANGUAGES.includes(lang))) {
-            console.error('Sources not supported:'.yellow.italic, sources);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'SOURCES_NOT_SUPPORTED',
-                errorMsg: `${sourceList.join(', ')} are not supported`,
-            }));
-            return;
-        }
-
-        const languageList = languages ? languages.split(',').map((lang: string) => lang.trim().toLowerCase()).filter(Boolean) : [];
-        if (!isListEmpty(languageList) && languageList.every(lang => !SUPPORTED_NEWS_LANGUAGES.includes(lang))) {
-            console.error('Languages not supported:'.yellow.italic, languageList);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'LANGUAGES_NOT_SUPPORTED',
-                errorMsg: `${languageList.join(', ')} are not supported`,
-            }));
-            return;
-        }
-
-        let pageSizeNumber, pageNumber;
-        if (pageSize && !isNaN(pageSize)) {
-            pageSizeNumber = Number(pageSize);
-        }
-        if (page && !isNaN(page)) {
-            pageNumber = Number(page);
-        }
-
-        console.time('RSS_FETCH_TIME'.bgMagenta.white.italic);
-        const rssFeeds = await fetchRSSFeed({sources, languages, pageSize: pageSizeNumber, page: pageNumber});
-        console.timeEnd('RSS_FETCH_TIME'.bgMagenta.white.italic);
-        console.log('rss feeds:'.green.bold, rssFeeds.length);
-
-        res.status(200).send(new ApiResponse({
-            success: true,
-            message: 'RSS Feeds have been found 🎉',
-            totalResults: rssFeeds.length,
-            rssFeeds,
-        }));
-    } catch (error: any) {
-        console.error('ERROR: inside catch of getAllRSSFeedsController:'.red.bold, error);
-        res.status(500).send(new ApiResponse({
-            success: false,
-            error,
-            errorMsg: 'Something went wrong',
-        }));
-    }
-}
-
-// TODO: rename with NEWSAPI
-const fetchEverythingController = async (req: Request, res: Response) => {
+const fetchNEWSORGEverythingController = async (req: Request, res: Response) => {
     console.info('fetchEverythingController called'.bgMagenta.white.italic);
     try {
-        const {sources, from, to, sortBy, language, q, pageSize, page}: Partial<FetchEverythingParams> = req.query;
+        const {sources, from, to, sortBy, language, q, pageSize, page}: Partial<NEWSORGEverythingParams> = req.query;
 
         if (!sources && !q) {
             console.error('sources and q both are missing'.red.italic);
@@ -126,7 +76,7 @@ const fetchEverythingController = async (req: Request, res: Response) => {
         if (page && !isNaN(page)) {
             pageNumber = Number(page);
         }
-        const everything = await fetchEverything({sources, from, to, sortBy, language, q, pageSize: pageSizeNumber, page: pageNumber});
+        const everything = await fetchNEWSORGEverything({sources, from, to, sortBy, language, q, pageSize: pageSizeNumber, page: pageNumber});
         console.log('everything:'.cyan.italic, everything);
 
         res.status(200).send(new ApiResponse({
@@ -227,6 +177,62 @@ const fetchNYTimesTopStoriesController = async (req: Request, res: Response) => 
     }
 }
 
+const fetchAllRSSFeedsController = async (req: Request, res: Response) => {
+    console.info('getAllRSSFeedsController called'.bgMagenta.white.italic);
+    try {
+        const {sources, languages, pageSize, page}: Partial<RSSFeedParams> = req.query;
+
+        const sourceList = sources ? sources.split(',').map((source: string) => source.trim().toLowerCase()).filter(Boolean) : [];
+        if (!isListEmpty(sourceList) && sourceList.every(lang => !SUPPORTED_NEWS_LANGUAGES.includes(lang))) {
+            console.error('Sources not supported:'.yellow.italic, sources);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'SOURCES_NOT_SUPPORTED',
+                errorMsg: `${sourceList.join(', ')} are not supported`,
+            }));
+            return;
+        }
+
+        const languageList = languages ? languages.split(',').map((lang: string) => lang.trim().toLowerCase()).filter(Boolean) : [];
+        if (!isListEmpty(languageList) && languageList.every(lang => !SUPPORTED_NEWS_LANGUAGES.includes(lang))) {
+            console.error('Languages not supported:'.yellow.italic, languageList);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'LANGUAGES_NOT_SUPPORTED',
+                errorMsg: `${languageList.join(', ')} are not supported`,
+            }));
+            return;
+        }
+
+        let pageSizeNumber, pageNumber;
+        if (pageSize && !isNaN(pageSize)) {
+            pageSizeNumber = Number(pageSize);
+        }
+        if (page && !isNaN(page)) {
+            pageNumber = Number(page);
+        }
+
+        console.time('RSS_FETCH_TIME'.bgMagenta.white.italic);
+        const rssFeeds = await fetchAllRSSFeeds({sources, languages, pageSize: pageSizeNumber, page: pageNumber});
+        console.timeEnd('RSS_FETCH_TIME'.bgMagenta.white.italic);
+        console.log('rss feeds:'.green.bold, rssFeeds.length);
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'RSS Feeds have been found 🎉',
+            totalResults: rssFeeds.length,
+            rssFeeds,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of getAllRSSFeedsController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: 'Something went wrong',
+        }));
+    }
+}
+
 // TODO: REMOVE
 const smartFetchNewsController = async (req: Request, res: Response) => {
     console.info('smartFetchNewsController called'.bgMagenta.white.italic);
@@ -317,12 +323,12 @@ const scrapeWebsiteController = async (req: Request, res: Response) => {
 }
 
 export {
-    getAllTopHeadlinesController,
-    getAllRSSFeedsController,
-    fetchEverythingController,
+    fetchNEWSORGTopHeadlinesController,
+    fetchNEWSORGEverythingController,
     fetchGuardianNewsController,
     fetchNYTimesNewsController,
     fetchNYTimesTopStoriesController,
+    fetchAllRSSFeedsController,
     smartFetchNewsController,
     scrapeWebsiteController,
 };

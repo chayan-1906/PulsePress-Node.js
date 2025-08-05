@@ -6,7 +6,7 @@ import {isListEmpty} from "../utils/list";
 import {getUserByEmail} from "./AuthService";
 import {Article, RSSFeed} from "../types/news";
 import CachedSummaryModel, {ICachedSummary} from "../models/CachedSummarySchema";
-import {fetchRSSFeed, scrapeMultipleArticles, smartFetchNews} from "./NewsService";
+import {fetchAllRSSFeeds, scrapeMultipleArticles, smartFetchNews} from "./NewsService";
 import {AI_QUERY_PARSING_MODELS, AI_SUMMARIZATION_MODELS, RSS_SOURCES} from "../utils/constants";
 import {GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY, NODE_ENV, RSS_CACHE_DURATION} from "../config/config";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
@@ -297,7 +297,7 @@ const processNaturalQuery = async ({email, query, pageSize = 20}: ProcessNatural
         let rssResults: RSSFeed[] = [];
         if (recommendedSources && recommendedSources.length > 0) {
             try {
-                rssResults = await fetchRSSFeed({
+                rssResults = await fetchAllRSSFeeds({
                     sources: recommendedSources.join(','),
                     pageSize: Math.ceil(pageSize * 0.3),
                 });

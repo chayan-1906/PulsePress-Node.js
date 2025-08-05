@@ -4,7 +4,7 @@ import {RSS_SOURCES} from "../utils/constants";
 import BookmarkModel from "../models/BookmarkSchema";
 import {sourceMap, SupportedSource} from "../types/news";
 import {getTopPerformingSources} from "./AnalyticsService";
-import {fetchRSSFeed, fetchTopHeadlines} from "./NewsService";
+import {fetchAllRSSFeeds, fetchNEWSORGTopHeadlines} from "./NewsService";
 import ReadingHistoryModel from "../models/ReadingHistorySchema";
 import UserPreferenceModel from "../models/UserPreferenceSchema";
 import {NODE_ENV, RECOMMENDATION_CACHE_DURATION} from "../config/config";
@@ -62,7 +62,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
 
         // Fetch from each preferred language
         preferredLanguages.forEach(language => {
-            newsPromises.push(fetchRSSFeed({
+            newsPromises.push(fetchAllRSSFeeds({
                 languages: language,
                 pageSize: rssFetchSize,
             }));
@@ -71,7 +71,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
         // Prioritize top performing sources
         const topSourcesToFetch = topPerformingSources.slice(0, 3);
         if (topSourcesToFetch.length > 0) {
-            newsPromises.push(fetchRSSFeed({
+            newsPromises.push(fetchAllRSSFeeds({
                 sources: topSourcesToFetch.join(','),
                 languages: preferredLanguages.join(','),
                 pageSize: rssFetchSize,
@@ -82,7 +82,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
         const topUserSources = Object.keys(sourceFrequency).slice(0, 3);
         const uniqueUserSources = topUserSources.filter(s => !topSourcesToFetch.includes(s));
         if (uniqueUserSources.length > 0) {
-            newsPromises.push(fetchRSSFeed({
+            newsPromises.push(fetchAllRSSFeeds({
                 sources: uniqueUserSources.join(','),
                 languages: preferredLanguages.join(','),
                 pageSize: rssFetchSize,
@@ -91,7 +91,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
 
         // Fetch from preferred categories (NewsAPI fallback)
         if (preferences?.preferredCategories?.length) {
-            newsPromises.push(fetchTopHeadlines({
+            newsPromises.push(fetchNEWSORGTopHeadlines({
                 category: preferences.preferredCategories[0],
                 pageSize: categoryFetchSize,
             }));
