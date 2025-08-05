@@ -3,9 +3,19 @@ import {Request, Response} from "express";
 import {isListEmpty} from "../utils/list";
 import {ApiResponse} from "../utils/ApiResponse";
 import {generateMissingCode} from "../utils/generateErrorCodes";
-import {fetchEverything, fetchRSSFeed, fetchTopHeadlines, scrapeMultipleArticles} from "../services/NewsService";
-import {FetchEverythingParams, RSSFeedParams, ScrapeMultipleWebsitesParams, SUPPORTED_NEWS_LANGUAGES, TopHeadlinesParams} from "../types/news";
+import {fetchEverything, fetchGuardianNews, fetchNYTimesNews, fetchNYTimesTopStories, fetchRSSFeed, fetchTopHeadlines, scrapeMultipleArticles, smartFetchNews} from "../services/NewsService";
+import {
+    FetchEverythingParams,
+    GuardianSearchParams,
+    NYTimesSearchParams,
+    NYTimesTopStoriesParams,
+    RSSFeedParams,
+    ScrapeMultipleWebsitesParams,
+    SUPPORTED_NEWS_LANGUAGES,
+    TopHeadlinesParams
+} from "../types/news";
 
+// TODO: rename with NEWSAPI
 const getAllTopHeadlinesController = async (req: Request, res: Response) => {
     console.info('getAllTopHeadlinesController called'.bgMagenta.white.italic);
     try {
@@ -36,6 +46,7 @@ const getAllTopHeadlinesController = async (req: Request, res: Response) => {
     }
 }
 
+// TODO: rename with NEWSAPI
 const getAllRSSFeedsController = async (req: Request, res: Response) => {
     console.info('getAllRSSFeedsController called'.bgMagenta.white.italic);
     try {
@@ -92,6 +103,7 @@ const getAllRSSFeedsController = async (req: Request, res: Response) => {
     }
 }
 
+// TODO: rename with NEWSAPI
 const fetchEverythingController = async (req: Request, res: Response) => {
     console.info('fetchEverythingController called'.bgMagenta.white.italic);
     try {
@@ -124,6 +136,138 @@ const fetchEverythingController = async (req: Request, res: Response) => {
         }));
     } catch (error: any) {
         console.error('ERROR: inside catch of fetchEverythingController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: 'Something went wrong',
+        }));
+    }
+}
+
+const fetchGuardianNewsController = async (req: Request, res: Response) => {
+    console.info('fetchGuardianNewsController called'.bgMagenta.white.italic);
+    try {
+        const {q, section, fromDate, toDate, orderBy, pageSize, page}: Partial<GuardianSearchParams> = req.query;
+
+        let pageSizeNumber, pageNumber;
+        if (pageSize && !isNaN(pageSize)) {
+            pageSizeNumber = Number(pageSize);
+        }
+        if (page && !isNaN(page)) {
+            pageNumber = Number(page);
+        }
+
+        const guardianResults = await fetchGuardianNews({q, section, fromDate, toDate, orderBy, pageSize: pageSizeNumber, page: pageNumber});
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'Guardian news articles found 🎉',
+            searchResults: guardianResults,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of fetchGuardianNewsController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: 'Something went wrong',
+        }));
+    }
+}
+
+const fetchNYTimesNewsController = async (req: Request, res: Response) => {
+    console.info('fetchNYTimesNewsController called'.bgMagenta.white.italic);
+    try {
+        const {q, section, sort, fromDate, toDate, pageSize, page}: Partial<NYTimesSearchParams> = req.query;
+        console.log('q:'.bgMagenta.white.italic, q);
+
+        let pageSizeNumber, pageNumber;
+        if (pageSize && !isNaN(pageSize)) {
+            pageSizeNumber = Number(pageSize);
+        }
+        if (page && !isNaN(page)) {
+            pageNumber = Number(page);
+        }
+
+        const nytResults = await fetchNYTimesNews({q, section, sort, fromDate, toDate, pageSize: pageSizeNumber, page: pageNumber});
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'NYTimes news articles found 🎉',
+            searchResults: nytResults,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of fetchNYTimesNewsController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: 'Something went wrong',
+        }));
+    }
+}
+
+const fetchNYTimesTopStoriesController = async (req: Request, res: Response) => {
+    console.info('fetchNYTimesTopStoriesController called'.bgMagenta.white.italic);
+    try {
+        const {section}: Partial<NYTimesTopStoriesParams> = req.query;
+
+        const nytTopStories = await fetchNYTimesTopStories({section});
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'NYTimes top stories found 🎉',
+            searchResults: nytTopStories,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of fetchNYTimesTopStoriesController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: 'Something went wrong',
+        }));
+    }
+}
+
+// TODO: REMOVE
+const smartFetchNewsController = async (req: Request, res: Response) => {
+    console.info('smartFetchNewsController called'.bgMagenta.white.italic);
+    try {
+        // TODO: Create an interface
+        const {q, category, sources, pageSize, page}: {
+            q?: string;
+            category?: string;
+            sources?: string;
+            pageSize?: number;
+            page?: number;
+        } = req.query;
+
+        if (!q && !category && !sources) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'MISSING_SEARCH_PARAMS',
+                errorMsg: 'At least one of q (query), category, or sources parameter is required',
+            }));
+            return;
+        }
+
+        let pageSizeNumber, pageNumber;
+        if (pageSize && !isNaN(pageSize)) {
+            pageSizeNumber = Number(pageSize);
+        }
+        if (page && !isNaN(page)) {
+            pageNumber = Number(page);
+        }
+
+        console.time('SMART_FETCH_TIME'.bgMagenta.white.italic);
+        const smartResults = await smartFetchNews({q, category, sources, pageSize: pageSizeNumber, page: pageNumber});
+        console.timeEnd('SMART_FETCH_TIME'.bgMagenta.white.italic);
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'Smart news search completed 🎉',
+            searchResults: smartResults,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of smartFetchNewsController:'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
@@ -172,4 +316,13 @@ const scrapeWebsiteController = async (req: Request, res: Response) => {
     }
 }
 
-export {getAllTopHeadlinesController, getAllRSSFeedsController, fetchEverythingController, scrapeWebsiteController};
+export {
+    getAllTopHeadlinesController,
+    getAllRSSFeedsController,
+    fetchEverythingController,
+    fetchGuardianNewsController,
+    fetchNYTimesNewsController,
+    fetchNYTimesTopStoriesController,
+    smartFetchNewsController,
+    scrapeWebsiteController,
+};

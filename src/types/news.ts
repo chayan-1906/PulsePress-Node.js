@@ -73,6 +73,142 @@ export interface RSSFeed {
     // isoDate: string;
 }
 
+export interface GuardianArticle {
+    id: string;
+    type: string;
+    sectionId: string;
+    sectionName: string;
+    webPublicationDate: string;
+    webTitle: string;
+    webUrl: string;
+    apiUrl: string;
+    fields?: {
+        headline?: string;
+        byline?: string;
+        thumbnail?: string;
+        shortUrl?: string;
+        bodyText?: string;
+    };
+}
+
+export interface GuardianResponse {
+    response: {
+        status: string;
+        userTier: string;
+        total: number;
+        startIndex: number;
+        pageSize: number;
+        currentPage: number;
+        pages: number;
+        results: GuardianArticle[];
+    };
+}
+
+export interface NYTimesArticle {
+    _id: string;
+    web_url: string;
+    snippet: string;
+    lead_paragraph: string;
+    abstract: string;
+    print_page: number;
+    source: string;
+    multimedia: Array<{
+        url: string;
+        format: string;
+        height: number;
+        width: number;
+        type: string;
+        subtype: string;
+        caption: string;
+        copyright: string;
+    }>;
+    headline: {
+        main: string;
+        kicker?: string;
+        content_kicker?: string;
+        print_headline?: string;
+        name?: string;
+        seo?: string;
+        sub?: string;
+    };
+    keywords: Array<{
+        name: string;
+        value: string;
+        rank: number;
+        major: string;
+    }>;
+    pub_date: string;
+    document_type: string;
+    news_desk: string;
+    section_name: string;
+    byline: {
+        original: string;
+        person: Array<{
+            firstname: string;
+            middlename?: string;
+            lastname: string;
+            qualifier?: string;
+            title?: string;
+            role: string;
+            organization: string;
+            rank: number;
+        }>;
+        organization?: string;
+    };
+    type_of_material: string;
+    word_count: number;
+}
+
+export interface NYTimesSearchResponse {
+    status: string;
+    copyright: string;
+    response: {
+        docs: NYTimesArticle[];
+        metadata: {
+            hits: number;
+            offset: number;
+            time: number;
+        };
+    };
+}
+
+export interface NYTimesTopStoriesResponse {
+    status: string;
+    copyright: string;
+    section: string;
+    last_updated: string;
+    num_results: number;
+    results: Array<{
+        section: string;
+        subsection: string;
+        title: string;
+        abstract: string;
+        url: string;
+        uri: string;
+        byline: string;
+        item_type: string;
+        updated_date: string;
+        created_date: string;
+        published_date: string;
+        material_type_facet: string;
+        kicker: string;
+        des_facet: string[];
+        org_facet: string[];
+        per_facet: string[];
+        geo_facet: string[];
+        multimedia: Array<{
+            url: string;
+            format: string;
+            height: number;
+            width: number;
+            type: string;
+            subtype: string;
+            caption: string;
+            copyright: string;
+        }>;
+        short_url: string;
+    }>;
+}
 
 /** ------------- API response types ------------- */
 
@@ -110,6 +246,30 @@ export interface FetchEverythingParams {
     q?: string;
     pageSize?: number;
     page?: number;
+}
+
+export interface GuardianSearchParams {
+    q?: string;
+    section?: string;
+    fromDate?: string;
+    toDate?: string;
+    orderBy?: string;
+    pageSize?: number;
+    page?: number;
+}
+
+export interface NYTimesSearchParams {
+    q?: string;
+    section?: string;
+    sort?: string;
+    fromDate?: string;
+    toDate?: string;
+    pageSize?: number;
+    page?: number;
+}
+
+export interface NYTimesTopStoriesParams {
+    section?: string;
 }
 
 export interface ScrapeWebsiteParams {

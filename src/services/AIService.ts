@@ -6,7 +6,7 @@ import {isListEmpty} from "../utils/list";
 import {getUserByEmail} from "./AuthService";
 import {Article, RSSFeed} from "../types/news";
 import CachedSummaryModel, {ICachedSummary} from "../models/CachedSummarySchema";
-import {fetchEverything, fetchRSSFeed, scrapeMultipleArticles} from "./NewsService";
+import {fetchRSSFeed, scrapeMultipleArticles, smartFetchNews} from "./NewsService";
 import {AI_QUERY_PARSING_MODELS, AI_SUMMARIZATION_MODELS, RSS_SOURCES} from "../utils/constants";
 import {GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY, NODE_ENV, RSS_CACHE_DURATION} from "../config/config";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
@@ -31,6 +31,7 @@ export const genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
 export const AI_MODEL = 'gemini-1.5-flash';
 const translate = new Translate({key: GOOGLE_TRANSLATE_API_KEY});
 
+// TODO: REMOVE
 const SMART_SEARCH_CACHE = new Map<string, { data: any, timestamp: number }>();
 
 const summarizeArticle = async ({email, content, urls, language = 'en', style = 'standard'}: SummarizeArticleParams): Promise<SummarizeArticleResponse> => {
@@ -187,6 +188,7 @@ const translateText = async ({text, targetLanguage}: TranslateTextParams): Promi
     }
 }
 
+// TODO: REMOVE
 const parseQueryWithAI = async ({query}: ParseQueryWithAIParams): Promise<ParseQueryWithAIResponse> => {
     console.info('parseQueryWithAI called'.bgMagenta.white.italic, query);
     try {
@@ -255,6 +257,7 @@ const parseQueryWithAI = async ({query}: ParseQueryWithAIParams): Promise<ParseQ
     }
 }
 
+// TODO: REMOVE
 const processNaturalQuery = async ({email, query, pageSize = 20}: ProcessNaturalQueryParams): Promise<ProcessNaturalQueryResponse> => {
     console.info('processNaturalQuery called:'.bgMagenta.white.italic, query);
     try {
@@ -283,60 +286,40 @@ const processNaturalQuery = async ({email, query, pageSize = 20}: ProcessNatural
         const {entities, searchTerms, categories, recommendedSources, intent, originalQuery, powered_by} = await parseQueryWithAI({query});
         console.log('AI parsed query:'.cyan.italic, {entities, searchTerms, categories, intent, originalQuery, powered_by, recommendedSources});
 
-        // Prepare searches - Execute both RSS and NewsAPI
-        const searchPromises = [];
+        // Use smartFetchNews for the main search
+        const searchResults = await smartFetchNews({
+            q: searchTerms?.slice(0, 3).join(' '),
+            sources: recommendedSources?.join(','),
+            pageSize: Math.ceil(pageSize * 0.8)
+        });
 
-        // RSS search with AI-recommended sources
+        // Get RSS results for additional context
+        let rssResults: RSSFeed[] = [];
         if (recommendedSources && recommendedSources.length > 0) {
-            console.log('Fetching RSS from recommended sources:'.blue.italic, recommendedSources);
-            searchPromises.push(
-                fetchRSSFeed({
+            try {
+                rssResults = await fetchRSSFeed({
                     sources: recommendedSources.join(','),
-                    pageSize: Math.ceil(pageSize * 0.8),
-                }).catch((error) => {
-                    console.error('RSS fetch failed:'.yellow.italic, error.message);
-                    return [];
-                })
-            );
-        } else {
-            searchPromises.push(Promise.resolve([]));
+                    pageSize: Math.ceil(pageSize * 0.3),
+                });
+            } catch (error) {
+                console.error('RSS fetch failed:'.yellow.italic, error);
+            }
         }
 
-        // NewsAPI search with search terms
-        searchPromises.push(
-            fetchEverything({
-                q: searchTerms?.slice(0, 3).join(' '),
-                pageSize: Math.ceil(pageSize * 0.7),
-                sortBy: 'publishedAt',
-                language: 'en',
-            }).catch((error) => {
-                console.error('NewsAPI fetch failed:'.yellow.italic, error.message);
-                return {articles: []};
-            })
-        );
-
-        // Execute searches
-        const results = await Promise.allSettled(searchPromises);
-
-        // Extract results properly
-        const rssResults: RSSFeed[] = results[0].status === 'fulfilled' ? results[0].value : [];
-        const newsApiResults = results[1].status === 'fulfilled' ? results[1].value : {articles: []};
+        console.log('Smart fetch results:'.blue.italic, {
+            articlesCount: searchResults?.articles?.length || 0,
+            usedSources: searchResults?.metadata?.usedSources || [],
+        });
 
         console.log('RSS results:'.blue.italic, {
             sources: recommendedSources,
             articlesCount: rssResults.length,
         });
 
-        console.log('NewsAPI results:'.yellow.italic, {
-            query: searchTerms?.slice(0, 3).join(' '),
-            totalResults: newsApiResults?.totalResults || 0,
-            articlesCount: newsApiResults?.articles?.length || 0
-        });
-
-        // Combine and rank with proper content filtering
+        // Combine and rank results
         const combinedResults = combineAndRank(
             rssResults,
-            newsApiResults || {articles: []},
+            searchResults || {articles: []},
             entities || [],
             searchTerms || [],
             categories || [],
@@ -352,9 +335,10 @@ const processNaturalQuery = async ({email, query, pageSize = 20}: ProcessNatural
                 timestamp: new Date().toISOString(),
                 recommendedSources,
                 sourcesUsed: {
+                    smartFetch: searchResults?.articles?.length || 0,
                     rss: rssResults.length,
-                    newsapi: newsApiResults?.articles?.length || 0,
                     filtered: combinedResults.length,
+                    usedApis: searchResults?.metadata?.usedSources || []
                 }
             },
         };
@@ -364,11 +348,12 @@ const processNaturalQuery = async ({email, query, pageSize = 20}: ProcessNatural
             SMART_SEARCH_CACHE.set(cacheKey, {data: result, timestamp: Date.now()});
         }
 
-        console.log('Smart search completed:'.green.italic, {
+        console.log('Enhanced smart search completed:'.green.italic, {
             query,
             resultsCount: result.articles.length,
+            smartFetchCount: searchResults?.articles?.length || 0,
             rssCount: rssResults.length,
-            newsApiCount: newsApiResults?.articles?.length || 0,
+            usedApis: searchResults?.metadata?.usedSources || [],
             aiParsed: true,
         });
 
@@ -380,6 +365,7 @@ const processNaturalQuery = async ({email, query, pageSize = 20}: ProcessNatural
 }
 
 // Helper functions
+// TODO: REMOVE
 const calculateRelevanceScore = (text: string, entities: string[], searchTerms: string[], aiCategories: string[] = []): number => {
     if (!text) return 0;
 
@@ -518,6 +504,7 @@ const calculateRelevanceScore = (text: string, entities: string[], searchTerms: 
     return totalScore;
 }
 
+// TODO: REMOVE
 const getRecencyBoost = (publishedAt: string): number => {
     if (!publishedAt) return 0;
 
@@ -527,25 +514,26 @@ const getRecencyBoost = (publishedAt: string): number => {
     return Math.max(0, (24 - hoursOld) / 24);
 }
 
-const combineAndRank = (rssResults: RSSFeed[], newsApiResults: any, entities: string[], searchTerms: string[], aiCategories: string[] = []) => {
+// TODO: REMOVE
+const combineAndRank = (rssResults: RSSFeed[], smartFetchResults: any, entities: string[], searchTerms: string[], aiCategories: string[] = []) => {
     const combined: CombinedArticle[] = [];
     const seenUrls = new Set<string>();
     const seenTitles = new Set<string>(); // Additional deduplication by title
 
     console.log('Starting combineAndRank:'.cyan.italic, {
         rssCount: rssResults?.length || 0,
-        newsApiCount: newsApiResults?.articles?.length || 0,
+        smartFetchCount: smartFetchResults?.articles?.length || 0,
         entities: entities?.length || 0,
         searchTerms: searchTerms?.length || 0,
         categories: aiCategories?.length || 0
     });
 
-    // Process NewsAPI results first (no relevance scoring - trust NewsAPI's query matching)
-    if (newsApiResults && newsApiResults.articles) {
-        console.log('Processing NewsAPI results (no relevance filtering)...'.yellow.italic);
-        newsApiResults.articles.forEach((article: Article, index: number) => {
+    // Process SmartFetch results first (high priority - already filtered by multiple APIs)
+    if (smartFetchResults && smartFetchResults.articles) {
+        console.log('Processing SmartFetch results (high priority)...'.yellow.italic);
+        smartFetchResults.articles.forEach((article: Article, index: number) => {
             if (!article.url || !article.title) {
-                console.log(`Skipping NewsAPI item ${index}: missing URL or title`.yellow);
+                console.log(`Skipping SmartFetch item ${index}: missing URL or title`.yellow);
                 return;
             }
 
@@ -554,11 +542,11 @@ const combineAndRank = (rssResults: RSSFeed[], newsApiResults: any, entities: st
             const normalizedTitle = article.title.toLowerCase().trim();
 
             if (seenUrls.has(normalizedUrl) || seenTitles.has(normalizedTitle)) {
-                console.log(`Skipping NewsAPI duplicate: ${article.title?.substring(0, 50)}...`.yellow);
+                console.log(`Skipping SmartFetch duplicate: ${article.title?.substring(0, 50)}...`.yellow);
                 return;
             }
 
-            // Add all NewsAPI results with high base score (trust NewsAPI's relevance)
+            // Add all SmartFetch results with high base score (trust multi-API selection)
             seenUrls.add(normalizedUrl);
             seenTitles.add(normalizedTitle);
             combined.push({
@@ -570,10 +558,10 @@ const combineAndRank = (rssResults: RSSFeed[], newsApiResults: any, entities: st
                 publishedAt: article.publishedAt,
                 content: article.content,
                 contentSnippet: article.description,
-                source_type: 'newsapi',
-                relevance_score: 10, // High base score for NewsAPI results
+                source_type: 'smart_fetch',
+                relevance_score: 12, // Higher than individual API scores
             });
-            console.log(`Added NewsAPI article: ${article.title?.substring(0, 50)}... (score: 10)`.green);
+            console.log(`Added SmartFetch article: ${article.title?.substring(0, 50)}... (score: 12)`.green);
         });
     }
 

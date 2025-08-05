@@ -15,6 +15,18 @@ const RSS_SOURCES = {
         techradar: 'https://www.techradar.com/rss',
         gizmodo: 'https://gizmodo.com/rss',
 
+        bbc_news: "https://feeds.bbci.co.uk/news/rss.xml",
+        nbc_news: "https://feeds.nbcnews.com/nbcnews/public/news",
+        sky_news: "https://feeds.skynews.com/feeds/rss/home.xml",
+        al_jazeera: "https://www.aljazeera.com/xml/rss/all.xml",
+        marketwatch_top: "https://feeds.content.dowjones.io/public/rss/mw_topstories",
+        indian_express: "https://indianexpress.com/feed",
+        economic_times: "https://economictimes.indiatimes.com/rssfeedstopstories.cms",
+        business_standard: "https://www.business-standard.com/rss/home_page_top_stories.rss",
+        livemint: "https://www.livemint.com/rss/news",
+        moneycontrol: "https://www.moneycontrol.com/rss/latestnews.xml",
+        espn: "https://www.espn.com/espn/rss/news",
+
         timesofindia_top: 'https://timesofindia.indiatimes.com/rssfeedstopstories.cms',
         timesofindia_recent: 'https://timesofindia.indiatimes.com/rssfeedmostrecent.cms',
         timesofindia_india: 'https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms',

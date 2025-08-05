@@ -73,7 +73,7 @@ export interface CombinedArticle {
     publishedAt?: string | null;
     content?: string | null;
     contentSnippet?: string | null;
-    source_type: 'rss' | 'newsapi';
+    source_type: 'rss' | 'newsapi' | 'smart_fetch';
     relevance_score: number;
 }
 
@@ -97,7 +97,6 @@ export interface ParseQueryWithAIResponse {
     categories?: string[];
     recommendedSources?: string[];
     intent?: string;
-    isPastEvent?: boolean;
     originalQuery?: string;
     powered_by?: string;
     error?: string;

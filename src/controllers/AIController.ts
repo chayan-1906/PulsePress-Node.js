@@ -99,6 +99,7 @@ const summarizeArticleController = async (req: Request, res: Response) => {
     }
 }
 
+// TODO: REMOVE
 const parseQueryWithAIController = async (req: Request, res: Response) => {
     console.info('parseQueryWithAIController called'.bgMagenta.white.italic);
 
