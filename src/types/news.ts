@@ -277,6 +277,7 @@ export interface NYTimesTopStoriesParams {
 }
 
 export interface RSSFeedParams {
+    email?: string;
     q?: string;
     sources?: string;
     languages?: SupportedNewsLanguage;

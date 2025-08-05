@@ -188,6 +188,44 @@ const translateText = async ({text, targetLanguage}: TranslateTextParams): Promi
     }
 }
 
+const expandQueryWithAI = async ({email, query}: { email: string | undefined; query: string }): Promise<string[]> => {
+    try {
+        const {user} = await getUserByEmail({email});
+        if (user) {
+            console.log('user found:'.cyan.italic, user);
+            const model = genAI.getGenerativeModel({model: AI_QUERY_PARSING_MODELS[0]});
+            const prompt = `Expand this search query with 3-5 related terms for better news search results.
+                        Query: "${query}"
+
+                        Return only a JSON array of strings:
+                        ["${query}", "synonym1", "synonym2", "related_term1", "related_term2"]
+                        
+                        Example:
+                            Query: "Tesla" → ["Tesla", "electric vehicle", "EV", "Elon Musk", "automotive"]
+                            Query: "climate change" → ["climate change", "global warming", "carbon emissions", "greenhouse gases", "environmental"]
+                    `;
+
+            const result = await model.generateContent(prompt);
+            const responseText = result.response.text().trim();
+
+            const jsonMatch = responseText.match(/\[.*]/);
+            if (jsonMatch) {
+                const expandedTerms = JSON.parse(jsonMatch[0]);
+                console.log(`Query expanded: "${query}" → [${expandedTerms.join(', ')}]`.green);
+                return expandedTerms;
+            }
+
+            return [query];
+        } else {
+            console.log('Anonymous users can\'t use AI features:'.yellow.italic, user);
+            return [query];
+        }
+    } catch (error) {
+        console.error('Query expansion failed:', error);
+        return [query];
+    }
+}
+
 // TODO: REMOVE
 const parseQueryWithAI = async ({query}: ParseQueryWithAIParams): Promise<ParseQueryWithAIResponse> => {
     console.info('parseQueryWithAI called'.bgMagenta.white.italic, query);
@@ -621,4 +659,4 @@ const combineAndRank = (rssResults: RSSFeed[], smartFetchResults: any, entities:
     return sortedResults.slice(0, 100); // Return top 100 results
 }
 
-export {summarizeArticle, processNaturalQuery};
+export {summarizeArticle, expandQueryWithAI, processNaturalQuery};

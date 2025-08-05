@@ -23,6 +23,7 @@ import {
     ScrapeMultipleWebsitesParams,
     SUPPORTED_NEWS_LANGUAGES
 } from "../types/news";
+import {AuthRequest} from "../types/auth";
 
 const fetchNEWSORGTopHeadlinesController = async (req: Request, res: Response) => {
     console.info('fetchNEWSORGTopHeadlinesController called'.bgMagenta.white.italic);
@@ -180,6 +181,7 @@ const fetchNYTimesTopStoriesController = async (req: Request, res: Response) => 
 const fetchAllRSSFeedsController = async (req: Request, res: Response) => {
     console.info('getAllRSSFeedsController called'.bgMagenta.white.italic);
     try {
+        const email = (req as AuthRequest).email;
         const {q, sources, languages, pageSize, page}: Partial<RSSFeedParams> = req.query;
 
         const sourceList = sources ? sources.split(',').map((source: string) => source.trim().toLowerCase()).filter(Boolean) : [];
@@ -213,7 +215,7 @@ const fetchAllRSSFeedsController = async (req: Request, res: Response) => {
         }
 
         console.time('RSS_FETCH_TIME'.bgMagenta.white.italic);
-        const rssFeeds = await fetchAllRSSFeeds({q, sources, languages, pageSize: pageSizeNumber, page: pageNumber});
+        const rssFeeds = await fetchAllRSSFeeds({email, q, sources, languages, pageSize: pageSizeNumber, page: pageNumber});
         console.timeEnd('RSS_FETCH_TIME'.bgMagenta.white.italic);
         console.log('rss feeds:'.green.bold, rssFeeds.length);
 

@@ -23,4 +23,19 @@ const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
     });
 }
 
-export {authMiddleware};
+const authMiddlewareOptional = (req: Request, res: Response, next: NextFunction) => {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (token) {
+        jwt.verify(token, ACCESS_TOKEN_SECRET!, (error, decoded) => {
+            if (!error) {
+                const payload = decoded as JwtPayload;
+                (req as AuthRequest).userExternalId = payload.userExternalId as string;
+                (req as AuthRequest).email = payload.email as string;
+            }
+        });
+    }
+
+    next();
+}
+
+export {authMiddleware, authMiddlewareOptional};

@@ -25,11 +25,11 @@ import {
     NYTimesTopStoriesResponse,
     RSSFeed,
     RSSFeedParams,
-    RSSSearchResult,
     ScrapeMultipleWebsitesParams,
     ScrapeWebsiteParams,
     SUPPORTED_NEWS_LANGUAGES
 } from "../types/news";
+import {expandQueryWithAI} from "./AIService";
 
 const RSS_CACHE = new Map<string, { data: RSSFeed[], timestamp: number }>();
 const TOPHEADLINES_CACHE = new Map<string, { data: any, timestamp: number }>();
@@ -295,7 +295,7 @@ const fetchNYTimesTopStories = async ({section = 'home'}: NYTimesTopStoriesParam
     }
 }
 
-const fetchAllRSSFeeds = async ({q, sources, languages = 'english', pageSize = 10, page = 1}: RSSFeedParams) => {
+const fetchAllRSSFeeds = async ({email, q, sources, languages = 'english', pageSize = 10, page = 1}: RSSFeedParams) => {
     try {
         const cacheKey = `${q}-${sources}-${languages}-${pageSize}-${page}`;
         const cached = RSS_CACHE.get(cacheKey);
@@ -344,7 +344,9 @@ const fetchAllRSSFeeds = async ({q, sources, languages = 'english', pageSize = 1
             .sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
 
         if (q && q.trim()) {
-            console.log(`Searching RSS feeds for: "${q}"`.cyan.italic);
+            console.log(`Searching RSS feeds with query expansion for: "${q}"`.cyan.italic);
+
+            const expandedTerms = await expandQueryWithAI({email, query: q.trim()});
 
             const fuse = new Fuse(allItems, {
                 keys: [
@@ -359,33 +361,37 @@ const fetchAllRSSFeeds = async ({q, sources, languages = 'english', pageSize = 1
                 ignoreLocation: true,
             });
 
-            const searchResults = fuse.search(q.trim());
+            const allResults = new Map<string, { item: RSSFeed, score: number }>();
+            expandedTerms.forEach((term, index) => {
+                const termResults = fuse.search(term);
+                const weight = index === 0 ? 1.0 : 0.7;
 
-            // Convert to RSSSearchResult format and sort by date then score
-            const formattedResults: RSSSearchResult[] = searchResults.map(result => ({
-                item: result.item,
-                score: 1 - (result.score || 0),
-                matches: result.matches || [],
-            }));
+                termResults.forEach(result => {
+                    const url = result.item.url;
+                    if (url) {
+                        const score = (1 - (result.score || 0)) * weight;
+                        if (!allResults.has(url) || allResults.get(url)!.score < score) {
+                            allResults.set(url, {item: result.item, score});
+                        }
+                    }
+                });
+            });
 
-            // Sort by publishedAt date (newest first), then by score
-            const sortedResults = formattedResults.sort((a, b) => {
+            const searchResults = Array.from(allResults.values()).sort((a, b) => {
+                if (Math.abs(a.score - b.score) > 0.1) {
+                    return b.score - a.score;
+                }
+                // If scores close, prefer newer articles
                 const dateA = a.item.publishedAt ? new Date(a.item.publishedAt).getTime() : 0;
                 const dateB = b.item.publishedAt ? new Date(b.item.publishedAt).getTime() : 0;
-
-                if (dateA !== dateB) {
-                    return dateB - dateA; // Newest first
-                }
-
-                return b.score - a.score; // Higher score first for same date
+                return dateB - dateA;
             });
 
             const startIndex = (page - 1) * pageSize;
-            const paginatedResults = sortedResults.slice(startIndex, startIndex + pageSize);
-
-            console.log(`RSS search found ${searchResults.length} results for "${q}"`.green);
-
+            const paginatedResults = searchResults.slice(startIndex, startIndex + pageSize);
             const finalResults = paginatedResults.map(r => r.item);
+
+            console.log(`Expanded search found ${searchResults.length} results for "${q}"`.green);
 
             if (NODE_ENV === 'production') {
                 RSS_CACHE.set(cacheKey, {data: finalResults, timestamp: Date.now()});
@@ -394,7 +400,6 @@ const fetchAllRSSFeeds = async ({q, sources, languages = 'english', pageSize = 1
             return finalResults;
         }
 
-        // No query - return paginated results by source/language
         const startIndex = (page - 1) * pageSize;
         const paginatedResults = allItems.slice(startIndex, startIndex + pageSize);
 
