@@ -25,7 +25,7 @@ import {
 } from "../types/news";
 
 const fetchNEWSORGTopHeadlinesController = async (req: Request, res: Response) => {
-    console.info('getAllTopHeadlinesController called'.bgMagenta.white.italic);
+    console.info('fetchNEWSORGTopHeadlinesController called'.bgMagenta.white.italic);
     try {
         const {country, category, sources, q, pageSize, page}: Partial<NEWSORGTopHeadlinesParams> = req.query;
 
@@ -45,7 +45,7 @@ const fetchNEWSORGTopHeadlinesController = async (req: Request, res: Response) =
             topHeadlines,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of getAllTopHeadlinesController:'.red.bold, error);
+        console.error('ERROR: inside catch of fetchNEWSORGTopHeadlinesController:'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
@@ -234,6 +234,22 @@ const fetchAllRSSFeedsController = async (req: Request, res: Response) => {
 }
 
 // TODO: REMOVE
+/**
+ * Current smartFetchNews() Analysis
+ * What it does: Implements a cascading fallback search across multiple APIs with intelligent article deduplication.
+ * Flow:
+ *
+ * NewsAPI (40% of requested articles)
+ * Guardian API (40% remaining slots)
+ * NYTimes API (30% remaining slots)
+ * RSS feeds (fill remaining)
+ *
+ * Example: Request 10 articles for "climate change"
+ * 1. NewsAPI → 4 articles (40% of 10)
+ * 2. Guardian → 2-3 new articles (dedupe by URL)
+ * 3. NYTimes → 1-2 new articles (dedupe by URL)
+ * 4. RSS → 1-3 articles to reach 10 total
+ */
 const smartFetchNewsController = async (req: Request, res: Response) => {
     console.info('smartFetchNewsController called'.bgMagenta.white.italic);
     try {

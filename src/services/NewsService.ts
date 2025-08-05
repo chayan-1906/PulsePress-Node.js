@@ -79,10 +79,6 @@ const convertNYTimesToArticle = (nytArticle: NYTimesArticle): Article => ({
 
 const fetchNEWSORGTopHeadlines = async ({country, category, sources, q, pageSize = 10, page = 1}: NEWSORGTopHeadlinesParams) => {
     try {
-        if (q) {
-            return await smartFetchNews({q, category, sources, pageSize, page});
-        }
-
         const cacheKey = `${country}-${category}-${sources}-${q}-${pageSize}-${page}`;
         const cached = TOPHEADLINES_CACHE.get(cacheKey);
         if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
@@ -90,44 +86,31 @@ const fetchNEWSORGTopHeadlines = async ({country, category, sources, q, pageSize
             return cached.data;
         }
 
-        // Try NewsAPI first
-        if (newsApiRequestCount < 100) {
-            try {
-                const {data: topHeadlinesResponse} = await axios.get<NEWSORGTopHeadlinesAPIResponse>(
-                    apis.topHeadlinesApi({country: country || 'us', category, sources, q, pageSize, page}),
-                    {headers: buildHeader('newsapi')}
-                );
-                newsApiRequestCount++;
-                console.log('topHeadlines from NewsAPI:'.cyan.italic, topHeadlinesResponse);
-
-                if (NODE_ENV === 'production') {
-                    TOPHEADLINES_CACHE.set(cacheKey, {data: topHeadlinesResponse, timestamp: Date.now()});
-                }
-
-                if (topHeadlinesResponse.articles.length > 0) {
-                    return topHeadlinesResponse;
-                }
-            } catch (error) {
-                console.log('NewsAPI failed, trying fallbacks...'.yellow.italic);
-            }
+        if (newsApiRequestCount >= 100) {
+            console.log('NewsAPIOrg limit reached'.yellow.italic);
+            return {status: 'error', message: 'NewsAPIOrg daily limit reached', articles: [], totalResults: 0};
         }
 
-        // Fallback chain
-        return await smartFetchNews({category, sources, pageSize, page});
+        const {data: topHeadlinesResponse} = await axios.get<NEWSORGTopHeadlinesAPIResponse>(
+            apis.topHeadlinesApi({country: country || 'us', category, sources, q, pageSize, page}),
+            {headers: buildHeader('newsapi')},
+        );
+        newsApiRequestCount++;
+        console.log('topHeadlines from NewsAPIOrg:'.cyan.italic, topHeadlinesResponse);
+
+        if (NODE_ENV === 'production') {
+            TOPHEADLINES_CACHE.set(cacheKey, {data: topHeadlinesResponse, timestamp: Date.now()});
+        }
+
+        return topHeadlinesResponse;
     } catch (error: any) {
         console.error('ERROR: inside catch of fetchTopHeadlines:'.red.bold, error);
-        // Final fallback → fetch RSS feeds
-        return await fetchAllRSSFeeds({});
+        throw error;
     }
 }
 
 const fetchNEWSORGEverything = async ({sources, from, to, sortBy, language, q, pageSize = 10, page = 1}: NEWSORGEverythingParams) => {
     try {
-        // Use smart fetch for queries
-        if (q) {
-            return await smartFetchNews({q, sources, pageSize, page});
-        }
-
         const cacheKey = `${sources}-${from}-${to}-${sortBy}-${language}-${q}-${pageSize}-${page}`;
         const cached = EVERYTHING_NEWS_CACHE.get(cacheKey);
         if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
@@ -135,28 +118,23 @@ const fetchNEWSORGEverything = async ({sources, from, to, sortBy, language, q, p
             return cached.data;
         }
 
-        // Try NewsAPI first
-        if (newsApiRequestCount < 100) {
-            try {
-                const {data: everything} = await axios.get<NEWSORGTopHeadlinesAPIResponse>(
-                    apis.fetchEverythingApi({sources, from, to, sortBy, language, q, pageSize, page}),
-                    {headers: buildHeader('newsapi')}
-                );
-                newsApiRequestCount++;
-                console.log('everything from NewsAPI:'.cyan.italic, everything);
-
-                if (NODE_ENV === 'production') {
-                    EVERYTHING_NEWS_CACHE.set(cacheKey, {data: everything, timestamp: Date.now()});
-                }
-
-                return everything;
-            } catch (error) {
-                console.log('NewsAPI failed, trying fallbacks...'.yellow.italic);
-            }
+        if (newsApiRequestCount >= 100) {
+            console.log('NewsAPIOrg limit reached'.yellow.italic);
+            return {status: 'error', message: 'NewsAPIOrg daily limit reached', articles: [], totalResults: 0};
         }
 
-        // Fallback to other APIs
-        return await smartFetchNews({sources, pageSize, page});
+        const {data: everything} = await axios.get<NEWSORGTopHeadlinesAPIResponse>(
+            apis.fetchEverythingApi({sources, from, to, sortBy, language, q, pageSize, page}),
+            {headers: buildHeader('newsapi')},
+        );
+        newsApiRequestCount++;
+        console.log('everything from NewsAPIOrg:'.cyan.italic, everything);
+
+        if (NODE_ENV === 'production') {
+            EVERYTHING_NEWS_CACHE.set(cacheKey, {data: everything, timestamp: Date.now()});
+        }
+
+        return everything;
     } catch (error: any) {
         console.error('ERROR: inside catch of fetchEverything:'.red.bold, error);
         throw error;
@@ -172,7 +150,7 @@ const fetchGuardianNews = async ({q, section, fromDate, toDate, orderBy = 'newes
 
         if (guardianApiRequestCount >= 12000) {
             console.warn('Guardian API daily limit reached'.yellow.italic);
-            return {articles: [], totalResults: 0};
+            return {status: 'error', message: 'Guardian API daily limit reached', articles: [], totalResults: 0};
         }
 
         const cacheKey = `guardian-${q}-${section}-${fromDate}-${toDate}-${orderBy}-${pageSize}-${page}`;
@@ -216,7 +194,7 @@ const fetchNYTimesNews = async ({q, section, sort = 'newest', fromDate, toDate, 
 
         if (nytimesApiRequestCount >= 1000) {
             console.warn('NYTimes API daily limit reached'.yellow.italic);
-            return {articles: [], totalResults: 0};
+            return {status: 'error', message: 'NYTimes API daily limit reached', articles: [], totalResults: 0};
         }
 
         const cacheKey = `nytimes-${q}-${section}-${sort}-${fromDate}-${toDate}-${pageSize}-${page}`;
@@ -230,7 +208,6 @@ const fetchNYTimesNews = async ({q, section, sort = 'newest', fromDate, toDate, 
         const {data: nytResponse} = await axios.get<NYTimesSearchResponse>(url, {headers: buildHeader('nytimes')});
         console.log('Raw NYT search response:', nytResponse);
         console.log('Response status:', nytResponse.status);
-        // console.log('Response data:', nytResponse.data);
 
         nytimesApiRequestCount++;
         console.log(`NYTimes API request ${nytimesApiRequestCount}/1000:`.cyan.italic, nytResponse?.response?.metadata?.hits, 'results');
@@ -268,7 +245,7 @@ const fetchNYTimesTopStories = async ({section = 'home'}: NYTimesTopStoriesParam
 
         if (nytimesApiRequestCount >= 1000) {
             console.warn('NYTimes API daily limit reached'.yellow.italic);
-            return {articles: [], totalResults: 0};
+            return {status: 'error', message: 'NYTimes API daily limit reached', articles: [], totalResults: 0};
         }
 
         const cacheKey = `nytimes-top-${section}`;
@@ -390,13 +367,33 @@ const smartFetchNews = async ({q, category, sources, pageSize = 10, page = 1}: {
     let totalResults = 0;
     const usedSources: string[] = [];
 
-    // Step 1: Try NewsAPI (100 requests/day)
+    // Step 1: Try NewsAPI (100 requests/day) - Check limit before calling nested functions
     if (newsApiRequestCount < 100) {
         try {
             console.log('Trying NewsAPI...'.cyan.italic);
-            const newsApiResult = q
-                ? await fetchNEWSORGEverything({q, sources, pageSize: Math.ceil(pageSize * 0.4), page})
-                : await fetchNEWSORGTopHeadlines({category, sources, pageSize: Math.ceil(pageSize * 0.4), page});
+            let newsApiResult;
+
+            if (q) {
+                // For queries, use everything endpoint but respect the limit
+                if (newsApiRequestCount < 100) {
+                    const {data: everything} = await axios.get<NEWSORGTopHeadlinesAPIResponse>(
+                        apis.fetchEverythingApi({q, sources, pageSize: Math.ceil(pageSize * 0.4), page}),
+                        {headers: buildHeader('newsapi')}
+                    );
+                    newsApiRequestCount++;
+                    newsApiResult = everything;
+                }
+            } else {
+                // For top headlines, use headlines endpoint but respect the limit
+                if (newsApiRequestCount < 100) {
+                    const {data: topHeadlines} = await axios.get<NEWSORGTopHeadlinesAPIResponse>(
+                        apis.topHeadlinesApi({country: 'us', category, sources, pageSize: Math.ceil(pageSize * 0.4), page}),
+                        {headers: buildHeader('newsapi')}
+                    );
+                    newsApiRequestCount++;
+                    newsApiResult = topHeadlines;
+                }
+            }
 
             if (newsApiResult && newsApiResult.articles) {
                 results.push(...newsApiResult.articles);
@@ -407,6 +404,8 @@ const smartFetchNews = async ({q, category, sources, pageSize = 10, page = 1}: {
         } catch (error) {
             console.log('NewsAPI failed, continuing...'.yellow.italic);
         }
+    } else {
+        console.log('NewsAPI limit reached, skipping...'.yellow.italic);
     }
 
     // Step 2: Try Guardian API (12K requests/day)
@@ -422,8 +421,8 @@ const smartFetchNews = async ({q, category, sources, pageSize = 10, page = 1}: {
 
             if (guardianResult && guardianResult.articles) {
                 // Filter duplicates by URL
-                const newArticles = guardianResult.articles.filter((article: GuardianArticle) =>
-                    !results.some(existing => existing.url === article.webUrl)
+                const newArticles = guardianResult.articles.filter((article: any) =>
+                    !results.some(existing => existing.url === article.url)
                 );
                 results.push(...newArticles);
                 totalResults += guardianResult.totalResults || 0;
@@ -433,6 +432,8 @@ const smartFetchNews = async ({q, category, sources, pageSize = 10, page = 1}: {
         } catch (error) {
             console.log('Guardian API failed, continuing...'.yellow.italic);
         }
+    } else if (guardianApiRequestCount >= 12000) {
+        console.log('Guardian API limit reached, skipping...'.yellow.italic);
     }
 
     // Step 3: Try NYTimes API (1K requests/day)
@@ -445,8 +446,8 @@ const smartFetchNews = async ({q, category, sources, pageSize = 10, page = 1}: {
 
             if (nytResult && nytResult.articles) {
                 // Filter duplicates by URL
-                const newArticles = nytResult.articles.filter((article: NYTimesArticle) =>
-                    !results.some(existing => existing.url === article.web_url)
+                const newArticles = nytResult.articles.filter((article: any) =>
+                    !results.some(existing => existing.url === article.url)
                 );
                 results.push(...newArticles.slice(0, Math.ceil(pageSize * 0.3)));
                 totalResults += nytResult.totalResults || 0;
@@ -456,6 +457,8 @@ const smartFetchNews = async ({q, category, sources, pageSize = 10, page = 1}: {
         } catch (error) {
             console.log('NYTimes API failed, continuing...'.yellow.italic);
         }
+    } else if (nytimesApiRequestCount >= 1000) {
+        console.log('NYTimes API limit reached, skipping...'.yellow.italic);
     }
 
     // Step 4: Fallback to RSS if still need more articles
