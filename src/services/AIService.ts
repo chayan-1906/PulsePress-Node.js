@@ -288,11 +288,11 @@ const processNaturalQuery = async ({email, query, pageSize = 20}: ProcessNatural
 
         // RSS search with AI-recommended sources
         if (recommendedSources && recommendedSources.length > 0) {
-            console.log('Fetching RSS from recommended sources:'.blue.italic, recommendedSources.slice(0, 6));
+            console.log('Fetching RSS from recommended sources:'.blue.italic, recommendedSources);
             searchPromises.push(
                 fetchRSSFeed({
-                    sources: recommendedSources.slice(0, 6).join(','), // Use top 6 sources
-                    pageSize: Math.ceil(pageSize * 0.8), // Get more RSS results
+                    sources: recommendedSources.join(','),
+                    pageSize: Math.ceil(pageSize * 0.8),
                 }).catch((error) => {
                     console.error('RSS fetch failed:'.yellow.italic, error.message);
                     return [];
@@ -323,8 +323,8 @@ const processNaturalQuery = async ({email, query, pageSize = 20}: ProcessNatural
         const newsApiResults = results[1].status === 'fulfilled' ? results[1].value : {articles: []};
 
         console.log('RSS results:'.blue.italic, {
-            sources: recommendedSources?.slice(0, 6),
-            articlesCount: rssResults.length
+            sources: recommendedSources,
+            articlesCount: rssResults.length,
         });
 
         console.log('NewsAPI results:'.yellow.italic, {
@@ -354,7 +354,7 @@ const processNaturalQuery = async ({email, query, pageSize = 20}: ProcessNatural
                 sourcesUsed: {
                     rss: rssResults.length,
                     newsapi: newsApiResults?.articles?.length || 0,
-                    filtered: combinedResults.length
+                    filtered: combinedResults.length,
                 }
             },
         };
@@ -369,7 +369,7 @@ const processNaturalQuery = async ({email, query, pageSize = 20}: ProcessNatural
             resultsCount: result.articles.length,
             rssCount: rssResults.length,
             newsApiCount: newsApiResults?.articles?.length || 0,
-            aiParsed: true
+            aiParsed: true,
         });
 
         return result;

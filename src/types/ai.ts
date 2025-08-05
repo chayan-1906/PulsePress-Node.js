@@ -97,6 +97,7 @@ export interface ParseQueryWithAIResponse {
     categories?: string[];
     recommendedSources?: string[];
     intent?: string;
+    isPastEvent?: boolean;
     originalQuery?: string;
     powered_by?: string;
     error?: string;

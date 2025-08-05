@@ -96,6 +96,7 @@ export interface TopHeadlinesParams {
 export interface RSSFeedParams {
     sources?: string;
     languages?: SupportedNewsLanguage;
+    // TODO: Add support of search, sortBy, from, to
     pageSize?: number;
     page?: number;
 }
