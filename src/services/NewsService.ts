@@ -1,5 +1,6 @@
 import "colors";
 import axios from "axios";
+import Fuse from "fuse.js";
 import {JSDOM, VirtualConsole} from 'jsdom';
 import {Readability} from "@mozilla/readability";
 import {apis} from "../utils/apis";
@@ -24,6 +25,7 @@ import {
     NYTimesTopStoriesResponse,
     RSSFeed,
     RSSFeedParams,
+    RSSSearchResult,
     ScrapeMultipleWebsitesParams,
     ScrapeWebsiteParams,
     SUPPORTED_NEWS_LANGUAGES
@@ -293,9 +295,9 @@ const fetchNYTimesTopStories = async ({section = 'home'}: NYTimesTopStoriesParam
     }
 }
 
-const fetchAllRSSFeeds = async ({sources, languages = 'english', pageSize = 10, page = 1}: RSSFeedParams) => {
+const fetchAllRSSFeeds = async ({q, sources, languages = 'english', pageSize = 10, page = 1}: RSSFeedParams) => {
     try {
-        const cacheKey = `${sources}-${languages}-${pageSize}-${page}`;
+        const cacheKey = `${q}-${sources}-${languages}-${pageSize}-${page}`;
         const cached = RSS_CACHE.get(cacheKey);
 
         if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
@@ -341,12 +343,66 @@ const fetchAllRSSFeeds = async ({sources, languages = 'english', pageSize = 10, 
             .flatMap(r => (r as PromiseFulfilledResult<RSSFeed[]>).value)
             .sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
 
+        if (q && q.trim()) {
+            console.log(`Searching RSS feeds for: "${q}"`.cyan.italic);
+
+            const fuse = new Fuse(allItems, {
+                keys: [
+                    {name: 'title', weight: 0.7},
+                    {name: 'contentSnippet', weight: 0.3},
+                    {name: 'categories', weight: 0.2},
+                ],
+                threshold: 0.4,
+                includeScore: true,
+                includeMatches: true,
+                minMatchCharLength: 3,
+                ignoreLocation: true,
+            });
+
+            const searchResults = fuse.search(q.trim());
+
+            // Convert to RSSSearchResult format and sort by date then score
+            const formattedResults: RSSSearchResult[] = searchResults.map(result => ({
+                item: result.item,
+                score: 1 - (result.score || 0),
+                matches: result.matches || [],
+            }));
+
+            // Sort by publishedAt date (newest first), then by score
+            const sortedResults = formattedResults.sort((a, b) => {
+                const dateA = a.item.publishedAt ? new Date(a.item.publishedAt).getTime() : 0;
+                const dateB = b.item.publishedAt ? new Date(b.item.publishedAt).getTime() : 0;
+
+                if (dateA !== dateB) {
+                    return dateB - dateA; // Newest first
+                }
+
+                return b.score - a.score; // Higher score first for same date
+            });
+
+            const startIndex = (page - 1) * pageSize;
+            const paginatedResults = sortedResults.slice(startIndex, startIndex + pageSize);
+
+            console.log(`RSS search found ${searchResults.length} results for "${q}"`.green);
+
+            const finalResults = paginatedResults.map(r => r.item);
+
+            if (NODE_ENV === 'production') {
+                RSS_CACHE.set(cacheKey, {data: finalResults, timestamp: Date.now()});
+            }
+
+            return finalResults;
+        }
+
+        // No query - return paginated results by source/language
         const startIndex = (page - 1) * pageSize;
+        const paginatedResults = allItems.slice(startIndex, startIndex + pageSize);
 
         if (NODE_ENV === 'production') {
-            RSS_CACHE.set(cacheKey, {data: allItems.slice(startIndex, startIndex + pageSize), timestamp: Date.now()});
+            RSS_CACHE.set(cacheKey, {data: paginatedResults, timestamp: Date.now()});
         }
-        return allItems.slice(startIndex, startIndex + pageSize);
+
+        return paginatedResults;
     } catch (error: any) {
         console.error('ERROR: inside catch of fetchRSSFeed:'.red.bold, error);
         throw error;

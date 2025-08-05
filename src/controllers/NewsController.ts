@@ -180,7 +180,7 @@ const fetchNYTimesTopStoriesController = async (req: Request, res: Response) => 
 const fetchAllRSSFeedsController = async (req: Request, res: Response) => {
     console.info('getAllRSSFeedsController called'.bgMagenta.white.italic);
     try {
-        const {sources, languages, pageSize, page}: Partial<RSSFeedParams> = req.query;
+        const {q, sources, languages, pageSize, page}: Partial<RSSFeedParams> = req.query;
 
         const sourceList = sources ? sources.split(',').map((source: string) => source.trim().toLowerCase()).filter(Boolean) : [];
         if (!isListEmpty(sourceList) && sourceList.every(lang => !SUPPORTED_NEWS_LANGUAGES.includes(lang))) {
@@ -213,14 +213,19 @@ const fetchAllRSSFeedsController = async (req: Request, res: Response) => {
         }
 
         console.time('RSS_FETCH_TIME'.bgMagenta.white.italic);
-        const rssFeeds = await fetchAllRSSFeeds({sources, languages, pageSize: pageSizeNumber, page: pageNumber});
+        const rssFeeds = await fetchAllRSSFeeds({q, sources, languages, pageSize: pageSizeNumber, page: pageNumber});
         console.timeEnd('RSS_FETCH_TIME'.bgMagenta.white.italic);
         console.log('rss feeds:'.green.bold, rssFeeds.length);
 
+        const message = q
+            ? `RSS search completed for "${q}" 🔍`
+            : 'RSS Feeds have been found 🎉';
+
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'RSS Feeds have been found 🎉',
+            message,
             totalResults: rssFeeds.length,
+            query: q || null,
             rssFeeds,
         }));
     } catch (error: any) {

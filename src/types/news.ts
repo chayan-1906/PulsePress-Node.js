@@ -73,6 +73,16 @@ export interface RSSFeed {
     // isoDate: string;
 }
 
+export interface RSSSearchResult {
+    item: RSSFeed;
+    score: number;
+    matches: readonly {
+        indices: readonly number[][];
+        value?: string;
+        key?: string;
+    }[];
+}
+
 export interface GuardianArticle {
     id: string;
     type: string;
@@ -267,9 +277,9 @@ export interface NYTimesTopStoriesParams {
 }
 
 export interface RSSFeedParams {
+    q?: string;
     sources?: string;
     languages?: SupportedNewsLanguage;
-    // TODO: Add support of search, sortBy, from, to
     pageSize?: number;
     page?: number;
 }
