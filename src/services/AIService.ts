@@ -6,19 +6,15 @@ import {isListEmpty} from "../utils/list";
 import {getUserByEmail} from "./AuthService";
 import {Article, RSSFeed} from "../types/news";
 import CachedSummaryModel, {ICachedSummary} from "../models/CachedSummarySchema";
-import {fetchAllRSSFeeds, scrapeMultipleArticles, smartFetchNews} from "./NewsService";
-import {AI_QUERY_PARSING_MODELS, AI_SUMMARIZATION_MODELS, RSS_SOURCES} from "../utils/constants";
-import {GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY, NODE_ENV, RSS_CACHE_DURATION} from "../config/config";
+import {scrapeMultipleArticles} from "./NewsService";
+import {AI_QUERY_PARSING_MODELS, AI_SUMMARIZATION_MODELS} from "../utils/constants";
+import {GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY, NODE_ENV} from "../config/config";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {
     CombinedArticle,
     GenerateContentHashParams,
     GenerateContentHashResponse,
     GetCachedSummaryParams,
-    ParseQueryWithAIParams,
-    ParseQueryWithAIResponse,
-    ProcessNaturalQueryParams,
-    ProcessNaturalQueryResponse,
     SaveSummaryToCacheParams,
     SUMMARIZATION_STYLES,
     SummarizeArticleParams,
@@ -30,9 +26,6 @@ import {
 export const genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
 export const AI_MODEL = 'gemini-1.5-flash';
 const translate = new Translate({key: GOOGLE_TRANSLATE_API_KEY});
-
-// TODO: REMOVE
-const SMART_SEARCH_CACHE = new Map<string, { data: any, timestamp: number }>();
 
 const summarizeArticle = async ({email, content, urls, language = 'en', style = 'standard'}: SummarizeArticleParams): Promise<SummarizeArticleResponse> => {
     console.info('summarizeArticle called'.bgMagenta.white.italic, {content, urls});
@@ -223,182 +216,6 @@ const expandQueryWithAI = async ({email, query}: { email: string | undefined; qu
     } catch (error) {
         console.error('Query expansion failed:', error);
         return [query];
-    }
-}
-
-// TODO: REMOVE
-const parseQueryWithAI = async ({query}: ParseQueryWithAIParams): Promise<ParseQueryWithAIResponse> => {
-    console.info('parseQueryWithAI called'.bgMagenta.white.italic, query);
-    try {
-        let usedModel, newsSearchResponse;
-        const availableSources = Object.values(RSS_SOURCES).flatMap((langSources: object) => Object.keys(langSources));
-
-        for (const modelName of AI_QUERY_PARSING_MODELS) {
-            try {
-                const model = genAI.getGenerativeModel({model: modelName});
-                const prompt = `Analyze this news search query and recommend the best sources.
-                        Query: "${query}"
-                        Available sources: "${availableSources.join(', ')}"
-
-                        Return JSON only:
-                        {
-                            "entities": ["entity1", "entity2"],
-                            "searchTerms": ["term1", "term2"],
-                            "categories": ["category"],
-                            "recommendedSources": ["source1", "source2", "source3"],
-                            "intent": "brief description"
-                        }
-
-                        Recommend 5-10 most relevant sources for this query.
-                        Focus on: people, companies, countries, technologies, sports, events.
-                    `;
-                newsSearchResponse = await model.generateContent(prompt);
-                usedModel = modelName;
-                break; // Success - exit loop
-            } catch (error) {
-                if (modelName === AI_QUERY_PARSING_MODELS[AI_QUERY_PARSING_MODELS.length - 1]) {
-                    throw error; // Last attempt failed
-                }
-                // continue; // Try next model
-            }
-        }
-
-        const response = newsSearchResponse?.response.text();
-        const jsonMatch = response?.match(/\{[\s\S]*}/);
-        if (!jsonMatch) {
-            throw new Error('SMART_SEARCH_FAILED');
-        }
-
-        const parsed = JSON.parse(jsonMatch[0]);
-        return {
-            entities: parsed.entities || [],
-            searchTerms: parsed.searchTerms || [query],
-            categories: parsed.categories || [],
-            recommendedSources: parsed.recommendedSources || [],
-            intent: parsed.intent || '',
-            originalQuery: query,
-            powered_by: usedModel,
-        };
-
-    } catch (error: any) {
-        console.error('AI parsing failed, using fallback:'.yellow.italic, error.message);
-
-        // Fallback: use query words as search terms
-        const words = query.toLowerCase().split(/\s+/).filter(word => word.length > 2);
-        return {
-            entities: words,
-            searchTerms: words,
-            categories: [],
-            intent: 'general search',
-            originalQuery: query,
-        };
-    }
-}
-
-// TODO: REMOVE
-const processNaturalQuery = async ({email, query, pageSize = 20}: ProcessNaturalQueryParams): Promise<ProcessNaturalQueryResponse> => {
-    console.info('processNaturalQuery called:'.bgMagenta.white.italic, query);
-    try {
-        if (!query?.trim()) {
-            return {error: generateMissingCode('query')};
-        }
-
-        const {user, error} = await getUserByEmail({email});
-        if (!user) {
-            return {error: generateNotFoundCode('user')};
-        }
-
-        // Generate cache key
-        const data = `${query}::${pageSize.toString()}`;
-        const queryHash = createHash('sha256').update(data).digest('hex');
-        const cacheKey = `smart-search-${queryHash}`;
-
-        // Check cache
-        const cached = SMART_SEARCH_CACHE.get(cacheKey);
-        if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
-            console.log('Smart search cache hit:'.cyan.italic, cacheKey);
-            return cached.data;
-        }
-
-        // Parse query with AI
-        const {entities, searchTerms, categories, recommendedSources, intent, originalQuery, powered_by} = await parseQueryWithAI({query});
-        console.log('AI parsed query:'.cyan.italic, {entities, searchTerms, categories, intent, originalQuery, powered_by, recommendedSources});
-
-        // Use smartFetchNews for the main search
-        const searchResults = await smartFetchNews({
-            q: searchTerms?.slice(0, 3).join(' '),
-            sources: recommendedSources?.join(','),
-            pageSize: Math.ceil(pageSize * 0.8)
-        });
-
-        // Get RSS results for additional context
-        let rssResults: RSSFeed[] = [];
-        if (recommendedSources && recommendedSources.length > 0) {
-            try {
-                rssResults = await fetchAllRSSFeeds({
-                    sources: recommendedSources.join(','),
-                    pageSize: Math.ceil(pageSize * 0.3),
-                });
-            } catch (error) {
-                console.error('RSS fetch failed:'.yellow.italic, error);
-            }
-        }
-
-        console.log('Smart fetch results:'.blue.italic, {
-            articlesCount: searchResults?.articles?.length || 0,
-            usedSources: searchResults?.metadata?.usedSources || [],
-        });
-
-        console.log('RSS results:'.blue.italic, {
-            sources: recommendedSources,
-            articlesCount: rssResults.length,
-        });
-
-        // Combine and rank results
-        const combinedResults = combineAndRank(
-            rssResults,
-            searchResults || {articles: []},
-            entities || [],
-            searchTerms || [],
-            categories || [],
-        );
-
-        const result = {
-            articles: combinedResults.slice(0, pageSize),
-            totalResults: combinedResults.length,
-            searchMetadata: {
-                originalQuery: query,
-                aiParsed: {entities, searchTerms, categories, intent},
-                powered_by,
-                timestamp: new Date().toISOString(),
-                recommendedSources,
-                sourcesUsed: {
-                    smartFetch: searchResults?.articles?.length || 0,
-                    rss: rssResults.length,
-                    filtered: combinedResults.length,
-                    usedApis: searchResults?.metadata?.usedSources || []
-                }
-            },
-        };
-
-        // Cache result
-        if (NODE_ENV === 'production') {
-            SMART_SEARCH_CACHE.set(cacheKey, {data: result, timestamp: Date.now()});
-        }
-
-        console.log('Enhanced smart search completed:'.green.italic, {
-            query,
-            resultsCount: result.articles.length,
-            smartFetchCount: searchResults?.articles?.length || 0,
-            rssCount: rssResults.length,
-            usedApis: searchResults?.metadata?.usedSources || [],
-            aiParsed: true,
-        });
-
-        return result;
-    } catch (error: any) {
-        console.error('ERROR: inside catch of processNaturalQuery:'.red.bold, error);
-        throw error;
     }
 }
 
@@ -659,4 +476,4 @@ const combineAndRank = (rssResults: RSSFeed[], smartFetchResults: any, entities:
     return sortedResults.slice(0, 100); // Return top 100 results
 }
 
-export {summarizeArticle, expandQueryWithAI, processNaturalQuery};
+export {summarizeArticle, expandQueryWithAI};

@@ -40,8 +40,6 @@ const EVERYTHING_NEWS_CACHE = new Map<string, { data: any, timestamp: number }>(
 const GUARDIAN_CACHE = new Map<string, { data: any, timestamp: number }>();
 const NYTIMES_CACHE = new Map<string, { data: any, timestamp: number }>();
 
-// TODO: Remove newsApiRequestCount, guardianApiRequestCount, nytimesApiRequestCount
-// API request counters for daily limits
 let newsApiRequestCount = 0;
 let guardianApiRequestCount = 0;
 let nytimesApiRequestCount = 0;
@@ -902,166 +900,6 @@ const fetchMultiSourceNews = async ({q, category, sources, pageSize = 10, page =
     };
 }
 
-// TODO: REMOVE
-const smartFetchNews = async ({q, category, sources, pageSize = 10, page = 1}: {
-    q?: string;
-    category?: string;
-    sources?: string;
-    pageSize?: number;
-    page?: number;
-}) => {
-    console.log('Starting smart news fetch with fallback chain:'.bgBlue.white.bold, {q, category, sources});
-
-    const results: Article[] = [];
-    let totalResults = 0;
-    const usedSources: string[] = [];
-
-    // Step 1: Try NewsAPI (100 requests/day) - Check limit before calling nested functions
-    if (newsApiRequestCount < 100) {
-        try {
-            console.log('Trying NewsAPI...'.cyan.italic);
-            let newsApiResult;
-
-            if (q) {
-                // For queries, use everything endpoint but respect the limit
-                if (newsApiRequestCount < 100) {
-                    const {data: everything} = await axios.get<NEWSORGTopHeadlinesAPIResponse>(
-                        apis.fetchEverythingApi({q, sources, pageSize: Math.ceil(pageSize * 0.4), page}),
-                        {headers: buildHeader('newsapi')}
-                    );
-                    newsApiRequestCount++;
-                    newsApiResult = everything;
-                }
-            } else {
-                // For top headlines, use headlines endpoint but respect the limit
-                if (newsApiRequestCount < 100) {
-                    const {data: topHeadlines} = await axios.get<NEWSORGTopHeadlinesAPIResponse>(
-                        apis.topHeadlinesApi({country: 'us', category, sources, pageSize: Math.ceil(pageSize * 0.4), page}),
-                        {headers: buildHeader('newsapi')}
-                    );
-                    newsApiRequestCount++;
-                    newsApiResult = topHeadlines;
-                }
-            }
-
-            if (newsApiResult && newsApiResult.articles) {
-                results.push(...newsApiResult.articles);
-                totalResults += newsApiResult.totalResults || 0;
-                usedSources.push('NewsAPI');
-                console.log(`NewsAPI contributed ${newsApiResult.articles.length} articles`.green);
-            }
-        } catch (error) {
-            console.log('NewsAPI failed, continuing...'.yellow.italic);
-        }
-    } else {
-        console.log('NewsAPI limit reached, skipping...'.yellow.italic);
-    }
-
-    // Step 2: Try Guardian API (12K requests/day)
-    if (results.length < pageSize && guardianApiRequestCount < 12000) {
-        try {
-            console.log('Trying Guardian API...'.cyan.italic);
-            const guardianResult = await fetchGuardianNews({
-                q,
-                section: category,
-                pageSize: Math.ceil(pageSize * 0.4),
-                page
-            });
-
-            if (guardianResult && guardianResult.articles) {
-                // Filter duplicates by URL
-                const newArticles = guardianResult.articles.filter((article: any) =>
-                    !results.some(existing => existing.url === article.url)
-                );
-                results.push(...newArticles);
-                totalResults += guardianResult.totalResults || 0;
-                usedSources.push('Guardian');
-                console.log(`Guardian contributed ${newArticles.length} articles`.green);
-            }
-        } catch (error) {
-            console.log('Guardian API failed, continuing...'.yellow.italic);
-        }
-    } else if (guardianApiRequestCount >= 12000) {
-        console.log('Guardian API limit reached, skipping...'.yellow.italic);
-    }
-
-    // Step 3: Try NYTimes API (1K requests/day)
-    if (results.length < pageSize && nytimesApiRequestCount < 1000) {
-        try {
-            console.log('Trying NYTimes API...'.cyan.italic);
-            const nytResult = q
-                ? await fetchNYTimesNews({q, section: category, pageSize: Math.ceil(pageSize * 0.3), page})
-                : await fetchNYTimesTopStories({section: category});
-
-            if (nytResult && nytResult.articles) {
-                // Filter duplicates by URL
-                const newArticles = nytResult.articles.filter((article: any) =>
-                    !results.some(existing => existing.url === article.url)
-                );
-                results.push(...newArticles.slice(0, Math.ceil(pageSize * 0.3)));
-                totalResults += nytResult.totalResults || 0;
-                usedSources.push('NYTimes');
-                console.log(`NYTimes contributed ${newArticles.length} articles`.green);
-            }
-        } catch (error) {
-            console.log('NYTimes API failed, continuing...'.yellow.italic);
-        }
-    } else if (nytimesApiRequestCount >= 1000) {
-        console.log('NYTimes API limit reached, skipping...'.yellow.italic);
-    }
-
-    // Step 4: Fallback to RSS if still need more articles
-    if (results.length < pageSize) {
-        try {
-            console.log('Falling back to RSS feeds...'.cyan.italic);
-            const rssResults = await fetchAllRSSFeeds({
-                sources,
-                pageSize: pageSize - results.length,
-                page
-            });
-
-            if (rssResults && rssResults.length > 0) {
-                // Convert RSS to Article format
-                const rssArticles = rssResults.map(rss => ({
-                    source: {
-                        id: null,
-                        name: rss.source?.name || 'RSS Feed'
-                    },
-                    author: rss.source?.creator || null,
-                    title: rss.title || null,
-                    description: rss.contentSnippet || null,
-                    url: rss.url || null,
-                    urlToImage: null,
-                    publishedAt: rss.publishedAt || null,
-                    content: rss.content || null
-                } as Article));
-
-                results.push(...rssArticles);
-                usedSources.push('RSS');
-                console.log(`RSS contributed ${rssArticles.length} articles`.green);
-            }
-        } catch (error) {
-            console.log('RSS fallback failed'.yellow.italic);
-        }
-    }
-
-    console.log(`Smart fetch completed. Total: ${results.length} articles from [${usedSources.join(', ')}]`.bgGreen.white.bold);
-
-    return {
-        status: 'ok',
-        totalResults,
-        articles: results.slice(0, pageSize),
-        metadata: {
-            usedSources,
-            apiRequestCounts: {
-                newsApi: newsApiRequestCount,
-                guardian: guardianApiRequestCount,
-                nytimes: nytimesApiRequestCount,
-            },
-        },
-    };
-}
-
 const scrapeArticle = async ({url}: ScrapeWebsiteParams) => {
     console.info('scrapeArticle called:'.bgMagenta.white.italic, url);
     try {
@@ -1165,4 +1003,4 @@ const scrapeMultipleArticles = async ({urls}: ScrapeMultipleWebsitesParams) => {
     return results;
 }
 
-export {fetchNEWSORGTopHeadlines, fetchNEWSORGEverything, fetchGuardianNews, fetchNYTimesNews, fetchNYTimesTopStories, fetchAllRSSFeeds, fetchMultiSourceNews, smartFetchNews, scrapeMultipleArticles};
+export {fetchNEWSORGTopHeadlines, fetchNEWSORGEverything, fetchGuardianNews, fetchNYTimesNews, fetchNYTimesTopStories, fetchAllRSSFeeds, fetchMultiSourceNews, scrapeMultipleArticles};

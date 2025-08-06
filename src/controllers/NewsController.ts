@@ -11,8 +11,7 @@ import {
     fetchNEWSORGTopHeadlines,
     fetchNYTimesNews,
     fetchNYTimesTopStories,
-    scrapeMultipleArticles,
-    smartFetchNews
+    scrapeMultipleArticles
 } from "../services/NewsService";
 import {
     GuardianSearchParams,
@@ -306,48 +305,6 @@ const fetchMultiSourceNewsController = async (req: Request, res: Response) => {
     }
 }
 
-// TODO: REMOVE - Legacy smartFetchNews controller for backwards compatibility
-const smartFetchNewsController = async (req: Request, res: Response) => {
-    console.info('smartFetchNewsController called'.bgMagenta.white.italic);
-    try {
-        const {q, category, sources, pageSize, page}: Partial<MultisourceFetchNewsParams> = req.query;
-
-        if (!q && !category && !sources) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'MISSING_SEARCH_PARAMS',
-                errorMsg: 'At least one of q (query), category, or sources parameter is required',
-            }));
-            return;
-        }
-
-        let pageSizeNumber, pageNumber;
-        if (pageSize && !isNaN(pageSize)) {
-            pageSizeNumber = Number(pageSize);
-        }
-        if (page && !isNaN(page)) {
-            pageNumber = Number(page);
-        }
-
-        console.time('SMART_FETCH_TIME'.bgMagenta.white.italic);
-        const smartResults = await smartFetchNews({q, category, sources, pageSize: pageSizeNumber, page: pageNumber});
-        console.timeEnd('SMART_FETCH_TIME'.bgMagenta.white.italic);
-
-        res.status(200).send(new ApiResponse({
-            success: true,
-            message: 'Smart news search completed 🎉',
-            searchResults: smartResults,
-        }));
-    } catch (error: any) {
-        console.error('ERROR: inside catch of smartFetchNewsController:'.red.bold, error);
-        res.status(500).send(new ApiResponse({
-            success: false,
-            error,
-            errorMsg: 'Something went wrong',
-        }));
-    }
-}
-
 const scrapeWebsiteController = async (req: Request, res: Response) => {
     console.info('scrapeWebsiteController called'.bgMagenta.white.italic);
     try {
@@ -396,6 +353,5 @@ export {
     fetchNYTimesTopStoriesController,
     fetchAllRSSFeedsController,
     fetchMultiSourceNewsController,
-    smartFetchNewsController,
     scrapeWebsiteController,
 };
