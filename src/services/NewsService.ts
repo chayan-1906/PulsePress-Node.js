@@ -8,7 +8,7 @@ import {isListEmpty} from "../utils/list";
 import {parseRSS} from "../utils/parseRSS";
 import {buildHeader} from "../utils/buildHeader";
 import {RSS_SOURCES, USER_AGENTS} from "../utils/constants";
-import {generateMissingCode} from "../utils/generateErrorCodes";
+import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
 import {GUARDIAN_API_KEY, NODE_ENV, NYTIMES_API_KEY, RSS_CACHE_DURATION} from "../config/config";
 import {
     Article,
@@ -27,7 +27,8 @@ import {
     RSSFeedParams,
     ScrapeMultipleWebsitesParams,
     ScrapeWebsiteParams,
-    SUPPORTED_NEWS_LANGUAGES
+    SUPPORTED_NEWS_LANGUAGES,
+    VALID_NYTIMES_SECTIONS
 } from "../types/news";
 import {expandQueryWithAI} from "./AIService";
 
@@ -193,6 +194,10 @@ const fetchNYTimesNews = async ({q, section, sort = 'newest', fromDate, toDate, 
             console.warn('NYTimes API key not configured'.yellow.italic);
             return {articles: [], totalResults: 0};
         }
+        if (section && !VALID_NYTIMES_SECTIONS.includes(section)) {
+            console.error('Invalid nytimes section:'.yellow.italic, section);
+            return {error: generateInvalidCode('nytimes_section')};
+        }
 
         if (nytimesApiRequestCount >= 1000) {
             console.warn('NYTimes API daily limit reached'.yellow.italic);
@@ -243,6 +248,10 @@ const fetchNYTimesTopStories = async ({section = 'home'}: NYTimesTopStoriesParam
         if (!NYTIMES_API_KEY) {
             console.warn('NYTimes API key not configured'.yellow.italic);
             return {articles: [], totalResults: 0};
+        }
+        if (section && !VALID_NYTIMES_SECTIONS.includes(section)) {
+            console.error('Invalid nytimes section:'.yellow.italic, section);
+            return {error: generateInvalidCode('nytimes_section')};
         }
 
         if (nytimesApiRequestCount >= 1000) {

@@ -9,6 +9,14 @@ export type SupportedSource = string;
 export const SUPPORTED_NEWS_LANGUAGES = ['english', 'bengali', 'hindi', 'multilingual'];
 export type SupportedNewsLanguage = typeof SUPPORTED_NEWS_LANGUAGES[number];
 
+export const VALID_NYTIMES_SECTIONS = [
+    'home', 'arts', 'automobiles', 'books', 'business', 'fashion', 'food', 'health',
+    'insider', 'magazine', 'movies', 'nyregion', 'obituaries', 'opinion', 'politics',
+    'realestate', 'science', 'sports', 'sundayreview', 'technology', 'theater',
+    't-magazine', 'travel', 'upshot', 'us', 'world'
+];
+export type ValidNYTimesSection = typeof VALID_NYTIMES_SECTIONS[number];
+
 export const sourceMap: Record<string, SupportedSource> = {
     // english
     'techcrunch.com': 'techcrunch',

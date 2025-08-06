@@ -2,7 +2,7 @@ import "colors";
 import {Request, Response} from "express";
 import {isListEmpty} from "../utils/list";
 import {ApiResponse} from "../utils/ApiResponse";
-import {generateMissingCode} from "../utils/generateErrorCodes";
+import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
 import {
     fetchAllRSSFeeds,
     fetchGuardianNews,
@@ -21,7 +21,8 @@ import {
     NYTimesTopStoriesParams,
     RSSFeedParams,
     ScrapeMultipleWebsitesParams,
-    SUPPORTED_NEWS_LANGUAGES
+    SUPPORTED_NEWS_LANGUAGES,
+    VALID_NYTIMES_SECTIONS
 } from "../types/news";
 import {AuthRequest} from "../types/auth";
 
@@ -131,6 +132,17 @@ const fetchNYTimesNewsController = async (req: Request, res: Response) => {
         const {q, section, sort, fromDate, toDate, pageSize, page}: Partial<NYTimesSearchParams> = req.query;
         console.log('q:'.bgMagenta.white.italic, q);
 
+        if (section && !VALID_NYTIMES_SECTIONS.includes(section)) {
+            console.error('Invalid NYTimes section:'.yellow.italic, section);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateInvalidCode('nytimes_section'),
+                errorMsg: 'Section is invalid',
+                validSections: VALID_NYTIMES_SECTIONS,
+            }));
+            return;
+        }
+
         let pageSizeNumber, pageNumber;
         if (pageSize && !isNaN(pageSize)) {
             pageSizeNumber = Number(pageSize);
@@ -160,6 +172,17 @@ const fetchNYTimesTopStoriesController = async (req: Request, res: Response) => 
     console.info('fetchNYTimesTopStoriesController called'.bgMagenta.white.italic);
     try {
         const {section}: Partial<NYTimesTopStoriesParams> = req.query;
+
+        if (section && !VALID_NYTIMES_SECTIONS.includes(section)) {
+            console.error('Invalid NYTimes section:'.yellow.italic, section);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateInvalidCode('nytimes_section'),
+                errorMsg: 'Section is invalid',
+                validSections: VALID_NYTIMES_SECTIONS,
+            }));
+            return;
+        }
 
         const nytTopStories = await fetchNYTimesTopStories({section});
 
