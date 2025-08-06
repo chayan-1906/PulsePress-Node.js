@@ -267,6 +267,7 @@ const fetchAllRSSFeedsController = async (req: Request, res: Response) => {
 const fetchMultiSourceNewsController = async (req: Request, res: Response) => {
     console.info('fetchMultiSourceNewsController called'.bgMagenta.white.italic);
     try {
+        const email = (req as AuthRequest).email;
         const {q, category, sources, pageSize, page}: Partial<MultisourceFetchNewsParams> = req.query;
 
         if (!q && !category && !sources) {
@@ -287,7 +288,7 @@ const fetchMultiSourceNewsController = async (req: Request, res: Response) => {
         }
 
         console.time('MULTISOURCE_FETCH_TIME'.bgMagenta.white.italic);
-        const multisourceResults = await fetchMultiSourceNews({q, category, sources, pageSize: pageSizeNumber, page: pageNumber});
+        const multisourceResults = await fetchMultiSourceNews({email, q, category, sources, pageSize: pageSizeNumber, page: pageNumber});
         console.timeEnd('MULTISOURCE_FETCH_TIME'.bgMagenta.white.italic);
 
         res.status(200).send(new ApiResponse({

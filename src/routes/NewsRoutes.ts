@@ -20,7 +20,7 @@ router.get('/guardian/search', fetchGuardianNewsController);           // /api/v
 router.get('/nytimes/search', fetchNYTimesNewsController);      // /api/v1/news/nytimes/search?q=artificial intelligence&section=technology&sort=newest
 router.get('/nytimes/top-stories', fetchNYTimesTopStoriesController); // /api/v1/news/nytimes/top-stories?section=technology
 router.get('/rss', authMiddlewareOptional, fetchAllRSSFeedsController);                   // /api/v1/news/rss?sources=prothom_alo,zeenews_bengali&language=bengali&pageSize=12&page=2
-router.get('/multi-source', fetchMultiSourceNewsController);                   // /api/v1/news/rss?sources=prothom_alo,zeenews_bengali&language=bengali&pageSize=12&page=2
+router.get('/multi-source', authMiddlewareOptional, fetchMultiSourceNewsController);                   // /api/v1/news/rss?sources=prothom_alo,zeenews_bengali&language=bengali&pageSize=12&page=2
 router.post('/scrape', newsScrapingRateLimiter, scrapeWebsiteController); // /api/v1/news/scrape
 
 export default router;

@@ -293,19 +293,20 @@ export interface NYTimesTopStoriesParams {
     section?: string;
 }
 
-export interface MultisourceFetchNewsParams {
-    q?: string;
-    category?: string;
-    sources?: string;
-    pageSize?: number;
-    page?: number;
-}
-
 export interface RSSFeedParams {
     email?: string;
     q?: string;
     sources?: string;
     languages?: SupportedNewsLanguage;
+    pageSize?: number;
+    page?: number;
+}
+
+export interface MultisourceFetchNewsParams {
+    email?: string;
+    q?: string;
+    category?: string;
+    sources?: string;
     pageSize?: number;
     page?: number;
 }

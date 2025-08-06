@@ -80,8 +80,7 @@ const convertNYTimesToArticle = (nytArticle: NYTimesArticle): Article => ({
     content: nytArticle.lead_paragraph || null
 })
 
-// Enhanced Query Processing
-const enhanceSearchQuery = (query: string, category?: string): string => {
+const enhanceSearchQuery = (query: string): string => {
     if (!query) return query;
 
     const lowerQuery = query.toLowerCase().trim();
@@ -222,7 +221,7 @@ const convertDomainToNewsAPIFormat = (sources: string): string => {
 }
 
 const getOptimizedSourcesForTopic = (topic: string, userSources?: string): string | undefined => {
-    if (userSources) return convertDomainToNewsAPIFormat(userSources); // Convert user sources
+    if (userSources) return convertDomainToNewsAPIFormat(userSources);
 
     const topicSources = TOPIC_SPECIFIC_SOURCES[topic as keyof typeof TOPIC_SPECIFIC_SOURCES];
     return topicSources ? convertDomainToNewsAPIFormat(topicSources.join(',')) : undefined;
@@ -243,7 +242,7 @@ const mapToNYTimesSection = (topic: string): string => {
 }
 
 const assessContentQuality = (article: Article, query?: string): QualityScore => {
-    let score = 0.5; // Base score
+    let score = 0.5;
     const reasons: string[] = [];
     let isRelevant = true;
     let isProfessional = true;
@@ -254,9 +253,7 @@ const assessContentQuality = (article: Article, query?: string): QualityScore =>
     const content = `${title} ${description}`.toLowerCase();
 
     // Check for low-quality content indicators
-    const hasLowQualityIndicator = LOW_QUALITY_CONTENT_INDICATORS.some(indicator =>
-        title.includes(indicator) || description.includes(indicator)
-    );
+    const hasLowQualityIndicator = LOW_QUALITY_CONTENT_INDICATORS.some(indicator => title.includes(indicator) || description.includes(indicator));
 
     if (hasLowQualityIndicator) {
         score -= 0.4;
@@ -313,9 +310,7 @@ const assessContentQuality = (article: Article, query?: string): QualityScore =>
     // Query relevance assessment
     if (query) {
         const queryWords = query.toLowerCase().split(/\s+/);
-        const matchCount = queryWords.filter(word =>
-            word.length > 2 && (title.includes(word) || description.includes(word))
-        ).length;
+        const matchCount = queryWords.filter(word => word.length > 2 && (title.includes(word) || description.includes(word))).length;
 
         const relevanceScore = matchCount / queryWords.length;
 
@@ -354,22 +349,15 @@ const assessContentQuality = (article: Article, query?: string): QualityScore =>
     // Normalize score to 0-1 range
     score = Math.max(0, Math.min(1, score));
 
-    return {
-        score,
-        reasons,
-        isRelevant,
-        isProfessional
-    };
+    return {score, reasons, isRelevant, isProfessional};
 }
 
 const isDuplicateArticle = (article: Article, existing: Article[]): boolean => {
     return existing.some(existingArticle => {
         // URL-based deduplication (exact match)
-        if (article.url && existingArticle.url && article.url === existingArticle.url) {
-            return true;
-        }
+        if (article.url && existingArticle.url && article.url === existingArticle.url) return true;
 
-        // Title similarity check (improved)
+        // Title similarity check
         if (article.title && existingArticle.title) {
             const title1 = article.title.toLowerCase().trim().replace(/[^\w\s]/g, '');
             const title2 = existingArticle.title.toLowerCase().trim().replace(/[^\w\s]/g, '');
@@ -383,9 +371,7 @@ const isDuplicateArticle = (article: Article, existing: Article[]): boolean => {
                 const shorter = title1.length > title2.length ? title2 : title1;
 
                 // If shorter is 80%+ of longer, consider duplicate
-                if (longer.includes(shorter) && shorter.length / longer.length > 0.8) {
-                    return true;
-                }
+                if (longer.includes(shorter) && shorter.length / longer.length > 0.8) return true;
             }
         }
 
@@ -762,11 +748,11 @@ const fetchAllRSSFeeds = async ({email, q, sources, languages = 'english', pageS
     }
 }
 
-const fetchMultiSourceNews = async ({q, category, sources, pageSize = 10, page = 1}: MultisourceFetchNewsParams) => {
+const fetchMultiSourceNews = async ({email, q, category, sources, pageSize = 10, page = 1}: MultisourceFetchNewsParams) => {
     console.log('Professional multisource news fetch:'.bgBlue.white.bold, {q, category, sources, pageSize, page});
 
     const topic = determineTopicFromQuery(q, category);
-    const enhancedQuery = q ? enhanceSearchQuery(q, category) : q;
+    const enhancedQuery = q ? enhanceSearchQuery(q) : q;
     const optimizedSources = getOptimizedSourcesForTopic(topic, sources);
     const nytSection = mapToNYTimesSection(topic);
 
@@ -776,7 +762,6 @@ const fetchMultiSourceNews = async ({q, category, sources, pageSize = 10, page =
     console.log('NYT section:'.cyan, nytSection);
 
     const results: Article[] = [];
-    let totalResults = 0;
     const usedSources: string[] = [];
     const errors: string[] = [];
 
@@ -788,14 +773,7 @@ const fetchMultiSourceNews = async ({q, category, sources, pageSize = 10, page =
 
             let newsApiResult;
             if (enhancedQuery) {
-                newsApiResult = await fetchNEWSORGEverything({
-                    q: enhancedQuery,
-                    sources: optimizedSources,
-                    language: 'en',
-                    sortBy: 'relevancy',
-                    pageSize: newsApiTargetCount * 2, // Fetch more for filtering
-                    page
-                });
+                newsApiResult = await fetchNEWSORGEverything({q: enhancedQuery, language: 'en', sortBy: 'relevancy', pageSize: newsApiTargetCount * 2, page});
             } else {
                 newsApiResult = await fetchNEWSORGTopHeadlines({
                     country: 'us',
@@ -820,7 +798,6 @@ const fetchMultiSourceNews = async ({q, category, sources, pageSize = 10, page =
                     .slice(0, newsApiTargetCount);
 
                 results.push(...qualityArticles);
-                totalResults += newsApiResult.totalResults || 0;
                 usedSources.push('NewsAPI');
                 console.log(`NewsAPI contributed ${qualityArticles.length} quality articles (filtered from ${newsApiResult.articles.length})`.green);
             } else {
@@ -863,7 +840,6 @@ const fetchMultiSourceNews = async ({q, category, sources, pageSize = 10, page =
                         .slice(0, guardianTargetCount);
 
                     results.push(...qualityArticles);
-                    totalResults += guardianResult.totalResults || 0;
                     usedSources.push('Guardian');
                     console.log(`Guardian contributed ${qualityArticles.length} quality articles (filtered from ${guardianResult.articles.length})`.green);
                 }
@@ -901,7 +877,6 @@ const fetchMultiSourceNews = async ({q, category, sources, pageSize = 10, page =
                         .slice(0, nytimesTargetCount);
 
                     results.push(...qualityArticles);
-                    totalResults += nytResult.totalResults || 0;
                     usedSources.push('NYTimes');
                     console.log(`NYTimes contributed ${qualityArticles.length} quality articles (filtered from ${nytResult.articles.length})`.green);
                 }
@@ -922,8 +897,7 @@ const fetchMultiSourceNews = async ({q, category, sources, pageSize = 10, page =
         try {
             console.log(`Trying RSS feeds (target: ${remainingSlots3} articles)...`.cyan.italic);
 
-            // TODO: Fix
-            const rssResults = await fetchAllRSSFeeds({email: 'chayan19062000@gmail.com', q: enhancedQuery, sources: optimizedSources, pageSize: remainingSlots3 * 2, page});
+            const rssResults = await fetchAllRSSFeeds({email, q: enhancedQuery, sources: optimizedSources, pageSize: remainingSlots3 * 2, page});
 
             if (rssResults && rssResults.length > 0) {
                 const rssArticles = rssResults.map(rss => ({
@@ -979,7 +953,7 @@ const fetchMultiSourceNews = async ({q, category, sources, pageSize = 10, page =
     console.log(`Multisource search completed: ${finalResults.length}/${pageSize} quality articles from [${usedSources.join(', ')}]`.bgGreen.white.bold);
 
     return {
-        totalResults,
+        totalResults: finalResults.length,
         query: q,
         articles: finalResults,
         metadata: {
