@@ -13,6 +13,7 @@
   "dependencies": {
     "@google-cloud/translate": "^9.2.0",
     "@google/generative-ai": "^0.24.1",
+    "@huggingface/inference": "^4.6.1",
     "@mozilla/readability": "^0.6.0",
     "@types/bcryptjs": "^3.0.0",
     "@types/jsonwebtoken": "^9.0.10",

@@ -113,7 +113,6 @@ const summarizeArticle = async ({email, content, urls, language = 'en', style = 
                 if (modelName === AI_SUMMARIZATION_MODELS[AI_SUMMARIZATION_MODELS.length - 1]) {
                     throw error; // Last attempt failed
                 }
-                // continue; // Try next model
             }
         }
 

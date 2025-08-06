@@ -131,11 +131,17 @@ const RSS_SOURCES = {
 };
 
 export const AI_SUMMARIZATION_MODELS = [
-    'gemini-2.5-flash',           // Primary: Best balance, higher limits
-    'gemini-2.0-flash-lite',      // Fallback 1: Highest RPM (30/min), good for news
-    'gemini-2.0-flash',           // Fallback 2: Latest features, 1M context
-    'gemini-2.5-flash-lite-preview-06-17', // Fallback 3: Highest daily limit (1,000)
-    'gemini-1.5-flash'            // Last resort: Your current (deprecated)
+    // Gemini models (try these first)
+    'gemini-2.5-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-2.5-flash-lite-preview-06-17',
+    'gemini-1.5-flash',
+
+    // HuggingFace fallbacks (reliable and tested models)
+    // 'huggingface:sshleifer/distilbart-cnn-12-6',
+    // 'huggingface:sshleifer/distilbart-cnn-6-6',
+    // 'huggingface:facebook/bart-large-cnn',
 ];
 
 export const AI_QUERY_PARSING_MODELS = [
