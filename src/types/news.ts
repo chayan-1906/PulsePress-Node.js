@@ -35,6 +35,9 @@ export const sourceMap: Record<string, SupportedSource> = {
     'feeds.feedburner.com': 'ndtv_top',
     'thehindu.com': 'the_hindu_india',
     'prod-qt-images.s3.amazonaws.com': 'prothom_alo_english',
+    'espn.com': 'espn',
+    'rss.nytimes.com': 'nytWorld',
+    'b2b.economictimes.indiatimes.com': 'b2bTopStories',
 
     // bengali
     'prothomalo.com': 'prothom_alo',

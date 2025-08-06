@@ -49,8 +49,22 @@ const RSS_SOURCES = {
 
         prothom_alo_english: 'https://prod-qt-images.s3.amazonaws.com/production/prothomalo-english/feed.xml',
 
-        // https://www.nytimes.com/rss, https://b2b.economictimes.indiatimes.com/rss
-        // TODO: ADD RSS FEEDS
+        // https://www.nytimes.com/rss
+        nytWorld: 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml',
+        nytAmerica: 'https://rss.nytimes.com/services/xml/rss/nyt/Americas.xml',
+        nytUS: 'https://rss.nytimes.com/services/xml/rss/nyt/US.xml',
+        nytAsiaPacific: 'https://rss.nytimes.com/services/xml/rss/nyt/AsiaPacific.xml',
+        nytBusiness: 'https://rss.nytimes.com/services/xml/rss/nyt/Business.xml',
+        nytTechnology: 'https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml',
+        nytPersonalTech: 'https://rss.nytimes.com/services/xml/rss/nyt/PersonalTech.xml',
+        nytSports: 'https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml',
+        nytTMagazine: 'https://rss.nytimes.com/services/xml/rss/nyt/tmagazine.xml',
+
+        // https://b2b.economictimes.indiatimes.com/rss
+        b2bTopStories: 'https://b2b.economictimes.indiatimes.com/rss/topstories',
+        b2bRecentStories: 'https://b2b.economictimes.indiatimes.com/rss/recentstories',
+        b2bGovt: 'https://b2b.economictimes.indiatimes.com/rss/government',
+        b2bRetail: 'https://b2b.economictimes.indiatimes.com/rss/retail',
     },
     bengali: {
         prothom_alo: 'https://www.prothomalo.com/feed/',

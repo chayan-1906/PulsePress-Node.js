@@ -4,10 +4,10 @@ import {RSS_SOURCES} from "../utils/constants";
 import BookmarkModel from "../models/BookmarkSchema";
 import {sourceMap, SupportedSource} from "../types/news";
 import {getTopPerformingSources} from "./AnalyticsService";
-import {fetchAllRSSFeeds, fetchNEWSORGTopHeadlines} from "./NewsService";
 import ReadingHistoryModel from "../models/ReadingHistorySchema";
 import UserPreferenceModel from "../models/UserPreferenceSchema";
 import {NODE_ENV, RECOMMENDATION_CACHE_DURATION} from "../config/config";
+import {fetchAllRSSFeeds, fetchNEWSORGTopHeadlines} from "./NewsService";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {GetContentRecommendationsParams, GetContentRecommendationsResponse, RecommendedArticle} from "../types/content-recommendation";
 
@@ -202,12 +202,18 @@ const extractSourceFromUrl = (url: string): SupportedSource | null => {
     const domain = urlObj.hostname.replace('www.', '');
     const path = urlObj.pathname;
 
-    // bbc_news
+    // bbc_news and bbc_tech
     if (domain === 'feeds.bbci.co.uk') {
         if (path.includes('/bengali')) return 'bbc_news_bengali';
         if (path.includes('/hindi')) return 'bbc_news_hindi';
         if (path.includes('/technology')) return 'bbc_tech';
-        return 'bbc_tech'; // Default fallback
+        if (path.includes('/news/rss.xml') || path === '/news/rss.xml') return 'bbc_news';
+        return 'bbc_news'; // Default fallback for general BBC news
+    }
+
+    // espn
+    if (domain === 'espn.com' || domain === 'www.espn.com') {
+        return 'espn';
     }
 
     // zeenews
@@ -248,6 +254,29 @@ const extractSourceFromUrl = (url: string): SupportedSource | null => {
         if (path.includes('/sport/cricket/')) return 'the_hindu_cricket';
         if (path.includes('/business/Economy/')) return 'the_hindu_economy';
         return 'the_hindu_india'; // Default fallback
+    }
+
+    // NYTimes
+    if (domain === 'rss.nytimes.com') {
+        if (path.includes('/World.xml')) return 'nytWorld';
+        if (path.includes('/Americas.xml')) return 'nytAmerica';
+        if (path.includes('/US.xml')) return 'nytUS';
+        if (path.includes('/AsiaPacific.xml')) return 'nytAsiaPacific';
+        if (path.includes('/Business.xml')) return 'nytBusiness';
+        if (path.includes('/Technology.xml')) return 'nytTechnology';
+        if (path.includes('/PersonalTech.xml')) return 'nytPersonalTech';
+        if (path.includes('/Sports.xml')) return 'nytSports';
+        if (path.includes('/tmagazine.xml')) return 'nytTMagazine';
+        return 'nytWorld'; // Default fallback
+    }
+
+// Economic Times B2B
+    if (domain === 'b2b.economictimes.indiatimes.com') {
+        if (path.includes('/topstories')) return 'b2bTopStories';
+        if (path.includes('/recentstories')) return 'b2bRecentStories';
+        if (path.includes('/government')) return 'b2bGovt';
+        if (path.includes('/retail')) return 'b2bRetail';
+        return 'b2bTopStories'; // Default fallback
     }
 
     // prothomalo
@@ -302,13 +331,6 @@ const extractSourceFromUrl = (url: string): SupportedSource | null => {
         if (path.includes('west-bengal')) return 'amar_ujala_wb';
         if (path.includes('delhi')) return 'amar_ujala_delhi';
         return 'amar_ujala_breaking'; // Default fallback
-    }
-
-    // bbcnews
-    if (domain === 'feeds.bbci.co.uk') {
-        if (path.includes('/bengali')) return 'bbc_news_bengali';
-        if (path.includes('/hindi')) return 'bbc_news_hindi';
-        return 'bbc_news_bengali';
     }
 
     return sourceMap[domain] ?? null;
