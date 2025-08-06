@@ -147,4 +147,242 @@ const DEFAULT_ENGAGEMENT_WEIGHTS: EngagementScoreWeights = {
     readingTimeWeight: 0.1,
 };
 
+// Content Quality Filtering Constants
+export const LOW_QUALITY_CONTENT_INDICATORS = [
+    // Puzzles & Games
+    'crossword', 'puzzle', 'sudoku', 'word game', 'quiz', 'riddle', 'trivia',
+
+    // Opinion/Letters (not hard news)
+    'letter to editor', 'letters to the editor', 'dear editor', 'opinion piece',
+    'reader mail', 'your letters', 'readers write', 'op-ed', 'editorial',
+
+    // Social/Personal content
+    'horoscope', 'astrology', 'daily forecast', 'wedding announcement',
+    'birth announcement', 'anniversary', 'obituary', 'death notice',
+
+    // Non-news content
+    'recipe', 'cooking tips', 'fashion tips', 'lifestyle advice', 'how to',
+    'think out loud', 'briefing', 'newsletter', 'recap', 'roundup',
+
+    // Low-quality indicators
+    'click here', 'you won\'t believe', 'shocking truth', 'celebrities hate',
+    'doctors hate this', 'one weird trick', 'amazing secret', 'must see',
+];
+
+export const TRUSTED_NEWS_SOURCES = {
+    // Tier 1: Premium sources (highest credibility)
+    tier1: [
+        'bbc', 'guardian', 'nytimes', 'reuters', 'associated press', 'ap news',
+        'wall street journal', 'financial times', 'washington post', 'the times',
+        'npr', 'pbs', 'abc news', 'cbs news', 'nbc news', 'cnn',
+        'the hindu', 'times of india', 'indian express', 'ndtv',
+    ],
+
+    // Tier 2: Reliable sources (good credibility)
+    tier2: [
+        'sky news', 'bloomberg', 'cnbc', 'al jazeera', 'axios',
+        'politico', 'the hill', 'usa today', 'la times', 'reuters',
+        'economic times', 'business standard', 'livemint', 'moneycontrol',
+        'espn', 'bbc sport', 'sky sports', 'atlantic', 'new yorker',
+    ],
+
+    // Tier 3: Acceptable sources (moderate credibility)
+    tier3: [
+        'techcrunch', 'wired', 'ars technica', 'engadget', 'the verge',
+        'cnet', 'zdnet', 'mashable', 'gizmodo', 'techradar',
+        'prothom alo', 'zeenews', 'abp live', 'news18', 'variety',
+    ],
+};
+
+export const TOPIC_SPECIFIC_SOURCES = {
+    // Sports
+    sports: [
+        'espn', 'bbc-sport', 'sky-sports', 'the-sport-bible', 'talksport',
+        'ndtv_sports', 'ndtv_cricket', 'the_hindu_cricket', 'timesofindia_sports',
+        'atletico-madura', 'sporting-news', 'sportsnet'
+    ],
+
+    // Technology
+    technology: [
+        'techcrunch', 'ars-technica', 'the-verge', 'wired', 'engadget',
+        'cnet', 'zdnet', 'mashable', 'gizmodo', 'techradar', 'recode',
+        'ndtv_tech', 'hacker-news'
+    ],
+
+    // Business & Finance
+    business: [
+        'bloomberg', 'financial-times', 'wall-street-journal', 'cnbc',
+        'business-insider', 'marketwatch', 'economic_times', 'business_standard',
+        'livemint', 'moneycontrol', 'fortune', 'forbes'
+    ],
+
+    // Health & Science
+    health: [
+        'bbc-news', 'cnn', 'reuters', 'associated-press', 'medical-news-today',
+        'webmd', 'healthline', 'new-scientist', 'nature', 'science-magazine'
+    ],
+
+    // Politics
+    politics: [
+        'bbc-news', 'cnn', 'reuters', 'associated-press', 'politico',
+        'the-hill', 'axios', 'the_hindu_india', 'ndtv_top', 'indian_express',
+        'washington-post', 'nytimes'
+    ],
+
+    // Entertainment
+    entertainment: [
+        'entertainment-weekly', 'variety', 'hollywood-reporter', 'deadline',
+        'tmz', 'e-news', 'people-magazine', 'rolling-stone', 'billboard'
+    ],
+
+    // General News
+    general: [
+        'bbc-news', 'cnn', 'reuters', 'associated-press', 'al-jazeera',
+        'ndtv_top', 'the_hindu_india', 'timesofindia_top', 'sky-news'
+    ]
+};
+
+export const COMPREHENSIVE_TOPIC_KEYWORDS = {
+    // News & Politics
+    politics: [
+        'election', 'government', 'parliament', 'congress', 'senate', 'voting', 'campaign',
+        'policy', 'law', 'legislation', 'minister', 'president', 'prime minister',
+        'diplomacy', 'international relations', 'summit', 'treaty', 'sanctions'
+    ],
+
+    crime: [
+        'crime', 'arrest', 'investigation', 'police', 'court', 'trial', 'verdict',
+        'murder', 'robbery', 'fraud', 'corruption', 'lawsuit', 'justice'
+    ],
+
+    // Business & Finance
+    business: [
+        'economy', 'market', 'stock', 'finance', 'earnings', 'revenue', 'profit',
+        'merger', 'acquisition', 'ipo', 'investment', 'venture capital', 'startup',
+        'inflation', 'gdp', 'recession', 'growth', 'employment', 'jobs'
+    ],
+
+    finance: [
+        'banking', 'cryptocurrency', 'bitcoin', 'trading', 'forex', 'bonds',
+        'interest rates', 'federal reserve', 'monetary policy', 'fiscal policy'
+    ],
+
+    // Technology
+    technology: [
+        'tech', 'software', 'hardware', 'artificial intelligence', 'ai', 'machine learning',
+        'blockchain', 'cybersecurity', 'data breach', 'privacy', 'innovation',
+        'smartphone', 'app', 'cloud computing', 'internet', 'digital'
+    ],
+
+    social_media: [
+        'facebook', 'twitter', 'instagram', 'tiktok', 'youtube', 'social media',
+        'platform', 'content moderation', 'algorithm', 'influencer'
+    ],
+
+    // Science & Health
+    health: [
+        'health', 'medicine', 'medical', 'disease', 'treatment', 'vaccine',
+        'clinical trial', 'drug', 'hospital', 'doctor', 'patient', 'healthcare',
+        'pandemic', 'epidemic', 'virus', 'bacteria', 'mental health'
+    ],
+
+    science: [
+        'research', 'study', 'discovery', 'experiment', 'scientist', 'laboratory',
+        'physics', 'chemistry', 'biology', 'genetics', 'dna', 'evolution'
+    ],
+
+    environment: [
+        'climate change', 'global warming', 'environment', 'pollution', 'renewable energy',
+        'solar', 'wind power', 'carbon emissions', 'sustainability', 'conservation',
+        'wildlife', 'extinction', 'deforestation', 'recycling'
+    ],
+
+    space: [
+        'space', 'nasa', 'rocket', 'satellite', 'mars', 'moon', 'astronaut',
+        'space station', 'telescope', 'planet', 'galaxy', 'universe'
+    ],
+
+    // Sports
+    sports: [
+        'sport', 'game', 'match', 'tournament', 'championship', 'league',
+        'team', 'player', 'athlete', 'coach', 'score', 'win', 'lose'
+    ],
+
+    cricket: [
+        'cricket', 'test match', 'odi', 't20', 'ipl', 'world cup', 'series',
+        'innings', 'wicket', 'runs', 'bowler', 'batsman', 'captain'
+    ],
+
+    football: [
+        'football', 'soccer', 'premier league', 'champions league', 'fifa', 'uefa',
+        'goal', 'penalty', 'referee', 'transfer', 'world cup'
+    ],
+
+    basketball: [
+        'basketball', 'nba', 'playoff', 'finals', 'draft', 'trade', 'mvp',
+        'championship', 'coach', 'player'
+    ],
+
+    // Entertainment
+    entertainment: [
+        'movie', 'film', 'cinema', 'actor', 'actress', 'director', 'producer',
+        'box office', 'premiere', 'festival', 'award', 'oscar', 'emmy'
+    ],
+
+    music: [
+        'music', 'song', 'album', 'artist', 'singer', 'concert', 'tour',
+        'grammy', 'chart', 'streaming', 'spotify', 'billboard'
+    ],
+
+    celebrity: [
+        'celebrity', 'star', 'fame', 'gossip', 'relationship', 'marriage',
+        'divorce', 'scandal', 'red carpet', 'paparazzi'
+    ],
+
+    // Lifestyle & Society
+    travel: [
+        'travel', 'tourism', 'vacation', 'destination', 'flight', 'hotel',
+        'cruise', 'airline', 'airport', 'visa', 'passport'
+    ],
+
+    food: [
+        'food', 'restaurant', 'chef', 'cuisine', 'recipe', 'nutrition',
+        'diet', 'cooking', 'farming', 'agriculture'
+    ],
+
+    fashion: [
+        'fashion', 'style', 'designer', 'brand', 'model', 'runway',
+        'clothing', 'trend', 'luxury', 'retail'
+    ],
+
+    education: [
+        'education', 'school', 'university', 'college', 'student', 'teacher',
+        'graduation', 'degree', 'scholarship', 'exam', 'curriculum'
+    ],
+
+    // Weather & Disasters
+    weather: [
+        'weather', 'storm', 'hurricane', 'typhoon', 'tornado', 'flood',
+        'drought', 'earthquake', 'tsunami', 'volcano', 'wildfire',
+        'natural disaster', 'emergency', 'evacuation'
+    ],
+
+    // Transportation
+    automotive: [
+        'car', 'vehicle', 'electric vehicle', 'tesla', 'automotive',
+        'driving', 'accident', 'traffic', 'fuel', 'engine'
+    ],
+
+    aviation: [
+        'aviation', 'aircraft', 'airline', 'flight', 'pilot', 'airport',
+        'boeing', 'airbus', 'crash', 'safety'
+    ],
+
+    // Energy
+    energy: [
+        'energy', 'oil', 'gas', 'petroleum', 'coal', 'nuclear',
+        'renewable', 'solar', 'wind', 'hydroelectric', 'battery'
+    ]
+};
+
 export {RSS_SOURCES, USER_AGENTS, DEFAULT_ENGAGEMENT_WEIGHTS};

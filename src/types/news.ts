@@ -51,6 +51,14 @@ export const sourceMap: Record<string, SupportedSource> = {
     'abplive.com': 'abp_live_hindi_home',
 };
 
+// Content quality scoring interfaces
+export interface QualityScore {
+    score: number; // 0-1, higher is better
+    reasons: string[];
+    isRelevant: boolean;
+    isProfessional: boolean;
+}
+
 export interface Article {
     source: {
         id: string | null;
@@ -63,6 +71,7 @@ export interface Article {
     urlToImage: string | null;
     publishedAt: string | null;
     content: string | null;
+    qualityScore?: QualityScore; // Added for quality assessment
 }
 
 export interface RSSFeed {
@@ -282,6 +291,14 @@ export interface NYTimesSearchParams {
 
 export interface NYTimesTopStoriesParams {
     section?: string;
+}
+
+export interface MultisourceFetchNewsParams {
+    q?: string;
+    category?: string;
+    sources?: string;
+    pageSize?: number;
+    page?: number;
 }
 
 export interface RSSFeedParams {

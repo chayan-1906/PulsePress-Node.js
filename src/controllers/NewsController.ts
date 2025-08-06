@@ -6,6 +6,7 @@ import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCo
 import {
     fetchAllRSSFeeds,
     fetchGuardianNews,
+    fetchMultiSourceNews,
     fetchNEWSORGEverything,
     fetchNEWSORGTopHeadlines,
     fetchNYTimesNews,
@@ -15,6 +16,7 @@ import {
 } from "../services/NewsService";
 import {
     GuardianSearchParams,
+    MultisourceFetchNewsParams,
     NEWSORGEverythingParams,
     NEWSORGTopHeadlinesParams,
     NYTimesSearchParams,
@@ -263,34 +265,52 @@ const fetchAllRSSFeedsController = async (req: Request, res: Response) => {
     }
 }
 
-// TODO: REMOVE
-/**
- * Current smartFetchNews() Analysis
- * What it does: Implements a cascading fallback search across multiple APIs with intelligent article deduplication.
- * Flow:
- *
- * NewsAPI (40% of requested articles)
- * Guardian API (40% remaining slots)
- * NYTimes API (30% remaining slots)
- * RSS feeds (fill remaining)
- *
- * Example: Request 10 articles for "climate change"
- * 1. NewsAPI → 4 articles (40% of 10)
- * 2. Guardian → 2-3 new articles (dedupe by URL)
- * 3. NYTimes → 1-2 new articles (dedupe by URL)
- * 4. RSS → 1-3 articles to reach 10 total
- */
+const fetchMultiSourceNewsController = async (req: Request, res: Response) => {
+    console.info('fetchMultiSourceNewsController called'.bgMagenta.white.italic);
+    try {
+        const {q, category, sources, pageSize, page}: Partial<MultisourceFetchNewsParams> = req.query;
+
+        if (!q && !category && !sources) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('q_category_sources'),
+                errorMsg: 'At least one of q (query), category, or sources parameter is required',
+            }));
+            return;
+        }
+
+        let pageSizeNumber, pageNumber;
+        if (pageSize && !isNaN(pageSize)) {
+            pageSizeNumber = Number(pageSize);
+        }
+        if (page && !isNaN(page)) {
+            pageNumber = Number(page);
+        }
+
+        console.time('MULTISOURCE_FETCH_TIME'.bgMagenta.white.italic);
+        const multisourceResults = await fetchMultiSourceNews({q, category, sources, pageSize: pageSizeNumber, page: pageNumber});
+        console.timeEnd('MULTISOURCE_FETCH_TIME'.bgMagenta.white.italic);
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'Multisource news search completed 🎉',
+            searchResults: multisourceResults,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of fetchMultiSourceNewsController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: 'Something went wrong',
+        }));
+    }
+}
+
+// TODO: REMOVE - Legacy smartFetchNews controller for backwards compatibility
 const smartFetchNewsController = async (req: Request, res: Response) => {
     console.info('smartFetchNewsController called'.bgMagenta.white.italic);
     try {
-        // TODO: Create an interface
-        const {q, category, sources, pageSize, page}: {
-            q?: string;
-            category?: string;
-            sources?: string;
-            pageSize?: number;
-            page?: number;
-        } = req.query;
+        const {q, category, sources, pageSize, page}: Partial<MultisourceFetchNewsParams> = req.query;
 
         if (!q && !category && !sources) {
             res.status(400).send(new ApiResponse({
@@ -375,6 +395,7 @@ export {
     fetchNYTimesNewsController,
     fetchNYTimesTopStoriesController,
     fetchAllRSSFeedsController,
+    fetchMultiSourceNewsController,
     smartFetchNewsController,
     scrapeWebsiteController,
 };
