@@ -9,8 +9,8 @@ import {parseRSS} from "../utils/parseRSS";
 import {expandQueryWithAI} from "./AIService";
 import {buildHeader} from "../utils/buildHeader";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
-import {GUARDIAN_API_KEY, NODE_ENV, NYTIMES_API_KEY, RSS_CACHE_DURATION} from "../config/config";
 import {COMPREHENSIVE_TOPIC_KEYWORDS, LOW_QUALITY_CONTENT_INDICATORS, RSS_SOURCES, TOPIC_SPECIFIC_SOURCES, TRUSTED_NEWS_SOURCES, USER_AGENTS} from "../utils/constants";
+import {GUARDIAN_API_KEY, GUARDIAN_QUOTA_REQUESTS, NEWSAPI_QUOTA_REQUESTS, NEWSAPIORG_QUOTA_MS, NODE_ENV, NYTIMES_API_KEY, NYTIMES_QUOTA_REQUESTS, RSS_CACHE_DURATION} from "../config/config";
 import {
     Article,
     GuardianArticle,
@@ -50,7 +50,7 @@ setInterval(() => {
     guardianApiRequestCount = 0;
     nytimesApiRequestCount = 0;
     console.log('Daily API counters reset'.cyan.italic);
-}, 24 * 60 * 60 * 1000);
+}, Number.parseInt(NEWSAPIORG_QUOTA_MS!));
 
 const convertGuardianToArticle = (guardianArticle: GuardianArticle): Article => ({
     source: {
@@ -388,7 +388,7 @@ const fetchNEWSORGTopHeadlines = async ({country, category, sources, q, pageSize
             return cached.data;
         }
 
-        if (newsApiRequestCount >= 100) {
+        if (newsApiRequestCount >= Number.parseInt(NEWSAPI_QUOTA_REQUESTS!)) {
             console.log('NewsAPIOrg limit reached'.yellow.italic);
             return {status: 'error', message: 'NewsAPIOrg daily limit reached', articles: [], totalResults: 0};
         }
@@ -420,7 +420,7 @@ const fetchNEWSORGEverything = async ({sources, from, to, sortBy, language, q, p
             return cached.data;
         }
 
-        if (newsApiRequestCount >= 100) {
+        if (newsApiRequestCount >= Number.parseInt(NEWSAPI_QUOTA_REQUESTS!)) {
             console.log('NewsAPIOrg limit reached'.yellow.italic);
             return {status: 'error', message: 'NewsAPIOrg daily limit reached', articles: [], totalResults: 0};
         }
@@ -450,7 +450,7 @@ const fetchGuardianNews = async ({q, section, fromDate, toDate, orderBy = 'newes
             return {articles: [], totalResults: 0};
         }
 
-        if (guardianApiRequestCount >= 12000) {
+        if (guardianApiRequestCount >= Number.parseInt(GUARDIAN_QUOTA_REQUESTS!)) {
             console.warn('Guardian API daily limit reached'.yellow.italic);
             return {status: 'error', message: 'Guardian API daily limit reached', articles: [], totalResults: 0};
         }
@@ -466,7 +466,7 @@ const fetchGuardianNews = async ({q, section, fromDate, toDate, orderBy = 'newes
         const {data: guardianResponse} = await axios.get<GuardianResponse>(url, {headers: buildHeader('guardian')});
 
         guardianApiRequestCount++;
-        console.log(`Guardian API request ${guardianApiRequestCount}/12000:`.cyan.italic, guardianResponse.response.total, 'results');
+        console.log(`Guardian API request ${guardianApiRequestCount}/${GUARDIAN_QUOTA_REQUESTS}:`.cyan.italic, guardianResponse.response.total, 'results');
 
         const articles = guardianResponse.response.results.map(convertGuardianToArticle);
         const result = {
@@ -498,7 +498,7 @@ const fetchNYTimesNews = async ({q, section, sort = 'newest', fromDate, toDate, 
             return {error: generateInvalidCode('nytimes_section')};
         }
 
-        if (nytimesApiRequestCount >= 1000) {
+        if (nytimesApiRequestCount >= Number.parseInt(NYTIMES_QUOTA_REQUESTS!)) {
             console.warn('NYTimes API daily limit reached'.yellow.italic);
             return {status: 'error', message: 'NYTimes API daily limit reached', articles: [], totalResults: 0};
         }
@@ -521,7 +521,7 @@ const fetchNYTimesNews = async ({q, section, sort = 'newest', fromDate, toDate, 
         });
 
         nytimesApiRequestCount++;
-        console.log(`NYTimes API request ${nytimesApiRequestCount}/1000:`.cyan.italic, nytResponse?.response?.metadata?.hits || 0, 'results');
+        console.log(`NYTimes API request ${nytimesApiRequestCount}/${NYTIMES_QUOTA_REQUESTS}:`.cyan.italic, nytResponse?.response?.metadata?.hits || 0, 'results');
 
         if (!nytResponse.response || !nytResponse.response.docs) {
             console.warn('NYT API returned invalid response structure'.yellow.italic);
@@ -561,7 +561,7 @@ const fetchNYTimesTopStories = async ({section = 'home'}: NYTimesTopStoriesParam
             return {error: generateInvalidCode('nytimes_section')};
         }
 
-        if (nytimesApiRequestCount >= 1000) {
+        if (nytimesApiRequestCount >= Number.parseInt(NYTIMES_QUOTA_REQUESTS!)) {
             console.warn('NYTimes API daily limit reached'.yellow.italic);
             return {status: 'error', message: 'NYTimes API daily limit reached', articles: [], totalResults: 0};
         }
@@ -577,7 +577,7 @@ const fetchNYTimesTopStories = async ({section = 'home'}: NYTimesTopStoriesParam
         const {data: nytResponse} = await axios.get<NYTimesTopStoriesResponse>(url, {headers: buildHeader('nytimes')});
 
         nytimesApiRequestCount++;
-        console.log(`NYTimes Top Stories API request ${nytimesApiRequestCount}/1000:`.cyan.italic, nytResponse.num_results, 'results');
+        console.log(`NYTimes Top Stories API request ${nytimesApiRequestCount}/${NYTIMES_QUOTA_REQUESTS}:`.cyan.italic, nytResponse.num_results, 'results');
 
         const articles = nytResponse.results?.map(story => ({
             source: {
@@ -768,26 +768,18 @@ const fetchMultiSourceNews = async ({email, q, category, sources, pageSize = 10,
     // NewsAPIOrg (40% of requested articles)
     const newsApiTargetCount = Math.ceil(pageSize * 0.4);
     try {
-        if (newsApiRequestCount < 100) {
+        if (newsApiRequestCount < Number.parseInt(NEWSAPI_QUOTA_REQUESTS!)) {
             console.log(`Trying NewsAPIOrg (target: ${newsApiTargetCount} articles)...`.cyan.italic);
 
             let newsApiResult;
             if (enhancedQuery) {
                 newsApiResult = await fetchNEWSORGEverything({q: enhancedQuery, language: 'en', sortBy: 'relevancy', pageSize: newsApiTargetCount * 2, page});
             } else {
-                newsApiResult = await fetchNEWSORGTopHeadlines({
-                    country: 'us',
-                    category: topic !== 'general' ? topic : undefined,
-                    sources: optimizedSources,
-                    pageSize: newsApiTargetCount * 2,
-                    page
-                });
+                newsApiResult = await fetchNEWSORGTopHeadlines({country: 'us', category: topic !== 'general' ? topic : undefined, sources: optimizedSources, pageSize: newsApiTargetCount * 2, page});
             }
-
             console.log('everything from NewsAPIOrg:'.cyan.italic, newsApiResult);
 
             if (newsApiResult && newsApiResult.articles && newsApiResult.articles.length > 0) {
-                // Apply quality filtering and scoring
                 const qualityArticles = newsApiResult.articles
                     .map((article: Article) => {
                         article.qualityScore = assessContentQuality(article, q);
@@ -818,7 +810,7 @@ const fetchMultiSourceNews = async ({email, q, category, sources, pageSize = 10,
 
     if (remainingSlots > 0) {
         try {
-            if (guardianApiRequestCount < 12000) {
+            if (guardianApiRequestCount < Number.parseInt(GUARDIAN_QUOTA_REQUESTS!)) {
                 console.log(`Trying Guardian API (target: ${guardianTargetCount} articles)...`.cyan.italic);
 
                 const guardianResult = await fetchGuardianNews({
@@ -859,7 +851,7 @@ const fetchMultiSourceNews = async ({email, q, category, sources, pageSize = 10,
 
     if (remainingSlots2 > 0) {
         try {
-            if (nytimesApiRequestCount < 1000) {
+            if (nytimesApiRequestCount < Number.parseInt(NYTIMES_QUOTA_REQUESTS!)) {
                 console.log(`Trying NYTimes API (target: ${nytimesTargetCount} articles)...`.cyan.italic);
 
                 const nytResult = enhancedQuery

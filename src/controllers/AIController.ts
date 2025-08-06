@@ -63,6 +63,15 @@ const summarizeArticleController = async (req: Request, res: Response) => {
             }));
             return;
         }
+        if (error === 'GEMINI_DAILY_LIMIT_REACHED') {
+            console.error('gemini daily quota reached'.yellow.italic);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'GEMINI_DAILY_LIMIT_REACHED',
+                errorMsg: 'Gemini\'s daily quota has been reached',
+            }));
+            return;
+        }
         if (error === generateMissingCode('content') || error === 'SCRAPING_FAILED') {
             console.error('Failed to scrape:'.yellow.italic, error);
             res.status(400).send(new ApiResponse({

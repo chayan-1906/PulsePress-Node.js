@@ -4,14 +4,12 @@ import {GoogleGenerativeAI} from "@google/generative-ai";
 import {Translate} from '@google-cloud/translate/build/src/v2';
 import {isListEmpty} from "../utils/list";
 import {getUserByEmail} from "./AuthService";
-import {Article, RSSFeed} from "../types/news";
-import CachedSummaryModel, {ICachedSummary} from "../models/CachedSummarySchema";
 import {scrapeMultipleArticles} from "./NewsService";
+import CachedSummaryModel, {ICachedSummary} from "../models/CachedSummarySchema";
 import {AI_QUERY_PARSING_MODELS, AI_SUMMARIZATION_MODELS} from "../utils/constants";
-import {GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY, NODE_ENV} from "../config/config";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
+import {GEMINI_API_KEY, GEMINI_QUOTA_MS, GEMINI_QUOTA_REQUESTS, GOOGLE_TRANSLATE_API_KEY, NODE_ENV} from "../config/config";
 import {
-    CombinedArticle,
     GenerateContentHashParams,
     GenerateContentHashResponse,
     GetCachedSummaryParams,
@@ -27,6 +25,13 @@ export const genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
 export const AI_MODEL = 'gemini-1.5-flash';
 const translate = new Translate({key: GOOGLE_TRANSLATE_API_KEY});
 
+let geminiRequestCount = 0;
+
+setInterval(() => {
+    geminiRequestCount = 0;
+    console.log('Daily Gemini API counter reset'.cyan.italic);
+}, Number.parseInt(GEMINI_QUOTA_MS!));
+
 const summarizeArticle = async ({email, content, urls, language = 'en', style = 'standard'}: SummarizeArticleParams): Promise<SummarizeArticleResponse> => {
     console.info('summarizeArticle called'.bgMagenta.white.italic, {content, urls});
     try {
@@ -41,6 +46,11 @@ const summarizeArticle = async ({email, content, urls, language = 'en', style = 
         if (style && !SUMMARIZATION_STYLES.includes(style)) {
             console.error('Invalid style:'.yellow.italic, style);
             return {error: generateInvalidCode('style')};
+        }
+
+        if (geminiRequestCount >= Number.parseInt(GEMINI_QUOTA_REQUESTS!)) {
+            console.log('Gemini API daily limit reached'.yellow.italic);
+            return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
         }
 
         let articleContent = content || '';
@@ -96,6 +106,8 @@ const summarizeArticle = async ({email, content, urls, language = 'en', style = 
                 const model = genAI.getGenerativeModel({model: modelName});
                 summarizedArticleResponse = await model.generateContent(prompt);
                 usedModel = modelName;
+                geminiRequestCount++;
+                console.log(`Gemini API request ${geminiRequestCount}/1500:`.cyan.italic, 'summarization');
                 break; // Success - exit loop
             } catch (error) {
                 if (modelName === AI_SUMMARIZATION_MODELS[AI_SUMMARIZATION_MODELS.length - 1]) {
@@ -185,6 +197,12 @@ const expandQueryWithAI = async ({email, query}: { email: string | undefined; qu
     try {
         const {user} = await getUserByEmail({email});
         if (user) {
+            // Check Gemini quota before processing
+            if (geminiRequestCount >= Number.parseInt(GEMINI_QUOTA_REQUESTS!)) {
+                console.log('Gemini API daily limit reached, skipping AI expansion'.yellow.italic);
+                return [query];
+            }
+
             console.log('user found:'.cyan.italic, user);
             const model = genAI.getGenerativeModel({model: AI_QUERY_PARSING_MODELS[0]});
             const prompt = `Expand this search query with 3-5 related terms for better news search results.
@@ -199,6 +217,9 @@ const expandQueryWithAI = async ({email, query}: { email: string | undefined; qu
                     `;
 
             const result = await model.generateContent(prompt);
+            geminiRequestCount++;
+            console.log(`Gemini API request ${geminiRequestCount}/${GEMINI_QUOTA_REQUESTS}:`.cyan.italic, 'query expansion');
+
             const responseText = result.response.text().trim();
 
             const jsonMatch = responseText.match(/\[.*]/);
@@ -217,263 +238,6 @@ const expandQueryWithAI = async ({email, query}: { email: string | undefined; qu
         console.error('Query expansion failed:', error);
         return [query];
     }
-}
-
-// Helper functions
-// TODO: REMOVE
-const calculateRelevanceScore = (text: string, entities: string[], searchTerms: string[], aiCategories: string[] = []): number => {
-    if (!text) return 0;
-
-    const normalizedText = text.toLowerCase();
-    let entityScore = 0;
-    let termScore = 0;
-    let contextScore = 0;
-    const matches: string[] = [];
-
-    // Check entities - More selective entity matching
-    entities.forEach(entity => {
-        const entityLower = entity.toLowerCase();
-        if (normalizedText.includes(entityLower)) {
-            entityScore += 3;
-            matches.push(`"${entity}" (entity)`);
-
-            // Bonus for exact word matches
-            if (new RegExp(`\\b${entityLower}\\b`).test(normalizedText)) {
-                entityScore += 2; // Increased from 1.5
-                matches.push(`"${entity}" (entity word boundary)`);
-            }
-        }
-    });
-
-    // Check search terms (all terms are valuable for relevance)
-    searchTerms.forEach(term => {
-        const termLower = term.toLowerCase();
-
-        if (normalizedText.includes(termLower)) {
-            termScore += 2;
-            matches.push(`"${term}" (term)`);
-
-            if (new RegExp(`\\b${termLower}\\b`).test(normalizedText)) {
-                termScore += 1;
-                matches.push(`"${term}" (term word boundary)`);
-            }
-        }
-    });
-
-    // Smart context matching - balance precision and recall
-    if (entities.length > 1 || searchTerms.length > 1) {
-        // Extract core concepts (avoid overly specific phrases)
-        const coreTerms = [...entities, ...searchTerms]
-            .map(term => term.toLowerCase())
-            .filter(term => term.length > 2) // Skip very short terms
-            .map(term => {
-                // Simplify complex entities to core words
-                if (term.includes('cricket team')) return 'cricket';
-                if (term.includes('test match')) return 'test';
-                return term;
-            });
-
-        const uniqueCoreTerms = [...new Set(coreTerms)];
-        const matchedTerms: string[] = [];
-
-        uniqueCoreTerms.forEach(term => {
-            if (normalizedText.includes(term)) {
-                matchedTerms.push(term);
-            }
-        });
-
-        // For multi-term queries, require majority match (60%+)
-        const matchRatio = matchedTerms.length / uniqueCoreTerms.length;
-
-        if (matchRatio >= 0.6) { // At least 60% of core terms must match
-            contextScore += Math.floor(matchRatio * 3); // Scale bonus based on match ratio
-            matches.push(`(context: ${Math.round(matchRatio * 100)}% match - ${matchedTerms.join(', ')})`);
-        } else {
-            // Light penalty for weak matches
-            contextScore -= 2;
-            matches.push(`(weak match: only ${Math.round(matchRatio * 100)}% - ${matchedTerms.join(', ')} of ${uniqueCoreTerms.join(', ')})`);
-        }
-    } else {
-        // For single-term queries, basic category matching
-        if (aiCategories.length > 0) {
-            const categoryTerms = aiCategories.map(cat => cat.toLowerCase());
-            const hasRelevantCategory = categoryTerms.some(cat => normalizedText.includes(cat));
-
-            if (hasRelevantCategory) {
-                contextScore += 1;
-                matches.push('(category match)');
-            }
-        }
-    }
-
-    const totalScore = entityScore + termScore + contextScore;
-
-    // STRICTER FILTERING RULES:
-    // 1. Must have at least one entity OR term match with minimum score
-    // 2. Must not have negative context score
-    // 3. Minimum combined score threshold
-    const hasEntityMatch = entityScore > 0;
-    const hasTermMatch = termScore > 0;
-    const hasPositiveContext = contextScore >= 0;
-    const meetsMinimumScore = totalScore >= 3; // Minimum score threshold
-
-    if (!hasEntityMatch && !hasTermMatch) {
-        return 0; // No relevant matches
-    }
-
-    if (!hasPositiveContext) {
-        if (entityScore > 0 || termScore > 0) {
-            console.log(`FILTERED OUT (wrong context):`.red.bold);
-            console.log(`  Text: "${text.substring(0, 100)}..."`.cyan);
-            console.log(`  Matches: ${matches.join(', ')}`.magenta);
-            console.log(`  EntityScore: ${entityScore}, TermScore: ${termScore}, ContextScore: ${contextScore}`.blue);
-            console.log(`  Total Score: ${totalScore} -> 0 (filtered)`.red.bold);
-            console.log('---');
-        }
-        return 0;
-    }
-
-    if (!meetsMinimumScore) {
-        console.log(`FILTERED OUT (low score):`.red.bold);
-        console.log(`  Text: "${text.substring(0, 100)}..."`.cyan);
-        console.log(`  Matches: ${matches.join(', ')}`.magenta);
-        console.log(`  EntityScore: ${entityScore}, TermScore: ${termScore}, ContextScore: ${contextScore}`.blue);
-        console.log(`  Total Score: ${totalScore} -> 0 (below threshold)`.red.bold);
-        console.log('---');
-        return 0;
-    }
-
-    // Debug logging for accepted articles
-    if (totalScore > 0) {
-        console.log(`RELEVANCE ACCEPTED:`.green.bold);
-        console.log(`  Text: "${text.substring(0, 100)}..."`.cyan);
-        console.log(`  Entities: [${entities.join(', ')}]`.green);
-        console.log(`  SearchTerms: [${searchTerms.join(', ')}]`.green);
-        console.log(`  Categories: [${aiCategories.join(', ')}]`.green);
-        console.log(`  Matches: ${matches.join(', ')}`.magenta);
-        console.log(`  EntityScore: ${entityScore}, TermScore: ${termScore}, ContextScore: ${contextScore}`.blue);
-        console.log(`  Total Score: ${totalScore}`.green.bold);
-        console.log('---');
-    }
-
-    return totalScore;
-}
-
-// TODO: REMOVE
-const getRecencyBoost = (publishedAt: string): number => {
-    if (!publishedAt) return 0;
-
-    const articleDate = new Date(publishedAt);
-    const hoursOld = (Date.now() - articleDate.getTime()) / (1000 * 60 * 60);
-
-    return Math.max(0, (24 - hoursOld) / 24);
-}
-
-// TODO: REMOVE
-const combineAndRank = (rssResults: RSSFeed[], smartFetchResults: any, entities: string[], searchTerms: string[], aiCategories: string[] = []) => {
-    const combined: CombinedArticle[] = [];
-    const seenUrls = new Set<string>();
-    const seenTitles = new Set<string>(); // Additional deduplication by title
-
-    console.log('Starting combineAndRank:'.cyan.italic, {
-        rssCount: rssResults?.length || 0,
-        smartFetchCount: smartFetchResults?.articles?.length || 0,
-        entities: entities?.length || 0,
-        searchTerms: searchTerms?.length || 0,
-        categories: aiCategories?.length || 0
-    });
-
-    // Process SmartFetch results first (high priority - already filtered by multiple APIs)
-    if (smartFetchResults && smartFetchResults.articles) {
-        console.log('Processing SmartFetch results (high priority)...'.yellow.italic);
-        smartFetchResults.articles.forEach((article: Article, index: number) => {
-            if (!article.url || !article.title) {
-                console.log(`Skipping SmartFetch item ${index}: missing URL or title`.yellow);
-                return;
-            }
-
-            // Normalize URL and title for deduplication
-            const normalizedUrl = article.url.toLowerCase().replace(/\/$/, '');
-            const normalizedTitle = article.title.toLowerCase().trim();
-
-            if (seenUrls.has(normalizedUrl) || seenTitles.has(normalizedTitle)) {
-                console.log(`Skipping SmartFetch duplicate: ${article.title?.substring(0, 50)}...`.yellow);
-                return;
-            }
-
-            // Add all SmartFetch results with high base score (trust multi-API selection)
-            seenUrls.add(normalizedUrl);
-            seenTitles.add(normalizedTitle);
-            combined.push({
-                source: {
-                    name: article.source?.name,
-                },
-                title: article.title,
-                url: article.url,
-                publishedAt: article.publishedAt,
-                content: article.content,
-                contentSnippet: article.description,
-                source_type: 'smart_fetch',
-                relevance_score: 12, // Higher than individual API scores
-            });
-            console.log(`Added SmartFetch article: ${article.title?.substring(0, 50)}... (score: 12)`.green);
-        });
-    }
-
-    // Process RSS results with content filtering (apply relevance scoring)
-    if (rssResults && Array.isArray(rssResults)) {
-        console.log('Processing RSS results (with relevance filtering)...'.blue.italic);
-        rssResults.forEach((item: RSSFeed, index) => {
-            if (!item.url || !item.title) {
-                console.log(`Skipping RSS item ${index}: missing URL or title`.yellow);
-                return;
-            }
-
-            // Normalize URL and title for deduplication
-            const normalizedUrl = item.url.toLowerCase().replace(/\/$/, '');
-            const normalizedTitle = item.title.toLowerCase().trim();
-
-            if (seenUrls.has(normalizedUrl) || seenTitles.has(normalizedTitle)) {
-                console.log(`Skipping RSS duplicate: ${item.title?.substring(0, 50)}...`.yellow);
-                return;
-            }
-
-            // Calculate relevance score using title and content snippet
-            const textToAnalyze = `${item.title || ''} ${item.contentSnippet || ''}`.trim();
-            const relevanceScore = calculateRelevanceScore(textToAnalyze, entities, searchTerms, aiCategories);
-
-            if (relevanceScore > 0) {
-                seenUrls.add(normalizedUrl);
-                seenTitles.add(normalizedTitle);
-                combined.push({
-                    ...item,
-                    source_type: 'rss',
-                    relevance_score: relevanceScore
-                });
-                console.log(`Added RSS article: ${item.title?.substring(0, 50)}... (score: ${relevanceScore})`.green);
-            } else {
-                console.log(`Filtered out RSS: ${item.title?.substring(0, 50)}... (score: 0)`.red);
-            }
-        });
-    }
-
-    // Sort by relevance score + recency boost
-    const sortedResults = combined.sort((a, b) => {
-        const scoreA = a.relevance_score + getRecencyBoost(a.publishedAt || '');
-        const scoreB = b.relevance_score + getRecencyBoost(b.publishedAt || '');
-        return scoreB - scoreA;
-    });
-
-    console.log('combineAndRank completed:'.cyan.italic, {
-        totalCombined: combined.length,
-        topScores: sortedResults.slice(0, 5).map(r => ({
-            title: r.title?.substring(0, 40) + '...',
-            score: r.relevance_score,
-            type: r.source_type
-        }))
-    });
-
-    return sortedResults.slice(0, 100); // Return top 100 results
 }
 
 export {summarizeArticle, expandQueryWithAI};
