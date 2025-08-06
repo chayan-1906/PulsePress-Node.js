@@ -6,10 +6,11 @@ import {Readability} from "@mozilla/readability";
 import {apis} from "../utils/apis";
 import {isListEmpty} from "../utils/list";
 import {parseRSS} from "../utils/parseRSS";
+import {expandQueryWithAI} from "./AIService";
 import {buildHeader} from "../utils/buildHeader";
-import {LOW_QUALITY_CONTENT_INDICATORS, RSS_SOURCES, TOPIC_SPECIFIC_SOURCES, TRUSTED_NEWS_SOURCES, USER_AGENTS} from "../utils/constants";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
 import {GUARDIAN_API_KEY, NODE_ENV, NYTIMES_API_KEY, RSS_CACHE_DURATION} from "../config/config";
+import {COMPREHENSIVE_TOPIC_KEYWORDS, LOW_QUALITY_CONTENT_INDICATORS, RSS_SOURCES, TOPIC_SPECIFIC_SOURCES, TRUSTED_NEWS_SOURCES, USER_AGENTS} from "../utils/constants";
 import {
     Article,
     GuardianArticle,
@@ -32,7 +33,6 @@ import {
     SUPPORTED_NEWS_LANGUAGES,
     VALID_NYTIMES_SECTIONS
 } from "../types/news";
-import {expandQueryWithAI} from "./AIService";
 
 const RSS_CACHE = new Map<string, { data: RSSFeed[], timestamp: number }>();
 const TOPHEADLINES_CACHE = new Map<string, { data: any, timestamp: number }>();
@@ -64,7 +64,7 @@ const convertGuardianToArticle = (guardianArticle: GuardianArticle): Article => 
     urlToImage: guardianArticle.fields?.thumbnail || null,
     publishedAt: guardianArticle.webPublicationDate,
     content: guardianArticle.fields?.bodyText || null
-});
+})
 
 const convertNYTimesToArticle = (nytArticle: NYTimesArticle): Article => ({
     source: {
@@ -78,7 +78,7 @@ const convertNYTimesToArticle = (nytArticle: NYTimesArticle): Article => ({
     urlToImage: nytArticle.multimedia?.[0]?.url ? `https://static01.nyt.com/${nytArticle.multimedia[0].url}` : null,
     publishedAt: nytArticle.pub_date,
     content: nytArticle.lead_paragraph || null
-});
+})
 
 // Enhanced Query Processing
 const enhanceSearchQuery = (query: string, category?: string): string => {
@@ -86,8 +86,15 @@ const enhanceSearchQuery = (query: string, category?: string): string => {
 
     const lowerQuery = query.toLowerCase().trim();
 
-    // Sport-specific enhancements
-    if (/cricket|test.*match|ind.*eng|eng.*ind|india.*england|england.*india/i.test(lowerQuery)) {
+    // Use COMPREHENSIVE_TOPIC_KEYWORDS for better enhancement
+    for (const [topic, keywords] of Object.entries(COMPREHENSIVE_TOPIC_KEYWORDS)) {
+        if (keywords.some(keyword => lowerQuery.includes(keyword.toLowerCase()))) {
+            return `${query} ${keywords.slice(0, 3).join(' ')}`; // Add top 3 relevant keywords
+        }
+    }
+
+    // Legacy sport-specific enhancements (keep as fallback)
+    if (/cricket|test.*match|ind.*eng|eng.*ind|india.*england|england.*india|series/i.test(lowerQuery)) {
         return `${query} cricket sport match series team`;
     }
     if (/football|soccer|premier.*league|champions.*league|fifa/i.test(lowerQuery)) {
@@ -105,7 +112,7 @@ const enhanceSearchQuery = (query: string, category?: string): string => {
         return `${query} business economy finance market`;
     }
 
-    // Technology enhancements  
+    // Technology enhancements
     if (/tech|ai|startup|software|hardware|digital/i.test(lowerQuery)) {
         return `${query} technology tech innovation`;
     }
@@ -126,7 +133,7 @@ const enhanceSearchQuery = (query: string, category?: string): string => {
     }
 
     return query;
-};
+}
 
 const determineTopicFromQuery = (query?: string, category?: string): string => {
     if (category) return category;
@@ -134,7 +141,24 @@ const determineTopicFromQuery = (query?: string, category?: string): string => {
 
     const lowerQuery = query.toLowerCase();
 
-    if (/cricket|football|basketball|tennis|sport|match|game|team|player/i.test(lowerQuery)) return 'sports';
+    // Enhanced cricket detection
+    if (/cricket|test.*match|ind.*eng|eng.*ind|india.*england|england.*india|series.*cricket|wicket|innings|bowler|batsman/i.test(lowerQuery)) return 'sports';
+
+    // Use COMPREHENSIVE_TOPIC_KEYWORDS for better detection
+    for (const [topic, keywords] of Object.entries(COMPREHENSIVE_TOPIC_KEYWORDS)) {
+        if (keywords.some(keyword => lowerQuery.includes(keyword.toLowerCase()))) {
+            // Map some topics to broader categories
+            if (topic === 'cricket' || topic === 'football' || topic === 'basketball') return 'sports';
+            if (topic === 'finance') return 'business';
+            if (topic === 'social_media') return 'technology';
+            if (topic === 'celebrity' || topic === 'music') return 'entertainment';
+            if (topic === 'crime') return 'general';
+            return topic;
+        }
+    }
+
+    // Legacy fallback detection
+    if (/sport|match|game|team|player|football|basketball|tennis/i.test(lowerQuery)) return 'sports';
     if (/business|economy|market|finance|stock|trade|company/i.test(lowerQuery)) return 'business';
     if (/tech|technology|ai|software|startup|digital|cyber/i.test(lowerQuery)) return 'technology';
     if (/health|medical|medicine|disease|treatment|doctor/i.test(lowerQuery)) return 'health';
@@ -142,14 +166,67 @@ const determineTopicFromQuery = (query?: string, category?: string): string => {
     if (/politics|government|election|policy|parliament|law/i.test(lowerQuery)) return 'politics';
 
     return 'general';
-};
+}
+
+const convertDomainToNewsAPIFormat = (sources: string): string => {
+    const sourceMap: Record<string, string> = {
+        // Business
+        'bloomberg': 'bloomberg.com',
+        'financial-times': 'financial-times.com',
+        'wall-street-journal': 'the-wall-street-journal.com',
+        'cnbc': 'cnbc.com',
+        'business-insider': 'business-insider.com',
+        'marketwatch': 'marketwatch.com',
+        'fortune': 'fortune.com',
+        'forbes': 'forbes.com',
+
+        // Technology
+        'techcrunch': 'techcrunch.com',
+        'ars-technica': 'ars-technica.com',
+        'the-verge': 'the-verge.com',
+        'wired': 'wired.com',
+        'engadget': 'engadget.com',
+        'cnet': 'cnet.com',
+        'zdnet': 'zdnet.com',
+        'mashable': 'mashable.com',
+        'gizmodo': 'gizmodo.com',
+        'techradar': 'techradar.com',
+        'recode': 'recode.net',
+        'hacker-news': 'hacker-news.com',
+
+        // Sports
+        'espn': 'espn.com',
+        'bbc-sport': 'bbc.co.uk',
+        'sky-sports': 'sky-sports.com',
+        'the-sport-bible': 'the-sport-bible.com',
+        'talksport': 'talksport.com',
+        'sporting-news': 'sporting-news.com',
+        'sportsnet': 'sportsnet.ca',
+
+        // General News
+        'bbc-news': 'bbc.co.uk',
+        'cnn': 'cnn.com',
+        'reuters': 'reuters.com',
+        'associated-press': 'associated-press.com',
+        'al-jazeera': 'al-jazeera-english.com',
+        'sky-news': 'sky-news.com',
+        'washington-post': 'the-washington-post.com',
+        'nytimes': 'the-new-york-times.com',
+        'politico': 'politico.com',
+        'the-hill': 'the-hill.com',
+        'axios': 'axios.com',
+        'usa-today': 'usa-today.com'
+    };
+
+    return sources.split(',').map(source => sourceMap[source.trim()] || source.trim()).join(',');
+}
 
 const getOptimizedSourcesForTopic = (topic: string, userSources?: string): string | undefined => {
-    if (userSources) return userSources; // Respect user preferences
+    if (userSources) return convertDomainToNewsAPIFormat(userSources); // Convert user sources
 
     const topicSources = TOPIC_SPECIFIC_SOURCES[topic as keyof typeof TOPIC_SPECIFIC_SOURCES];
-    return topicSources ? topicSources.join(',') : undefined;
-};
+    return topicSources ? convertDomainToNewsAPIFormat(topicSources.join(',')) : undefined;
+}
 
 const mapToNYTimesSection = (topic: string): string => {
     const sectionMap: Record<string, string> = {
@@ -163,9 +240,8 @@ const mapToNYTimesSection = (topic: string): string => {
     };
 
     return sectionMap[topic] || 'home';
-};
+}
 
-// Content Quality Assessment
 const assessContentQuality = (article: Article, query?: string): QualityScore => {
     let score = 0.5; // Base score
     const reasons: string[] = [];
@@ -284,9 +360,8 @@ const assessContentQuality = (article: Article, query?: string): QualityScore =>
         isRelevant,
         isProfessional
     };
-};
+}
 
-// Enhanced deduplication with better similarity detection
 const isDuplicateArticle = (article: Article, existing: Article[]): boolean => {
     return existing.some(existingArticle => {
         // URL-based deduplication (exact match)
@@ -316,7 +391,7 @@ const isDuplicateArticle = (article: Article, existing: Article[]): boolean => {
 
         return false;
     });
-};
+}
 
 const fetchNEWSORGTopHeadlines = async ({country, category, sources, q, pageSize = 10, page = 1}: NEWSORGTopHeadlinesParams) => {
     try {
@@ -451,23 +526,31 @@ const fetchNYTimesNews = async ({q, section, sort = 'newest', fromDate, toDate, 
 
         const url = apis.nytimesSearchApi({q, section, sort, fromDate, toDate, pageSize, page}) + `&api-key=${NYTIMES_API_KEY}`;
         const {data: nytResponse} = await axios.get<NYTimesSearchResponse>(url, {headers: buildHeader('nytimes')});
-        console.log('Raw NYT search response:', nytResponse);
-        console.log('Response status:', nytResponse.status);
+        console.log('Raw NYT search response:', {
+            status: nytResponse.status,
+            hasResponse: !!nytResponse.response,
+            hasDocs: !!nytResponse.response?.docs,
+            docsLength: nytResponse.response?.docs?.length,
+            metadata: nytResponse.response?.metadata,
+        });
 
         nytimesApiRequestCount++;
-        console.log(`NYTimes API request ${nytimesApiRequestCount}/1000:`.cyan.italic, nytResponse?.response?.metadata?.hits, 'results');
+        console.log(`NYTimes API request ${nytimesApiRequestCount}/1000:`.cyan.italic, nytResponse?.response?.metadata?.hits || 0, 'results');
 
-        const articles = nytResponse.response.docs?.map(convertNYTimesToArticle);
-        const nytResponseMeta = nytResponse?.response?.metadata;
-        if (!nytResponseMeta) {
-            throw new Error('Invalid NYT API response structure');
+        if (!nytResponse.response || !nytResponse.response.docs) {
+            console.warn('NYT API returned invalid response structure'.yellow.italic);
+            return {articles: [], totalResults: 0};
         }
+
+        const articles = nytResponse.response.docs.map(convertNYTimesToArticle);
+        const nytResponseMeta = nytResponse.response.metadata;
         const totalHits = nytResponseMeta?.hits || 0;
+
         const result = {
-            articles,
+            articles: articles || [],
             totalResults: totalHits,
             currentPage: page,
-            pages: totalHits / pageSize,
+            pages: Math.ceil(totalHits / pageSize),
         };
 
         if (NODE_ENV === 'production') {
@@ -593,7 +676,25 @@ const fetchAllRSSFeeds = async ({email, q, sources, languages = 'english', pageS
         if (q && q.trim()) {
             console.log(`Searching RSS feeds with query expansion for: "${q}"`.cyan.italic);
 
-            const expandedTerms = await expandQueryWithAI({email, query: q.trim()});
+            let expandedTerms: string[];
+
+            try {
+                if (email) {
+                    console.log('Attempting AI query expansion...'.cyan.italic);
+                    expandedTerms = await expandQueryWithAI({email, query: q.trim()});
+                } else {
+                    console.log('Anonymous users can\'t use AI features, using basic expansion...'.yellow.italic);
+                    // Basic expansion without AI
+                    const enhancedQuery = enhanceSearchQuery(q.trim());
+                    expandedTerms = enhancedQuery.split(' ').filter(term => term.length > 2);
+                }
+            } catch (error) {
+                console.log('AI expansion failed, using basic search...'.yellow.italic);
+                // Enhanced basic expansion using keywords
+                const topic = determineTopicFromQuery(q);
+                const topicKeywords = COMPREHENSIVE_TOPIC_KEYWORDS[topic as keyof typeof COMPREHENSIVE_TOPIC_KEYWORDS] || [];
+                expandedTerms = [q.trim(), ...topicKeywords.slice(0, 3)];
+            }
 
             const fuse = new Fuse(allItems, {
                 keys: [
@@ -664,7 +765,6 @@ const fetchAllRSSFeeds = async ({email, q, sources, languages = 'english', pageS
 const fetchMultiSourceNews = async ({q, category, sources, pageSize = 10, page = 1}: MultisourceFetchNewsParams) => {
     console.log('Professional multisource news fetch:'.bgBlue.white.bold, {q, category, sources, pageSize, page});
 
-    // Determine topic and enhance query
     const topic = determineTopicFromQuery(q, category);
     const enhancedQuery = q ? enhanceSearchQuery(q, category) : q;
     const optimizedSources = getOptimizedSourcesForTopic(topic, sources);
@@ -706,6 +806,8 @@ const fetchMultiSourceNews = async ({q, category, sources, pageSize = 10, page =
                 });
             }
 
+            console.log('everything from NewsAPIOrg:'.cyan.italic, newsApiResult);
+
             if (newsApiResult && newsApiResult.articles && newsApiResult.articles.length > 0) {
                 // Apply quality filtering and scoring
                 const qualityArticles = newsApiResult.articles
@@ -721,6 +823,8 @@ const fetchMultiSourceNews = async ({q, category, sources, pageSize = 10, page =
                 totalResults += newsApiResult.totalResults || 0;
                 usedSources.push('NewsAPI');
                 console.log(`NewsAPI contributed ${qualityArticles.length} quality articles (filtered from ${newsApiResult.articles.length})`.green);
+            } else {
+                console.log('NewsAPIOrg returned no articles'.yellow.italic);
             }
         } else {
             errors.push('NewsAPIOrg limit reached');
@@ -728,7 +832,7 @@ const fetchMultiSourceNews = async ({q, category, sources, pageSize = 10, page =
         }
     } catch (error: any) {
         errors.push(`NewsAPIOrg failed: ${error.message}`);
-        console.log('NewsAPIOrg failed, continuing...'.yellow.italic);
+        console.log('NewsAPIOrg failed, continuing...'.yellow.italic, error.message);
     }
 
     // Guardian API (40% of remaining slots)
@@ -811,19 +915,15 @@ const fetchMultiSourceNews = async ({q, category, sources, pageSize = 10, page =
         }
     }
 
-    // RSS feeds (fill remaining) 
+    // RSS feeds (fill remaining)
     const remainingSlots3 = pageSize - results.length;
 
     if (remainingSlots3 > 0) {
         try {
             console.log(`Trying RSS feeds (target: ${remainingSlots3} articles)...`.cyan.italic);
 
-            const rssResults = await fetchAllRSSFeeds({
-                q: enhancedQuery,
-                sources: optimizedSources,
-                pageSize: remainingSlots3 * 2,
-                page
-            });
+            // TODO: Fix
+            const rssResults = await fetchAllRSSFeeds({email: 'chayan19062000@gmail.com', q: enhancedQuery, sources: optimizedSources, pageSize: remainingSlots3 * 2, page});
 
             if (rssResults && rssResults.length > 0) {
                 const rssArticles = rssResults.map(rss => ({
@@ -864,39 +964,33 @@ const fetchMultiSourceNews = async ({q, category, sources, pageSize = 10, page =
         }
     }
 
-    // Final quality sort and limit
-    const finalResults = results
-        .sort((a, b) => {
-            // Primary sort: Quality score
-            const scoreDiff = (b.qualityScore?.score || 0) - (a.qualityScore?.score || 0);
-            if (Math.abs(scoreDiff) > 0.1) return scoreDiff;
+    // Quality sort and limit
+    const finalResults = results.sort((a: Article, b: Article) => {
+        // Primary sort: Quality score
+        const scoreDiff = (b.qualityScore?.score || 0) - (a.qualityScore?.score || 0);
+        if (Math.abs(scoreDiff) > 0.1) return scoreDiff;
 
-            // Secondary sort: Recency for similar scores
-            const dateA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
-            const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
-            return dateB - dateA;
-        })
-        .slice(0, pageSize);
+        // Secondary sort: Recency for similar scores
+        const dateA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+        const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+        return dateB - dateA;
+    }).slice(0, pageSize);
 
-    console.log(`Professional news fetch completed. Total: ${finalResults.length}/${pageSize} quality articles from [${usedSources.join(', ')}]`.bgGreen.white.bold);
+    console.log(`Multisource search completed: ${finalResults.length}/${pageSize} quality articles from [${usedSources.join(', ')}]`.bgGreen.white.bold);
 
     return {
-        success: true,
-        message: 'Multisource news search completed 🎉',
-        searchResults: {
-            totalResults,
-            query: q,
-            articles: finalResults,
-            metadata: {
-                usedSources,
-                errors: errors.length > 0 ? errors : undefined,
-                apiRequestCounts: {
-                    newsApi: newsApiRequestCount,
-                    guardian: guardianApiRequestCount,
-                    nytimes: nytimesApiRequestCount,
-                },
+        totalResults,
+        query: q,
+        articles: finalResults,
+        metadata: {
+            usedSources,
+            errors: errors.length > 0 ? errors : undefined,
+            apiRequestCounts: {
+                newsApi: newsApiRequestCount,
+                guardian: guardianApiRequestCount,
+                nytimes: nytimesApiRequestCount,
             },
-        }
+        },
     };
 }
 

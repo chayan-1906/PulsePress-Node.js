@@ -147,7 +147,6 @@ const DEFAULT_ENGAGEMENT_WEIGHTS: EngagementScoreWeights = {
     readingTimeWeight: 0.1,
 };
 
-// Content Quality Filtering Constants
 export const LOW_QUALITY_CONTENT_INDICATORS = [
     // Puzzles & Games
     'crossword', 'puzzle', 'sudoku', 'word game', 'quiz', 'riddle', 'trivia',
@@ -196,50 +195,25 @@ export const TRUSTED_NEWS_SOURCES = {
 
 export const TOPIC_SPECIFIC_SOURCES = {
     // Sports
-    sports: [
-        'espn', 'bbc-sport', 'sky-sports', 'the-sport-bible', 'talksport',
-        'ndtv_sports', 'ndtv_cricket', 'the_hindu_cricket', 'timesofindia_sports',
-        'atletico-madura', 'sporting-news', 'sportsnet'
-    ],
+    sports: ['espn', 'bbc-sport', 'sky-sports', 'the-sport-bible', 'talksport', 'ndtv_sports', 'ndtv_cricket', 'the_hindu_cricket', 'timesofindia_sports', 'sporting-news', 'sportsnet'],
 
     // Technology
-    technology: [
-        'techcrunch', 'ars-technica', 'the-verge', 'wired', 'engadget',
-        'cnet', 'zdnet', 'mashable', 'gizmodo', 'techradar', 'recode',
-        'ndtv_tech', 'hacker-news'
-    ],
+    technology: ['techcrunch', 'ars-technica', 'the-verge', 'wired', 'engadget', 'cnet', 'zdnet', 'mashable', 'gizmodo', 'techradar', 'recode', 'ndtv_tech', 'hacker-news'],
 
     // Business & Finance
-    business: [
-        'bloomberg', 'financial-times', 'wall-street-journal', 'cnbc',
-        'business-insider', 'marketwatch', 'economic_times', 'business_standard',
-        'livemint', 'moneycontrol', 'fortune', 'forbes'
-    ],
+    business: ['bloomberg', 'financial-times', 'the-wall-street-journal', 'cnbc', 'business-insider', 'marketwatch', 'fortune', 'forbes'],
 
     // Health & Science
-    health: [
-        'bbc-news', 'cnn', 'reuters', 'associated-press', 'medical-news-today',
-        'webmd', 'healthline', 'new-scientist', 'nature', 'science-magazine'
-    ],
+    health: ['bbc-news', 'cnn', 'reuters', 'associated-press', 'medical-news-today', 'webmd', 'healthline', 'new-scientist', 'nature', 'science-magazine'],
 
     // Politics
-    politics: [
-        'bbc-news', 'cnn', 'reuters', 'associated-press', 'politico',
-        'the-hill', 'axios', 'the_hindu_india', 'ndtv_top', 'indian_express',
-        'washington-post', 'nytimes'
-    ],
+    politics: ['bbc-news', 'cnn', 'reuters', 'associated-press', 'politico', 'the-hill', 'axios', 'washington-post', 'nytimes'],
 
     // Entertainment
-    entertainment: [
-        'entertainment-weekly', 'variety', 'hollywood-reporter', 'deadline',
-        'tmz', 'e-news', 'people-magazine', 'rolling-stone', 'billboard'
-    ],
+    entertainment: ['entertainment-weekly', 'variety', 'hollywood-reporter', 'deadline', 'tmz', 'enews', 'people', 'rolling-stone', 'billboard'],
 
     // General News
-    general: [
-        'bbc-news', 'cnn', 'reuters', 'associated-press', 'al-jazeera',
-        'ndtv_top', 'the_hindu_india', 'timesofindia_top', 'sky-news'
-    ]
+    general: ['bbc-news', 'cnn', 'reuters', 'associated-press', 'al-jazeera', 'sky-news'],
 };
 
 export const COMPREHENSIVE_TOPIC_KEYWORDS = {
