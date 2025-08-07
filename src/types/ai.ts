@@ -6,35 +6,12 @@ export type SummarizationStyle = typeof SUMMARIZATION_STYLES[number];
 
 export const SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'pt', 'ru', 'ja', 'ko', 'zh', 'ar', 'hi', 'bn', 'te', 'ta', 'mr', 'gu', 'kn', 'ml', 'pa', 'or', 'as', 'ur', 'ne', 'si', 'my'];
 export type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
-/*export type SupportedLanguage =
-// English
-    | 'en'
-    // Major International
-    | 'es'    // Spanish
-    | 'fr'    // French
-    | 'de'    // German
-    | 'pt'    // Portuguese
-    | 'ru'    // Russian
-    | 'ja'    // Japanese
-    | 'ko'    // Korean
-    | 'zh'    // Chinese (Simplified)
-    | 'ar'    // Arabic
-    // Indian Languages
-    | 'hi'    // Hindi
-    | 'bn'    // Bengali
-    | 'te'    // Telugu
-    | 'ta'    // Tamil
-    | 'mr'    // Marathi
-    | 'gu'    // Gujarati
-    | 'kn'    // Kannada
-    | 'ml'    // Malayalam
-    | 'pa'    // Punjabi
-    | 'or'    // Odia
-    | 'as'    // Assamese
-    | 'ur'    // Urdu
-    | 'ne'    // Nepali
-    | 'si'    // Sinhala
-    | 'my';   // Myanmar*/
+
+export const USER_STRIKE_BLOCK = ['cooldown', 'long_block'] as const;
+export type UserStrikeBlock = typeof USER_STRIKE_BLOCK[number];
+
+export const CLASSIFICATION_TYPES = ['news', 'non_news', 'error'] as const;
+export type ClassificationResult = typeof CLASSIFICATION_TYPES[number];
 
 export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
     'en': 'English',
@@ -49,9 +26,9 @@ export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
     'ar': 'العربية',
     'hi': 'हिंदी',
     'bn': 'বাংলা',
-    'te': 'తెలుగు',
-    'ta': 'தமிழ்',
-    'mr': 'मराठी',
+    'te': 'తెলুগু',
+    'ta': 'தமিழ்',
+    'mr': 'मराठী',
     'gu': 'ગુજરાતી',
     'kn': 'ಕನ್ನಡ',
     'ml': 'മലയാളം',
@@ -64,17 +41,22 @@ export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
     'my': 'မြန်မာ'
 };
 
-export interface CombinedArticle {
-    source?: {
-        name?: string | null;
-    };
-    title?: string | null;
-    url?: string | null;
-    publishedAt?: string | null;
-    content?: string | null;
-    contentSnippet?: string | null;
-    source_type: 'rss' | 'newsapi' | 'smart_fetch';
-    relevance_score: number;
+export interface StrikeResult {
+    success: boolean;
+    newStrikeCount: number;
+    isBlocked: boolean;
+    blockType?: UserStrikeBlock;
+    blockedUntil?: Date;
+    message: string;
+    wasReset?: boolean;
+}
+
+export interface StrikeCheckResult {
+    isBlocked: boolean;
+    blockType?: UserStrikeBlock;
+    blockedUntil?: Date;
+    message?: string;
+    wasReset?: boolean;
 }
 
 
@@ -83,39 +65,12 @@ export interface CombinedArticle {
 export interface SummarizeArticleResponse {
     summary?: string;
     powered_by?: string;
+    wasClassified?: 'news' | 'non_news' | 'classification_skipped';
     error?: string;
 }
 
 export interface GenerateContentHashResponse {
     hash?: string;
-    error?: string;
-}
-
-export interface ParseQueryWithAIResponse {
-    entities?: string[];
-    searchTerms?: string[];
-    categories?: string[];
-    recommendedSources?: string[];
-    intent?: string;
-    originalQuery?: string;
-    powered_by?: string;
-    error?: string;
-}
-
-export interface ProcessNaturalQueryResponse {
-    articles?: any;
-    totalResults?: number;
-    searchMetadata?: {
-        originalQuery: string;
-        aiParsed: {
-            entities: string[] | undefined;
-            searchTerms: string[] | undefined;
-            categories: string[] | undefined;
-            intent: string | undefined;
-        };
-        powered_by: string | undefined;
-        timestamp: string;
-    };
     error?: string;
 }
 
@@ -150,14 +105,4 @@ export interface GetCachedSummaryParams {
 export interface TranslateTextParams {
     text: string;
     targetLanguage: SupportedLanguage;
-}
-
-export interface ParseQueryWithAIParams {
-    query: string;
-}
-
-export interface ProcessNaturalQueryParams {
-    email: string;
-    query: string;
-    pageSize?: number;
 }
