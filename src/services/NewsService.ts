@@ -6,8 +6,10 @@ import {Readability} from "@mozilla/readability";
 import {apis} from "../utils/apis";
 import {isListEmpty} from "../utils/list";
 import {parseRSS} from "../utils/parseRSS";
+import StrikeService from "./StrikeService";
 import {expandQueryWithAI} from "./AIService";
 import {buildHeader} from "../utils/buildHeader";
+import NewsClassificationService from "./NewsClassificationService";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
 import {COMPREHENSIVE_TOPIC_KEYWORDS, LOW_QUALITY_CONTENT_INDICATORS, RSS_SOURCES, TOPIC_SPECIFIC_SOURCES, TRUSTED_NEWS_SOURCES, USER_AGENTS} from "../utils/constants";
 import {GUARDIAN_API_KEY, GUARDIAN_QUOTA_REQUESTS, NEWSAPI_QUOTA_REQUESTS, NEWSAPIORG_QUOTA_MS, NODE_ENV, NYTIMES_API_KEY, NYTIMES_QUOTA_REQUESTS, RSS_CACHE_DURATION} from "../config/config";
@@ -139,9 +141,6 @@ const determineTopicFromQuery = (query?: string, category?: string): string => {
     if (!query) return 'general';
 
     const lowerQuery = query.toLowerCase();
-
-    // Enhanced cricket detection
-    if (/cricket|test.*match|ind.*eng|eng.*ind|india.*england|england.*india|series.*cricket|wicket|innings|bowler|batsman/i.test(lowerQuery)) return 'sports';
 
     // Use COMPREHENSIVE_TOPIC_KEYWORDS for better detection
     for (const [topic, keywords] of Object.entries(COMPREHENSIVE_TOPIC_KEYWORDS)) {
@@ -667,10 +666,40 @@ const fetchAllRSSFeeds = async ({email, q, sources, languages = 'english', pageS
             try {
                 if (email) {
                     console.log('Attempting AI query expansion...'.cyan.italic);
-                    expandedTerms = await expandQueryWithAI({email, query: q.trim()});
+
+                    const {isBlocked, message, blockedUntil, blockType} = await StrikeService.checkUserBlock(email);
+                    if (isBlocked) {
+                        console.log('User is currently blocked, using basic expansion...'.yellow.italic, {message, blockedUntil, blockType});
+
+                        const enhancedQuery = enhanceSearchQuery(q.trim());
+                        expandedTerms = enhancedQuery.split(' ').filter(term => term.length > 2);
+                        console.log('Block detected, falling back to basic query enhancement'.yellow.italic);
+                    } else {
+                        console.log('Checking if query is news-related before AI expansion...'.cyan.italic);
+                        const classification = await NewsClassificationService.classifyContent(q.trim());
+
+                        if (classification === 'error') {
+                            console.error('Classification failed, allowing AI expansion to proceed'.yellow.italic);
+                            expandedTerms = await expandQueryWithAI({email, query: q.trim()});
+                        } else if (classification === 'non_news') {
+                            console.log('Non-news query detected, applying strike and using basic expansion...'.yellow.italic);
+
+                            // Apply strike for non-news query
+                            await StrikeService.applyStrike(email);
+
+                            // Use basic enhancement instead of AI expansion
+                            const enhancedQuery = enhanceSearchQuery(q.trim());
+                            expandedTerms = enhancedQuery.split(' ').filter(term => term.length > 2);
+
+                            console.log('Strike applied, falling back to basic query enhancement'.yellow.italic);
+                        } else {
+                            console.log('News query verified, proceeding with AI expansion...'.green.italic);
+                            expandedTerms = await expandQueryWithAI({email, query: q.trim()});
+                        }
+                    }
                 } else {
                     console.log('Anonymous users can\'t use AI features, using basic expansion...'.yellow.italic);
-                    // Basic expansion without AI
+
                     const enhancedQuery = enhanceSearchQuery(q.trim());
                     expandedTerms = enhancedQuery.split(' ').filter(term => term.length > 2);
                 }
