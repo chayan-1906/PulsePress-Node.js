@@ -2,7 +2,7 @@ import "colors";
 import StrikeService from "./StrikeService";
 import {getUserByEmail} from "./AuthService";
 import {STRIKE_LONG_BLOCK, STRIKE_TEMPORARY_BLOCK} from "../config/config";
-import {GetUserStrikeHistoryParams, GetUserStrikeHistoryResponse, GetUserStrikeStatusParams, GetUserStrikeStatusResponse, UserStrikeBlock, UserStrikeHistory, UserStrikeStatus} from "../types/ai";
+import {GetUserStrikeHistoryParams, GetUserStrikeHistoryResponse, GetUserStrikeStatusParams, GetUserStrikeStatusResponse, UserStrikeHistory, UserStrikeStatus} from "../types/ai";
 
 const getUserStrikeStatus = async ({email}: GetUserStrikeStatusParams): Promise<GetUserStrikeStatusResponse> => {
     try {
@@ -87,22 +87,23 @@ const getUserStrikeHistory = async ({email, limit = 10}: GetUserStrikeHistoryPar
 
         const strikeHistory: UserStrikeHistory[] = [];
 
-        if (strikeData.count > 0 && strikeData.lastStrikeAt) {
-            const penalty = getStrikePenaltyInfo(strikeData.count);
+        if (strikeData.history && strikeData.history.length > 0) {
+            const sortedHistory = strikeData.history
+                .sort((a, b) => new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime()) // Most recent first
+                .slice(0, finalLimit);
 
-            strikeHistory.push({
-                date: strikeData.lastStrikeAt,
-                strikeNumber: strikeData.count,
-                reason: penalty.reason,
-                blockType: penalty.blockType,
-                blockDuration: penalty.blockDuration,
-            });
+            for (const event of sortedHistory) {
+                strikeHistory.push({
+                    date: event.appliedAt,
+                    strikeNumber: event.strikeNumber,
+                    reason: event.reason,
+                    blockType: event.blockType,
+                    blockDuration: event.blockDuration,
+                });
+            }
         }
 
-        return {
-            strikeHistory: strikeHistory.slice(0, finalLimit),
-            totalStrikes: strikeData.count,
-        };
+        return {strikeHistory, totalStrikes: strikeData.count};
     } catch (error: any) {
         console.error('ERROR: getUserStrikeHistory:'.red.bold, error);
         throw error;
@@ -118,24 +119,6 @@ const getNextStrikePenalty = (currentCount: number): string => {
         return `${STRIKE_TEMPORARY_BLOCK}-minute cooldown`;
     } else {
         return `${STRIKE_LONG_BLOCK}-day block`;
-    }
-}
-
-const getStrikePenaltyInfo = (strikeNum: number): { reason: string; blockType?: UserStrikeBlock; blockDuration?: string } => {
-    if (strikeNum === 1 || strikeNum === 2) {
-        return {reason: `Warning ${strikeNum}/2 for non-news query`};
-    } else if (strikeNum === 3) {
-        return {
-            reason: 'Non-news query - Cooldown applied',
-            blockType: 'cooldown',
-            blockDuration: `${STRIKE_TEMPORARY_BLOCK} minutes`,
-        };
-    } else {
-        return {
-            reason: 'Non-news query - Long block applied',
-            blockType: 'long_block',
-            blockDuration: `${STRIKE_LONG_BLOCK} days`,
-        };
     }
 }
 

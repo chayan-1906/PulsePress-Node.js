@@ -41,6 +41,14 @@ export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
     'my': 'မြန်မာ'
 };
 
+export interface StrikeHistoryEvent {
+    strikeNumber: number;
+    appliedAt: Date;
+    reason: string;
+    blockType?: UserStrikeBlock;
+    blockDuration?: string;
+}
+
 export interface StrikeResult {
     success: boolean;
     newStrikeCount: number;

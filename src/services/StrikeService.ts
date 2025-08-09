@@ -1,7 +1,7 @@
 import "colors";
 import UserModel from "../models/UserSchema";
-import {StrikeCheckResult, StrikeResult, UserStrikeBlock} from "../types/ai";
 import {STRIKE_LONG_BLOCK, STRIKE_TEMPORARY_BLOCK} from "../config/config";
+import {StrikeCheckResult, StrikeHistoryEvent, StrikeResult, UserStrikeBlock} from "../types/ai";
 
 class StrikeService {
 
@@ -29,12 +29,13 @@ class StrikeService {
                 if (hoursSinceLastStrike >= Number.parseInt(STRIKE_LONG_BLOCK!) * 24) {
                     console.log(`48-hour reset triggered for ${email}, clearing strikes from ${strikes.count} to 0`.green.italic);
 
-                    // Reset strikes to 0
+                    // Reset strikes to 0 and clear history
                     await UserModel.updateOne(
                         {email},
                         {
                             $set: {
                                 'newsClassificationStrikes.count': 0,
+                                'newsClassificationStrikes.history': [],
                             },
                             $unset: {
                                 'newsClassificationStrikes.lastStrikeAt': 1,
@@ -63,7 +64,7 @@ class StrikeService {
                     message: `You are temporarily blocked for making non-news queries. Block expires in ${remainingTime}.`,
                 };
             } else {
-                // Block has expired, clear it (but keep strike count)
+                // Block has expired, clear it (but keep strike count and history)
                 await UserModel.updateOne(
                     {email},
                     {
@@ -112,9 +113,12 @@ class StrikeService {
             let isBlocked = false;
             let blockType: UserStrikeBlock | undefined;
             let blockedUntil: Date | undefined;
+            let reason: string;
+            let blockDuration: string | undefined;
 
             if (newStrikeCount === 1 || newStrikeCount === 2) {
                 // Strike 1-2: Warning only
+                reason = `Warning ${newStrikeCount}/2 for non-news query`;
                 message = `⚠️ Warning ${newStrikeCount}/2: Your query appears to be non-news related. PulsePress is designed for news queries only. Please ask about current events, news, or recent developments`;
             } else if (newStrikeCount === 3) {
                 // Strike 3: 15-30 min cooldown
@@ -122,6 +126,8 @@ class StrikeService {
                 blockedUntil = new Date(now.getTime() + cooldownMinutes * 60 * 1000);
                 blockType = 'cooldown';
                 isBlocked = true;
+                reason = 'Non-news query - Cooldown applied';
+                blockDuration = `${cooldownMinutes} minutes`;
 
                 updateData['newsClassificationStrikes.blockedUntil'] = blockedUntil;
                 updateData['newsClassificationStrikes.blockType'] = blockType;
@@ -133,16 +139,33 @@ class StrikeService {
                 blockedUntil = new Date(now.getTime() + blockDays * 24 * 60 * 60 * 1000);
                 blockType = 'long_block';
                 isBlocked = true;
+                reason = 'Non-news query - Long block applied';
+                blockDuration = `${blockDays} days`;
 
                 updateData['newsClassificationStrikes.blockedUntil'] = blockedUntil;
                 updateData['newsClassificationStrikes.blockType'] = blockType;
 
                 message = `🔒 Strike ${newStrikeCount}: You are blocked for ${STRIKE_LONG_BLOCK} days due to continued misuse. PulsePress is exclusively for news-related queries. Please respect our terms of use.`;
             } else {
+                reason = `Strike ${newStrikeCount} applied`;
                 message = `Strike ${newStrikeCount} applied.`;
             }
 
-            await UserModel.updateOne({email}, {$set: updateData});
+            // Create history event
+            const historyEvent: StrikeHistoryEvent = {
+                strikeNumber: newStrikeCount,
+                appliedAt: now,
+                reason,
+                blockType,
+                blockDuration,
+            };
+
+            // Add history event to the array
+            updateData['$push'] = {
+                'newsClassificationStrikes.history': historyEvent,
+            };
+
+            await UserModel.updateOne({email}, {$set: updateData, $push: updateData['$push']});
 
             console.log(`Strike applied to ${email}:`.yellow.italic, {
                 previousCount: currentStrikes,
@@ -151,6 +174,7 @@ class StrikeService {
                 blockType,
                 blockedUntil,
                 wasReset,
+                historyEvent,
             });
 
             return {
@@ -182,7 +206,8 @@ class StrikeService {
                 {email},
                 {
                     $set: {
-                        'newsClassificationStrikes.count': 0
+                        'newsClassificationStrikes.count': 0,
+                        'newsClassificationStrikes.history': [],
                     },
                     $unset: {
                         'newsClassificationStrikes.lastStrikeAt': 1,
@@ -202,14 +227,14 @@ class StrikeService {
     /**
      * Get user's current strike information
      */
-    async getUserStrikes(email: string): Promise<{ count: number; lastStrikeAt?: Date; blockedUntil?: Date } | null> {
+    async getUserStrikes(email: string): Promise<{ count: number; lastStrikeAt?: Date; blockedUntil?: Date; history?: StrikeHistoryEvent[] } | null> {
         try {
             // Check for reset first
             await this.checkUserBlock(email);
 
             // Get fresh data after potential reset
             const user = await UserModel.findOne({email}, 'newsClassificationStrikes');
-            return user?.newsClassificationStrikes || {count: 0};
+            return user?.newsClassificationStrikes || {count: 0, history: []};
         } catch (error: any) {
             console.error('Error getting user strikes:'.red.bold, error);
             return null;
