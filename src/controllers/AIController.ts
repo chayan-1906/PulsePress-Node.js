@@ -167,7 +167,6 @@ const summarizeArticleController = async (req: Request, res: Response) => {
             return;
         }
 
-        // NEWS CLASSIFICATION CHECK
         console.log('Checking if content is news-related...'.cyan.italic);
         const classification = await NewsClassificationService.classifyContent(articleContent);
 

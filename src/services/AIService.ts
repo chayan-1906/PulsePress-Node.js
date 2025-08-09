@@ -3,6 +3,7 @@ import {createHash} from 'crypto';
 import {GoogleGenerativeAI} from "@google/generative-ai";
 import {Translate} from '@google-cloud/translate/build/src/v2';
 import {isListEmpty} from "../utils/list";
+import StrikeService from "./StrikeService";
 import {getUserByEmail} from "./AuthService";
 import {scrapeMultipleArticles} from "./NewsService";
 import CachedSummaryModel, {ICachedSummary} from "../models/CachedSummarySchema";
@@ -46,6 +47,15 @@ const summarizeArticle = async ({email, content, urls, language = 'en', style = 
         if (style && !SUMMARIZATION_STYLES.includes(style)) {
             console.error('Invalid style:'.yellow.italic, style);
             return {error: generateInvalidCode('style')};
+        }
+
+        const {isBlocked, message, blockedUntil, blockType} = await StrikeService.checkUserBlock(email);
+        if (isBlocked) {
+            console.log('User blocked from AI summarization:'.yellow.italic, {message, blockedUntil, blockType});
+            return {
+                error: 'USER_BLOCKED_FROM_AI_FEATURES',
+                errorMsg: message || 'You are temporarily blocked from using AI features due to non-news queries',
+            };
         }
 
         if (geminiRequestCount >= Number.parseInt(GEMINI_QUOTA_REQUESTS!)) {

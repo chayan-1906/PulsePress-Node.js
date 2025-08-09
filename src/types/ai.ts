@@ -67,6 +67,7 @@ export interface SummarizeArticleResponse {
     powered_by?: string;
     wasClassified?: 'news' | 'non_news' | 'classification_skipped';
     error?: string;
+    errorMsg?: string;
 }
 
 export interface GenerateContentHashResponse {
