@@ -7,11 +7,22 @@ import {getTopPerformingSources} from "./AnalyticsService";
 import ReadingHistoryModel from "../models/ReadingHistorySchema";
 import UserPreferenceModel from "../models/UserPreferenceSchema";
 import {NODE_ENV, RECOMMENDATION_CACHE_DURATION} from "../config/config";
-import {fetchAllRSSFeeds, fetchNEWSORGTopHeadlines} from "./NewsService";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
+import {fetchAllRSSFeeds, fetchGuardianNews, fetchNEWSORGTopHeadlines, fetchNYTimesTopStories} from "./NewsService";
 import {GetContentRecommendationsParams, GetContentRecommendationsResponse, RecommendedArticle} from "../types/content-recommendation";
 
 const RECOMMENDATION_CACHE = new Map<string, { data: GetContentRecommendationsResponse, timestamp: number }>();
+
+const CATEGORY_MAPPING: { [key: string]: { guardian?: string, nytimes?: string } } = {
+    'business': {guardian: 'business', nytimes: 'business'},
+    'entertainment': {guardian: 'culture', nytimes: 'arts'},
+    'general': {guardian: 'world', nytimes: 'world'},
+    'health': {guardian: 'lifeandstyle', nytimes: 'health'},
+    'science': {guardian: 'science', nytimes: 'science'},
+    'sports': {guardian: 'sport', nytimes: 'sports'},
+    'technology': {guardian: 'technology', nytimes: 'technology'},
+    'country': {guardian: 'world', nytimes: 'world'},
+};
 
 const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecommendationsParams): Promise<GetContentRecommendationsResponse> => {
     try {
@@ -59,6 +70,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
         const fetchMultiplier = Math.max(2, Math.ceil(pageSize / 5));
         const rssFetchSize = Math.ceil(pageSize * fetchMultiplier / preferredLanguages.length);
         const categoryFetchSize = Math.ceil(pageSize * fetchMultiplier * 0.75);
+        const apiSourceFetchSize = Math.ceil(pageSize * fetchMultiplier * 0.5); // For Guardian and NYTimes
 
         // Fetch from each preferred language
         preferredLanguages.forEach(language => {
@@ -89,11 +101,64 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
             }));
         }
 
-        // Fetch from preferred categories (NewsAPI fallback)
+        // Fetch from preferred categories across all news sources
         if (preferences?.preferredCategories?.length) {
+            const primaryCategory = preferences.preferredCategories[0];
+
+            // NewsAPI
             newsPromises.push(fetchNEWSORGTopHeadlines({
-                category: preferences.preferredCategories[0],
+                category: primaryCategory,
                 pageSize: categoryFetchSize,
+            }));
+
+            // Guardian - map category and fetch
+            const guardianSection = CATEGORY_MAPPING[primaryCategory]?.guardian;
+            if (guardianSection) {
+                newsPromises.push(fetchGuardianNews({
+                    section: guardianSection,
+                    pageSize: apiSourceFetchSize,
+                    orderBy: 'newest',
+                }));
+            }
+
+            // NYTimes - map category and fetch top stories
+            const nytimesSection = CATEGORY_MAPPING[primaryCategory]?.nytimes;
+            if (nytimesSection) {
+                newsPromises.push(fetchNYTimesTopStories({
+                    section: nytimesSection,
+                }));
+            }
+
+            // If there's a second preferred category, fetch from Guardian and NYTimes for that too
+            if (preferences.preferredCategories.length > 1) {
+                const secondaryCategory = preferences.preferredCategories[1];
+
+                const guardianSecondarySection = CATEGORY_MAPPING[secondaryCategory]?.guardian;
+                if (guardianSecondarySection) {
+                    newsPromises.push(fetchGuardianNews({
+                        section: guardianSecondarySection,
+                        pageSize: Math.ceil(apiSourceFetchSize * 0.5),
+                        orderBy: 'relevance',
+                    }));
+                }
+
+                const nytimesSecondarySection = CATEGORY_MAPPING[secondaryCategory]?.nytimes;
+                if (nytimesSecondarySection) {
+                    newsPromises.push(fetchNYTimesTopStories({
+                        section: nytimesSecondarySection,
+                    }));
+                }
+            }
+        } else {
+            // If no preferred categories, fetch general/world news from Guardian and NYTimes
+            newsPromises.push(fetchGuardianNews({
+                section: 'world',
+                pageSize: apiSourceFetchSize,
+                orderBy: 'newest',
+            }));
+
+            newsPromises.push(fetchNYTimesTopStories({
+                section: 'world',
             }));
         }
 
@@ -108,22 +173,34 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
             .map(article => {
                 let score = 0;
                 const source: SupportedSource | null = extractSourceFromUrl(article.url);
+
+                // For Guardian and NYTimes, use domain as source identifier
+                let effectiveSource = source;
                 if (!source) {
+                    const domain = new URL(article.url).hostname.replace('www.', '');
+                    if (domain.includes('guardian')) {
+                        effectiveSource = 'guardian' as SupportedSource;
+                    } else if (domain.includes('nytimes')) {
+                        effectiveSource = 'nytimes' as SupportedSource;
+                    }
+                }
+
+                if (!effectiveSource) {
                     return null;
                 }
 
                 // Major boost for top performing sources (analytics-driven)
-                if (topPerformingSources.includes(source)) {
+                if (topPerformingSources.includes(effectiveSource)) {
                     score += 5;
                 }
 
                 // Boost score for frequently read sources
-                if (sourceFrequency[source]) {
-                    score += sourceFrequency[source] * 2;
+                if (sourceFrequency[effectiveSource]) {
+                    score += sourceFrequency[effectiveSource] * 2;
                 }
 
                 // Boost score for preferred sources
-                if (preferences?.preferredSources?.includes(source)) {
+                if (preferences?.preferredSources?.includes(effectiveSource)) {
                     score += 3;
                 }
 
@@ -137,7 +214,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
                 const bookmarkedSources: SupportedSource[] = bookmarks
                     .map(b => extractSourceFromUrl(b.articleUrl))
                     .filter((s): s is SupportedSource => s !== null);
-                if (bookmarkedSources.includes(source)) {
+                if (bookmarkedSources.includes(effectiveSource)) {
                     score += 2;
                 }
 
@@ -149,7 +226,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
                 return {
                     ...article,
                     recommendationScore: score,
-                    recommendationReason: getRecommendationReason(source, sourceFrequency, preferences, bookmarkedSources, articleLanguage, preferredLanguages, topPerformingSources),
+                    recommendationReason: getRecommendationReason(effectiveSource, sourceFrequency, preferences, bookmarkedSources, articleLanguage, preferredLanguages, topPerformingSources),
                 };
             })
             .filter((article): article is RecommendedArticle => article !== null)
@@ -201,6 +278,16 @@ const extractSourceFromUrl = (url: string): SupportedSource | null => {
     const urlObj = new URL(url);
     const domain = urlObj.hostname.replace('www.', '');
     const path = urlObj.pathname;
+
+    // Guardian
+    if (domain.includes('theguardian.com') || domain.includes('guardian.co.uk')) {
+        return 'guardian' as SupportedSource;
+    }
+
+    // NYTimes
+    if (domain.includes('nytimes.com')) {
+        return 'nytimes' as SupportedSource;
+    }
 
     // bbc_news and bbc_tech
     if (domain === 'feeds.bbci.co.uk') {
@@ -256,7 +343,7 @@ const extractSourceFromUrl = (url: string): SupportedSource | null => {
         return 'the_hindu_india'; // Default fallback
     }
 
-    // NYTimes
+    // NYTimes RSS
     if (domain === 'rss.nytimes.com') {
         if (path.includes('/World.xml')) return 'nytWorld';
         if (path.includes('/Americas.xml')) return 'nytAmerica';
