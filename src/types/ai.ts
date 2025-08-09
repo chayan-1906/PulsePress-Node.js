@@ -26,9 +26,9 @@ export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
     'ar': 'العربية',
     'hi': 'हिंदी',
     'bn': 'বাংলা',
-    'te': 'తెলুগু',
+    'te': 'తెলుగు',
     'ta': 'தமিழ்',
-    'mr': 'मराठী',
+    'mr': 'मराठी',
     'gu': 'ગુજરાતી',
     'kn': 'ಕನ್ನಡ',
     'ml': 'മലയാളം',
@@ -59,6 +59,26 @@ export interface StrikeCheckResult {
     wasReset?: boolean;
 }
 
+export interface UserStrikeStatus {
+    currentStrikes: number;
+    maxStrikes: number;
+    isBlocked: boolean;
+    blockType?: UserStrikeBlock;
+    blockedUntil?: Date;
+    lastStrikeAt?: Date;
+    timeUntilReset?: string;
+    blockTimeRemaining?: string;
+    nextStrikePenalty: string;
+}
+
+export interface UserStrikeHistory {
+    date: Date;
+    strikeNumber: number;
+    reason: string;
+    blockType?: UserStrikeBlock;
+    blockDuration?: string;
+}
+
 
 /** ------------- API response types ------------- */
 
@@ -72,6 +92,17 @@ export interface SummarizeArticleResponse {
 
 export interface GenerateContentHashResponse {
     hash?: string;
+    error?: string;
+}
+
+export interface GetUserStrikeStatusResponse {
+    strikeStatus?: UserStrikeStatus;
+    error?: string;
+}
+
+export interface GetUserStrikeHistoryResponse {
+    strikeHistory?: UserStrikeHistory[];
+    totalStrikes?: number;
     error?: string;
 }
 
@@ -106,4 +137,13 @@ export interface GetCachedSummaryParams {
 export interface TranslateTextParams {
     text: string;
     targetLanguage: SupportedLanguage;
+}
+
+export interface GetUserStrikeStatusParams {
+    email: string;
+}
+
+export interface GetUserStrikeHistoryParams {
+    email: string;
+    limit?: number;
 }
