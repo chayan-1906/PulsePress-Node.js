@@ -6,6 +6,8 @@ import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "..
 import {AuthRequest, GenerateMagicLinkParams, LoginParams, RefreshTokenParams, RegisterParams, UpdateUserParams, VerifyMagicLinkParams} from "../types/auth";
 import {deleteAccount, getUserByEmail, loginUser, loginWithGoogle, refreshToken, registerUser, updateUser} from "../services/AuthService";
 import {generateMagicLink, verifyMagicLink} from "../services/MagicLinkService";
+import {verifyTokenErrorHTML} from "../templates/verifyTokenErrorHTML";
+import {verifyTokenSuccessHTML} from "../templates/verifyTokenSuccessHTML";
 
 const registerUserController = async (req: Request, res: Response) => {
     console.info('registerUserController called'.bgMagenta.white.italic);
@@ -300,36 +302,20 @@ const verifyMagicLinkController = async (req: Request, res: Response) => {
         const {token}: Partial<VerifyMagicLinkParams> = req.query;
         if (!token) {
             console.error('Token is missing'.yellow.italic);
-            return res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('token'),
-                errorMsg: 'Token is required',
-            }));
+            return res.send(verifyTokenErrorHTML);
         }
 
         const {user, accessToken, refreshToken, error} = await verifyMagicLink({token});
         if (error) {
-            return res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: error.toString() ?? '',
-                errorMsg: 'Invalid or expired magic link',
-            }));
+            console.error('Magic link verification failed:'.yellow.italic, error);
+            return res.send(verifyTokenErrorHTML);
         }
 
-        res.status(200).send(new ApiResponse({
-            success: true,
-            message: 'Login successful 🎉',
-            user,
-            accessToken,
-            refreshToken,
-        }));
+        console.log('Magic link verified successfully:'.cyan.italic, {user, accessToken, refreshToken});
+        return res.send(verifyTokenSuccessHTML);
     } catch (error: any) {
         console.error('ERROR: inside catch of verifyMagicLinkController:', error);
-        res.status(500).send(new ApiResponse({
-            success: false,
-            errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
-        }));
+        return res.send(verifyTokenErrorHTML);
     }
 }
 
@@ -387,6 +373,7 @@ const updateUserController = async (req: Request, res: Response) => {
                 errorCode: generateInvalidCode('password'),
                 errorMsg: 'Invalid password',
             }));
+            return;
         }
 
         const {user, error} = await updateUser({email, name, password, profilePicture});
