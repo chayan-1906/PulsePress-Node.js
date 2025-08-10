@@ -3,8 +3,9 @@ import {Request, Response} from "express";
 import {getAuthUrl} from "../utils/OAuth";
 import {ApiResponse} from "../utils/ApiResponse";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
-import {AuthRequest, LoginParams, RefreshTokenParams, RegisterParams, UpdateUserParams} from "../types/auth";
+import {AuthRequest, GenerateMagicLinkParams, LoginParams, RefreshTokenParams, RegisterParams, UpdateUserParams, VerifyMagicLinkParams} from "../types/auth";
 import {deleteAccount, getUserByEmail, loginUser, loginWithGoogle, refreshToken, registerUser, updateUser} from "../services/AuthService";
+import {generateMagicLink, verifyMagicLink} from "../services/MagicLinkService";
 
 const registerUserController = async (req: Request, res: Response) => {
     console.info('registerUserController called'.bgMagenta.white.italic);
@@ -48,7 +49,7 @@ const registerUserController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {user, accessToken, refreshToken, error} = await registerUser({name, email, password, confirmPassword});
+        const {user, error} = await registerUser({name, email, password, confirmPassword});
         if (error === generateInvalidCode('password')) {
             console.error('Password mismatch'.yellow.italic);
             res.status(400).send(new ApiResponse({
@@ -85,14 +86,11 @@ const registerUserController = async (req: Request, res: Response) => {
             }));
             return;
         }
-        console.log('new user created:'.cyan.italic, {user, accessToken, refreshToken});
+        console.log('new user created:'.cyan.italic, {user});
 
         res.status(201).send(new ApiResponse({
             success: true,
-            message: 'Registration successful 🎉',
-            user,
-            accessToken,
-            refreshToken,
+            message: 'Registration successful! Check your email to verify your account',
         }));
     } catch (error: any) {
         console.error('ERROR: inside catch of registerUserController:'.red.bold, error);
@@ -135,6 +133,15 @@ const loginController = async (req: Request, res: Response) => {
                 success: false,
                 errorCode: generateNotFoundCode('user'),
                 errorMsg: 'User not found',
+            }));
+            return;
+        }
+        if (error === 'USER_NOT_VERIFIED') {
+            console.error('User not verified'.yellow.italic);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'USER_NOT_VERIFIED',
+                errorMsg: 'User not verified',
             }));
             return;
         }
@@ -248,6 +255,76 @@ const loginWithGoogleController = async (req: Request, res: Response) => {
         }));
     } catch (error: any) {
         console.error('ERROR: inside catch of loginWithGoogleController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            errorCode: error.errorCode,
+            errorMsg: error.message || 'Something went wrong',
+        }));
+    }
+}
+
+const generateMagicLinkController = async (req: Request, res: Response) => {
+    console.info('generateMagicLinkController called'.bgMagenta.white.italic);
+
+    try {
+        const {email}: GenerateMagicLinkParams = req.body;
+        if (!email) {
+            console.error('Email is missing'.yellow.italic);
+            return res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('email'),
+                errorMsg: 'Email is required',
+            }));
+        }
+
+        const {success, message} = await generateMagicLink({email});
+        console.log('magic link:'.cyan.italic, message);
+        res.status(200).send(new ApiResponse({
+            success,
+            message,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of generateMagicLinkController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            errorCode: error.errorCode,
+            errorMsg: error.message || 'Something went wrong',
+        }));
+    }
+}
+
+const verifyMagicLinkController = async (req: Request, res: Response) => {
+    console.info('verifyMagicLinkController called'.bgMagenta.white.italic);
+
+    try {
+        const {token}: Partial<VerifyMagicLinkParams> = req.query;
+        if (!token) {
+            console.error('Token is missing'.yellow.italic);
+            return res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('token'),
+                errorMsg: 'Token is required',
+            }));
+        }
+
+        const {user, accessToken, refreshToken, error} = await verifyMagicLink({token});
+        if (error) {
+            return res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: error.toString() ?? '',
+                errorMsg: 'Invalid or expired magic link',
+            }));
+        }
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'Login successful 🎉',
+            user,
+            accessToken,
+            refreshToken,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of verifyMagicLinkController:', error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
@@ -398,4 +475,15 @@ const deleteAccountController = async (req: Request, res: Response) => {
     }
 }
 
-export {registerUserController, loginController, refreshTokenController, redirectToGoogle, loginWithGoogleController, getUserProfileController, updateUserController, deleteAccountController};
+export {
+    registerUserController,
+    loginController,
+    refreshTokenController,
+    redirectToGoogle,
+    loginWithGoogleController,
+    generateMagicLinkController,
+    verifyMagicLinkController,
+    getUserProfileController,
+    updateUserController,
+    deleteAccountController
+};

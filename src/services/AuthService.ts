@@ -1,9 +1,12 @@
 import "colors";
+import mongoose from "mongoose";
 import bcryptjs from "bcryptjs";
 import jwt, {SignOptions} from "jsonwebtoken";
 import {getOAuth2Client} from "../utils/OAuth";
+import {generateMagicLink} from "./MagicLinkService";
 import BookmarkModel from "../models/BookmarkSchema";
 import UserModel, {IUser} from "../models/UserSchema";
+import MagicLinkModel from "../models/MagicLinkSchema";
 import {modifyUserPreference} from "./UserPreferenceService";
 import ReadingHistoryModel from "../models/ReadingHistorySchema";
 import UserPreferenceModel from "../models/UserPreferenceSchema";
@@ -26,7 +29,6 @@ import {
     UpdateUserParams,
     UpdateUserResponse
 } from "../types/auth";
-import mongoose from "mongoose";
 
 const registerUser = async ({name, email, password, confirmPassword}: RegisterParams): Promise<RegisterResponse> => {
     try {
@@ -60,7 +62,6 @@ const registerUser = async ({name, email, password, confirmPassword}: RegisterPa
 
         try {
             const [newUser] = await UserModel.create([{name, email, password: hashedPassword}], {session});
-            const {accessToken, refreshToken} = await generateJWT(newUser);
             console.log('user created:'.cyan.italic, newUser);
 
             const {userPreference, error} = await modifyUserPreference({
@@ -81,7 +82,10 @@ const registerUser = async ({name, email, password, confirmPassword}: RegisterPa
             console.log('user preference created:'.cyan.italic, userPreference);
 
             await session.commitTransaction();
-            return {user: newUser, accessToken, refreshToken};
+
+            await generateMagicLink({email});
+            console.log('verification magic link sent:'.cyan.italic, {email});
+            return {user: newUser};
         } catch (error: any) {
             console.error('ERROR: inside catch of registerUser > userPreference:'.red.bold, error);
             await session.abortTransaction();
@@ -104,6 +108,9 @@ const loginUser = async ({email, password}: LoginParams): Promise<LoginResponse>
         const {user} = await getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
+        }
+        if (!user.isMagicLoginVerified && !user.googleId) {
+            return {error: 'USER_NOT_VERIFIED'};
         }
 
         if (user.googleId && !user.password) {
@@ -177,7 +184,7 @@ const loginWithGoogle = async ({code}: LoginWithGoogleParams): Promise<LoginResp
         session.startTransaction();
 
         try {
-            const [newUser] = await UserModel.create([{googleId, name, email, profilePicture}], {session});
+            const [newUser] = await UserModel.create([{googleId, name, email, profilePicture, isMagicLoginVerified: true}], {session});
             const {accessToken, refreshToken} = await generateJWT(newUser);
             console.log('user created:'.cyan.italic, newUser);
 
@@ -342,6 +349,7 @@ const deleteAccount = async ({email}: DeleteAccountByEmailParams): Promise<Delet
         }
 
         // Delete in dependency order
+        await MagicLinkModel.deleteMany({email}, {session});
         await ReadingHistoryModel.deleteMany({userExternalId: user.userExternalId}, {session});
         await BookmarkModel.deleteMany({userExternalId: user.userExternalId}, {session});
         await UserPreferenceModel.deleteMany({userExternalId: user.userExternalId}, {session});
@@ -363,4 +371,4 @@ const deleteAccount = async ({email}: DeleteAccountByEmailParams): Promise<Delet
     }
 }
 
-export {registerUser, loginUser, refreshToken, loginWithGoogle, updateUser, hashPassword, comparePassword, getUserByEmail, deleteAccount};
+export {registerUser, loginUser, refreshToken, loginWithGoogle, updateUser, hashPassword, comparePassword, generateJWT, getUserByEmail, deleteAccount};

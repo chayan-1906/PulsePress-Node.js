@@ -11,8 +11,6 @@ export interface AuthRequest extends Request {
 
 export interface RegisterResponse {
     user?: object | null;
-    accessToken?: string;
-    refreshToken?: string;
     error?: string;
 }
 
@@ -69,6 +67,14 @@ export interface RefreshTokenParams {
 
 export interface LoginWithGoogleParams {
     code: string;
+}
+
+export interface GenerateMagicLinkParams {
+    email: string;
+}
+
+export interface VerifyMagicLinkParams {
+    token: string;
 }
 
 export interface UpdateUserParams {

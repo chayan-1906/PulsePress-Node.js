@@ -49,7 +49,7 @@ const CachedSummarySchema = new Schema<ICachedSummary>({
 
             return ret;
         },
-    }
+    },
 });
 
 const CachedSummaryModel: ICachedSummaryModel = model<ICachedSummary, ICachedSummaryModel>('CachedSummary', CachedSummarySchema);

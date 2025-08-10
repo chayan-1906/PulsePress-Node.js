@@ -22,7 +22,7 @@ const app = express();
 // middlewares
 app.use(cors({
     origin: [
-        'http://localhost:3000',                // Development
+        'http://localhost:4000',                // Development
         'https://pulsepress.vercel.app',        // Production web - yet to be decided
         'exp://192.168.1.100:8081',             // Expo development
     ],

@@ -14,6 +14,7 @@ export interface IUser extends Document {
     userId: string;
     userExternalId: string;
     googleId?: string;
+    isMagicLoginVerified: boolean;
     name?: string;
     email?: string;
     password?: string;
@@ -48,7 +49,7 @@ const StrikeHistoryEventSchema = new Schema<StrikeHistoryEvent>({
     },
     blockDuration: {
         type: String,
-    }
+    },
 }, {_id: false});
 
 const UserStrikeSchema = new Schema<IUserStrike>({
@@ -83,6 +84,10 @@ const UserSchema = new Schema<IUser>({
     googleId: {
         type: String,
     },
+    isMagicLoginVerified: {
+        type: Boolean,
+        default: false,
+    },
     name: {
         type: String,
         trim: true,
@@ -96,8 +101,8 @@ const UserSchema = new Schema<IUser>({
     password: {
         type: String,
         required() {
-            return !this.googleId;
-        }, // Only required if not Google user
+            return !this.googleId && !this.isMagicLoginVerified;
+        }, // Only required for Email/Password auth
         trim: true,
     },
     profilePicture: {
