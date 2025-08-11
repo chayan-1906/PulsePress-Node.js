@@ -61,6 +61,7 @@ const fetchNEWSORGTopHeadlinesController = async (req: Request, res: Response) =
 const fetchNEWSORGEverythingController = async (req: Request, res: Response) => {
     console.info('fetchEverythingController called'.bgMagenta.white.italic);
     try {
+        const email = (req as AuthRequest).email;
         const {sources, from, to, sortBy, language, q, pageSize, page}: Partial<NEWSORGEverythingParams> = req.query;
 
         if (!sources && !q) {
@@ -80,7 +81,7 @@ const fetchNEWSORGEverythingController = async (req: Request, res: Response) => 
         if (page && !isNaN(page)) {
             pageNumber = Number(page);
         }
-        const everything = await fetchNEWSORGEverything({sources, from, to, sortBy, language, q, pageSize: pageSizeNumber, page: pageNumber});
+        const everything = await fetchNEWSORGEverything({email, sources, from, to, sortBy, language, q, pageSize: pageSizeNumber, page: pageNumber});
         console.log('everything:'.cyan.italic, everything);
 
         res.status(200).send(new ApiResponse({
@@ -101,6 +102,7 @@ const fetchNEWSORGEverythingController = async (req: Request, res: Response) => 
 const fetchGuardianNewsController = async (req: Request, res: Response) => {
     console.info('fetchGuardianNewsController called'.bgMagenta.white.italic);
     try {
+        const email = (req as AuthRequest).email;
         const {q, section, fromDate, toDate, orderBy, pageSize, page}: Partial<GuardianSearchParams> = req.query;
 
         let pageSizeNumber, pageNumber;
@@ -111,7 +113,7 @@ const fetchGuardianNewsController = async (req: Request, res: Response) => {
             pageNumber = Number(page);
         }
 
-        const guardianResults = await fetchGuardianNews({q, section, fromDate, toDate, orderBy, pageSize: pageSizeNumber, page: pageNumber});
+        const guardianResults = await fetchGuardianNews({email, q, section, fromDate, toDate, orderBy, pageSize: pageSizeNumber, page: pageNumber});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -131,6 +133,7 @@ const fetchGuardianNewsController = async (req: Request, res: Response) => {
 const fetchNYTimesNewsController = async (req: Request, res: Response) => {
     console.info('fetchNYTimesNewsController called'.bgMagenta.white.italic);
     try {
+        const email = (req as AuthRequest).email;
         const {q, section, sort, fromDate, toDate, pageSize, page}: Partial<NYTimesSearchParams> = req.query;
         console.log('q:'.bgMagenta.white.italic, q);
 
@@ -153,7 +156,7 @@ const fetchNYTimesNewsController = async (req: Request, res: Response) => {
             pageNumber = Number(page);
         }
 
-        const nytResults = await fetchNYTimesNews({q, section, sort, fromDate, toDate, pageSize: pageSizeNumber, page: pageNumber});
+        const nytResults = await fetchNYTimesNews({email, q, section, sort, fromDate, toDate, pageSize: pageSizeNumber, page: pageNumber});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -173,6 +176,7 @@ const fetchNYTimesNewsController = async (req: Request, res: Response) => {
 const fetchNYTimesTopStoriesController = async (req: Request, res: Response) => {
     console.info('fetchNYTimesTopStoriesController called'.bgMagenta.white.italic);
     try {
+        const email = (req as AuthRequest).email;
         const {section}: Partial<NYTimesTopStoriesParams> = req.query;
 
         if (section && !VALID_NYTIMES_SECTIONS.includes(section)) {
@@ -186,7 +190,7 @@ const fetchNYTimesTopStoriesController = async (req: Request, res: Response) => 
             return;
         }
 
-        const nytTopStories = await fetchNYTimesTopStories({section});
+        const nytTopStories = await fetchNYTimesTopStories({email, section});
 
         res.status(200).send(new ApiResponse({
             success: true,

@@ -462,9 +462,68 @@ const fetchNEWSORGTopHeadlines = async ({email, country, category, sources, q, p
     }
 }
 
-const fetchNEWSORGEverything = async ({sources, from, to, sortBy, language, q, pageSize = 10, page = 1}: NEWSORGEverythingParams) => {
+const fetchNEWSORGEverything = async ({email, sources, from, to, sortBy, language, q, pageSize = 10, page = 1}: NEWSORGEverythingParams) => {
     try {
-        const cacheKey = `${sources}-${from}-${to}-${sortBy}-${language}-${q}-${pageSize}-${page}`;
+        let processedQuery = q;
+
+        if (q && q.trim()) {
+            console.log(`Processing NewsAPI Everything query: "${q}"`.cyan.italic);
+
+            try {
+                if (email) {
+                    console.log('Attempting AI query expansion...'.cyan.italic);
+
+                    const {isBlocked, message, blockedUntil, blockType} = await StrikeService.checkUserBlock(email);
+                    if (isBlocked) {
+                        console.log('User is currently blocked, using basic expansion...'.yellow.italic, {message, blockedUntil, blockType});
+                        processedQuery = enhanceSearchQuery(q.trim());
+                        console.log('Block detected, falling back to basic query enhancement'.yellow.italic);
+                    } else {
+                        console.log('Checking if query is news-related before AI expansion...'.cyan.italic);
+                        const classification = await NewsClassificationService.classifyContent(q.trim());
+
+                        if (classification === 'error') {
+                            console.error('Classification failed, allowing AI expansion to proceed'.yellow.italic);
+                            const expandedTerms = await expandQueryWithAI({email, query: q.trim()});
+
+                            if (expandedTerms.length > 1) {
+                                const primaryTerm = `"${expandedTerms[0]}"`;
+                                const secondaryTerms = expandedTerms.slice(1, 3);
+                                processedQuery = `${primaryTerm} ${secondaryTerms.join(' ')}`;
+                            } else {
+                                processedQuery = `"${expandedTerms[0]}"`;
+                            }
+                        } else if (classification === 'non_news') {
+                            console.log('Non-news query detected, applying strike and using basic expansion...'.yellow.italic);
+                            await StrikeService.applyStrike(email);
+                            processedQuery = enhanceSearchQuery(q.trim());
+                            console.log('Strike applied, falling back to basic query enhancement'.yellow.italic);
+                        } else {
+                            console.log('News query verified, proceeding with AI expansion...'.green.italic);
+                            const expandedTerms = await expandQueryWithAI({email, query: q.trim()});
+
+                            if (expandedTerms.length > 1) {
+                                const primaryTerm = `"${expandedTerms[0]}"`;
+                                const secondaryTerms = expandedTerms.slice(1, 3);
+                                processedQuery = `${primaryTerm} ${secondaryTerms.join(' ')}`;
+                            } else {
+                                processedQuery = `"${expandedTerms[0]}"`;
+                            }
+                        }
+                    }
+                } else {
+                    console.log('Anonymous users can\'t use AI features, using basic expansion...'.yellow.italic);
+                    processedQuery = `"${q.trim()}"`;
+                }
+            } catch (error) {
+                console.log('AI expansion failed, using basic search...'.yellow.italic);
+                processedQuery = `"${q.trim()}"`;
+            }
+
+            console.log(`Query processed: "${q}" → "${processedQuery}"`.green);
+        }
+
+        const cacheKey = `${sources}-${from}-${to}-${sortBy}-${language}-${processedQuery}-${pageSize}-${page}`;
         const cached = EVERYTHING_NEWS_CACHE.get(cacheKey);
         if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
             console.log('returning cached data:'.cyan.italic, cached.data);
@@ -477,7 +536,7 @@ const fetchNEWSORGEverything = async ({sources, from, to, sortBy, language, q, p
         }
 
         const {data: everything} = await axios.get<NEWSORGTopHeadlinesAPIResponse>(
-            apis.fetchEverythingApi({sources, from, to, sortBy, language, q, pageSize, page}),
+            apis.fetchEverythingApi({sources, from, to, sortBy, language, q: processedQuery, pageSize, page}),
             {headers: buildHeader('newsapi')},
         );
         newsApiRequestCount++;
@@ -494,7 +553,7 @@ const fetchNEWSORGEverything = async ({sources, from, to, sortBy, language, q, p
     }
 }
 
-const fetchGuardianNews = async ({q, section, fromDate, toDate, orderBy = 'newest', pageSize = 10, page = 1}: GuardianSearchParams) => {
+const fetchGuardianNews = async ({email, q, section, fromDate, toDate, orderBy = 'newest', pageSize = 10, page = 1}: GuardianSearchParams) => {
     try {
         if (!GUARDIAN_API_KEY) {
             console.warn('Guardian API key not configured'.yellow.italic);
@@ -538,7 +597,7 @@ const fetchGuardianNews = async ({q, section, fromDate, toDate, orderBy = 'newes
     }
 }
 
-const fetchNYTimesNews = async ({q, section, sort = 'newest', fromDate, toDate, pageSize = 10, page = 1}: NYTimesSearchParams) => {
+const fetchNYTimesNews = async ({email, q, section, sort = 'newest', fromDate, toDate, pageSize = 10, page = 1}: NYTimesSearchParams) => {
     try {
         if (!NYTIMES_API_KEY) {
             console.warn('NYTimes API key not configured'.yellow.italic);
@@ -601,7 +660,7 @@ const fetchNYTimesNews = async ({q, section, sort = 'newest', fromDate, toDate, 
     }
 }
 
-const fetchNYTimesTopStories = async ({section = 'home'}: NYTimesTopStoriesParams) => {
+const fetchNYTimesTopStories = async ({email, section = 'home'}: NYTimesTopStoriesParams) => {
     try {
         if (!NYTIMES_API_KEY) {
             console.warn('NYTimes API key not configured'.yellow.italic);

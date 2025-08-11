@@ -206,7 +206,6 @@ const expandQueryWithAI = async ({email, query}: { email: string | undefined; qu
     try {
         const {user} = await getUserByEmail({email});
         if (user) {
-            // Check Gemini quota before processing
             if (geminiRequestCount >= Number.parseInt(GEMINI_QUOTA_REQUESTS!)) {
                 console.log('Gemini API daily limit reached, skipping AI expansion'.yellow.italic);
                 return [query];
@@ -214,15 +213,28 @@ const expandQueryWithAI = async ({email, query}: { email: string | undefined; qu
 
             console.log('user found:'.cyan.italic, user);
             const model = genAI.getGenerativeModel({model: AI_QUERY_PARSING_MODELS[0]});
-            const prompt = `Expand this search query with 3-5 related terms for better news search results.
+
+            const prompt = `Expand this search query with ONLY 1-2 directly related terms for precise news search results.
                         Query: "${query}"
 
+                        Rules:
+                        1. Include the original query as first element
+                        2. Add only 1-2 terms that are DIRECTLY related and specific to the main topic
+                        3. Avoid generic terms like "news", "update", "report"
+                        4. For retail/sales queries, focus on specific events or brands
+                        5. For company names, add only direct product names or exact subsidiaries
+                        6. For events, add only the specific date/location if relevant
+                        7. Keep terms highly specific and contextually relevant
+
                         Return only a JSON array of strings:
-                        ["${query}", "synonym1", "synonym2", "related_term1", "related_term2"]
-                        
-                        Example:
-                            Query: "Tesla" → ["Tesla", "electric vehicle", "EV", "Elon Musk", "automotive"]
-                            Query: "climate change" → ["climate change", "global warming", "carbon emissions", "greenhouse gases", "environmental"]
+                        ["${query}", "specific_term1"]
+
+                        Examples:
+                            Query: "Tesla earnings" → ["Tesla earnings", "Tesla quarterly results"]
+                            Query: "US Labor Day sales" → ["US Labor Day sales", "Labor Day retail deals"]
+                            Query: "climate change" → ["climate change", "global warming"]
+                            Query: "Bitcoin" → ["Bitcoin", "BTC price"]
+                            Query: "Apple iPhone" → ["Apple iPhone", "iPhone 15"]
                     `;
 
             const result = await model.generateContent(prompt);
@@ -234,8 +246,11 @@ const expandQueryWithAI = async ({email, query}: { email: string | undefined; qu
             const jsonMatch = responseText.match(/\[.*]/);
             if (jsonMatch) {
                 const expandedTerms = JSON.parse(jsonMatch[0]);
-                console.log(`Query expanded: "${query}" → [${expandedTerms.join(', ')}]`.green);
-                return expandedTerms;
+
+                const limitedTerms = expandedTerms.slice(0, 3);
+
+                console.log(`Query expanded: "${query}" → [${limitedTerms.join(', ')}]`.green);
+                return limitedTerms;
             }
 
             return [query];

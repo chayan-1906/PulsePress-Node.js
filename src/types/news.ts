@@ -263,6 +263,7 @@ export interface NEWSORGTopHeadlinesParams {
 }
 
 export interface NEWSORGEverythingParams {
+    email?: string;
     sources?: string;
     from?: string;
     to?: string
@@ -274,6 +275,7 @@ export interface NEWSORGEverythingParams {
 }
 
 export interface GuardianSearchParams {
+    email?: string;
     q?: string;
     section?: string;
     fromDate?: string;
@@ -284,6 +286,7 @@ export interface GuardianSearchParams {
 }
 
 export interface NYTimesSearchParams {
+    email?: string;
     q?: string;
     section?: string;
     sort?: string;
@@ -294,6 +297,7 @@ export interface NYTimesSearchParams {
 }
 
 export interface NYTimesTopStoriesParams {
+    email?: string;
     section?: string;
 }
 
