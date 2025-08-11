@@ -378,9 +378,61 @@ const isDuplicateArticle = (article: Article, existing: Article[]): boolean => {
     });
 }
 
-const fetchNEWSORGTopHeadlines = async ({country, category, sources, q, pageSize = 10, page = 1}: NEWSORGTopHeadlinesParams) => {
+const fetchNEWSORGTopHeadlines = async ({email, country, category, sources, q, pageSize = 10, page = 1}: NEWSORGTopHeadlinesParams) => {
     try {
-        const cacheKey = `${country}-${category}-${sources}-${q}-${pageSize}-${page}`;
+        let processedQuery = q;
+
+        if (q && q.trim()) {
+            console.log(`Processing NewsAPI Top Headlines query: "${q}"`.cyan.italic);
+
+            try {
+                if (email) {
+                    console.log('Attempting AI query expansion...'.cyan.italic);
+
+                    const {isBlocked, message, blockedUntil, blockType} = await StrikeService.checkUserBlock(email);
+                    if (isBlocked) {
+                        console.log('User is currently blocked, using basic expansion...'.yellow.italic, {message, blockedUntil, blockType});
+
+                        processedQuery = enhanceSearchQuery(q.trim());
+                        console.log('Block detected, falling back to basic query enhancement'.yellow.italic);
+                    } else {
+                        console.log('Checking if query is news-related before AI expansion...'.cyan.italic);
+                        const classification = await NewsClassificationService.classifyContent(q.trim());
+
+                        if (classification === 'error') {
+                            console.error('Classification failed, allowing AI expansion to proceed'.yellow.italic);
+                            const expandedTerms = await expandQueryWithAI({email, query: q.trim()});
+                            processedQuery = expandedTerms.join(' ');
+                        } else if (classification === 'non_news') {
+                            console.log('Non-news query detected, applying strike and using basic expansion...'.yellow.italic);
+
+                            await StrikeService.applyStrike(email);
+
+                            processedQuery = enhanceSearchQuery(q.trim());
+
+                            console.log('Strike applied, falling back to basic query enhancement'.yellow.italic);
+                        } else {
+                            console.log('News query verified, proceeding with AI expansion...'.green.italic);
+                            const expandedTerms = await expandQueryWithAI({email, query: q.trim()});
+                            processedQuery = expandedTerms.join(' ');
+                        }
+                    }
+                } else {
+                    console.log('Anonymous users can\'t use AI features, using basic expansion...'.yellow.italic);
+                    processedQuery = enhanceSearchQuery(q.trim());
+                }
+            } catch (error) {
+                console.log('AI expansion failed, using basic search...'.yellow.italic);
+
+                const topic = determineTopicFromQuery(q);
+                const topicKeywords = COMPREHENSIVE_TOPIC_KEYWORDS[topic as keyof typeof COMPREHENSIVE_TOPIC_KEYWORDS] || [];
+                processedQuery = [q.trim(), ...topicKeywords.slice(0, 3)].join(' ');
+            }
+
+            console.log(`Query processed: "${q}" → "${processedQuery}"`.green);
+        }
+
+        const cacheKey = `${country}-${category}-${sources}-${processedQuery}-${pageSize}-${page}`;
         const cached = TOPHEADLINES_CACHE.get(cacheKey);
         if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
             console.log('returning cached data:'.cyan.italic, cached.data);
@@ -393,7 +445,7 @@ const fetchNEWSORGTopHeadlines = async ({country, category, sources, q, pageSize
         }
 
         const {data: topHeadlinesResponse} = await axios.get<NEWSORGTopHeadlinesAPIResponse>(
-            apis.topHeadlinesApi({country: country || 'us', category, sources, q, pageSize, page}),
+            apis.topHeadlinesApi({country: country || 'us', category, sources, q: processedQuery, pageSize, page}),
             {headers: buildHeader('newsapi')},
         );
         newsApiRequestCount++;

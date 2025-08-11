@@ -1,6 +1,7 @@
 import "colors";
 import {Request, Response} from "express";
 import {isListEmpty} from "../utils/list";
+import {AuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
 import {
@@ -11,7 +12,7 @@ import {
     fetchNEWSORGTopHeadlines,
     fetchNYTimesNews,
     fetchNYTimesTopStories,
-    scrapeMultipleArticles
+    scrapeMultipleArticles,
 } from "../services/NewsService";
 import {
     GuardianSearchParams,
@@ -23,13 +24,13 @@ import {
     RSSFeedParams,
     ScrapeMultipleWebsitesParams,
     SUPPORTED_NEWS_LANGUAGES,
-    VALID_NYTIMES_SECTIONS
+    VALID_NYTIMES_SECTIONS,
 } from "../types/news";
-import {AuthRequest} from "../types/auth";
 
 const fetchNEWSORGTopHeadlinesController = async (req: Request, res: Response) => {
     console.info('fetchNEWSORGTopHeadlinesController called'.bgMagenta.white.italic);
     try {
+        const email = (req as AuthRequest).email;
         const {country, category, sources, q, pageSize, page}: Partial<NEWSORGTopHeadlinesParams> = req.query;
 
         let pageSizeNumber, pageNumber;
@@ -39,7 +40,7 @@ const fetchNEWSORGTopHeadlinesController = async (req: Request, res: Response) =
         if (page && !isNaN(page)) {
             pageNumber = Number(page);
         }
-        const topHeadlines = await fetchNEWSORGTopHeadlines({country, category, sources, q, pageSize: pageSizeNumber, page: pageNumber});
+        const topHeadlines = await fetchNEWSORGTopHeadlines({email, country, category, sources, q, pageSize: pageSizeNumber, page: pageNumber});
         console.log('top headlines:'.cyan.italic, topHeadlines);
 
         res.status(200).send(new ApiResponse({

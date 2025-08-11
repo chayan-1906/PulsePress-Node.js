@@ -253,6 +253,7 @@ export interface NYTimesTopStoriesResponse {
 /** ------------- function params ------------- */
 
 export interface NEWSORGTopHeadlinesParams {
+    email?: string;
     country?: string;
     category?: string;
     sources?: string
