@@ -565,14 +565,61 @@ const fetchGuardianNews = async ({email, q, section, fromDate, toDate, orderBy =
             return {status: 'error', message: 'Guardian API daily limit reached', articles: [], totalResults: 0};
         }
 
-        const cacheKey = `guardian-${q}-${section}-${fromDate}-${toDate}-${orderBy}-${pageSize}-${page}`;
+        let processedQuery = q;
+
+        if (q && q.trim()) {
+            console.log(`Processing Guardian query: "${q}"`.cyan.italic);
+
+            try {
+                if (email) {
+                    console.log('Attempting AI query expansion...'.cyan.italic);
+
+                    const {isBlocked, message, blockedUntil, blockType} = await StrikeService.checkUserBlock(email);
+                    if (isBlocked) {
+                        console.log('User is currently blocked, using basic expansion...'.yellow.italic, {message, blockedUntil, blockType});
+                        processedQuery = enhanceSearchQuery(q.trim());
+                        console.log('Block detected, falling back to basic query enhancement'.yellow.italic);
+                    } else {
+                        console.log('Checking if query is news-related before AI expansion...'.cyan.italic);
+                        const classification = await NewsClassificationService.classifyContent(q.trim());
+
+                        if (classification === 'error') {
+                            console.error('Classification failed, allowing AI expansion to proceed'.yellow.italic);
+                            const expandedTerms = await expandQueryWithAI({email, query: q.trim()});
+                            processedQuery = expandedTerms.join(' ');
+                        } else if (classification === 'non_news') {
+                            console.log('Non-news query detected, applying strike and using basic expansion...'.yellow.italic);
+                            await StrikeService.applyStrike(email);
+                            processedQuery = enhanceSearchQuery(q.trim());
+                            console.log('Strike applied, falling back to basic query enhancement'.yellow.italic);
+                        } else {
+                            console.log('News query verified, proceeding with AI expansion...'.green.italic);
+                            const expandedTerms = await expandQueryWithAI({email, query: q.trim()});
+                            processedQuery = expandedTerms.join(' ');
+                        }
+                    }
+                } else {
+                    console.log('Anonymous users can\'t use AI features, using basic expansion...'.yellow.italic);
+                    processedQuery = enhanceSearchQuery(q.trim());
+                }
+            } catch (error) {
+                console.log('AI expansion failed, using basic search...'.yellow.italic);
+                const topic = determineTopicFromQuery(q);
+                const topicKeywords = COMPREHENSIVE_TOPIC_KEYWORDS[topic as keyof typeof COMPREHENSIVE_TOPIC_KEYWORDS] || [];
+                processedQuery = [q.trim(), ...topicKeywords.slice(0, 3)].join(' ');
+            }
+
+            console.log(`Query processed: "${q}" → "${processedQuery}"`.green);
+        }
+
+        const cacheKey = `guardian-${processedQuery}-${section}-${fromDate}-${toDate}-${orderBy}-${pageSize}-${page}`;
         const cached = GUARDIAN_CACHE.get(cacheKey);
         if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
             console.log('returning cached Guardian data:'.cyan.italic);
             return cached.data;
         }
 
-        const url = apis.guardianSearchApi({q, section, fromDate, toDate, orderBy, pageSize, page}) + `&api-key=${GUARDIAN_API_KEY}`;
+        const url = apis.guardianSearchApi({q: processedQuery, section, fromDate, toDate, orderBy, pageSize, page}) + `&api-key=${GUARDIAN_API_KEY}`;
         const {data: guardianResponse} = await axios.get<GuardianResponse>(url, {headers: buildHeader('guardian')});
 
         guardianApiRequestCount++;
