@@ -35,6 +35,7 @@ const MagicLinkSchema = new Schema<IMagicLink>({
     createdAt: {
         type: Date,
         default: Date.now,
+        expires: 900,   // 15 minutes TTL
     },
 }, {
     timestamps: true,

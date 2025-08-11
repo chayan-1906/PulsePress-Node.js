@@ -184,7 +184,13 @@ const loginWithGoogle = async ({code}: LoginWithGoogleParams): Promise<LoginResp
         session.startTransaction();
 
         try {
+            if (!email) {
+                await session.abortTransaction();
+                return {error: generateInvalidCode('email')};
+            }
+
             const [newUser] = await UserModel.create([{googleId, name, email, profilePicture, isMagicLoginVerified: true}], {session});
+
             const {accessToken, refreshToken} = await generateJWT(newUser);
             console.log('user created:'.cyan.italic, newUser);
 

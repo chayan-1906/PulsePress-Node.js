@@ -309,6 +309,15 @@ const verifyMagicLinkController = async (req: Request, res: Response) => {
         }
 
         const {user, accessToken, refreshToken, error} = await verifyMagicLink({token});
+        if (error === 'CREATE_USER_PREFERENCE_FAILED') {
+            console.error('Failed to create user preference while creating user'.yellow.italic, error);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'CREATE_USER_PREFERENCE_FAILED',
+                errorMsg: 'Failed to create user preference',
+            }));
+            return;
+        }
         if (error) {
             console.error('Magic link verification failed:'.yellow.italic, error);
             res.send(verifyTokenErrorHTML);
@@ -339,6 +348,15 @@ const checkAuthStatusController = async (req: Request, res: Response) => {
         }
 
         const {authenticated, user, accessToken, refreshToken, error} = await checkAuthStatus({email});
+        if (error === generateNotFoundCode('user')) {
+            console.error('User not found'.yellow.italic);
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
+            }));
+            return;
+        }
         if (error) {
             console.error('Checking auth status failed:'.yellow.italic, error);
             res.status(400).send(new ApiResponse({

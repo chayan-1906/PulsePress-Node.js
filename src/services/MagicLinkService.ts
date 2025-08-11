@@ -1,8 +1,10 @@
-import {v4 as uuidv4} from 'uuid';
+import mongoose from "mongoose";
 import {getUserByEmail} from './AuthService';
 import {sendMagicLink} from './EmailService';
 import UserModel, {IUser} from "../models/UserSchema";
 import MagicLinkModel from "../models/MagicLinkSchema";
+import {modifyUserPreference} from "./UserPreferenceService";
+import generateNanoIdWithAlphabet from "../utils/generateUUID";
 import AuthSessionModel, {IAuthSession} from "../models/AuthSessionSchema";
 import {generateInvalidCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {CheckAuthStatusParams, CheckAuthStatusResponse, GenerateMagicLinkParams, GenerateMagicLinkResponse, VerifyMagicLinkParams, VerifyMagicLinkResponse} from "../types/auth";
@@ -23,7 +25,8 @@ const generateMagicLink = async ({email}: GenerateMagicLinkParams): Promise<Gene
             ],
         });
 
-        const token = uuidv4();
+        const token = generateNanoIdWithAlphabet();
+        console.log('random token in generateMagicLink:'.cyan.italic, token);
         const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
         await MagicLinkModel.create({email, token, expiresAt});
@@ -50,14 +53,45 @@ const verifyMagicLink = async ({token}: VerifyMagicLinkParams): Promise<VerifyMa
     const {user} = await getUserByEmail({email: magicLink.email});
     let finalUser: IUser;
     if (!user) {
-        const newUser = await UserModel.create({
-            name: magicLink.email.split('@')[0],
-            email: magicLink.email,
-            isMagicLoginVerified: true,
-            // No password field for magic link users
-        });
+        const session = await mongoose.startSession();
+        session.startTransaction();
+        try {
+            const [newUser] = await UserModel.create([
+                {
+                    name: magicLink.email.split('@')[0],
+                    email: magicLink.email,
+                    isMagicLoginVerified: true,
+                }
+            ], {session});
+            console.log('user created:'.cyan.italic, newUser);
 
-        finalUser = newUser;
+            const {userPreference, error} = await modifyUserPreference({
+                email: magicLink.email,
+                user: newUser,
+                preferredLanguage: 'en',
+                preferredCategories: [],
+                preferredSources: [],
+                summaryStyle: 'standard',
+                newsLanguages: ['english'],
+                session,
+            });
+            if (error) {
+                console.log('ERROR: creating user preference failed:'.yellow.italic, error);
+                await session.abortTransaction();
+                return {error: 'CREATE_USER_PREFERENCE_FAILED'};
+            }
+            console.log('user preference created:'.cyan.italic, userPreference);
+
+            await session.commitTransaction();
+
+            finalUser = newUser;
+        } catch (error: any) {
+            console.error('ERROR: inside catch of verifyMagicLink > userPreference:'.red.bold, error);
+            await session.abortTransaction();
+            throw error;
+        } finally {
+            await session.endSession();
+        }
     } else {
         user.isMagicLoginVerified = true;
         await user.save();
