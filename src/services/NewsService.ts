@@ -87,50 +87,94 @@ const enhanceSearchQuery = (query: string): string => {
 
     const lowerQuery = query.toLowerCase().trim();
 
-    // Use COMPREHENSIVE_TOPIC_KEYWORDS for better enhancement
-    for (const [topic, keywords] of Object.entries(COMPREHENSIVE_TOPIC_KEYWORDS)) {
-        if (keywords.some(keyword => lowerQuery.includes(keyword.toLowerCase()))) {
-            return `${query} ${keywords.slice(0, 3).join(' ')}`; // Add top 3 relevant keywords
+    const compoundTerms: Record<string, string[]> = {
+        // Aviation & Transportation
+        'airline fuel': ['aviation fuel', 'jet fuel', 'airline costs'],
+        'airline setback': ['aviation problems', 'flight delays', 'airline issues'],
+        'flight delay': ['aviation delays', 'airport disruption', 'air travel'],
+        'airport security': ['aviation security', 'TSA', 'travel safety'],
+
+        // Politics & International Relations
+        'trump putin': ['summit', 'meeting', 'diplomacy', 'talks'],
+        'putin zelensky': ['ukraine', 'peace talks', 'negotiations'],
+        'trump zelensky': ['ukraine relations', 'diplomatic talks'],
+        'biden putin': ['us russia', 'diplomatic relations'],
+
+        // Retail & Consumer
+        'labor day sales': ['holiday shopping', 'retail deals', 'september sales'],
+        'black friday': ['holiday shopping', 'retail sales', 'consumer deals'],
+        'cyber monday': ['online sales', 'e-commerce', 'digital deals'],
+        'memorial day sales': ['holiday weekend', 'retail promotions'],
+
+        // Technology & Business
+        'chip shortage': ['semiconductor', 'supply chain', 'manufacturing'],
+        'ai regulation': ['artificial intelligence', 'tech policy', 'government oversight'],
+        'crypto regulation': ['cryptocurrency', 'digital assets', 'financial oversight'],
+
+        // Health & Medicine
+        'vaccine approval': ['pharmaceutical', 'health agency', 'medical regulation'],
+        'drug recall': ['pharmaceutical safety', 'medical alert', 'health warning'],
+
+        // Finance & Economy
+        'interest rates': ['federal reserve', 'monetary policy', 'economic policy'],
+        'inflation data': ['economic indicators', 'price increases', 'cost of living'],
+        'stock market': ['financial markets', 'trading', 'investment'],
+    };
+
+    for (const [term, keywords] of Object.entries(compoundTerms)) {
+        if (lowerQuery.includes(term)) {
+            return `${query} ${keywords.slice(0, 2).join(' ')}`;
         }
     }
 
-    // Legacy sport-specific enhancements (keep as fallback)
-    if (/cricket|test.*match|ind.*eng|eng.*ind|india.*england|england.*india|series/i.test(lowerQuery)) {
-        return `${query} cricket sport match series team`;
-    }
-    if (/football|soccer|premier.*league|champions.*league|fifa/i.test(lowerQuery)) {
-        return `${query} football soccer sport match team`;
-    }
-    if (/basketball|nba|playoff|finals/i.test(lowerQuery)) {
-        return `${query} basketball sport nba team game`;
-    }
-    if (/tennis|wimbledon|us.*open|australian.*open|french.*open/i.test(lowerQuery)) {
-        return `${query} tennis sport tournament match`;
+    for (const [topic, keywords] of Object.entries(COMPREHENSIVE_TOPIC_KEYWORDS)) {
+        if (keywords.some(keyword => lowerQuery.includes(keyword.toLowerCase()))) {
+            // Only add keywords if they're not already in the query
+            const relevantKeywords = keywords
+                .slice(0, 3)
+                .filter(keyword => !lowerQuery.includes(keyword.toLowerCase()));
+
+            if (relevantKeywords.length > 0) {
+                return `${query} ${relevantKeywords.slice(0, 2).join(' ')}`;
+            }
+        }
     }
 
-    // Business/Finance enhancements
-    if (/stock|market|economy|finance|business|earnings|profit/i.test(lowerQuery)) {
-        return `${query} business economy finance market`;
-    }
+    const topicEnhancements: Record<string, string[]> = {
+        // Sports (more specific patterns)
+        'cricket|test match|world cup cricket|ipl': ['cricket', 'sport', 'match'],
+        'football(?!.*american)|soccer|premier league|champions league|fifa world cup': ['football', 'soccer', 'sport'],
+        'basketball|nba|playoff|finals basketball': ['basketball', 'sport', 'nba'],
+        'tennis|wimbledon|us open tennis|australian open|french open': ['tennis', 'sport', 'tournament'],
 
-    // Technology enhancements
-    if (/tech|ai|startup|software|hardware|digital/i.test(lowerQuery)) {
-        return `${query} technology tech innovation`;
-    }
+        // Business/Finance (more targeted)
+        'earnings|quarterly results|financial report': ['business', 'earnings', 'finance'],
+        'stock price|market cap|share price': ['stock', 'market', 'finance'],
+        'merger|acquisition|corporate deal': ['business', 'corporate', 'deal'],
 
-    // Health enhancements
-    if (/health|medical|disease|treatment|vaccine|medicine/i.test(lowerQuery)) {
-        return `${query} health medical medicine`;
-    }
+        // Technology (avoid confusion with airline)
+        'artificial intelligence(?!.*airline)|machine learning|ai development': ['technology', 'artificial intelligence'],
+        'software|app development|programming': ['technology', 'software'],
+        'cybersecurity|data breach|privacy': ['technology', 'security'],
 
-    // Politics enhancements
-    if (/politics|government|election|policy|parliament|congress/i.test(lowerQuery)) {
-        return `${query} politics government policy`;
-    }
+        // Health (specific medical terms)
+        'clinical trial|drug approval|medical research': ['health', 'medical', 'research'],
+        'pandemic|epidemic|public health': ['health', 'public health', 'medicine'],
 
-    // Science enhancements
-    if (/science|research|study|climate|environment|space/i.test(lowerQuery)) {
-        return `${query} science research study`;
+        // Politics (more specific)
+        'election|voting|campaign|political race': ['politics', 'election', 'government'],
+        'congress|senate|house|legislative': ['politics', 'government', 'policy'],
+
+        // Science & Environment
+        'climate change|global warming|environmental': ['science', 'climate', 'environment'],
+        'space|nasa|satellite|astronomy': ['science', 'space', 'research'],
+    };
+
+    for (const [pattern, keywords] of Object.entries(topicEnhancements)) {
+        const regex = new RegExp(pattern, 'i');
+        if (regex.test(lowerQuery)) {
+            return `${query} ${keywords.join(' ')}`;
+        }
     }
 
     return query;
@@ -660,14 +704,61 @@ const fetchNYTimesNews = async ({email, q, section, sort = 'newest', fromDate, t
             return {status: 'error', message: 'NYTimes API daily limit reached', articles: [], totalResults: 0};
         }
 
-        const cacheKey = `nytimes-${q}-${section}-${sort}-${fromDate}-${toDate}-${pageSize}-${page}`;
+        let processedQuery = q;
+
+        if (q && q.trim()) {
+            console.log(`Processing NYTimes query: "${q}"`.cyan.italic);
+
+            try {
+                if (email) {
+                    console.log('Attempting AI query expansion...'.cyan.italic);
+
+                    const {isBlocked, message, blockedUntil, blockType} = await StrikeService.checkUserBlock(email);
+                    if (isBlocked) {
+                        console.log('User is currently blocked, using basic expansion...'.yellow.italic, {message, blockedUntil, blockType});
+                        processedQuery = enhanceSearchQuery(q.trim());
+                        console.log('Block detected, falling back to basic query enhancement'.yellow.italic);
+                    } else {
+                        console.log('Checking if query is news-related before AI expansion...'.cyan.italic);
+                        const classification = await NewsClassificationService.classifyContent(q.trim());
+
+                        if (classification === 'error') {
+                            console.error('Classification failed, allowing AI expansion to proceed'.yellow.italic);
+                            const expandedTerms = await expandQueryWithAI({email, query: q.trim()});
+                            processedQuery = expandedTerms.join(' ');
+                        } else if (classification === 'non_news') {
+                            console.log('Non-news query detected, applying strike and using basic expansion...'.yellow.italic);
+                            await StrikeService.applyStrike(email);
+                            processedQuery = enhanceSearchQuery(q.trim());
+                            console.log('Strike applied, falling back to basic query enhancement'.yellow.italic);
+                        } else {
+                            console.log('News query verified, proceeding with AI expansion...'.green.italic);
+                            const expandedTerms = await expandQueryWithAI({email, query: q.trim()});
+                            processedQuery = expandedTerms.join(' ');
+                        }
+                    }
+                } else {
+                    console.log('Anonymous users can\'t use AI features, using basic expansion...'.yellow.italic);
+                    processedQuery = enhanceSearchQuery(q.trim());
+                }
+            } catch (error) {
+                console.log('AI expansion failed, using basic search...'.yellow.italic);
+                const topic = determineTopicFromQuery(q);
+                const topicKeywords = COMPREHENSIVE_TOPIC_KEYWORDS[topic as keyof typeof COMPREHENSIVE_TOPIC_KEYWORDS] || [];
+                processedQuery = [q.trim(), ...topicKeywords.slice(0, 3)].join(' ');
+            }
+
+            console.log(`Query processed: "${q}" → "${processedQuery}"`.green);
+        }
+
+        const cacheKey = `nytimes-${processedQuery}-${section}-${sort}-${fromDate}-${toDate}-${pageSize}-${page}`;
         const cached = NYTIMES_CACHE.get(cacheKey);
         if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
             console.log('returning cached NYTimes data:'.cyan.italic);
             return cached.data;
         }
 
-        const url = apis.nytimesSearchApi({q, section, sort, fromDate, toDate, pageSize, page}) + `&api-key=${NYTIMES_API_KEY}`;
+        const url = apis.nytimesSearchApi({q: processedQuery, section, sort, fromDate, toDate, pageSize, page}) + `&api-key=${NYTIMES_API_KEY}`;
         const {data: nytResponse} = await axios.get<NYTimesSearchResponse>(url, {headers: buildHeader('nytimes')});
         console.log('Raw NYT search response:', {
             status: nytResponse.status,
