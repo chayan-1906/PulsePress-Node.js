@@ -12,7 +12,7 @@ export const verifyTokenSuccessHTML = `
             <span style="font-size: 36px;">✅</span>
         </div>
         <h1 style="color: #38a169; margin: 0 0 16px; font-size: 24px; font-weight: 600;">Welcome to PulsePress!</h1>
-        <p style="color: #666; margin: 0 0 24px; line-height: 1.5;">You've been successfully signed in. This window will close automatically in a few seconds.</p>
+        <p style="color: #666; margin: 0 0 24px; line-height: 1.5;">You've been successfully signed in. You can close this window and return to the PulsePress app.</p>
         <button onclick="window.close()" style="background: #38a169; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 500; cursor: pointer;">Close Window</button>
     </div>
     <script>

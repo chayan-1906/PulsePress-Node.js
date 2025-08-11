@@ -3,11 +3,12 @@ import {Request, Response} from "express";
 import {getAuthUrl} from "../utils/OAuth";
 import {ApiResponse} from "../utils/ApiResponse";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
-import {AuthRequest, GenerateMagicLinkParams, LoginParams, RefreshTokenParams, RegisterParams, UpdateUserParams, VerifyMagicLinkParams} from "../types/auth";
+import {AuthRequest, CheckAuthStatusParams, GenerateMagicLinkParams, LoginParams, RefreshTokenParams, RegisterParams, UpdateUserParams, VerifyMagicLinkParams} from "../types/auth";
 import {deleteAccount, getUserByEmail, loginUser, loginWithGoogle, refreshToken, registerUser, updateUser} from "../services/AuthService";
-import {generateMagicLink, verifyMagicLink} from "../services/MagicLinkService";
+import {checkAuthStatus, generateMagicLink, verifyMagicLink} from "../services/MagicLinkService";
 import {verifyTokenErrorHTML} from "../templates/verifyTokenErrorHTML";
 import {verifyTokenSuccessHTML} from "../templates/verifyTokenSuccessHTML";
+import {token} from "morgan";
 
 const registerUserController = async (req: Request, res: Response) => {
     console.info('registerUserController called'.bgMagenta.white.italic);
@@ -272,11 +273,12 @@ const generateMagicLinkController = async (req: Request, res: Response) => {
         const {email}: GenerateMagicLinkParams = req.body;
         if (!email) {
             console.error('Email is missing'.yellow.italic);
-            return res.status(400).send(new ApiResponse({
+            res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateMissingCode('email'),
                 errorMsg: 'Email is required',
             }));
+            return;
         }
 
         const {success, message} = await generateMagicLink({email});
@@ -302,20 +304,67 @@ const verifyMagicLinkController = async (req: Request, res: Response) => {
         const {token}: Partial<VerifyMagicLinkParams> = req.query;
         if (!token) {
             console.error('Token is missing'.yellow.italic);
-            return res.send(verifyTokenErrorHTML);
+            res.send(verifyTokenErrorHTML);
+            return;
         }
 
         const {user, accessToken, refreshToken, error} = await verifyMagicLink({token});
         if (error) {
             console.error('Magic link verification failed:'.yellow.italic, error);
-            return res.send(verifyTokenErrorHTML);
+            res.send(verifyTokenErrorHTML);
+            return;
         }
 
         console.log('Magic link verified successfully:'.cyan.italic, {user, accessToken, refreshToken});
-        return res.send(verifyTokenSuccessHTML);
+        res.send(verifyTokenSuccessHTML);
     } catch (error: any) {
         console.error('ERROR: inside catch of verifyMagicLinkController:', error);
-        return res.send(verifyTokenErrorHTML);
+        res.send(verifyTokenErrorHTML);
+    }
+}
+
+const checkAuthStatusController = async (req: Request, res: Response) => {
+    console.info('checkAuthStatusController called'.bgMagenta.white.italic);
+
+    try {
+        const {email}: CheckAuthStatusParams = req.body;
+        if (!email) {
+            console.error('Email address is missing'.yellow.italic);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('email'),
+                errorMsg: 'Email address is missing',
+            }));
+            return;
+        }
+
+        const {authenticated, user, accessToken, refreshToken, error} = await checkAuthStatus({email});
+        if (error) {
+            console.error('Checking auth status failed:'.yellow.italic, error);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'AUTH_STATUS_CHECK_FAILED',
+                errorMsg: 'Authentication failed, please try again',
+            }));
+            return;
+        }
+
+        console.log('Auth status checked:'.cyan.italic, {authenticated, user, accessToken, refreshToken});
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'Auth status checked 🎉',
+            authenticated,
+            user,
+            accessToken,
+            refreshToken,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of checkAuthStatusController:', error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            errorCode: error.errorCode,
+            errorMsg: error.message || 'Something went wrong',
+        }));
     }
 }
 
@@ -360,15 +409,16 @@ const updateUserController = async (req: Request, res: Response) => {
         const {name, password, profilePicture}: UpdateUserParams = req.body;
         if ('name' in req.body && (typeof name !== 'string' || !name.trim() || name.trim() === 'null')) {
             console.error('Invalid name'.yellow.italic);
-            return res.status(400).send(new ApiResponse({
+            res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateInvalidCode('name'),
                 errorMsg: 'Invalid name',
             }));
+            return;
         }
         if ('password' in req.body && (typeof password !== 'string' || !password.trim() || password.trim() === 'null')) {
             console.error('Invalid password'.yellow.italic);
-            return res.status(400).send(new ApiResponse({
+            res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateInvalidCode('password'),
                 errorMsg: 'Invalid password',
@@ -470,7 +520,8 @@ export {
     loginWithGoogleController,
     generateMagicLinkController,
     verifyMagicLinkController,
+    checkAuthStatusController,
     getUserProfileController,
     updateUserController,
-    deleteAccountController
+    deleteAccountController,
 };

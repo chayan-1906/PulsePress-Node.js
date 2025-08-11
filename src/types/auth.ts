@@ -21,6 +21,26 @@ export interface LoginResponse {
     error?: string;
 }
 
+export interface GenerateMagicLinkResponse {
+    success: boolean;
+    message: string;
+}
+
+export interface VerifyMagicLinkResponse {
+    user?: IUser;
+    accessToken?: string;
+    refreshToken?: string;
+    error?: string;
+}
+
+export interface CheckAuthStatusResponse {
+    authenticated?: boolean;
+    user?: IUser;
+    accessToken?: string;
+    refreshToken?: string;
+    error?: string;
+}
+
 export interface RefreshTokenResponse {
     accessToken?: string;
     error?: string;
@@ -75,6 +95,10 @@ export interface GenerateMagicLinkParams {
 
 export interface VerifyMagicLinkParams {
     token: string;
+}
+
+export interface CheckAuthStatusParams {
+    email: string;
 }
 
 export interface UpdateUserParams {

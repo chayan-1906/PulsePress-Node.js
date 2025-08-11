@@ -371,4 +371,4 @@ const deleteAccount = async ({email}: DeleteAccountByEmailParams): Promise<Delet
     }
 }
 
-export {registerUser, loginUser, refreshToken, loginWithGoogle, updateUser, hashPassword, comparePassword, generateJWT, getUserByEmail, deleteAccount};
+export {registerUser, loginUser, refreshToken, loginWithGoogle, updateUser, generateJWT, getUserByEmail, deleteAccount};

@@ -2,6 +2,7 @@ import {Router} from "express";
 import {authMiddleware} from "../middlewares/AuthMiddleware";
 import {authRateLimiter} from "../middlewares/RateLimiterMiddleware";
 import {
+    checkAuthStatusController,
     deleteAccountController,
     generateMagicLinkController,
     getUserProfileController,
@@ -23,6 +24,7 @@ router.get('/google', redirectToGoogle);                                // /api/
 router.get('/oauth2callback', loginWithGoogleController);               // /api/v1/auth/oauth2callback
 router.post('/magic-link', authRateLimiter, generateMagicLinkController);               // /api/v1/auth/magic-link
 router.get('/verify-magic-link', verifyMagicLinkController);               // /api/v1/auth/verify-magic-link
+router.post('/check-auth-status', checkAuthStatusController);               // /api/v1/auth/check-auth-status
 router.get('/profile', authMiddleware, authRateLimiter, getUserProfileController);       // /api/v1/auth/profile
 router.put('/profile', authMiddleware, authRateLimiter, updateUserController);           // /api/v1/auth/profile
 router.delete('/profile', authMiddleware, authRateLimiter, deleteAccountController);     // /api/v1/auth/profile
