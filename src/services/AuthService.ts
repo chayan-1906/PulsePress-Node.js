@@ -26,6 +26,8 @@ import {
     RefreshTokenResponse,
     RegisterParams,
     RegisterResponse,
+    ResetPasswordParams,
+    ResetPasswordResponse,
     UpdateUserParams,
     UpdateUserResponse
 } from "../types/auth";
@@ -61,7 +63,7 @@ const registerUser = async ({name, email, password, confirmPassword}: RegisterPa
         session.startTransaction();
 
         try {
-            const [newUser] = await UserModel.create([{name, email, password: hashedPassword}], {session});
+            const [newUser] = await UserModel.create([{name, email, password: hashedPassword, authProvider: 'email'}], {session});
             console.log('user created:'.cyan.italic, newUser);
 
             const {userPreference, error} = await modifyUserPreference({
@@ -109,12 +111,17 @@ const loginUser = async ({email, password}: LoginParams): Promise<LoginResponse>
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
-        if (!user.isMagicLoginVerified && !user.googleId) {
+        if (!user.isVerified) {
             return {error: 'USER_NOT_VERIFIED'};
         }
 
-        if (user.googleId && !user.password) {
-            return {error: 'GOOGLE_USER_USE_OAUTH'};
+        if (!user.password) {
+            if (user.authProvider === 'google') {
+                return {error: 'GOOGLE_OAUTH_USER'};
+            }
+            if (user.authProvider === 'magic-link') {
+                return {error: 'MAGIC_LINK_USER'};
+            }
         }
 
         const isMatched = await verifyPassword(password, user.password!);
@@ -125,6 +132,66 @@ const loginUser = async ({email, password}: LoginParams): Promise<LoginResponse>
         const {accessToken, refreshToken} = await generateJWT(user);
 
         return {user, accessToken, refreshToken};
+    } catch (error: any) {
+        console.error('ERROR: inside catch of loginUser:'.red.bold, error);
+        throw error;
+    }
+}
+
+const resetPassword = async ({email, currentPassword, newPassword}: ResetPasswordParams): Promise<ResetPasswordResponse> => {
+    try {
+        const {user} = await getUserByEmail({email});
+        if (!user) {
+            return {error: generateNotFoundCode('user')};
+        }
+
+        /**
+         * {
+         *   success: false,
+         *   errorCode: 'NO_PASSWORD_SET',
+         *   errorMsg: 'You don\'t have a password yet. Choose how you\'d like to continue:',
+         *   options: [
+         *     {
+         *       action: 'SET_PASSWORD',
+         *       text: 'Create a password for your account',
+         *       description: 'We\'ll send you a secure link to set up a password'
+         *     },
+         *     {
+         *       action: 'USE_EXISTING_METHOD',
+         *       text: 'Continue with your usual login method',
+         *       description: 'Use Google sign-in or email link like before'
+         *     }
+         *   ]
+         * }
+         * */
+        if (!user.password) {
+            return {error: 'NO_PASSWORD_SET'};
+        }
+
+        if (!currentPassword) {
+            return {error: generateMissingCode('current_password')};
+        }
+        if (!newPassword) {
+            return {error: generateMissingCode('new_password')};
+        }
+
+        const isMatched = await verifyPassword(currentPassword, user.password!);
+        if (!isMatched) {
+            return {error: generateInvalidCode('credentials')};
+        }
+
+        if (currentPassword === newPassword) {
+            return {error: 'SAME_PASSWORD'};
+        }
+
+        if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*])(?=.{6,})/.test(newPassword)) {
+            return {error: generateInvalidCode('new_password')};
+        }
+        user.password = await hashPassword(newPassword);
+        await user.save();
+        console.log('password reset:'.cyan.italic);
+
+        return {user};
     } catch (error: any) {
         console.error('ERROR: inside catch of loginUser:'.red.bold, error);
         throw error;
@@ -176,6 +243,10 @@ const loginWithGoogle = async ({code}: LoginWithGoogleParams): Promise<LoginResp
         const {user} = await getUserByEmail({email});
         if (user) {
             console.info('user exists'.bgMagenta.white.italic);
+            user.authProvider = 'google';
+            user.isVerified = true;
+            user.googleId = googleId || '';
+            await user.save();
             const {accessToken, refreshToken} = await generateJWT(user);
             return {user, accessToken, refreshToken};
         }
@@ -189,7 +260,7 @@ const loginWithGoogle = async ({code}: LoginWithGoogleParams): Promise<LoginResp
                 return {error: generateInvalidCode('email')};
             }
 
-            const [newUser] = await UserModel.create([{googleId, name, email, profilePicture, isMagicLoginVerified: true}], {session});
+            const [newUser] = await UserModel.create([{googleId, name, email, profilePicture, isVerified: true, authProvider: 'google'}], {session});
 
             const {accessToken, refreshToken} = await generateJWT(newUser);
             console.log('user created:'.cyan.italic, newUser);
@@ -377,4 +448,4 @@ const deleteAccount = async ({email}: DeleteAccountByEmailParams): Promise<Delet
     }
 }
 
-export {registerUser, loginUser, refreshToken, loginWithGoogle, updateUser, generateJWT, getUserByEmail, deleteAccount};
+export {registerUser, loginUser, resetPassword, refreshToken, loginWithGoogle, updateUser, generateJWT, getUserByEmail, deleteAccount};

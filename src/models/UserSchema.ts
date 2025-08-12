@@ -1,5 +1,6 @@
 import {Document, Model, model, Schema} from "mongoose";
 import generateNanoIdWithAlphabet from "../utils/generateUUID";
+import {SUPPORTED_AUTH__PROVIDERS, SupportedAuthProvider} from "../types/auth";
 import {StrikeHistoryEvent, USER_STRIKE_BLOCK, UserStrikeBlock} from "../types/ai";
 
 export interface IUserStrike {
@@ -8,24 +9,6 @@ export interface IUserStrike {
     blockedUntil?: Date;
     blockType?: UserStrikeBlock; // 15-30min vs 2-day block
     history: StrikeHistoryEvent[];
-}
-
-export interface IUser extends Document {
-    userId: string;
-    userExternalId: string;
-    googleId?: string;
-    isMagicLoginVerified: boolean;
-    name?: string;
-    email?: string;
-    password?: string;
-    profilePicture?: string;
-    refreshToken?: string;
-    newsClassificationStrikes?: IUserStrike;
-    createdAt: Date;
-    updatedAt: Date;
-}
-
-interface IUserModel extends Model<IUser> {
 }
 
 const StrikeHistoryEventSchema = new Schema<StrikeHistoryEvent>({
@@ -74,6 +57,25 @@ const UserStrikeSchema = new Schema<IUserStrike>({
     },
 }, {_id: false});
 
+export interface IUser extends Document {
+    userId: string;
+    userExternalId: string;
+    authProvider: SupportedAuthProvider;
+    googleId?: string;
+    isVerified: boolean;
+    name?: string;
+    email?: string;
+    password?: string;
+    profilePicture?: string;
+    refreshToken?: string;
+    newsClassificationStrikes?: IUserStrike;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+interface IUserModel extends Model<IUser> {
+}
+
 const UserSchema = new Schema<IUser>({
     userExternalId: {
         type: String,
@@ -81,10 +83,15 @@ const UserSchema = new Schema<IUser>({
         required: true,
         default: () => generateNanoIdWithAlphabet(),
     },
+    authProvider: {
+        type: String,
+        required: true,
+        enum: SUPPORTED_AUTH__PROVIDERS,
+    },
     googleId: {
         type: String,
     },
-    isMagicLoginVerified: {
+    isVerified: {
         type: Boolean,
         default: false,
     },
@@ -101,7 +108,8 @@ const UserSchema = new Schema<IUser>({
     password: {
         type: String,
         required() {
-            return !this.googleId && !this.isMagicLoginVerified;
+            // return !this.googleId && !this.isVerified;
+            return this.authProvider === 'email';
         }, // Only required for Email/Password auth
         trim: true,
     },

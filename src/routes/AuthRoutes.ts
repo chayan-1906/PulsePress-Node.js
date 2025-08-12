@@ -11,6 +11,7 @@ import {
     redirectToGoogle,
     refreshTokenController,
     registerUserController,
+    resetPasswordController,
     updateUserController,
     verifyMagicLinkController
 } from "../controllers/AuthController";
@@ -19,6 +20,7 @@ const router = Router();
 
 router.post('/register', authRateLimiter, registerUserController);                       // /api/v1/auth/register
 router.post('/login', authRateLimiter, loginController);                                 // /api/v1/auth/login
+router.post('/reset-password', authMiddleware, authRateLimiter, resetPasswordController);                                 // /api/v1/auth/login
 router.post('/refresh-token', authRateLimiter, refreshTokenController);                  // /api/v1/auth/refresh-token
 router.get('/google', authRateLimiter, redirectToGoogle);                                // /api/v1/auth/google
 router.get('/oauth2callback', authRateLimiter, loginWithGoogleController);               // /api/v1/auth/oauth2callback

@@ -1,6 +1,10 @@
 import {Request} from "express";
 import {IUser} from "../models/UserSchema";
 
+export const SUPPORTED_AUTH__PROVIDERS = ['email', 'google', 'magic-link'];
+export type SupportedAuthProvider = typeof SUPPORTED_AUTH__PROVIDERS[number];
+
+
 export interface AuthRequest extends Request {
     userExternalId: string;
     email: string;
@@ -18,6 +22,11 @@ export interface LoginResponse {
     user?: object | null;
     accessToken?: string;
     refreshToken?: string;
+    error?: string;
+}
+
+export interface ResetPasswordResponse {
+    user?: object | null;
     error?: string;
 }
 
@@ -79,6 +88,12 @@ export interface RegisterParams {
 export interface LoginParams {
     email: string;
     password: string;
+}
+
+export interface ResetPasswordParams {
+    email: string;
+    currentPassword: string;
+    newPassword: string;
 }
 
 export interface RefreshTokenParams {

@@ -60,8 +60,9 @@ const verifyMagicLink = async ({token}: VerifyMagicLinkParams): Promise<VerifyMa
                 {
                     name: magicLink.email.split('@')[0],
                     email: magicLink.email,
-                    isMagicLoginVerified: true,
-                }
+                    isVerified: true,
+                    authProvider: 'magic-link',
+                },
             ], {session});
             console.log('user created:'.cyan.italic, newUser);
 
@@ -93,7 +94,8 @@ const verifyMagicLink = async ({token}: VerifyMagicLinkParams): Promise<VerifyMa
             await session.endSession();
         }
     } else {
-        user.isMagicLoginVerified = true;
+        user.authProvider = 'magic-link';
+        user.isVerified = true;
         await user.save();
         finalUser = user;
     }
@@ -120,6 +122,7 @@ const verifyMagicLink = async ({token}: VerifyMagicLinkParams): Promise<VerifyMa
     return {user: finalUser, accessToken, refreshToken};
 }
 
+// only for magicLink users -- not designed for google oauth and email/pass users
 const checkAuthStatus = async ({email}: CheckAuthStatusParams): Promise<CheckAuthStatusResponse> => {
     try {
         const {user} = await getUserByEmail({email});
