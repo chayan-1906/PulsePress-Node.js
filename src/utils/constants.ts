@@ -167,7 +167,7 @@ const DEFAULT_ENGAGEMENT_WEIGHTS: EngagementScoreWeights = {
     readingTimeWeight: 0.1,
 };
 
-export const LOW_QUALITY_CONTENT_INDICATORS = [
+const LOW_QUALITY_CONTENT_INDICATORS = [
     // Puzzles & Games
     'crossword', 'puzzle', 'sudoku', 'word game', 'quiz', 'riddle', 'trivia',
 
@@ -188,7 +188,7 @@ export const LOW_QUALITY_CONTENT_INDICATORS = [
     'doctors hate this', 'one weird trick', 'amazing secret', 'must see',
 ];
 
-export const TRUSTED_NEWS_SOURCES = {
+const TRUSTED_NEWS_SOURCES = {
     // Tier 1: Premium sources (highest credibility)
     tier1: [
         'bbc', 'guardian', 'nytimes', 'reuters', 'associated press', 'ap news',
@@ -213,7 +213,7 @@ export const TRUSTED_NEWS_SOURCES = {
     ],
 };
 
-export const TOPIC_SPECIFIC_SOURCES = {
+const TOPIC_SPECIFIC_SOURCES = {
     // Sports
     sports: ['espn', 'bbc-sport', 'sky-sports', 'the-sport-bible', 'talksport', 'ndtv_sports', 'ndtv_cricket', 'the_hindu_cricket', 'timesofindia_sports', 'sporting-news', 'sportsnet'],
 
@@ -236,7 +236,7 @@ export const TOPIC_SPECIFIC_SOURCES = {
     general: ['bbc-news', 'cnn', 'reuters', 'associated-press', 'al-jazeera', 'sky-news'],
 };
 
-export const COMPREHENSIVE_TOPIC_KEYWORDS = {
+const COMPREHENSIVE_TOPIC_KEYWORDS = {
     // News & Politics
     politics: [
         'election', 'government', 'parliament', 'congress', 'senate', 'voting', 'campaign',
@@ -379,4 +379,56 @@ export const COMPREHENSIVE_TOPIC_KEYWORDS = {
     ]
 };
 
-export {RSS_SOURCES, USER_AGENTS, DEFAULT_ENGAGEMENT_WEIGHTS};
+const TOPIC_QUERIES = {
+    technology: 'artificial intelligence technology innovation software cybersecurity',
+    business: 'stock market earnings economy corporate finance',
+    world: 'international politics government diplomacy world news',
+    health: 'medical research healthcare public health wellness',
+    sports: 'sports games tournaments athletics championship',
+    science: 'scientific research climate space discovery',
+    entertainment: 'movies music celebrities entertainment industry',
+    climate: 'climate change global warming environmental sustainability',
+    crypto: 'cryptocurrency bitcoin blockchain digital assets',
+    ai: 'artificial intelligence machine learning ChatGPT automation',
+    space: 'space exploration NASA SpaceX astronomy satellites',
+    auto: 'electric vehicles Tesla automotive industry transportation',
+    food: 'food industry agriculture nutrition restaurant chains',
+} as const;
+
+const TOPIC_METADATA = {
+    technology: {name: 'Technology', description: 'Software, gadgets, cybersecurity, innovation'},
+    business: {name: 'Business', description: 'Markets, finance, corporate news'},
+    world: {name: 'World Affairs', description: 'Politics, international news, diplomacy'},
+    health: {name: 'Health', description: 'Medical research, healthcare, wellness'},
+    sports: {name: 'Sports', description: 'Games, tournaments, athletics'},
+    science: {name: 'Science', description: 'Research, discoveries, studies'},
+    entertainment: {name: 'Entertainment', description: 'Movies, music, celebrities'},
+    climate: {name: 'Climate', description: 'Environment, sustainability, global warming'},
+    crypto: {name: 'Crypto', description: 'Bitcoin, blockchain, digital assets'},
+    ai: {name: 'AI', description: 'Machine learning, ChatGPT, automation'},
+    space: {name: 'Space', description: 'NASA, SpaceX, astronomy, satellites'},
+    auto: {name: 'Automotive', description: 'Electric vehicles, Tesla, transportation'},
+    food: {name: 'Food', description: 'Agriculture, nutrition, food industry'}
+} as const;
+
+const COUNTRY_KEYWORDS = {
+    india: 'India Indian Mumbai Delhi Bangalore Kolkata',
+    china: 'China Chinese Beijing Shanghai',
+    usa: 'United States American US',
+    uk: 'United Kingdom British UK London',
+    germany: 'Germany German Berlin',
+    japan: 'Japan Japanese Tokyo',
+} as const;
+
+export {
+    RSS_SOURCES,
+    USER_AGENTS,
+    DEFAULT_ENGAGEMENT_WEIGHTS,
+    LOW_QUALITY_CONTENT_INDICATORS,
+    TRUSTED_NEWS_SOURCES,
+    TOPIC_SPECIFIC_SOURCES,
+    COMPREHENSIVE_TOPIC_KEYWORDS,
+    TOPIC_QUERIES,
+    TOPIC_METADATA,
+    COUNTRY_KEYWORDS,
+};

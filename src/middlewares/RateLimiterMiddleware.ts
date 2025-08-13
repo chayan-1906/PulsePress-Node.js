@@ -17,7 +17,7 @@ import {
 } from "../config/config";
 
 // AI-specific (summarization) rate limiter
-const aiRateLimiterMiddleware = rateLimit({
+const aiRateLimiter = rateLimit({
     windowMs: Number(AI_WINDOW_MS) || 5 * 60 * 1000,  // 5 minute
     limit: Number(AI_MAX_REQUESTS) || 30,             // 30 requests per minute per user
     keyGenerator: (req: Request) => {
@@ -179,4 +179,4 @@ const userPreferencesRateLimiter = rateLimit({
     skipFailedRequests: false,
 });
 
-export {aiRateLimiterMiddleware, newsScrapingRateLimiter, authRateLimiter, bookmarkRateLimiter, readingHistoryRateLimiter, userPreferencesRateLimiter};
+export {aiRateLimiter, newsScrapingRateLimiter, authRateLimiter, bookmarkRateLimiter, readingHistoryRateLimiter, userPreferencesRateLimiter};

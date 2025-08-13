@@ -2,6 +2,7 @@ import {Router} from "express";
 import {authMiddlewareOptional} from "../middlewares/AuthMiddleware";
 import {newsScrapingRateLimiter} from "../middlewares/RateLimiterMiddleware";
 import {
+    exploreTopicController,
     fetchAllRSSFeedsController,
     fetchGuardianNewsController,
     fetchMultiSourceNewsController,
@@ -22,5 +23,6 @@ router.get('/nytimes/top-stories', authMiddlewareOptional, fetchNYTimesTopStorie
 router.get('/rss', authMiddlewareOptional, fetchAllRSSFeedsController);                   // /api/v1/news/rss?sources=prothom_alo,zeenews_bengali&language=bengali&pageSize=12&page=2
 router.get('/multi-source', authMiddlewareOptional, fetchMultiSourceNewsController);                   // /api/v1/news/rss?sources=prothom_alo,zeenews_bengali&language=bengali&pageSize=12&page=2
 router.post('/scrape', newsScrapingRateLimiter, scrapeWebsiteController); // /api/v1/news/scrape
+router.get('/explore/:topic', authMiddlewareOptional, exploreTopicController); // /api/v1/news/explore/:topic
 
 export default router;

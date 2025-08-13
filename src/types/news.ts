@@ -1,4 +1,4 @@
-import {RSS_SOURCES} from "../utils/constants";
+import {COUNTRY_KEYWORDS, RSS_SOURCES, TOPIC_QUERIES} from "../utils/constants";
 
 export const SUPPORTED_CATEGORIES = ['business', 'entertainment', 'general', 'health', 'science', 'sports', 'technology', 'country'];
 export type SupportedCategory = typeof SUPPORTED_CATEGORIES[number];
@@ -16,6 +16,9 @@ export const VALID_NYTIMES_SECTIONS = [
     't-magazine', 'travel', 'upshot', 'us', 'world'
 ];
 export type ValidNYTimesSection = typeof VALID_NYTIMES_SECTIONS[number];
+
+export type Topic = keyof typeof TOPIC_QUERIES;
+export type Country = keyof typeof COUNTRY_KEYWORDS;
 
 export const sourceMap: Record<string, SupportedSource> = {
     // english
@@ -325,4 +328,11 @@ export interface ScrapeWebsiteParams {
 
 export interface ScrapeMultipleWebsitesParams {
     urls?: string[];
+}
+
+export interface ExploreTopicParams {
+    email?: string;
+    country?: Country;
+    page?: number;
+    pageSize?: number;
 }

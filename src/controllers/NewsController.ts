@@ -3,6 +3,7 @@ import {Request, Response} from "express";
 import {isListEmpty} from "../utils/list";
 import {AuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
+import {COUNTRY_KEYWORDS, TOPIC_METADATA, TOPIC_QUERIES} from "../utils/constants";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
 import {
     fetchAllRSSFeeds,
@@ -15,6 +16,8 @@ import {
     scrapeMultipleArticles,
 } from "../services/NewsService";
 import {
+    Country,
+    ExploreTopicParams,
     GuardianSearchParams,
     MultisourceFetchNewsParams,
     NEWSORGEverythingParams,
@@ -24,6 +27,7 @@ import {
     RSSFeedParams,
     ScrapeMultipleWebsitesParams,
     SUPPORTED_NEWS_LANGUAGES,
+    Topic,
     VALID_NYTIMES_SECTIONS,
 } from "../types/news";
 
@@ -351,6 +355,69 @@ const scrapeWebsiteController = async (req: Request, res: Response) => {
     }
 }
 
+const exploreTopicController = async (req: Request, res: Response) => {
+    console.info('exploreTopicController called'.bgMagenta.white.italic);
+    try {
+        const email = (req as AuthRequest).email;
+        const {topic}: { topic?: Topic } = req.params;
+        const {country, pageSize, page}: Partial<ExploreTopicParams> = req.query;
+
+        if (!topic || !TOPIC_QUERIES[topic]) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateInvalidCode('topic'),
+                errorMsg: `Topic must be one of: ${Object.keys(TOPIC_QUERIES).join(', ')}`,
+            }));
+            return;
+        }
+
+        let pageSizeNumber, pageNumber;
+        if (pageSize && !isNaN(pageSize)) {
+            pageSizeNumber = Number(pageSize);
+        }
+        if (page && !isNaN(page)) {
+            pageNumber = Number(page);
+        }
+
+        let predefinedQuery: string = TOPIC_QUERIES[topic] ?? '';
+
+        let countryTerms: string | undefined;
+        const countryStr = Array.isArray(country) ? country[0] : country;
+        if (countryStr) {
+            const key = countryStr.toLowerCase() as Country;
+            countryTerms = COUNTRY_KEYWORDS[key];
+        }
+
+        if (countryTerms) {
+            predefinedQuery = `${predefinedQuery} ${countryTerms}`;
+        }
+
+        console.time('TOPIC_EXPLORATION_TIME'.bgMagenta.white.italic);
+        const topicResults = await fetchMultiSourceNews({
+            email,
+            q: predefinedQuery,
+            category: topic,
+            pageSize: pageSizeNumber,
+            page: pageNumber,
+        });
+        console.timeEnd('TOPIC_EXPLORATION_TIME'.bgMagenta.white.italic);
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: `${TOPIC_METADATA[topic].name} news found 🎉`,
+            topic: TOPIC_METADATA[topic],
+            searchResults: topicResults,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of exploreTopicController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: 'Something went wrong',
+        }));
+    }
+}
+
 export {
     fetchNEWSORGTopHeadlinesController,
     fetchNEWSORGEverythingController,
@@ -360,4 +427,5 @@ export {
     fetchAllRSSFeedsController,
     fetchMultiSourceNewsController,
     scrapeWebsiteController,
+    exploreTopicController,
 };
