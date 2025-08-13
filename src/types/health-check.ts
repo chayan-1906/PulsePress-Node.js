@@ -1,3 +1,13 @@
+export interface DatabaseHealth {
+    connected: boolean;
+    readyState: string;
+    host?: string;
+    name?: string;
+    connectionCount?: number;
+    uptime?: number;
+}
+
+
 /** ------------- API response types ------------- */
 
 export interface HealthCheckResponse {

@@ -56,6 +56,7 @@ const start = async () => {
         app.listen(port, '0.0.0.0', (error?: Error, address?: string) => {
             if (error) {
                 console.log('Error in starting server'.red.bold, error.message);
+                process.exit(1);
             } else {
                 console.log(`Server started on ${PORT}`.blue.italic.bold);
                 console.log(`\t- Local:        http://localhost:${PORT}`.blue.bold);
@@ -63,7 +64,9 @@ const start = async () => {
             }
         });
     } catch (error: any) {
-        console.log(`Error during server setup:`.red.bold, error);
+        console.log(`Error during server setup:`.red.bold, error.message || error);
+        console.log('Failed to connect to database. Exiting...'.red.bold);
+        process.exit(1);
     }
 }
 

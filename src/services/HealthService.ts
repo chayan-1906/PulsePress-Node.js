@@ -10,6 +10,7 @@ import {getOAuth2Client} from "../utils/OAuth";
 import {buildHeader} from "../utils/buildHeader";
 import {HealthCheckResponse} from "../types/health-check";
 import {GOOGLE_TRANSLATE_API_KEY} from "../config/config";
+import {getDatabaseHealth} from "../utils/databaseHealth";
 
 const checkNewsAPIHealth = async (): Promise<HealthCheckResponse> => {
     console.info('checkNewsAPIHealth called:'.bgMagenta.white.italic);
@@ -116,20 +117,38 @@ const checkDatabaseHealth = async (): Promise<HealthCheckResponse> => {
 
     try {
         const start = Date.now();
-        if (mongoose.connection.readyState !== 1) {
-            return {status: 'unhealthy', error: {message: 'Database not connected'}};
+
+        const dbHealth = getDatabaseHealth();
+
+        if (!dbHealth.connected) {
+            return {
+                status: 'unhealthy',
+                error: {message: `Database not connected. State: ${dbHealth.readyState}`},
+                data: dbHealth,
+            };
         }
 
-        if (!mongoose.connection.db) {
-            return {status: 'unhealthy', error: {message: 'Database connection not established'}};
-        }
+        await mongoose.connection.db!.admin().ping();
 
-        await mongoose.connection.db.admin().ping();
         const responseTime = Date.now() - start;
-        return {status: 'healthy', responseTime: `${responseTime}ms`};
+        return {
+            status: 'healthy',
+            responseTime: `${responseTime}ms`,
+            data: {
+                ...dbHealth,
+                poolInfo: {
+                    maxPoolSize: 10,
+                    configured: true,
+                },
+            },
+        };
     } catch (error: any) {
         console.error('ERROR: inside catch of checkDatabaseHealth:'.red.bold, error);
-        return {status: 'unhealthy', error: {message: error.message}};
+        return {
+            status: 'unhealthy',
+            error: {message: error.message},
+            data: getDatabaseHealth(),
+        };
     }
 }
 
