@@ -1,7 +1,7 @@
 import "colors";
 import StrikeService from "./StrikeService";
 import {getUserByEmail} from "./AuthService";
-import {STRIKE_LONG_BLOCK, STRIKE_TEMPORARY_BLOCK} from "../config/config";
+import {STRIKE_COOLDOWN_COUNT, STRIKE_LONG_BLOCK_DURATION, STRIKE_TEMPORARY_BLOCK_COUNT, STRIKE_TEMPORARY_BLOCK_DURATION} from "../config/config";
 import {GetUserStrikeHistoryParams, GetUserStrikeHistoryResponse, GetUserStrikeStatusParams, GetUserStrikeStatusResponse, UserStrikeHistory, UserStrikeStatus} from "../types/ai";
 
 const getUserStrikeStatus = async ({email}: GetUserStrikeStatusParams): Promise<GetUserStrikeStatusResponse> => {
@@ -52,9 +52,11 @@ const getUserStrikeStatus = async ({email}: GetUserStrikeStatusParams): Promise<
 
         const nextStrikePenalty = getNextStrikePenalty(strikeData.count);
 
+        const tempBlockCount = Number.parseInt(STRIKE_TEMPORARY_BLOCK_COUNT!) || 3;
+
         const strikeStatus: UserStrikeStatus = {
             currentStrikes: strikeData.count,
-            maxStrikes: 4,
+            maxStrikes: tempBlockCount + 1,
             isBlocked,
             blockType,
             blockedUntil,
@@ -112,13 +114,15 @@ const getUserStrikeHistory = async ({email, limit = 10}: GetUserStrikeHistoryPar
 
 // Helper functions
 const getNextStrikePenalty = (currentCount: number): string => {
-    // TODO: Make it (2, 3) dynamic -- take from env variable
-    if (currentCount === 0 || currentCount === 1) {
-        return `Warning ${currentCount}/2`;
-    } else if (currentCount === 2) {
-        return `${STRIKE_TEMPORARY_BLOCK}-minute cooldown`;
+    const cooldownCount = Number.parseInt(STRIKE_COOLDOWN_COUNT!) || 2;
+    const tempBlockCount = Number.parseInt(STRIKE_TEMPORARY_BLOCK_COUNT!) || 3;
+
+    if (currentCount < cooldownCount) {
+        return `Warning ${currentCount + 1}/${cooldownCount}`;
+    } else if (currentCount === cooldownCount) {
+        return `${STRIKE_TEMPORARY_BLOCK_DURATION}-minute cooldown`;
     } else {
-        return `${STRIKE_LONG_BLOCK}-day block`;
+        return `${STRIKE_LONG_BLOCK_DURATION}-day block`;
     }
 }
 

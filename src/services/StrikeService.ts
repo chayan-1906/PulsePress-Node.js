@@ -1,6 +1,6 @@
 import "colors";
 import UserModel from "../models/UserSchema";
-import {STRIKE_LONG_BLOCK, STRIKE_TEMPORARY_BLOCK} from "../config/config";
+import {STRIKE_COOLDOWN_COUNT, STRIKE_LONG_BLOCK_DURATION, STRIKE_TEMPORARY_BLOCK_COUNT, STRIKE_TEMPORARY_BLOCK_DURATION} from "../config/config";
 import {StrikeCheckResult, StrikeHistoryEvent, StrikeResult, UserStrikeBlock} from "../types/ai";
 
 class StrikeService {
@@ -26,7 +26,7 @@ class StrikeService {
             if (strikes.lastStrikeAt) {
                 const hoursSinceLastStrike = (now.getTime() - strikes.lastStrikeAt.getTime()) / (1000 * 60 * 60);
 
-                if (hoursSinceLastStrike >= Number.parseInt(STRIKE_LONG_BLOCK!) * 24) {
+                if (hoursSinceLastStrike >= Number.parseInt(STRIKE_LONG_BLOCK_DURATION!) * 24) {
                     console.log(`48-hour reset triggered for ${email}, clearing strikes from ${strikes.count} to 0`.green.italic);
 
                     // Reset strikes to 0 and clear history
@@ -116,13 +116,16 @@ class StrikeService {
             let reason: string;
             let blockDuration: string | undefined;
 
-            if (newStrikeCount === 1 || newStrikeCount === 2) {
+            const cooldownCount = Number.parseInt(STRIKE_COOLDOWN_COUNT!) || 2;
+            const tempBlockCount = Number.parseInt(STRIKE_TEMPORARY_BLOCK_COUNT!) || 3;
+
+            if (newStrikeCount <= cooldownCount) {
                 // Strike 1-2: Warning only
-                reason = `Warning ${newStrikeCount}/2 for non-news query`;
-                message = `⚠️ Warning ${newStrikeCount}/2: Your query appears to be non-news related. PulsePress is designed for news queries only. Please ask about current events, news, or recent developments`;
-            } else if (newStrikeCount === 3) {
+                reason = `Warning ${newStrikeCount}/${cooldownCount} for non-news query`;
+                message = `⚠️ Warning ${newStrikeCount}/${cooldownCount}: Your query appears to be non-news related. PulsePress is designed for news queries only. Please ask about current events, news, or recent developments`;
+            } else if (newStrikeCount === tempBlockCount) {
                 // Strike 3: 15-30 min cooldown
-                const cooldownMinutes = Number.parseInt(STRIKE_TEMPORARY_BLOCK!);
+                const cooldownMinutes = Number.parseInt(STRIKE_TEMPORARY_BLOCK_DURATION!);
                 blockedUntil = new Date(now.getTime() + cooldownMinutes * 60 * 1000);
                 blockType = 'cooldown';
                 isBlocked = true;
@@ -132,10 +135,10 @@ class StrikeService {
                 updateData['newsClassificationStrikes.blockedUntil'] = blockedUntil;
                 updateData['newsClassificationStrikes.blockType'] = blockType;
 
-                message = `🚫 Strike 3: You are temporarily blocked for ${cooldownMinutes} minutes due to repeated non-news queries. Please return later with news-related questions.`;
-            } else if (newStrikeCount >= 4) {
+                message = `🚫 Strike ${tempBlockCount}: You are temporarily blocked for ${cooldownMinutes} minutes due to repeated non-news queries. Please return later with news-related questions.`;
+            } else if (newStrikeCount > tempBlockCount) {
                 // Strike 4+: 2-day block
-                const blockDays = Number.parseInt(STRIKE_LONG_BLOCK!); // 2 days
+                const blockDays = Number.parseInt(STRIKE_LONG_BLOCK_DURATION!); // 2 days
                 blockedUntil = new Date(now.getTime() + blockDays * 24 * 60 * 60 * 1000);
                 blockType = 'long_block';
                 isBlocked = true;
@@ -145,7 +148,7 @@ class StrikeService {
                 updateData['newsClassificationStrikes.blockedUntil'] = blockedUntil;
                 updateData['newsClassificationStrikes.blockType'] = blockType;
 
-                message = `🔒 Strike ${newStrikeCount}: You are blocked for ${STRIKE_LONG_BLOCK} days due to continued misuse. PulsePress is exclusively for news-related queries. Please respect our terms of use.`;
+                message = `🔒 Strike ${newStrikeCount}: You are blocked for ${STRIKE_LONG_BLOCK_DURATION} days due to continued misuse. PulsePress is exclusively for news-related queries. Please respect our terms of use.`;
             } else {
                 reason = `Strike ${newStrikeCount} applied`;
                 message = `Strike ${newStrikeCount} applied.`;
@@ -253,7 +256,7 @@ class StrikeService {
 
             const hoursSinceLastStrike = (Date.now() - user.newsClassificationStrikes.lastStrikeAt.getTime()) / (1000 * 60 * 60);
 
-            if (hoursSinceLastStrike >= Number.parseInt(STRIKE_LONG_BLOCK!) * 24) {
+            if (hoursSinceLastStrike >= Number.parseInt(STRIKE_LONG_BLOCK_DURATION!) * 24) {
                 console.log(`Auto-reset conditions met for ${email} (${hoursSinceLastStrike.toFixed(1)} hours since last strike)`.cyan.italic);
                 return true;
             }
