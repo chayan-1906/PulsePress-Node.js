@@ -8,7 +8,7 @@ import {isListEmpty} from "../utils/list";
 import {parseRSS} from "../utils/parseRSS";
 import {buildHeader} from "../utils/buildHeader";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
-import {COMPREHENSIVE_TOPIC_KEYWORDS, LOW_QUALITY_CONTENT_INDICATORS, RSS_SOURCES, TOPIC_SPECIFIC_SOURCES, TRUSTED_NEWS_SOURCES, USER_AGENTS} from "../utils/constants";
+import {RSS_SOURCES, TOPIC_SPECIFIC_SOURCES, TRUSTED_NEWS_SOURCES, USER_AGENTS} from "../utils/constants";
 import {GUARDIAN_API_KEY, GUARDIAN_QUOTA_REQUESTS, NEWSAPI_QUOTA_REQUESTS, NEWSAPIORG_QUOTA_MS, NODE_ENV, NYTIMES_API_KEY, NYTIMES_QUOTA_REQUESTS, RSS_CACHE_DURATION} from "../config/config";
 import {
     Article,
@@ -54,21 +54,21 @@ setInterval(() => {
 const convertGuardianToArticle = (guardianArticle: GuardianArticle): Article => ({
     source: {
         id: 'guardian',
-        name: 'The Guardian'
+        name: 'The Guardian',
     },
     author: guardianArticle.fields?.byline || null,
     title: guardianArticle.fields?.headline || guardianArticle.webTitle,
-    description: guardianArticle.fields?.bodyText?.substring(0, 200) + '...' || null,
+    description: guardianArticle.fields?.bodyText?.substring(0, 100) + '...' || null,
     url: guardianArticle.webUrl,
     urlToImage: guardianArticle.fields?.thumbnail || null,
     publishedAt: guardianArticle.webPublicationDate,
-    content: guardianArticle.fields?.bodyText || null
+    content: guardianArticle.fields?.bodyText || null,
 })
 
 const convertNYTimesToArticle = (nytArticle: NYTimesArticle): Article => ({
     source: {
         id: 'nytimes',
-        name: 'The New York Times'
+        name: 'The New York Times',
     },
     author: nytArticle.byline?.original || null,
     title: nytArticle.headline?.main || null,
@@ -76,60 +76,33 @@ const convertNYTimesToArticle = (nytArticle: NYTimesArticle): Article => ({
     url: nytArticle.web_url,
     urlToImage: nytArticle.multimedia?.[0]?.url ? `https://static01.nyt.com/${nytArticle.multimedia[0].url}` : null,
     publishedAt: nytArticle.pub_date,
-    content: nytArticle.lead_paragraph || null
+    content: nytArticle.lead_paragraph || null,
 })
 
+/*
+* Workflow -
+* Original Query: "The latest news about the Trump administration policy"
+* Split by spaces using /\s+/: ["The", "latest", "news", "about", "the", "Trump", "administration", "policy"]
+* Filter out noise words, short words, and numbers ["latest", "news", "Trump", "administration", "policy"]
+* Create variations
+  variations = [
+    "The latest news about the Trump administration policy",  // Original
+    "latest news Trump administration policy",                // No noise words
+    "latest news Trump",                                      // First 3 words
+    "latest news"                                             // First 2 words
+  ]
+*/
 const generateQueryVariations = (query: string): string[] => {
     if (!query) return [query];
 
-    const lowerQuery = query.toLowerCase().trim();
-
-    // Remove noise words that don't help search
-    const noiseWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'up', 'down', 'out', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 'can', 'will', 'just', 'should', 'now'];
-
-    // API-friendly transformations
-    const queryTransformations: Record<string, string[]> = {
-        // Trade & Economics
-        'tariff clash hits india': ['India tariff dispute', 'India trade war', 'tariff India'],
-        'agentic ai mass job impact': ['AI job displacement', 'artificial intelligence jobs', 'AI automation employment'],
-        'streaming becomes profitable': ['streaming profits', 'streaming service revenue', 'streaming platform earnings'],
-
-        // Wildlife & Nature
-        "russell's viper danger": ['Russell viper snake', 'venomous snake India', 'Russell viper bite'],
-        'rare snake discovery': ['new snake species', 'snake discovery', 'rare reptile found'],
-        'wildfires ravage europe': ['Europe wildfire', 'European forest fires', 'wildfire Europe'],
-
-        // Politics & International
-        'trump warns putin': ['Trump Putin warning', 'Trump Russia', 'Putin Trump tensions'],
-        'eu reimpose iran sanctions': ['EU Iran sanctions', 'Europe Iran nuclear', 'Iran sanctions Europe'],
-        'israel pounds gaza': ['Israel Gaza strikes', 'Gaza bombing', 'Israel Palestinian conflict'],
-
-        // Social Media & Culture  
-        "vlogger's viral india reaction": ['India vlogger reaction', 'viral India video', 'foreigner India reaction'],
-
-        // Generic patterns
-        'hits india': ['India'],
-        'mass job impact': ['job losses', 'employment impact'],
-        'becomes profitable': ['profits', 'revenue'],
-        'ravage europe': ['Europe'],
-        'warns putin': ['Putin warning'],
-        'reimpose iran sanctions': ['Iran sanctions'],
-        'pounds gaza': ['Gaza strikes']
-    };
-
-    // Try specific transformations first
-    for (const [pattern, variations] of Object.entries(queryTransformations)) {
-        if (lowerQuery.includes(pattern)) {
-            return variations;
-        }
-    }
+    const noiseWords = [
+        'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'up',
+        'down', 'out', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some',
+        'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 'can', 'will', 'just', 'should', 'now',
+    ];
 
     // Generic simplification approach
-    const words = query.split(/\s+/).filter(word =>
-        word.length > 2 &&
-        !noiseWords.includes(word.toLowerCase()) &&
-        !/^\d+$/.test(word)
-    );
+    const words = query.split(/\s+/).filter(word => word.length > 2 && !noiseWords.includes(word.toLowerCase()) && !/^\d+$/.test(word));
 
     const variations: string[] = [];
 
@@ -147,7 +120,6 @@ const generateQueryVariations = (query: string): string[] => {
         variations.push(words.slice(0, 2).join(' '));
     }
 
-    // Remove duplicates and return unique variations
     return [...new Set(variations)];
 }
 
@@ -161,26 +133,19 @@ const determineTopicFromQuery = (query?: string, category?: string): string => {
 
     const lowerQuery = query.toLowerCase();
 
-    // Use COMPREHENSIVE_TOPIC_KEYWORDS for better detection
-    for (const [topic, keywords] of Object.entries(COMPREHENSIVE_TOPIC_KEYWORDS)) {
-        if (keywords.some(keyword => lowerQuery.includes(keyword.toLowerCase()))) {
-            // Map some topics to broader categories
-            if (topic === 'cricket' || topic === 'football' || topic === 'basketball') return 'sports';
-            if (topic === 'finance') return 'business';
-            if (topic === 'social_media') return 'technology';
-            if (topic === 'celebrity' || topic === 'music') return 'entertainment';
-            if (topic === 'crime') return 'general';
-            return topic;
-        }
-    }
-
     // Legacy fallback detection
-    if (/sport|match|game|team|player|football|basketball|tennis/i.test(lowerQuery)) return 'sports';
-    if (/business|economy|market|finance|stock|trade|company/i.test(lowerQuery)) return 'business';
-    if (/tech|technology|ai|software|startup|digital|cyber/i.test(lowerQuery)) return 'technology';
-    if (/health|medical|medicine|disease|treatment|doctor/i.test(lowerQuery)) return 'health';
-    if (/science|research|study|climate|environment|space/i.test(lowerQuery)) return 'science';
-    if (/politics|government|election|policy|parliament|law/i.test(lowerQuery)) return 'politics';
+    if (/sport|match|game|team|player|football|basketball|tennis|nba|cricket|soccer|olympics|athlete/i.test(lowerQuery)) return 'sports';
+    if (/business|economy|market|finance|stock|trade|company|earnings|revenue|merger|ipo|startup/i.test(lowerQuery)) return 'business';
+    if (/tech|technology|ai|software|digital|cyber|internet|app|gadget|robot|innovation |device/i.test(lowerQuery)) return 'technology';
+    if (/health|medical|medicine|disease|treatment|doctor|covid|vaccine|hospital|mental |wellness|fitness|nutrition/i.test(lowerQuery)) return 'health';
+    if (/science|research|study|climate|environment|space|nasa|discovery|biology|physics|astronomy|experiment/i.test(lowerQuery)) return 'science';
+    if (/politics|government|election|policy|parliament|law|minister|president|senate|congress|diplomacy|campaign/i.test(lowerQuery)) return 'politics';
+    if (/entertainment|movie|film|music|celebrity|actor|actress|hollywood|bollywood|show|tv|series|drama/i.test(lowerQuery)) return 'entertainment';
+    if (/crime|arrest|police|court|trial|murder|investigation|lawsuit|theft|fraud|scam|homicide/i.test(lowerQuery)) return 'crime';
+    if (/travel|tourism|flight|hotel|vacation|airline|destination|trip|journey|passport |visa/i.test(lowerQuery)) return 'travel';
+    if (/education|school|university|college|student|exam|curriculum|learning|degree|tuition/i.test(lowerQuery)) return 'education';
+    if (/weather|storm|rain|snow|heatwave|hurricane|flood|temperature|forecast/i.test(lowerQuery)) return 'weather';
+    if (/auto|car|vehicle|automobile|ev|electric.vehicle|motor|tesla|ford|bmw|transport/i.test(lowerQuery)) return 'automotive';
 
     return 'general';
 }
@@ -260,7 +225,8 @@ const mapToNYTimesSection = (topic: string): string => {
 }
 
 const assessContentQuality = (article: Article, query?: string): QualityScore => {
-    let score = 0.5;
+    // TODO: Remove
+    /*let score = 0.5;
     const reasons: string[] = [];
     let isRelevant = true;
     let isProfessional = true;
@@ -268,9 +234,7 @@ const assessContentQuality = (article: Article, query?: string): QualityScore =>
     const title = (article.title || '').toLowerCase();
     const description = (article.description || '').toLowerCase();
     const sourceName = (article.source?.name || '').toLowerCase();
-    const content = `${title} ${description}`.toLowerCase();
 
-    // Check for low-quality content indicators
     const hasLowQualityIndicator = LOW_QUALITY_CONTENT_INDICATORS.some(indicator => title.includes(indicator) || description.includes(indicator));
 
     if (hasLowQualityIndicator) {
@@ -279,7 +243,6 @@ const assessContentQuality = (article: Article, query?: string): QualityScore =>
         reasons.push('Contains low-quality content indicators');
     }
 
-    // Source credibility assessment
     const tier1Sources = TRUSTED_NEWS_SOURCES.tier1;
     const tier2Sources = TRUSTED_NEWS_SOURCES.tier2;
     const tier3Sources = TRUSTED_NEWS_SOURCES.tier3;
@@ -298,7 +261,6 @@ const assessContentQuality = (article: Article, query?: string): QualityScore =>
         reasons.push('Unknown source credibility');
     }
 
-    // Title quality checks
     if (title.length < 10) {
         score -= 0.2;
         reasons.push('Title too short');
@@ -316,7 +278,7 @@ const assessContentQuality = (article: Article, query?: string): QualityScore =>
         /this will blow your mind/i,
         /number \d+ will surprise you/i,
         /celebrities hate this/i,
-        /one weird trick/i
+        /one weird trick/i,
     ];
 
     if (clickbaitPatterns.some(pattern => pattern.test(title))) {
@@ -331,28 +293,23 @@ const assessContentQuality = (article: Article, query?: string): QualityScore =>
         let totalWords = queryWords.length;
 
         queryWords.forEach(queryWord => {
-            // Check for full word matches (not partial)
             const wordPattern = new RegExp(`\\b${queryWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
             const titleMatch = wordPattern.test(title);
             const descMatch = wordPattern.test(description);
 
             if (titleMatch || descMatch) {
-                // Give higher weight to title matches
                 contextualMatches += titleMatch ? 1.5 : 1.0;
 
-                // Bonus for context clues (words that commonly appear together)
                 if (titleMatch && title.length > 0) {
-                    // Check for topic coherence - if other query words are nearby
                     const titleWords = title.split(/\s+/);
                     const wordIndex = titleWords.findIndex(w => wordPattern.test(w));
                     if (wordIndex >= 0) {
-                        // Check words within 3 positions for context
                         const contextWindow = titleWords.slice(Math.max(0, wordIndex - 3), wordIndex + 4);
                         const contextStr = contextWindow.join(' ').toLowerCase();
 
                         const nearbyMatches = queryWords.filter(qw => qw !== queryWord && contextStr.includes(qw)).length;
                         if (nearbyMatches > 0) {
-                            contextualMatches += nearbyMatches * 0.5; // Bonus for proximity
+                            contextualMatches += nearbyMatches * 0.5;
                         }
                     }
                 }
@@ -374,7 +331,6 @@ const assessContentQuality = (article: Article, query?: string): QualityScore =>
         }
     }
 
-    // Content completeness
     if (!description || description.length < 50) {
         score -= 0.1;
         reasons.push('Missing or short description');
@@ -385,7 +341,6 @@ const assessContentQuality = (article: Article, query?: string): QualityScore =>
         reasons.push('No author attribution');
     }
 
-    // Recency boost (articles from last 7 days get slight boost)
     if (article.publishedAt) {
         const publishDate = new Date(article.publishedAt);
         const daysDiff = (Date.now() - publishDate.getTime()) / (1000 * 60 * 60 * 24);
@@ -396,10 +351,76 @@ const assessContentQuality = (article: Article, query?: string): QualityScore =>
         }
     }
 
-    // Normalize score to 0-1 range
     score = Math.max(0, Math.min(1, score));
 
-    return {score, reasons, isRelevant, isProfessional};
+    return {score, reasons, isRelevant, isProfessional};*/
+
+    let score = 0.5;
+    const reasons: string[] = [];
+    let isRelevant = true;
+    let isProfessional = true;
+
+    const title = article.title?.toLowerCase() || '';
+    const sourceName = article.source?.name?.toLowerCase() || '';
+
+    // Source credibility (improved matching)
+    const tier1Match = TRUSTED_NEWS_SOURCES.tier1.some(source => sourceName.includes(source.toLowerCase()));
+    const tier2Match = TRUSTED_NEWS_SOURCES.tier2.some(source => sourceName.includes(source.toLowerCase()));
+    const tier3Match = TRUSTED_NEWS_SOURCES.tier3.some(source => sourceName.includes(source.toLowerCase()));
+
+    if (tier1Match) {
+        score += 0.3;
+        reasons.push('Tier 1 trusted source');
+    } else if (tier2Match) {
+        score += 0.2;
+        reasons.push('Tier 2 reliable source');
+    } else if (tier3Match) {
+        score += 0.1;
+        reasons.push('Tier 3 acceptable source');
+    }
+
+    if (title.length < 10) {
+        score -= 0.2;
+        reasons.push('Title too short');
+    }
+
+    if (!article.description || article.description.length < 30) {
+        score -= 0.1;
+        reasons.push('Missing or short description');
+    }
+
+    if (query) {
+        const queryWords = query.toLowerCase().split(' ').filter(word => word.length > 2);
+        const matches = queryWords.filter(word => title.includes(word)).length;
+        const relevance = matches / queryWords.length;
+
+        if (relevance > 0.7) {
+            score += 0.3;
+            reasons.push('High relevance');
+        } else if (relevance > 0.4) {
+            score += 0.1;
+            reasons.push('Good relevance');
+        } else if (relevance < 0.3) {
+            score -= 0.3;
+            isRelevant = false;
+            reasons.push('Low relevance');
+        }
+    }
+
+    const clickbaitPatterns = [/you won't believe/i, /shocking/i, /this will blow your mind/i, /number \d+ will surprise you/i, /one weird trick/i, /hate this/i, /must see/i, /amazing secret/i];
+
+    if (clickbaitPatterns.some(pattern => pattern.test(title))) {
+        score -= 0.4;
+        isProfessional = false;
+        reasons.push('Clickbait title');
+    }
+
+    return {
+        score: Math.max(0, Math.min(1, score)),
+        reasons,
+        isRelevant,
+        isProfessional,
+    };
 }
 
 const isDuplicateArticle = (article: Article, existing: Article[]): boolean => {

@@ -239,144 +239,78 @@ const TOPIC_SPECIFIC_SOURCES = {
 const COMPREHENSIVE_TOPIC_KEYWORDS = {
     // News & Politics
     politics: [
-        'election', 'government', 'parliament', 'congress', 'senate', 'voting', 'campaign',
-        'policy', 'law', 'legislation', 'minister', 'president', 'prime minister',
-        'diplomacy', 'international relations', 'summit', 'treaty', 'sanctions'
+        'election', 'government', 'parliament', 'congress', 'senate', 'voting', 'campaign', 'policy', 'law', 'legislation', 'minister', 'president', 'prime minister', 'diplomacy',
+        'international relations', 'summit', 'treaty', 'sanctions',
     ],
 
-    crime: [
-        'crime', 'arrest', 'investigation', 'police', 'court', 'trial', 'verdict',
-        'murder', 'robbery', 'fraud', 'corruption', 'lawsuit', 'justice'
-    ],
+    crime: ['crime', 'arrest', 'investigation', 'police', 'court', 'trial', 'verdict', 'murder', 'robbery', 'fraud', 'corruption', 'lawsuit', 'justice'],
 
     // Business & Finance
     business: [
-        'economy', 'market', 'stock', 'finance', 'earnings', 'revenue', 'profit',
-        'merger', 'acquisition', 'ipo', 'investment', 'venture capital', 'startup',
-        'inflation', 'gdp', 'recession', 'growth', 'employment', 'jobs'
+        'economy', 'market', 'stock', 'finance', 'earnings', 'revenue', 'profit', 'merger', 'acquisition', 'ipo', 'investment', 'venture capital', 'startup', 'inflation', 'gdp', 'recession', 'growth',
+        'employment', 'jobs',
     ],
 
-    finance: [
-        'banking', 'cryptocurrency', 'bitcoin', 'trading', 'forex', 'bonds',
-        'interest rates', 'federal reserve', 'monetary policy', 'fiscal policy'
-    ],
+    finance: ['banking', 'cryptocurrency', 'bitcoin', 'trading', 'forex', 'bonds', 'interest rates', 'federal reserve', 'monetary policy', 'fiscal policy'],
 
     // Technology
     technology: [
-        'tech', 'software', 'hardware', 'artificial intelligence', 'ai', 'machine learning',
-        'blockchain', 'cybersecurity', 'data breach', 'privacy', 'innovation',
-        'smartphone', 'app', 'cloud computing', 'internet', 'digital'
+        'tech', 'software', 'hardware', 'artificial intelligence', 'ai', 'machine learning', 'blockchain', 'cybersecurity', 'data breach', 'privacy', 'innovation', 'smartphone', 'app',
+        'cloud computing', 'internet', 'digital',
     ],
 
-    social_media: [
-        'facebook', 'twitter', 'instagram', 'tiktok', 'youtube', 'social media',
-        'platform', 'content moderation', 'algorithm', 'influencer'
-    ],
+    social_media: ['facebook', 'twitter', 'instagram', 'tiktok', 'youtube', 'social media', 'platform', 'content moderation', 'algorithm', 'influencer'],
 
     // Science & Health
     health: [
-        'health', 'medicine', 'medical', 'disease', 'treatment', 'vaccine',
-        'clinical trial', 'drug', 'hospital', 'doctor', 'patient', 'healthcare',
-        'pandemic', 'epidemic', 'virus', 'bacteria', 'mental health'
+        'health', 'medicine', 'medical', 'disease', 'treatment', 'vaccine', 'clinical trial', 'drug', 'hospital', 'doctor', 'patient', 'healthcare', 'pandemic', 'epidemic', 'virus', 'bacteria',
+        'mental health',
     ],
 
-    science: [
-        'research', 'study', 'discovery', 'experiment', 'scientist', 'laboratory',
-        'physics', 'chemistry', 'biology', 'genetics', 'dna', 'evolution'
-    ],
+    science: ['research', 'study', 'discovery', 'experiment', 'scientist', 'laboratory', 'physics', 'chemistry', 'biology', 'genetics', 'dna', 'evolution'],
 
     environment: [
-        'climate change', 'global warming', 'environment', 'pollution', 'renewable energy',
-        'solar', 'wind power', 'carbon emissions', 'sustainability', 'conservation',
-        'wildlife', 'extinction', 'deforestation', 'recycling'
+        'climate change', 'global warming', 'environment', 'pollution', 'renewable energy', 'solar', 'wind power', 'carbon emissions', 'sustainability', 'conservation', 'wildlife', 'extinction',
+        'deforestation', 'recycling',
     ],
 
-    space: [
-        'space', 'nasa', 'rocket', 'satellite', 'mars', 'moon', 'astronaut',
-        'space station', 'telescope', 'planet', 'galaxy', 'universe'
-    ],
+    space: ['space', 'nasa', 'rocket', 'satellite', 'mars', 'moon', 'astronaut', 'space station', 'telescope', 'planet', 'galaxy', 'universe'],
 
     // Sports
-    sports: [
-        'sport', 'game', 'match', 'tournament', 'championship', 'league',
-        'team', 'player', 'athlete', 'coach', 'score', 'win', 'lose'
-    ],
+    sports: ['sport', 'game', 'match', 'tournament', 'championship', 'league', 'team', 'player', 'athlete', 'coach', 'score', 'win', 'lose'],
 
-    cricket: [
-        'cricket', 'test match', 'odi', 't20', 'ipl', 'world cup', 'series',
-        'innings', 'wicket', 'runs', 'bowler', 'batsman', 'captain'
-    ],
+    cricket: ['cricket', 'test match', 'odi', 't20', 'ipl', 'world cup', 'series', 'innings', 'wicket', 'runs', 'bowler', 'batsman', 'captain'],
 
-    football: [
-        'football', 'soccer', 'premier league', 'champions league', 'fifa', 'uefa',
-        'goal', 'penalty', 'referee', 'transfer', 'world cup'
-    ],
+    football: ['football', 'soccer', 'premier league', 'champions league', 'fifa', 'uefa', 'goal', 'penalty', 'referee', 'transfer', 'world cup'],
 
-    basketball: [
-        'basketball', 'nba', 'playoff', 'finals', 'draft', 'trade', 'mvp',
-        'championship', 'coach', 'player'
-    ],
+    basketball: ['basketball', 'nba', 'playoff', 'finals', 'draft', 'trade', 'mvp', 'championship', 'coach', 'player'],
 
     // Entertainment
-    entertainment: [
-        'movie', 'film', 'cinema', 'actor', 'actress', 'director', 'producer',
-        'box office', 'premiere', 'festival', 'award', 'oscar', 'emmy'
-    ],
+    entertainment: ['movie', 'film', 'cinema', 'actor', 'actress', 'director', 'producer', 'box office', 'premiere', 'festival', 'award', 'oscar', 'emmy'],
 
-    music: [
-        'music', 'song', 'album', 'artist', 'singer', 'concert', 'tour',
-        'grammy', 'chart', 'streaming', 'spotify', 'billboard'
-    ],
+    music: ['music', 'song', 'album', 'artist', 'singer', 'concert', 'tour', 'grammy', 'chart', 'streaming', 'spotify', 'billboard'],
 
-    celebrity: [
-        'celebrity', 'star', 'fame', 'gossip', 'relationship', 'marriage',
-        'divorce', 'scandal', 'red carpet', 'paparazzi'
-    ],
+    celebrity: ['celebrity', 'star', 'fame', 'gossip', 'relationship', 'marriage', 'divorce', 'scandal', 'red carpet', 'paparazzi'],
 
     // Lifestyle & Society
-    travel: [
-        'travel', 'tourism', 'vacation', 'destination', 'flight', 'hotel',
-        'cruise', 'airline', 'airport', 'visa', 'passport'
-    ],
+    travel: ['travel', 'tourism', 'vacation', 'destination', 'flight', 'hotel', 'cruise', 'airline', 'airport', 'visa', 'passport'],
 
-    food: [
-        'food', 'restaurant', 'chef', 'cuisine', 'recipe', 'nutrition',
-        'diet', 'cooking', 'farming', 'agriculture'
-    ],
+    food: ['food', 'restaurant', 'chef', 'cuisine', 'recipe', 'nutrition', 'diet', 'cooking', 'farming', 'agriculture'],
 
-    fashion: [
-        'fashion', 'style', 'designer', 'brand', 'model', 'runway',
-        'clothing', 'trend', 'luxury', 'retail'
-    ],
+    fashion: ['fashion', 'style', 'designer', 'brand', 'model', 'runway', 'clothing', 'trend', 'luxury', 'retail'],
 
-    education: [
-        'education', 'school', 'university', 'college', 'student', 'teacher',
-        'graduation', 'degree', 'scholarship', 'exam', 'curriculum'
-    ],
+    education: ['education', 'school', 'university', 'college', 'student', 'teacher', 'graduation', 'degree', 'scholarship', 'exam', 'curriculum'],
 
     // Weather & Disasters
-    weather: [
-        'weather', 'storm', 'hurricane', 'typhoon', 'tornado', 'flood',
-        'drought', 'earthquake', 'tsunami', 'volcano', 'wildfire',
-        'natural disaster', 'emergency', 'evacuation'
-    ],
+    weather: ['weather', 'storm', 'hurricane', 'typhoon', 'tornado', 'flood', 'drought', 'earthquake', 'tsunami', 'volcano', 'wildfire', 'natural disaster', 'emergency', 'evacuation'],
 
     // Transportation
-    automotive: [
-        'car', 'vehicle', 'electric vehicle', 'tesla', 'automotive',
-        'driving', 'accident', 'traffic', 'fuel', 'engine'
-    ],
+    automotive: ['car', 'vehicle', 'electric vehicle', 'tesla', 'automotive', 'driving', 'accident', 'traffic', 'fuel', 'engine'],
 
-    aviation: [
-        'aviation', 'aircraft', 'airline', 'flight', 'pilot', 'airport',
-        'boeing', 'airbus', 'crash', 'safety'
-    ],
+    aviation: ['aviation', 'aircraft', 'airline', 'flight', 'pilot', 'airport', 'boeing', 'airbus', 'crash', 'safety'],
 
     // Energy
-    energy: [
-        'energy', 'oil', 'gas', 'petroleum', 'coal', 'nuclear',
-        'renewable', 'solar', 'wind', 'hydroelectric', 'battery'
-    ]
+    energy: ['energy', 'oil', 'gas', 'petroleum', 'coal', 'nuclear', 'renewable', 'solar', 'wind', 'hydroelectric', 'battery']
 };
 
 const TOPIC_QUERIES = {

@@ -57,7 +57,6 @@ export const sourceMap: Record<string, SupportedSource> = {
     'abplive.com': 'abp_live_hindi_home',
 };
 
-// Content quality scoring interfaces
 export interface QualityScore {
     score: number; // 0-1, higher is better
     reasons: string[];
