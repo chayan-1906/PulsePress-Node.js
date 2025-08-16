@@ -7,7 +7,7 @@ import StrikeService from "./StrikeService";
 import {getUserByEmail} from "./AuthService";
 import {scrapeMultipleArticles} from "./NewsService";
 import CachedSummaryModel, {ICachedSummary} from "../models/CachedSummarySchema";
-import {AI_QUERY_PARSING_MODELS, AI_SUMMARIZATION_MODELS} from "../utils/constants";
+import {AI_SUMMARIZATION_MODELS} from "../utils/constants";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {GEMINI_API_KEY, GEMINI_QUOTA_MS, GEMINI_QUOTA_REQUESTS, GOOGLE_TRANSLATE_API_KEY, NODE_ENV} from "../config/config";
 import {
@@ -202,91 +202,4 @@ const translateText = async ({text, targetLanguage}: TranslateTextParams): Promi
     }
 }
 
-const expandQueryWithAI = async ({email, query}: { email: string | undefined; query: string }): Promise<string[]> => {
-    try {
-        const {user} = await getUserByEmail({email});
-        if (user) {
-            if (geminiRequestCount >= Number.parseInt(GEMINI_QUOTA_REQUESTS!)) {
-                console.log('Gemini API daily limit reached, skipping AI expansion'.yellow.italic);
-                return [query];
-            }
-
-            console.log('user found:'.cyan.italic, user);
-            const model = genAI.getGenerativeModel({model: AI_QUERY_PARSING_MODELS[0]});
-
-            const prompt = `You are a news search query expansion expert. Expand this search query with 1-2 highly relevant terms for better news search results.
-
-                            Query: "${query}"
-                            
-                            EXPANSION RULES:
-                            1. ALWAYS include the original query as the first element
-                            2. Add 1-2 terms that are DIRECTLY related and newsworthy
-                            3. Focus on terms that news outlets would actually use in headlines/articles
-                            4. Avoid generic words like "news", "update", "report", "story"
-                            5. For current events, add specific location, date, or key figure names
-                            6. For business topics, add company-specific or industry-specific terms
-                            7. For political topics, add specific politicians, countries, or policy areas
-                            8. For technology topics, add specific product names or technical terms
-                            9. Terms should help find MORE relevant articles, not fewer
-                            
-                            DOMAIN-SPECIFIC GUIDELINES:
-                            - Aviation: Use "aviation", "airline industry", "air travel", "aircraft", "airport"
-                            - Politics: Use specific country names, politician names, "diplomatic", "policy"
-                            - Business: Use "corporate", "financial", "market", "industry", specific company names
-                            - Technology: Use specific product names, "tech industry", "innovation", "digital"
-                            - Sports: Use specific sport names, team names, "championship", "tournament"
-                            - Health: Use "medical", "healthcare", "pharmaceutical", "clinical"
-                            
-                            OUTPUT FORMAT:
-                            Return ONLY a valid JSON array with the original query first, then 1-2 expansion terms.
-                            
-                            EXAMPLES:
-                            Query: "Tesla earnings" → ["Tesla earnings", "electric vehicle sales", "Elon Musk"]
-                            Query: "US Labor Day sales" → ["US Labor Day sales", "retail holiday shopping", "September retail"]  
-                            Query: "Airline fuel setback" → ["Airline fuel setback", "aviation fuel costs", "jet fuel prices"]
-                            Query: "Trump Putin meeting" → ["Trump Putin meeting", "US Russia summit", "diplomatic talks"]
-                            Query: "climate change" → ["climate change", "global warming", "environmental policy"]
-                            Query: "iPhone 15" → ["iPhone 15", "Apple smartphone", "mobile technology"]
-                        `;
-
-            const result = await model.generateContent(prompt);
-            geminiRequestCount++;
-            console.log(`Gemini API request ${geminiRequestCount}/${GEMINI_QUOTA_REQUESTS}:`.cyan.italic, 'query expansion');
-
-            const responseText = result.response.text().trim();
-
-            const jsonMatch = responseText.match(/\[[\s\S]*?]/);
-            if (jsonMatch) {
-                try {
-                    const expandedTerms = JSON.parse(jsonMatch[0]);
-
-                    if (Array.isArray(expandedTerms) && expandedTerms.length > 0) {
-                        const validTerms = expandedTerms
-                            .filter(term => typeof term === 'string' && term.trim().length > 0)
-                            .slice(0, 3);
-
-                        if (validTerms.length > 0 && !validTerms[0].includes(query.trim())) {
-                            validTerms[0] = query.trim();
-                        }
-
-                        console.log(`Query expanded: "${query}" → [${validTerms.join(', ')}]`.green);
-                        return validTerms.length > 0 ? validTerms : [query];
-                    }
-                } catch (parseError) {
-                    console.error('Failed to parse AI expansion response:', parseError);
-                }
-            }
-
-            console.log('AI expansion failed to return valid JSON, using original query'.yellow.italic);
-            return [query];
-        } else {
-            console.log('Anonymous users can\'t use AI features:'.yellow.italic, user);
-            return [query];
-        }
-    } catch (error) {
-        console.error('Query expansion failed:', error);
-        return [query];
-    }
-}
-
-export {summarizeArticle, expandQueryWithAI};
+export {summarizeArticle};

@@ -99,7 +99,7 @@ class NewsClassificationService {
     }
 
     /**
-     * Gemini-based classification fallback
+     * Gemini-based classification fallback with enhanced prompting
      */
     private async classifyWithGemini(text: string): Promise<ClassificationResult> {
         if (!GEMINI_API_KEY) {
@@ -109,33 +109,44 @@ class NewsClassificationService {
         // Truncate text for Gemini
         const truncatedText = text.substring(0, 4000);
 
+
         const model = genAI.getGenerativeModel({model: AI_SUMMARIZATION_MODELS[0]});
 
-        const prompt = `Analyze the following content and determine if it's a NEWS article or NON-NEWS content.
+        const prompt = `Analyze this query to determine if it's seeking NEWS content or NON-NEWS content.
 
-                        NEWS articles contain:
-                        - Current events, breaking news, journalism
-                        - Political developments, business news, sports news
-                        - Recent happenings, news reports, press releases
-                        - Factual reporting about recent events
+                        Context: This is a news app where users search for current events and breaking news.
+                        
 
-                        NON-NEWS content includes:
-                        - Educational tutorials, how-to guides
-                        - General knowledge explanations (like "What is photosynthesis?")
-                        - Academic content, research papers
-                        - Product reviews, personal blogs, opinion pieces
-                        - Historical information, biographical content
+                        NEWS queries are about:
+                        - Current events, recent developments, breaking news
+                        - Sports events, matches, tournaments, scores (like "Eng vs Ind test series")
+                        - Business news, earnings, market updates, corporate announcements  
+                        - Political developments, elections, government actions
+                        - Technology launches, updates, industry news
+                        - Any recent happenings, factual reporting about current events
+                        - Specific events with dates, teams, companies, or locations
 
-                        Content to analyze:
-                        "${truncatedText}"
+                        NON-NEWS queries are about:
+                        - Educational explanations ("What is photosynthesis?", "How does AI work?")
+                        - Historical information ("History of Rome", "Background of WWI")
+                        - General tutorials ("How to cook pasta", "Learning Python")
+                        - Theoretical concepts, academic research, definitions
+                        - Personal advice, lifestyle tips, entertainment recommendations
 
+                        IMPORTANT: Sports queries like "Eng vs Ind 5-match test series" are NEWS queries about current/upcoming sporting events.
+                        Business queries like "Tesla earnings Q3" are NEWS queries about current corporate developments.
+
+                        Query to analyze: "${truncatedText}"
+
+                        Based on the context and pattern analysis, is this user looking for NEWS or NON-NEWS content?
+                        
                         Respond with EXACTLY one word: either "news" or "non_news"
                     `;
 
         const result = await model.generateContent(prompt);
         const responseText = result.response.text().trim().toLowerCase();
 
-        console.log('Gemini classification response:'.cyan, responseText);
+        console.log('Gemini enhanced classification response:'.cyan, responseText);
 
         if (responseText.includes('news') && !responseText.includes('non_news')) {
             return 'news';
@@ -143,7 +154,8 @@ class NewsClassificationService {
             return 'non_news';
         } else {
             console.log('Unexpected Gemini response format:'.yellow, responseText);
-            throw new Error('Invalid Gemini classification response');
+            console.log('Using fallback - assuming news for unclear cases'.yellow);
+            return 'news';
         }
     }
 }

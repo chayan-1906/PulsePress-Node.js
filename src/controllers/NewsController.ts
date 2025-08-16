@@ -1,7 +1,6 @@
 import "colors";
 import {Request, Response} from "express";
 import {isListEmpty} from "../utils/list";
-import {AuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
 import {COUNTRY_KEYWORDS, TOPIC_METADATA, TOPIC_QUERIES} from "../utils/constants";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
@@ -34,7 +33,6 @@ import {
 const fetchNEWSORGTopHeadlinesController = async (req: Request, res: Response) => {
     console.info('fetchNEWSORGTopHeadlinesController called'.bgMagenta.white.italic);
     try {
-        const email = (req as AuthRequest).email;
         const {country, category, sources, q, pageSize, page}: Partial<NEWSORGTopHeadlinesParams> = req.query;
 
         let pageSizeNumber, pageNumber;
@@ -44,7 +42,7 @@ const fetchNEWSORGTopHeadlinesController = async (req: Request, res: Response) =
         if (page && !isNaN(page)) {
             pageNumber = Number(page);
         }
-        const topHeadlines = await fetchNEWSORGTopHeadlines({email, country, category, sources, q, pageSize: pageSizeNumber, page: pageNumber});
+        const topHeadlines = await fetchNEWSORGTopHeadlines({country, category, sources, q, pageSize: pageSizeNumber, page: pageNumber});
         console.log('top headlines:'.cyan.italic, topHeadlines);
 
         res.status(200).send(new ApiResponse({
@@ -65,7 +63,6 @@ const fetchNEWSORGTopHeadlinesController = async (req: Request, res: Response) =
 const fetchNEWSORGEverythingController = async (req: Request, res: Response) => {
     console.info('fetchEverythingController called'.bgMagenta.white.italic);
     try {
-        const email = (req as AuthRequest).email;
         const {sources, from, to, sortBy, language, q, pageSize, page}: Partial<NEWSORGEverythingParams> = req.query;
 
         if (!sources && !q) {
@@ -85,7 +82,7 @@ const fetchNEWSORGEverythingController = async (req: Request, res: Response) => 
         if (page && !isNaN(page)) {
             pageNumber = Number(page);
         }
-        const everything = await fetchNEWSORGEverything({email, sources, from, to, sortBy, language, q, pageSize: pageSizeNumber, page: pageNumber});
+        const everything = await fetchNEWSORGEverything({sources, from, to, sortBy, language, q, pageSize: pageSizeNumber, page: pageNumber});
         console.log('everything:'.cyan.italic, everything);
 
         res.status(200).send(new ApiResponse({
@@ -106,7 +103,6 @@ const fetchNEWSORGEverythingController = async (req: Request, res: Response) => 
 const fetchGuardianNewsController = async (req: Request, res: Response) => {
     console.info('fetchGuardianNewsController called'.bgMagenta.white.italic);
     try {
-        const email = (req as AuthRequest).email;
         const {q, section, fromDate, toDate, orderBy, pageSize, page}: Partial<GuardianSearchParams> = req.query;
 
         let pageSizeNumber, pageNumber;
@@ -117,7 +113,7 @@ const fetchGuardianNewsController = async (req: Request, res: Response) => {
             pageNumber = Number(page);
         }
 
-        const guardianResults = await fetchGuardianNews({email, q, section, fromDate, toDate, orderBy, pageSize: pageSizeNumber, page: pageNumber});
+        const guardianResults = await fetchGuardianNews({q, section, fromDate, toDate, orderBy, pageSize: pageSizeNumber, page: pageNumber});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -137,7 +133,6 @@ const fetchGuardianNewsController = async (req: Request, res: Response) => {
 const fetchNYTimesNewsController = async (req: Request, res: Response) => {
     console.info('fetchNYTimesNewsController called'.bgMagenta.white.italic);
     try {
-        const email = (req as AuthRequest).email;
         const {q, section, sort, fromDate, toDate, pageSize, page}: Partial<NYTimesSearchParams> = req.query;
         console.log('q:'.bgMagenta.white.italic, q);
 
@@ -160,7 +155,7 @@ const fetchNYTimesNewsController = async (req: Request, res: Response) => {
             pageNumber = Number(page);
         }
 
-        const nytResults = await fetchNYTimesNews({email, q, section, sort, fromDate, toDate, pageSize: pageSizeNumber, page: pageNumber});
+        const nytResults = await fetchNYTimesNews({q, section, sort, fromDate, toDate, pageSize: pageSizeNumber, page: pageNumber});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -180,7 +175,6 @@ const fetchNYTimesNewsController = async (req: Request, res: Response) => {
 const fetchNYTimesTopStoriesController = async (req: Request, res: Response) => {
     console.info('fetchNYTimesTopStoriesController called'.bgMagenta.white.italic);
     try {
-        const email = (req as AuthRequest).email;
         const {section}: Partial<NYTimesTopStoriesParams> = req.query;
 
         if (section && !VALID_NYTIMES_SECTIONS.includes(section)) {
@@ -194,7 +188,7 @@ const fetchNYTimesTopStoriesController = async (req: Request, res: Response) => 
             return;
         }
 
-        const nytTopStories = await fetchNYTimesTopStories({email, section});
+        const nytTopStories = await fetchNYTimesTopStories({section});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -214,7 +208,6 @@ const fetchNYTimesTopStoriesController = async (req: Request, res: Response) => 
 const fetchAllRSSFeedsController = async (req: Request, res: Response) => {
     console.info('getAllRSSFeedsController called'.bgMagenta.white.italic);
     try {
-        const email = (req as AuthRequest).email;
         const {q, sources, languages, pageSize, page}: Partial<RSSFeedParams> = req.query;
 
         const sourceList = sources ? sources.split(',').map((source: string) => source.trim().toLowerCase()).filter(Boolean) : [];
@@ -248,7 +241,7 @@ const fetchAllRSSFeedsController = async (req: Request, res: Response) => {
         }
 
         console.time('RSS_FETCH_TIME'.bgMagenta.white.italic);
-        const rssFeeds = await fetchAllRSSFeeds({email, q, sources, languages, pageSize: pageSizeNumber, page: pageNumber});
+        const rssFeeds = await fetchAllRSSFeeds({q, sources, languages, pageSize: pageSizeNumber, page: pageNumber});
         console.timeEnd('RSS_FETCH_TIME'.bgMagenta.white.italic);
         console.log('rss feeds:'.green.bold, rssFeeds.length);
 
@@ -276,7 +269,6 @@ const fetchAllRSSFeedsController = async (req: Request, res: Response) => {
 const fetchMultiSourceNewsController = async (req: Request, res: Response) => {
     console.info('fetchMultiSourceNewsController called'.bgMagenta.white.italic);
     try {
-        const email = (req as AuthRequest).email;
         const {q, category, sources, pageSize, page}: Partial<MultisourceFetchNewsParams> = req.query;
 
         if (!q && !category && !sources) {
@@ -297,7 +289,7 @@ const fetchMultiSourceNewsController = async (req: Request, res: Response) => {
         }
 
         console.time('MULTISOURCE_FETCH_TIME'.bgMagenta.white.italic);
-        const multisourceResults = await fetchMultiSourceNews({email, q, category, sources, pageSize: pageSizeNumber, page: pageNumber});
+        const multisourceResults = await fetchMultiSourceNews({q, category, sources, pageSize: pageSizeNumber, page: pageNumber});
         console.timeEnd('MULTISOURCE_FETCH_TIME'.bgMagenta.white.italic);
 
         res.status(200).send(new ApiResponse({
@@ -358,7 +350,6 @@ const scrapeWebsiteController = async (req: Request, res: Response) => {
 const exploreTopicController = async (req: Request, res: Response) => {
     console.info('exploreTopicController called'.bgMagenta.white.italic);
     try {
-        const email = (req as AuthRequest).email;
         const {topic}: { topic?: Topic } = req.params;
         const {country, pageSize, page}: Partial<ExploreTopicParams> = req.query;
 
@@ -394,7 +385,6 @@ const exploreTopicController = async (req: Request, res: Response) => {
 
         console.time('TOPIC_EXPLORATION_TIME'.bgMagenta.white.italic);
         const topicResults = await fetchMultiSourceNews({
-            email,
             q: predefinedQuery,
             category: topic,
             pageSize: pageSizeNumber,

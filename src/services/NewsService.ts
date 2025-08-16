@@ -6,10 +6,7 @@ import {Readability} from "@mozilla/readability";
 import {apis} from "../utils/apis";
 import {isListEmpty} from "../utils/list";
 import {parseRSS} from "../utils/parseRSS";
-import StrikeService from "./StrikeService";
-import {expandQueryWithAI} from "./AIService";
 import {buildHeader} from "../utils/buildHeader";
-import NewsClassificationService from "./NewsClassificationService";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
 import {COMPREHENSIVE_TOPIC_KEYWORDS, LOW_QUALITY_CONTENT_INDICATORS, RSS_SOURCES, TOPIC_SPECIFIC_SOURCES, TRUSTED_NEWS_SOURCES, USER_AGENTS} from "../utils/constants";
 import {GUARDIAN_API_KEY, GUARDIAN_QUOTA_REQUESTS, NEWSAPI_QUOTA_REQUESTS, NEWSAPIORG_QUOTA_MS, NODE_ENV, NYTIMES_API_KEY, NYTIMES_QUOTA_REQUESTS, RSS_CACHE_DURATION} from "../config/config";
@@ -328,7 +325,6 @@ const assessContentQuality = (article: Article, query?: string): QualityScore =>
         reasons.push('Clickbait-style title');
     }
 
-    // Enhanced contextual relevance assessment
     if (query) {
         const queryWords = query.toLowerCase().split(/\s+/).filter(word => word.length > 2);
         let contextualMatches = 0;
@@ -433,57 +429,13 @@ const isDuplicateArticle = (article: Article, existing: Article[]): boolean => {
     });
 }
 
-const fetchNEWSORGTopHeadlines = async ({email, country, category, sources, q, pageSize = 10, page = 1}: NEWSORGTopHeadlinesParams) => {
+const fetchNEWSORGTopHeadlines = async ({country, category, sources, q, pageSize = 10, page = 1}: NEWSORGTopHeadlinesParams) => {
     try {
         let processedQuery = q;
 
         if (q && q.trim()) {
             console.log(`Processing NewsAPI Top Headlines query: "${q}"`.cyan.italic);
-
-            try {
-                if (email) {
-                    console.log('Attempting AI query expansion...'.cyan.italic);
-
-                    const {isBlocked, message, blockedUntil, blockType} = await StrikeService.checkUserBlock(email);
-                    if (isBlocked) {
-                        console.log('User is currently blocked, using basic expansion...'.yellow.italic, {message, blockedUntil, blockType});
-
-                        processedQuery = simplifySearchQuery(q.trim());
-                        console.log('Block detected, falling back to basic query enhancement'.yellow.italic);
-                    } else {
-                        console.log('Checking if query is news-related before AI expansion...'.cyan.italic);
-                        const classification = await NewsClassificationService.classifyContent(q.trim());
-
-                        if (classification === 'error') {
-                            console.error('Classification failed, allowing AI expansion to proceed'.yellow.italic);
-                            const expandedTerms = await expandQueryWithAI({email, query: q.trim()});
-                            processedQuery = expandedTerms.join(' ');
-                        } else if (classification === 'non_news') {
-                            console.log('Non-news query detected, applying strike and using basic expansion...'.yellow.italic);
-
-                            await StrikeService.applyStrike(email);
-
-                            processedQuery = simplifySearchQuery(q.trim());
-
-                            console.log('Strike applied, falling back to basic query enhancement'.yellow.italic);
-                        } else {
-                            console.log('News query verified, proceeding with AI expansion...'.green.italic);
-                            const expandedTerms = await expandQueryWithAI({email, query: q.trim()});
-                            processedQuery = expandedTerms.join(' ');
-                        }
-                    }
-                } else {
-                    console.log('Anonymous users can\'t use AI features, using basic expansion...'.yellow.italic);
-                    processedQuery = simplifySearchQuery(q.trim());
-                }
-            } catch (error) {
-                console.log('AI expansion failed, using basic search...'.yellow.italic);
-
-                const topic = determineTopicFromQuery(q);
-                const topicKeywords = COMPREHENSIVE_TOPIC_KEYWORDS[topic as keyof typeof COMPREHENSIVE_TOPIC_KEYWORDS] || [];
-                processedQuery = [q.trim(), ...topicKeywords.slice(0, 3)].join(' ');
-            }
-
+            processedQuery = simplifySearchQuery(q.trim());
             console.log(`Query processed: "${q}" → "${processedQuery}"`.green);
         }
 
@@ -517,51 +469,14 @@ const fetchNEWSORGTopHeadlines = async ({email, country, category, sources, q, p
     }
 }
 
-const fetchNEWSORGEverything = async ({email, sources, from, to, sortBy, language, q, pageSize = 10, page = 1}: NEWSORGEverythingParams) => {
+const fetchNEWSORGEverything = async ({sources, from, to, sortBy, language, q, pageSize = 10, page = 1}: NEWSORGEverythingParams) => {
     try {
         let processedQuery = q;
 
         if (q && q.trim()) {
             console.log(`Processing NewsAPI Everything query: "${q}"`.cyan.italic);
 
-            try {
-                if (email) {
-                    console.log('Attempting AI query expansion...'.cyan.italic);
-
-                    const {isBlocked, message, blockedUntil, blockType} = await StrikeService.checkUserBlock(email);
-                    if (isBlocked) {
-                        console.log('User is currently blocked, using basic expansion...'.yellow.italic, {message, blockedUntil, blockType});
-                        processedQuery = simplifySearchQuery(q.trim());
-                        console.log('Block detected, falling back to basic query enhancement'.yellow.italic);
-                    } else {
-                        console.log('Checking if query is news-related before AI expansion...'.cyan.italic);
-                        const classification = await NewsClassificationService.classifyContent(q.trim());
-
-                        if (classification === 'error') {
-                            console.error('Classification failed, allowing AI expansion to proceed'.yellow.italic);
-                            const expandedTerms = await expandQueryWithAI({email, query: q.trim()});
-
-                            processedQuery = expandedTerms.join(' ');
-                        } else if (classification === 'non_news') {
-                            console.log('Non-news query detected, applying strike and using basic expansion...'.yellow.italic);
-                            await StrikeService.applyStrike(email);
-                            processedQuery = simplifySearchQuery(q.trim());
-                            console.log('Strike applied, falling back to basic query enhancement'.yellow.italic);
-                        } else {
-                            console.log('News query verified, proceeding with AI expansion...'.green.italic);
-                            const expandedTerms = await expandQueryWithAI({email, query: q.trim()});
-
-                            processedQuery = expandedTerms.join(' ');
-                        }
-                    }
-                } else {
-                    console.log('Anonymous users can\'t use AI features, using basic expansion...'.yellow.italic);
-                    processedQuery = q.trim();
-                }
-            } catch (error) {
-                console.log('AI expansion failed, using basic search...'.yellow.italic);
-                processedQuery = q.trim();
-            }
+            processedQuery = q.trim();
 
             console.log(`Query processed: "${q}" → "${processedQuery}"`.green);
         }
@@ -596,7 +511,7 @@ const fetchNEWSORGEverything = async ({email, sources, from, to, sortBy, languag
     }
 }
 
-const fetchGuardianNews = async ({email, q, section, fromDate, toDate, orderBy = 'newest', pageSize = 10, page = 1}: GuardianSearchParams) => {
+const fetchGuardianNews = async ({q, section, fromDate, toDate, orderBy = 'newest', pageSize = 10, page = 1}: GuardianSearchParams) => {
     try {
         if (!GUARDIAN_API_KEY) {
             console.warn('Guardian API key not configured'.yellow.italic);
@@ -613,44 +528,7 @@ const fetchGuardianNews = async ({email, q, section, fromDate, toDate, orderBy =
         if (q && q.trim()) {
             console.log(`Processing Guardian query: "${q}"`.cyan.italic);
 
-            try {
-                if (email) {
-                    console.log('Attempting AI query expansion...'.cyan.italic);
-
-                    const {isBlocked, message, blockedUntil, blockType} = await StrikeService.checkUserBlock(email);
-                    if (isBlocked) {
-                        console.log('User is currently blocked, using basic expansion...'.yellow.italic, {message, blockedUntil, blockType});
-                        processedQuery = simplifySearchQuery(q.trim());
-                        console.log('Block detected, falling back to basic query enhancement'.yellow.italic);
-                    } else {
-                        console.log('Checking if query is news-related before AI expansion...'.cyan.italic);
-                        const classification = await NewsClassificationService.classifyContent(q.trim());
-
-                        if (classification === 'error') {
-                            console.error('Classification failed, allowing AI expansion to proceed'.yellow.italic);
-                            const expandedTerms = await expandQueryWithAI({email, query: q.trim()});
-                            processedQuery = expandedTerms.join(' ');
-                        } else if (classification === 'non_news') {
-                            console.log('Non-news query detected, applying strike and using basic expansion...'.yellow.italic);
-                            await StrikeService.applyStrike(email);
-                            processedQuery = simplifySearchQuery(q.trim());
-                            console.log('Strike applied, falling back to basic query enhancement'.yellow.italic);
-                        } else {
-                            console.log('News query verified, proceeding with AI expansion...'.green.italic);
-                            const expandedTerms = await expandQueryWithAI({email, query: q.trim()});
-                            processedQuery = expandedTerms.join(' ');
-                        }
-                    }
-                } else {
-                    console.log('Anonymous users can\'t use AI features, using basic expansion...'.yellow.italic);
-                    processedQuery = simplifySearchQuery(q.trim());
-                }
-            } catch (error) {
-                console.log('AI expansion failed, using basic search...'.yellow.italic);
-                const topic = determineTopicFromQuery(q);
-                const topicKeywords = COMPREHENSIVE_TOPIC_KEYWORDS[topic as keyof typeof COMPREHENSIVE_TOPIC_KEYWORDS] || [];
-                processedQuery = [q.trim(), ...topicKeywords.slice(0, 3)].join(' ');
-            }
+            processedQuery = simplifySearchQuery(q.trim());
 
             console.log(`Query processed: "${q}" → "${processedQuery}"`.green);
         }
@@ -687,7 +565,7 @@ const fetchGuardianNews = async ({email, q, section, fromDate, toDate, orderBy =
     }
 }
 
-const fetchNYTimesNews = async ({email, q, section, sort = 'newest', fromDate, toDate, pageSize = 10, page = 1}: NYTimesSearchParams) => {
+const fetchNYTimesNews = async ({q, section, sort = 'newest', fromDate, toDate, pageSize = 10, page = 1}: NYTimesSearchParams) => {
     try {
         if (!NYTIMES_API_KEY) {
             console.warn('NYTimes API key not configured'.yellow.italic);
@@ -708,44 +586,7 @@ const fetchNYTimesNews = async ({email, q, section, sort = 'newest', fromDate, t
         if (q && q.trim()) {
             console.log(`Processing NYTimes query: "${q}"`.cyan.italic);
 
-            try {
-                if (email) {
-                    console.log('Attempting AI query expansion...'.cyan.italic);
-
-                    const {isBlocked, message, blockedUntil, blockType} = await StrikeService.checkUserBlock(email);
-                    if (isBlocked) {
-                        console.log('User is currently blocked, using basic expansion...'.yellow.italic, {message, blockedUntil, blockType});
-                        processedQuery = simplifySearchQuery(q.trim());
-                        console.log('Block detected, falling back to basic query enhancement'.yellow.italic);
-                    } else {
-                        console.log('Checking if query is news-related before AI expansion...'.cyan.italic);
-                        const classification = await NewsClassificationService.classifyContent(q.trim());
-
-                        if (classification === 'error') {
-                            console.error('Classification failed, allowing AI expansion to proceed'.yellow.italic);
-                            const expandedTerms = await expandQueryWithAI({email, query: q.trim()});
-                            processedQuery = expandedTerms.join(' ');
-                        } else if (classification === 'non_news') {
-                            console.log('Non-news query detected, applying strike and using basic expansion...'.yellow.italic);
-                            await StrikeService.applyStrike(email);
-                            processedQuery = simplifySearchQuery(q.trim());
-                            console.log('Strike applied, falling back to basic query enhancement'.yellow.italic);
-                        } else {
-                            console.log('News query verified, proceeding with AI expansion...'.green.italic);
-                            const expandedTerms = await expandQueryWithAI({email, query: q.trim()});
-                            processedQuery = expandedTerms.join(' ');
-                        }
-                    }
-                } else {
-                    console.log('Anonymous users can\'t use AI features, using basic expansion...'.yellow.italic);
-                    processedQuery = simplifySearchQuery(q.trim());
-                }
-            } catch (error) {
-                console.log('AI expansion failed, using basic search...'.yellow.italic);
-                const topic = determineTopicFromQuery(q);
-                const topicKeywords = COMPREHENSIVE_TOPIC_KEYWORDS[topic as keyof typeof COMPREHENSIVE_TOPIC_KEYWORDS] || [];
-                processedQuery = [q.trim(), ...topicKeywords.slice(0, 3)].join(' ');
-            }
+            processedQuery = simplifySearchQuery(q.trim());
 
             console.log(`Query processed: "${q}" → "${processedQuery}"`.green);
         }
@@ -797,7 +638,7 @@ const fetchNYTimesNews = async ({email, q, section, sort = 'newest', fromDate, t
     }
 }
 
-const fetchNYTimesTopStories = async ({email, section = 'home'}: NYTimesTopStoriesParams) => {
+const fetchNYTimesTopStories = async ({section = 'home'}: NYTimesTopStoriesParams) => {
     try {
         if (!NYTIMES_API_KEY) {
             console.warn('NYTimes API key not configured'.yellow.italic);
@@ -858,7 +699,7 @@ const fetchNYTimesTopStories = async ({email, section = 'home'}: NYTimesTopStori
     }
 }
 
-const fetchAllRSSFeeds = async ({email, q, sources, languages = 'english', pageSize = 10, page = 1}: RSSFeedParams) => {
+const fetchAllRSSFeeds = async ({q, sources, languages = 'english', pageSize = 10, page = 1}: RSSFeedParams) => {
     try {
         const cacheKey = `${q}-${sources}-${languages}-${pageSize}-${page}`;
         const cached = RSS_CACHE.get(cacheKey);
@@ -907,57 +748,10 @@ const fetchAllRSSFeeds = async ({email, q, sources, languages = 'english', pageS
             .sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
 
         if (q && q.trim()) {
-            console.log(`Searching RSS feeds with query expansion for: "${q}"`.cyan.italic);
+            console.log(`Searching RSS feeds for: "${q}"`.cyan.italic);
 
-            let expandedTerms: string[];
-
-            try {
-                if (email) {
-                    console.log('Attempting AI query expansion...'.cyan.italic);
-
-                    const {isBlocked, message, blockedUntil, blockType} = await StrikeService.checkUserBlock(email);
-                    if (isBlocked) {
-                        console.log('User is currently blocked, using basic expansion...'.yellow.italic, {message, blockedUntil, blockType});
-
-                        const simplifiedQuery = simplifySearchQuery(q.trim());
-                        expandedTerms = simplifiedQuery.split(' ').filter(term => term.length > 2);
-                        console.log('Block detected, falling back to basic query enhancement'.yellow.italic);
-                    } else {
-                        console.log('Checking if query is news-related before AI expansion...'.cyan.italic);
-                        const classification = await NewsClassificationService.classifyContent(q.trim());
-
-                        if (classification === 'error') {
-                            console.error('Classification failed, allowing AI expansion to proceed'.yellow.italic);
-                            expandedTerms = await expandQueryWithAI({email, query: q.trim()});
-                        } else if (classification === 'non_news') {
-                            console.log('Non-news query detected, applying strike and using basic expansion...'.yellow.italic);
-
-                            // Apply strike for non-news query
-                            await StrikeService.applyStrike(email);
-
-                            // Use basic enhancement instead of AI expansion
-                            const simplifiedQuery = simplifySearchQuery(q.trim());
-                            expandedTerms = simplifiedQuery.split(' ').filter(term => term.length > 2);
-
-                            console.log('Strike applied, falling back to basic query enhancement'.yellow.italic);
-                        } else {
-                            console.log('News query verified, proceeding with AI expansion...'.green.italic);
-                            expandedTerms = await expandQueryWithAI({email, query: q.trim()});
-                        }
-                    }
-                } else {
-                    console.log('Anonymous users can\'t use AI features, using basic expansion...'.yellow.italic);
-
-                    const simplifiedQuery = simplifySearchQuery(q.trim());
-                    expandedTerms = simplifiedQuery.split(' ').filter(term => term.length > 2);
-                }
-            } catch (error) {
-                console.log('AI expansion failed, using basic search...'.yellow.italic);
-                // Enhanced basic expansion using keywords
-                const topic = determineTopicFromQuery(q);
-                const topicKeywords = COMPREHENSIVE_TOPIC_KEYWORDS[topic as keyof typeof COMPREHENSIVE_TOPIC_KEYWORDS] || [];
-                expandedTerms = [q.trim(), ...topicKeywords.slice(0, 3)];
-            }
+            const simplifiedQuery = simplifySearchQuery(q.trim());
+            const expandedTerms = simplifiedQuery.split(' ').filter(term => term.length > 2);
 
             const fuse = new Fuse(allItems, {
                 keys: [
@@ -1069,7 +863,7 @@ const smartFetchWithVariations = async (apiFunction: Function, query: string, pa
     return null;
 };
 
-const fetchMultiSourceNews = async ({email, q, category, sources, pageSize = 10, page = 1}: MultisourceFetchNewsParams) => {
+const fetchMultiSourceNews = async ({q, category, sources, pageSize = 10, page = 1}: MultisourceFetchNewsParams) => {
     console.log('Professional multisource news fetch:'.bgBlue.white.bold, {q, category, sources, pageSize, page});
 
     const topic = determineTopicFromQuery(q, category);
@@ -1095,8 +889,8 @@ const fetchMultiSourceNews = async ({email, q, category, sources, pageSize = 10,
             const newsApiResult = await smartFetchWithVariations(
                 fetchNEWSORGEverything,
                 simplifiedQuery,
-                {email, language: 'en', sortBy: 'relevancy', pageSize: newsApiTargetCount * 3, page},
-                Math.max(2, Math.ceil(newsApiTargetCount / 2)) // Need at least 2 good results
+                {language: 'en', sortBy: 'relevancy', pageSize: newsApiTargetCount * 3, page},
+                Math.max(2, Math.ceil(newsApiTargetCount / 2)),
             );
 
             if (newsApiResult && newsApiResult.articles && newsApiResult.articles.length > 0) {
@@ -1110,9 +904,7 @@ const fetchMultiSourceNews = async ({email, q, category, sources, pageSize = 10,
             } else {
                 console.log('NewsAPIOrg smart fetch returned no quality articles'.yellow.italic);
 
-                // Fallback to simple approach if smart fetch fails
                 const fallbackResult = await fetchNEWSORGTopHeadlines({
-                    email,
                     country: 'us',
                     category: topic !== 'general' ? topic : undefined,
                     sources: optimizedSources,
@@ -1127,14 +919,12 @@ const fetchMultiSourceNews = async ({email, q, category, sources, pageSize = 10,
                 }
             }
         } else if (!simplifiedQuery) {
-            // No query - use top headlines
             const headlinesResult = await fetchNEWSORGTopHeadlines({
-                email,
                 country: 'us',
                 category: topic !== 'general' ? topic : undefined,
                 sources: optimizedSources,
                 pageSize: newsApiTargetCount,
-                page
+                page,
             });
 
             if (headlinesResult && headlinesResult.articles && headlinesResult.articles.length > 0) {
@@ -1163,7 +953,7 @@ const fetchMultiSourceNews = async ({email, q, category, sources, pageSize = 10,
                 const guardianResult = await smartFetchWithVariations(
                     fetchGuardianNews,
                     simplifiedQuery,
-                    {email, section: topic !== 'general' ? topic : undefined, orderBy: 'relevance', pageSize: guardianTargetCount * 3, page},
+                    {section: topic !== 'general' ? topic : undefined, orderBy: 'relevance', pageSize: guardianTargetCount * 3, page},
                     Math.max(1, Math.ceil(guardianTargetCount / 3)) // Need at least 1 good result
                 );
 
@@ -1178,13 +968,11 @@ const fetchMultiSourceNews = async ({email, q, category, sources, pageSize = 10,
                     console.log(`Guardian contributed ${qualityArticles.length} quality articles using query: "${guardianResult.usedQuery}"`.green);
                 }
             } else if (!simplifiedQuery) {
-                // No query - use section-based fetch
                 const guardianResult = await fetchGuardianNews({
-                    email,
                     section: topic !== 'general' ? topic : undefined,
                     orderBy: 'newest',
                     pageSize: guardianTargetCount,
-                    page
+                    page,
                 });
 
                 if (guardianResult && guardianResult.articles && guardianResult.articles.length > 0) {
@@ -1218,7 +1006,7 @@ const fetchMultiSourceNews = async ({email, q, category, sources, pageSize = 10,
                     const nytResult = await smartFetchWithVariations(
                         fetchNYTimesNews,
                         simplifiedQuery,
-                        {email, section: nytSection, sort: 'relevance', pageSize: nytimesTargetCount * 3, page},
+                        {section: nytSection, sort: 'relevance', pageSize: nytimesTargetCount * 3, page},
                         Math.max(1, Math.ceil(nytimesTargetCount / 3)) // Need at least 1 good result
                     );
 
@@ -1233,8 +1021,7 @@ const fetchMultiSourceNews = async ({email, q, category, sources, pageSize = 10,
                         console.log(`NYTimes contributed ${qualityArticles.length} quality articles using query: "${nytResult.usedQuery}"`.green);
                     }
                 } else {
-                    // No query - use top stories
-                    const nytResult = await fetchNYTimesTopStories({email, section: nytSection});
+                    const nytResult = await fetchNYTimesTopStories({section: nytSection});
 
                     if (nytResult && nytResult.articles && nytResult.articles.length > 0) {
                         const articles = nytResult.articles
@@ -1262,7 +1049,7 @@ const fetchMultiSourceNews = async ({email, q, category, sources, pageSize = 10,
         try {
             console.log(`Trying RSS feeds (target: ${remainingSlots3} articles)...`.cyan.italic);
 
-            const rssResults = await fetchAllRSSFeeds({email, q: simplifiedQuery, sources: optimizedSources, pageSize: remainingSlots3 * 2, page});
+            const rssResults = await fetchAllRSSFeeds({q: simplifiedQuery, sources: optimizedSources, pageSize: remainingSlots3 * 2, page});
 
             if (rssResults && rssResults.length > 0) {
                 const rssArticles = rssResults.map(rss => ({
@@ -1303,7 +1090,6 @@ const fetchMultiSourceNews = async ({email, q, category, sources, pageSize = 10,
         }
     }
 
-    // Quality sort and limit
     const finalResults = results.sort((a: Article, b: Article) => {
         // Primary sort: Quality score
         const scoreDiff = (b.qualityScore?.score || 0) - (a.qualityScore?.score || 0);
