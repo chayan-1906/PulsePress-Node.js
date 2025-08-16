@@ -391,8 +391,13 @@ const assessContentQuality = (article: Article, query?: string): QualityScore =>
 
     if (query) {
         const queryWords = query.toLowerCase().split(' ').filter(word => word.length > 2);
-        const matches = queryWords.filter(word => title.includes(word)).length;
-        const relevance = matches / queryWords.length;
+        const description = article.description?.toLowerCase() || '';
+
+        const titleMatches = queryWords.filter(word => title.includes(word)).length;
+        const descMatches = queryWords.filter(word => description.includes(word)).length;
+
+        const totalMatches = titleMatches + (descMatches * 0.5);
+        const relevance = Math.min(1.0, totalMatches / queryWords.length);
 
         if (relevance > 0.7) {
             score += 0.3;
@@ -400,7 +405,9 @@ const assessContentQuality = (article: Article, query?: string): QualityScore =>
         } else if (relevance > 0.4) {
             score += 0.1;
             reasons.push('Good relevance');
-        } else if (relevance < 0.3) {
+        } else if (relevance > 0.2) {
+            reasons.push('Medium relevance');
+        } else if (relevance < 0.2) {
             score -= 0.3;
             isRelevant = false;
             reasons.push('Low relevance');
@@ -424,7 +431,7 @@ const assessContentQuality = (article: Article, query?: string): QualityScore =>
 }
 
 const isDuplicateArticle = (article: Article, existing: Article[]): boolean => {
-    return existing.some(existingArticle => {
+    /*return existing.some(existingArticle => {
         // URL-based deduplication (exact match)
         if (article.url && existingArticle.url && article.url === existingArticle.url) return true;
 
@@ -447,7 +454,9 @@ const isDuplicateArticle = (article: Article, existing: Article[]): boolean => {
         }
 
         return false;
-    });
+    });*/
+
+    return existing.some(existingArticle => !!(article.url && existingArticle.url && article.url === existingArticle.url));
 }
 
 const fetchNEWSORGTopHeadlines = async ({country, category, sources, q, pageSize = 10, page = 1}: NEWSORGTopHeadlinesParams) => {
