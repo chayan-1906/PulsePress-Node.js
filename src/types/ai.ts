@@ -155,7 +155,7 @@ export interface GetUserStrikeHistoryResponse {
 export interface SummarizeArticleParams {
     email: string;
     content?: string;
-    urls?: string[];
+    url?: string;
     language?: SupportedLanguage;
     style?: SummarizationStyle;
 }

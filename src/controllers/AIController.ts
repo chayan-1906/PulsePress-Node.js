@@ -98,7 +98,7 @@ const summarizeArticleController = async (req: Request, res: Response) => {
 
     try {
         const email = (req as AuthRequest).email;
-        const {content, urls, language, style}: SummarizeArticleParams = req.body;
+        const {content, url, language, style}: SummarizeArticleParams = req.body;
 
         const {isBlocked, message, blockedUntil, blockType} = await StrikeService.checkUserBlock(email);
         if (isBlocked) {
@@ -112,8 +112,8 @@ const summarizeArticleController = async (req: Request, res: Response) => {
             return;
         }
 
-        if (!content && isListEmpty(urls)) {
-            console.error('Content and urls both are missing'.yellow.italic);
+        if (!content && !url) {
+            console.error('Content and url both are missing'.yellow.italic);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: 'CONTENT_OR_URL_REQUIRED',
@@ -122,8 +122,8 @@ const summarizeArticleController = async (req: Request, res: Response) => {
             return;
         }
 
-        if (content && !isListEmpty(urls)) {
-            console.error('Content and urls both are present'.yellow.italic);
+        if (content && url) {
+            console.error('Content and url both are present'.yellow.italic);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: 'CONTENT_AND_URL_CONFLICT',
@@ -143,9 +143,9 @@ const summarizeArticleController = async (req: Request, res: Response) => {
         }
 
         let articleContent = content || '';
-        if (!content && !isListEmpty(urls)) {
+        if (!content && url) {
             console.info('Scraping article content for classification check'.bgMagenta.white.italic);
-            const scrapedArticles = await scrapeMultipleArticles({urls});
+            const scrapedArticles = await scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
                 console.error('Scraping failed:'.red.bold, scrapedArticles[0]?.error);
@@ -362,6 +362,6 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
             errorMsg: error.message || 'Something went wrong',
         }));
     }
-};
+}
 
 export {classifyContentController, summarizeArticleController, analyzeSentimentController};

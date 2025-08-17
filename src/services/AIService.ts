@@ -33,15 +33,15 @@ setInterval(() => {
     console.log('Daily Gemini API counter reset'.cyan.italic);
 }, Number.parseInt(GEMINI_QUOTA_MS!));
 
-const summarizeArticle = async ({email, content, urls, language = 'en', style = 'standard'}: SummarizeArticleParams): Promise<SummarizeArticleResponse> => {
-    console.info('summarizeArticle called'.bgMagenta.white.italic, {content, urls});
+const summarizeArticle = async ({email, content, url, language = 'en', style = 'standard'}: SummarizeArticleParams): Promise<SummarizeArticleResponse> => {
+    console.info('summarizeArticle called'.bgMagenta.white.italic, {content, url});
     try {
-        if (!content && isListEmpty(urls)) {
-            console.error('content and urls both invalid:'.yellow.italic, {content, urls});
+        if (!content && !url) {
+            console.error('content and url both invalid:'.yellow.italic, {content, url});
             return {error: 'CONTENT_OR_URL_REQUIRED'};
         }
-        if (content && !isListEmpty(urls)) {
-            console.error('content and urls both valid:'.yellow.italic, {content, urls});
+        if (content && url) {
+            console.error('content and url both valid:'.yellow.italic, {content, url});
             return {error: 'CONTENT_AND_URL_CONFLICT'};
         }
         if (style && !SUMMARIZATION_STYLES.includes(style)) {
@@ -64,9 +64,9 @@ const summarizeArticle = async ({email, content, urls, language = 'en', style = 
         }
 
         let articleContent = content || '';
-        if (!content && !isListEmpty(urls)) {
-            console.info('inside !content && !isListEmpty(urls)'.bgMagenta.white.italic);
-            const scrapedArticles = await scrapeMultipleArticles({urls});
+        if (!content && url) {
+            console.info('inside !content && url'.bgMagenta.white.italic);
+            const scrapedArticles = await scrapeMultipleArticles({urls: [url]});
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
                 console.error('Scraping failed:'.red.bold, {count: scrapedArticles.length}, {error: scrapedArticles[0].error})
                 return {error: 'SCRAPING_FAILED'};
