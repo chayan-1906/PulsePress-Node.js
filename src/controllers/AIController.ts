@@ -9,7 +9,8 @@ import {getUserByEmail} from "../services/AuthService";
 import {scrapeMultipleArticles} from "../services/NewsService";
 import SentimentAnalysisService from "../services/SentimentAnalysisService";
 import NewsClassificationService from "../services/NewsClassificationService";
-import {SentimentAnalysisParams, SUMMARIZATION_STYLES, SummarizeArticleParams} from "../types/ai";
+import TagGenerationService from "../services/TagGenerationService";
+import {SentimentAnalysisParams, SUMMARIZATION_STYLES, SummarizeArticleParams, TagGenerationParams} from "../types/ai";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 
 const classifyContentController = async (req: Request, res: Response) => {
@@ -364,4 +365,91 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
     }
 }
 
-export {classifyContentController, summarizeArticleController, analyzeSentimentController};
+const generateTagsController = async (req: Request, res: Response) => {
+    console.info('generateTagsController called'.bgMagenta.white.italic);
+
+    try {
+        const email = (req as AuthRequest).email;
+        const {content, url}: TagGenerationParams = req.body;
+
+        const {user} = await getUserByEmail({email});
+        if (!user) {
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
+            }));
+            return;
+        }
+
+        if (!content && !url) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'CONTENT_OR_URL_REQUIRED',
+                errorMsg: 'Either content or URL must be provided for tag generation',
+            }));
+            return;
+        }
+
+        if (content && url) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'CONTENT_AND_URL_CONFLICT',
+                errorMsg: 'Provide either content or URL, not both',
+            }));
+            return;
+        }
+
+        const {tags, powered_by, error} = await TagGenerationService.generateTags({content, url});
+
+        if (error) {
+            let errorMsg = 'Failed to generate tags';
+            let statusCode = 500;
+
+            if (error === 'CONTENT_OR_URL_REQUIRED') {
+                errorMsg = 'Either content or URL must be provided';
+                statusCode = 400;
+            } else if (error === 'CONTENT_AND_URL_CONFLICT') {
+                errorMsg = 'Provide either content or URL, not both';
+                statusCode = 400;
+            } else if (error === 'SCRAPING_FAILED') {
+                errorMsg = 'Failed to scrape the provided URL';
+                statusCode = 400;
+            } else if (error === 'EMPTY_CONTENT') {
+                errorMsg = 'No content available for tag generation';
+                statusCode = 400;
+            } else if (error === 'TAG_GENERATION_FAILED') {
+                errorMsg = 'Tag generation failed, please try again';
+                statusCode = 500;
+            } else if (error === 'TAG_PARSE_ERROR' || error === 'NO_VALID_TAGS') {
+                errorMsg = 'Unable to parse generated tags, please try again';
+                statusCode = 500;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
+                success: false,
+                errorCode: error,
+                errorMsg,
+            }));
+            return;
+        }
+
+        console.log('Tags generated successfully:'.cyan.italic, {tags, powered_by});
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'Tags generated successfully 🎉',
+            tags,
+            powered_by,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of generateTagsController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            errorCode: error.errorCode,
+            errorMsg: error.message || 'Something went wrong during tag generation',
+        }));
+    }
+}
+
+export {classifyContentController, summarizeArticleController, analyzeSentimentController, generateTagsController};

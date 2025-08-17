@@ -132,6 +132,12 @@ export interface GenerateContentHashResponse {
     error?: string;
 }
 
+export interface TagGenerationResponse {
+    tags?: string[];
+    powered_by?: string;
+    error?: string;
+}
+
 export interface SentimentAnalysisResponse {
     sentiment?: SentimentResult;
     confidence?: number;
@@ -180,6 +186,11 @@ export interface GetCachedSummaryParams {
 export interface TranslateTextParams {
     text: string;
     targetLanguage: SupportedLanguage;
+}
+
+export interface TagGenerationParams {
+    content?: string;
+    url?: string;
 }
 
 export interface SentimentAnalysisParams {
