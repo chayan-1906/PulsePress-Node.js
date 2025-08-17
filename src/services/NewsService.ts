@@ -6,7 +6,9 @@ import {Readability} from "@mozilla/readability";
 import {apis} from "../utils/apis";
 import {isListEmpty} from "../utils/list";
 import {parseRSS} from "../utils/parseRSS";
+import {getUserByEmail} from "./AuthService";
 import {buildHeader} from "../utils/buildHeader";
+import SentimentAnalysisService from "./SentimentAnalysisService";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
 import {RSS_SOURCES, TOPIC_SPECIFIC_SOURCES, TRUSTED_NEWS_SOURCES, USER_AGENTS} from "../utils/constants";
 import {GUARDIAN_API_KEY, GUARDIAN_QUOTA_REQUESTS, NEWSAPI_QUOTA_REQUESTS, NEWSAPIORG_QUOTA_MS, NODE_ENV, NYTIMES_API_KEY, NYTIMES_QUOTA_REQUESTS, RSS_CACHE_DURATION} from "../config/config";
@@ -893,7 +895,7 @@ const smartFetchWithVariations = async (apiFunction: Function, query: string, pa
     return null;
 };
 
-const fetchMultiSourceNews = async ({q, category, sources, pageSize = 10, page = 1}: MultisourceFetchNewsParams) => {
+const fetchMultiSourceNews = async ({email, q, category, sources, pageSize = 10, page = 1}: MultisourceFetchNewsParams) => {
     console.log('Professional multisource news fetch:'.bgBlue.white.bold, {q, category, sources, pageSize, page});
 
     const topic = determineTopicFromQuery(q, category);
@@ -1133,10 +1135,34 @@ const fetchMultiSourceNews = async ({q, category, sources, pageSize = 10, page =
 
     console.log(`Multisource search completed: ${finalResults.length}/${pageSize} quality articles from [${usedSources.join(', ')}]`.bgGreen.white.bold);
 
+    // Enrich articles with sentiment analysis for logged-in users
+    let enrichedArticles = finalResults;
+    let sentimentAnalysisEnabled = false;
+
+    if (email) {
+        try {
+            // Verify user exists
+            const {user} = await getUserByEmail({email});
+            if (user) {
+                console.log('User verified, enriching articles with sentiment analysis...'.cyan.italic);
+                console.time('MULTISOURCE_SENTIMENT_ENRICHMENT_TIME'.bgCyan.white.italic);
+                enrichedArticles = await SentimentAnalysisService.enrichArticlesWithSentiment(finalResults, true);
+                console.timeEnd('MULTISOURCE_SENTIMENT_ENRICHMENT_TIME'.bgCyan.white.italic);
+                sentimentAnalysisEnabled = true;
+            } else {
+                console.log('User not found, skipping sentiment analysis'.yellow.italic);
+            }
+        } catch (error: any) {
+            console.error('Error during user verification or sentiment analysis:'.red.bold, error.message);
+            // Continue without sentiment analysis if there's an error
+        }
+    }
+
     return {
-        totalResults: finalResults.length,
+        totalResults: enrichedArticles.length,
         query: q,
-        articles: finalResults,
+        articles: enrichedArticles,
+        sentimentAnalysisEnabled,
         metadata: {
             usedSources,
             errors: errors.length > 0 ? errors : undefined,

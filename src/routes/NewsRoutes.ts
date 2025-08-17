@@ -1,4 +1,5 @@
 import {Router} from "express";
+import {authMiddlewareOptional} from "../middlewares/AuthMiddleware";
 import {newsScrapingRateLimiter} from "../middlewares/RateLimiterMiddleware";
 import {
     exploreTopicController,
@@ -20,7 +21,7 @@ router.get('/guardian/search', fetchGuardianNewsController);           // /api/v
 router.get('/nytimes/search', fetchNYTimesNewsController);      // /api/v1/news/nytimes/search?q=artificial intelligence&section=technology&sort=newest
 router.get('/nytimes/top-stories', fetchNYTimesTopStoriesController); // /api/v1/news/nytimes/top-stories?section=technology
 router.get('/rss', fetchAllRSSFeedsController);                   // /api/v1/news/rss?sources=prothom_alo,zeenews_bengali&language=bengali&pageSize=12&page=2
-router.get('/multi-source', fetchMultiSourceNewsController);                   // /api/v1/news/rss?sources=prothom_alo,zeenews_bengali&language=bengali&pageSize=12&page=2
+router.get('/multi-source', authMiddlewareOptional, fetchMultiSourceNewsController);                   // /api/v1/news/multi-source?q=tesla&category=technology&sources=techcrunch&pageSize=10&page=1
 router.post('/scrape', newsScrapingRateLimiter, scrapeWebsiteController); // /api/v1/news/scrape
 router.get('/explore/:topic', exploreTopicController); // /api/v1/news/explore/:topic
 

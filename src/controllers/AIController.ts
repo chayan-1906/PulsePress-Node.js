@@ -5,9 +5,11 @@ import {isListEmpty} from "../utils/list";
 import {ApiResponse} from "../utils/ApiResponse";
 import StrikeService from "../services/StrikeService";
 import {summarizeArticle} from "../services/AIService";
+import {getUserByEmail} from "../services/AuthService";
 import {scrapeMultipleArticles} from "../services/NewsService";
-import {SUMMARIZATION_STYLES, SummarizeArticleParams} from "../types/ai";
+import SentimentAnalysisService from "../services/SentimentAnalysisService";
 import NewsClassificationService from "../services/NewsClassificationService";
+import {SUMMARIZATION_STYLES, SummarizeArticleParams} from "../types/ai";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 
 const classifyContentController = async (req: Request, res: Response) => {
@@ -256,4 +258,111 @@ const summarizeArticleController = async (req: Request, res: Response) => {
     }
 }
 
-export {classifyContentController, summarizeArticleController};
+const analyzeSentimentController = async (req: Request, res: Response) => {
+    console.info('analyzeSentimentController called'.bgMagenta.white.italic);
+
+    try {
+        const email = (req as AuthRequest).email;
+        const {content, url}: { content?: string; url?: string } = req.body;
+
+        // Verify user exists
+        const {user} = await getUserByEmail({email});
+        if (!user) {
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
+            }));
+            return;
+        }
+
+        if (!content && !url) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'CONTENT_OR_URL_REQUIRED',
+                errorMsg: 'Either content or URL must be provided for sentiment analysis',
+            }));
+            return;
+        }
+
+        if (content && url) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'CONTENT_AND_URL_CONFLICT',
+                errorMsg: 'Provide either content or URL, not both',
+            }));
+            return;
+        }
+
+        let contentToAnalyze = content;
+
+        if (url && !content) {
+            console.log('Scraping URL for sentiment analysis:'.cyan.italic, url);
+            const scrapedArticles = await scrapeMultipleArticles({urls: [url]});
+
+            if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
+                res.status(400).send(new ApiResponse({
+                    success: false,
+                    errorCode: 'SCRAPING_FAILED',
+                    errorMsg: 'Failed to scrape the provided URL',
+                }));
+                return;
+            }
+
+            contentToAnalyze = scrapedArticles[0]?.content || '';
+        }
+
+        if (!contentToAnalyze || contentToAnalyze.trim().length === 0) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'EMPTY_CONTENT',
+                errorMsg: 'No content available for sentiment analysis',
+            }));
+            return;
+        }
+
+        const {sentiment, confidence, error} = await SentimentAnalysisService.analyzeSentiment({content: contentToAnalyze});
+
+        if (error) {
+            let errorMsg = 'Failed to analyze sentiment';
+            if (error === 'EMPTY_CONTENT') {
+                errorMsg = 'No content provided for analysis';
+            } else if (error === generateMissingCode('gemini_api_key')) {
+                errorMsg = 'Sentiment analysis service is temporarily unavailable';
+            } else if (error === 'SENTIMENT_ANALYSIS_FAILED') {
+                errorMsg = 'Sentiment analysis failed, please try again';
+            }
+
+            res.status(500).send(new ApiResponse({
+                success: false,
+                errorCode: error,
+                errorMsg,
+            }));
+            return;
+        }
+
+        const sentimentEmoji = SentimentAnalysisService.getSentimentEmoji(sentiment!);
+        const sentimentColor = SentimentAnalysisService.getSentimentColor(sentiment!);
+
+        console.log('Sentiment analysis completed:'.cyan.italic, {sentiment, confidence, sentimentEmoji});
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'Sentiment analysis completed successfully 🎉',
+            sentiment,
+            confidence,
+            sentimentEmoji,
+            sentimentColor,
+            contentPreview: contentToAnalyze.substring(0, 200) + '...',
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of analyzeSentimentController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            errorCode: error.errorCode,
+            errorMsg: error.message || 'Something went wrong',
+        }));
+    }
+};
+
+export {classifyContentController, summarizeArticleController, analyzeSentimentController};

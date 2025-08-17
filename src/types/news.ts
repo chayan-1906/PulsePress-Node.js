@@ -1,3 +1,4 @@
+import {SentimentResult} from "./ai";
 import {COUNTRY_KEYWORDS, RSS_SOURCES, TOPIC_QUERIES} from "../utils/constants";
 
 export const SUPPORTED_CATEGORIES = ['business', 'entertainment', 'general', 'health', 'science', 'sports', 'technology', 'country'];
@@ -64,6 +65,13 @@ export interface QualityScore {
     isProfessional: boolean;
 }
 
+interface SentimentData {
+    sentiment: SentimentResult;
+    confidence: number;
+    emoji: string;
+    color: string;
+}
+
 export interface Article {
     source: {
         id: string | null;
@@ -76,7 +84,8 @@ export interface Article {
     urlToImage: string | null;
     publishedAt: string | null;
     content: string | null;
-    qualityScore?: QualityScore; // Added for quality assessment
+    qualityScore?: QualityScore;
+    sentimentData?: SentimentData;
 }
 
 export interface RSSFeed {
@@ -307,6 +316,7 @@ export interface RSSFeedParams {
 }
 
 export interface MultisourceFetchNewsParams {
+    email?: string;
     q?: string;
     category?: string;
     sources?: string;

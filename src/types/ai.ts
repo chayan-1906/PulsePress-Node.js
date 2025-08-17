@@ -13,6 +13,9 @@ export type UserStrikeBlock = typeof USER_STRIKE_BLOCK[number];
 export const CLASSIFICATION_TYPES = ['news', 'non_news', 'error'] as const;
 export type ClassificationResult = typeof CLASSIFICATION_TYPES[number];
 
+export const SENTIMENT_TYPES = ['positive', 'negative', 'neutral'] as const;
+export type SentimentResult = typeof SENTIMENT_TYPES[number];
+
 export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
     'en': 'English',
     'es': 'Español',
@@ -40,6 +43,32 @@ export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
     'si': 'සිංහල',
     'my': 'မြန်မာ'
 };
+
+export interface EnrichedArticleWithSentiment {
+    source: {
+        id: string | null;
+        name: string | null;
+    };
+    author: string | null;
+    title: string | null;
+    description: string | null;
+    url: string | null;
+    urlToImage: string | null;
+    publishedAt: string | null;
+    content: string | null;
+    qualityScore?: {
+        score: number;
+        reasons: string[];
+        isRelevant: boolean;
+        isProfessional: boolean;
+    };
+    sentimentData?: {
+        sentiment: SentimentResult;
+        confidence: number;
+        emoji: string;
+        color: string;
+    };
+}
 
 export interface StrikeHistoryEvent {
     strikeNumber: number;
@@ -103,6 +132,12 @@ export interface GenerateContentHashResponse {
     error?: string;
 }
 
+export interface SentimentAnalysisResponse {
+    sentiment?: SentimentResult;
+    confidence?: number;
+    error?: string;
+}
+
 export interface GetUserStrikeStatusResponse {
     strikeStatus?: UserStrikeStatus;
     error?: string;
@@ -145,6 +180,10 @@ export interface GetCachedSummaryParams {
 export interface TranslateTextParams {
     text: string;
     targetLanguage: SupportedLanguage;
+}
+
+export interface SentimentAnalysisParams {
+    content: string;
 }
 
 export interface GetUserStrikeStatusParams {
