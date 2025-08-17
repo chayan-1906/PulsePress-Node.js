@@ -263,7 +263,7 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
 
     try {
         const email = (req as AuthRequest).email;
-        const {content, urls}: SentimentAnalysisParams = req.body;
+        const {content, url}: SentimentAnalysisParams = req.body;
 
         const {user} = await getUserByEmail({email});
         if (!user) {
@@ -275,7 +275,7 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
             return;
         }
 
-        if (!content && isListEmpty(urls)) {
+        if (!content && !url) {
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: 'CONTENT_OR_URL_REQUIRED',
@@ -284,7 +284,7 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
             return;
         }
 
-        if (content && !isListEmpty(urls)) {
+        if (content && url) {
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: 'CONTENT_AND_URL_CONFLICT',
@@ -295,9 +295,9 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
 
         let contentToAnalyze = content;
 
-        if (!content && !isListEmpty(urls)) {
-            console.log('Scraping URL for sentiment analysis:'.cyan.italic, urls);
-            const scrapedArticles = await scrapeMultipleArticles({urls});
+        if (!content && url) {
+            console.log('Scraping URL for sentiment analysis:'.cyan.italic, url);
+            const scrapedArticles = await scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
                 res.status(400).send(new ApiResponse({

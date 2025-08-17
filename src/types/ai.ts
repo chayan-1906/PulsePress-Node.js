@@ -183,7 +183,7 @@ export interface TranslateTextParams {
 }
 
 export interface SentimentAnalysisParams {
-    urls?: string[];
+    url?: string;
     content?: string;
 }
 
