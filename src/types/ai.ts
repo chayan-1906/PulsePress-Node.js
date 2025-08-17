@@ -153,7 +153,7 @@ export interface GetUserStrikeHistoryResponse {
 /** ------------- function params ------------- */
 
 export interface SummarizeArticleParams {
-    email: string;  // for authMiddleware
+    email: string;
     content?: string;
     urls?: string[];
     language?: SupportedLanguage;
@@ -183,7 +183,8 @@ export interface TranslateTextParams {
 }
 
 export interface SentimentAnalysisParams {
-    content: string;
+    urls?: string[];
+    content?: string;
 }
 
 export interface GetUserStrikeStatusParams {

@@ -131,7 +131,6 @@ const RSS_SOURCES = {
 };
 
 export const AI_SUMMARIZATION_MODELS = [
-    // Gemini models (try these first)
     'gemini-2.5-flash',
     'gemini-2.0-flash-lite',
     'gemini-2.0-flash',
@@ -144,12 +143,10 @@ export const AI_SUMMARIZATION_MODELS = [
     // 'huggingface:facebook/bart-large-cnn',
 ];
 
-export const AI_QUERY_PARSING_MODELS = [
+export const SENTIMENT_ANALYSIS_MODELS = [
     'gemini-2.5-flash',
     'gemini-2.0-flash-lite',
     'gemini-2.0-flash',
-    'gemini-2.5-flash-lite-preview',
-    'gemini-1.5-flash',
 ];
 
 const USER_AGENTS = [

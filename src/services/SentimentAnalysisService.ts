@@ -2,7 +2,7 @@ import "colors";
 import {createHash} from 'crypto';
 import {genAI} from "./AIService";
 import {GEMINI_API_KEY, NODE_ENV} from "../config/config";
-import {AI_SUMMARIZATION_MODELS} from "../utils/constants";
+import {SENTIMENT_ANALYSIS_MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
 import CachedSentimentModel, {ICachedSentiment} from "../models/CachedSentimentSchema";
 import {EnrichedArticleWithSentiment, SentimentAnalysisParams, SentimentAnalysisResponse, SentimentResult} from "../types/ai";
@@ -19,81 +19,96 @@ class SentimentAnalysisService {
             return {error: 'EMPTY_CONTENT'};
         }
 
+        // Truncate content to avoid token limits
+        const truncatedContent = content.substring(0, 3000);
+
+        const contentHash = this.generateContentHash(truncatedContent);
+        console.log('Content hash generated for sentiment caching:'.cyan.italic, contentHash);
+
+        if (NODE_ENV === 'production') {
+            const cached = await this.getCachedSentiment(contentHash);
+            const {sentiment, confidence} = cached || {};
+            if (cached) {
+                console.log('Returning cached sentiment result:'.green, {sentiment, confidence});
+                return {sentiment, confidence};
+            }
+        }
+
+        for (let i = 0; i < SENTIMENT_ANALYSIS_MODELS.length; i++) {
+            const model = SENTIMENT_ANALYSIS_MODELS[i];
+            console.log(`Trying sentiment analysis with model ${i + 1}/${SENTIMENT_ANALYSIS_MODELS.length}:`.cyan, model);
+
+            try {
+                let result: SentimentAnalysisResponse;
+                result = await this.analyzeWithGemini(model, truncatedContent);
+
+                if (result.sentiment && result.confidence) {
+                    console.log(`✅ Sentiment analysis successful with model:`.green, model);
+                    console.log('Sentiment analysis result:'.green, {sentiment: result.sentiment, confidence: result.confidence});
+
+                    if (NODE_ENV === 'production') {
+                        await this.saveSentimentToCache(contentHash, result.sentiment, result.confidence);
+                    }
+
+                    return result;
+                }
+
+                console.log(`❌ Model failed:`.yellow.bold, model, 'Error:'.yellow.italic, result.error);
+            } catch (error: any) {
+                console.log(`❌ Model failed:`.yellow.bold, model, 'Error:'.yellow.italic, error.message);
+            }
+        }
+
+        console.error('🚨 All sentiment analysis models failed'.red.bold);
+        return {error: 'SENTIMENT_ANALYSIS_FAILED'};
+    }
+
+    /**
+     * Analyze sentiment using Gemini AI
+     */
+    private async analyzeWithGemini(modelName: string, content: string): Promise<SentimentAnalysisResponse> {
         if (!GEMINI_API_KEY) {
             console.error('Gemini API key not configured'.red.bold);
             return {error: generateMissingCode('gemini_api_key')};
         }
 
-        try {
-            // Truncate content to avoid token limits
-            const truncatedContent = content.substring(0, 3000);
+        const model = genAI.getGenerativeModel({model: modelName});
 
-            const contentHash = this.generateContentHash(truncatedContent);
-            console.log('Content hash generated for sentiment caching:'.cyan.italic, contentHash);
+        const prompt = `Analyze the sentiment of this news article content and determine if the overall tone is positive, negative, or neutral.
 
-            if (NODE_ENV === 'production') {
-                const cached = await this.getCachedSentiment(contentHash);
-                const {sentiment, confidence} = cached || {};
-                if (cached) {
-                    console.log('Returning cached sentiment result:'.green, {sentiment, confidence});
-                    return {sentiment, confidence};
-                }
-            }
+                    Guidelines for sentiment classification:
+                    - POSITIVE: Good news, achievements, progress, solutions, celebrations, positive outcomes, uplifting stories
+                    - NEGATIVE: Bad news, problems, conflicts, disasters, failures, scandals, tragedies, concerning developments
+                    - NEUTRAL: Factual reporting without emotional tone, balanced coverage, informational updates, routine announcements
 
-            const model = genAI.getGenerativeModel({model: AI_SUMMARIZATION_MODELS[0]});
+                    Consider the overall impact and emotional tone of the article, not just individual words.
 
-            const prompt = `Analyze the sentiment of this news article content and determine if the overall tone is positive, negative, or neutral.
+                    Article content: "${content}"
 
-                            Guidelines for sentiment classification:
-                            - POSITIVE: Good news, achievements, progress, solutions, celebrations, positive outcomes, uplifting stories
-                            - NEGATIVE: Bad news, problems, conflicts, disasters, failures, scandals, tragedies, concerning developments
-                            - NEUTRAL: Factual reporting without emotional tone, balanced coverage, informational updates, routine announcements
+                    CRITICAL: Return ONLY the JSON object below. Do NOT wrap it in markdown code blocks, backticks, or any other formatting. Do NOT add any explanatory text before or after the JSON.
 
-                            Consider the overall impact and emotional tone of the article, not just individual words.
+                    Return exactly this format:
+                    {"sentiment": "positive", "confidence": 0.85}
 
-                            Article content: "${truncatedContent}"
+                    Valid sentiment values: positive, negative, neutral
+                    Confidence must be a number between 0.1 and 1.0`;
 
-                            CRITICAL: Return ONLY the JSON object below. Do NOT wrap it in markdown code blocks, backticks, or any other formatting. Do NOT add any explanatory text before or after the JSON.
+        const result = await model.generateContent(prompt);
+        const responseText = result.response.text().trim();
 
-                            Return exactly this format:
-                            {"sentiment": "positive", "confidence": 0.85}
+        console.log('Gemini sentiment analysis response:'.cyan, responseText);
 
-                            Valid sentiment values: positive, negative, neutral
-                            Confidence must be a number between 0.1 and 1.0`
-            ;
+        const parsed = JSON.parse(responseText);
 
-            const result = await model.generateContent(prompt);
-            const responseText = result.response.text().trim();
-
-            console.log('Gemini sentiment analysis response:'.cyan, responseText);
-
-            try {
-                const parsed = JSON.parse(responseText);
-
-                if (!parsed.sentiment || !['positive', 'negative', 'neutral'].includes(parsed.sentiment)) {
-                    console.error('Invalid sentiment value in response:'.red, parsed.sentiment);
-                    return {error: 'SENTIMENT_PARSE_ERROR'};
-                }
-
-                const sentiment = parsed.sentiment as SentimentResult;
-                const confidence = typeof parsed.confidence === 'number' ? parsed.confidence : 0.5;
-
-                console.log('Sentiment analysis result:'.green, {sentiment, confidence});
-
-                if (NODE_ENV === 'production') {
-                    await this.saveSentimentToCache(contentHash, sentiment, confidence);
-                }
-
-                return {sentiment, confidence};
-            } catch (error: any) {
-                console.error('Could not parse JSON from Gemini response:'.red, responseText);
-                console.error('Parse error:'.red, error.message);
-                return {error: 'SENTIMENT_PARSE_ERROR'};
-            }
-        } catch (error: any) {
-            console.error('ERROR: Sentiment analysis failed:'.red.bold, error.message);
-            return {error: 'SENTIMENT_ANALYSIS_FAILED'};
+        if (!parsed.sentiment || !['positive', 'negative', 'neutral'].includes(parsed.sentiment)) {
+            console.error('Invalid sentiment value in response:'.red, parsed.sentiment);
+            return {error: 'SENTIMENT_PARSE_ERROR'};
         }
+
+        const sentiment = parsed.sentiment as SentimentResult;
+        const confidence = typeof parsed.confidence === 'number' ? parsed.confidence : 0.5;
+
+        return {sentiment, confidence};
     }
 
     /**

@@ -9,7 +9,7 @@ import {getUserByEmail} from "../services/AuthService";
 import {scrapeMultipleArticles} from "../services/NewsService";
 import SentimentAnalysisService from "../services/SentimentAnalysisService";
 import NewsClassificationService from "../services/NewsClassificationService";
-import {SUMMARIZATION_STYLES, SummarizeArticleParams} from "../types/ai";
+import {SentimentAnalysisParams, SUMMARIZATION_STYLES, SummarizeArticleParams} from "../types/ai";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 
 const classifyContentController = async (req: Request, res: Response) => {
@@ -191,7 +191,7 @@ const summarizeArticleController = async (req: Request, res: Response) => {
             console.log('News content verified, proceeding with summarization...'.green.italic);
         }
 
-        const {summary, powered_by, error} = await summarizeArticle({email, content: articleContent, urls: undefined, language, style});
+        const {summary, powered_by, error} = await summarizeArticle({email, content: articleContent, language, style});
 
         if (error === generateMissingCode('email')) {
             console.error('Email is missing'.yellow.italic);
@@ -263,9 +263,8 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
 
     try {
         const email = (req as AuthRequest).email;
-        const {content, url}: { content?: string; url?: string } = req.body;
+        const {content, urls}: SentimentAnalysisParams = req.body;
 
-        // Verify user exists
         const {user} = await getUserByEmail({email});
         if (!user) {
             res.status(404).send(new ApiResponse({
@@ -276,7 +275,7 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
             return;
         }
 
-        if (!content && !url) {
+        if (!content && isListEmpty(urls)) {
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: 'CONTENT_OR_URL_REQUIRED',
@@ -285,7 +284,7 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
             return;
         }
 
-        if (content && url) {
+        if (content && !isListEmpty(urls)) {
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: 'CONTENT_AND_URL_CONFLICT',
@@ -296,9 +295,9 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
 
         let contentToAnalyze = content;
 
-        if (url && !content) {
-            console.log('Scraping URL for sentiment analysis:'.cyan.italic, url);
-            const scrapedArticles = await scrapeMultipleArticles({urls: [url]});
+        if (!content && !isListEmpty(urls)) {
+            console.log('Scraping URL for sentiment analysis:'.cyan.italic, urls);
+            const scrapedArticles = await scrapeMultipleArticles({urls});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
                 res.status(400).send(new ApiResponse({
@@ -344,7 +343,7 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
         const sentimentEmoji = SentimentAnalysisService.getSentimentEmoji(sentiment!);
         const sentimentColor = SentimentAnalysisService.getSentimentColor(sentiment!);
 
-        console.log('Sentiment analysis completed:'.cyan.italic, {sentiment, confidence, sentimentEmoji});
+        console.log('sentiment analysis completed:'.cyan.italic, {sentiment, confidence, sentimentEmoji});
 
         res.status(200).send(new ApiResponse({
             success: true,
