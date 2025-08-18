@@ -5,6 +5,7 @@ import {AuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
 import {COUNTRY_KEYWORDS, TOPIC_METADATA, TOPIC_QUERIES} from "../utils/constants";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
+import ArticleEnhancementService from "../services/ArticleEnhancementService";
 import {
     fetchAllRSSFeeds,
     fetchGuardianNews,
@@ -467,6 +468,54 @@ const fetchMultiSourceNewsEnhancedController = async (req: Request, res: Respons
     }
 }
 
+const fetchEnhancementStatusController = async (req: Request, res: Response) => {
+    console.info('fetchEnhancementStatusController called'.bgMagenta.white.italic);
+    try {
+        const {articleIds} = req.query;
+
+        if (!articleIds || typeof articleIds !== 'string') {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('articleIds'),
+                errorMsg: 'ArticleIds parameter is required (comma-separated list)',
+            }));
+            return;
+        }
+
+        const articleIdArray = articleIds.split(',').map(id => id.trim()).filter(id => id.length > 0);
+
+        if (articleIdArray.length === 0) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateInvalidCode('articleIds'),
+                errorMsg: 'At least one valid articleId is required',
+            }));
+            return;
+        }
+
+        console.time('ENHANCEMENT_STATUS_CHECK_TIME'.bgGreen.white.italic);
+        const statusResults = await ArticleEnhancementService.getEnhancementStatusByIds(articleIdArray);
+        console.timeEnd('ENHANCEMENT_STATUS_CHECK_TIME'.bgGreen.white.italic);
+
+        const message = statusResults.status === 'complete'
+            ? `All enhancements completed! ${statusResults.articles.length}/${articleIdArray.length} articles enhanced ✨`
+            : `Enhancement in progress: ${statusResults.progress}% complete (${statusResults.articles.length}/${articleIdArray.length} articles)`;
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message,
+            statusResults,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of fetchEnhancementStatusController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: 'Something went wrong',
+        }));
+    }
+}
+
 export {
     fetchNEWSORGTopHeadlinesController,
     fetchNEWSORGEverythingController,
@@ -476,6 +525,7 @@ export {
     fetchAllRSSFeedsController,
     fetchMultiSourceNewsController,
     fetchMultiSourceNewsEnhancedController,
+    fetchEnhancementStatusController,
     scrapeWebsiteController,
     exploreTopicController,
 };

@@ -1,9 +1,9 @@
 import "colors";
 import {createHash} from 'crypto';
-import {Article, ArticleComplexities} from "../types/news";
+import {Article, ArticleComplexities, EnhancementStatus} from "../types/news";
 import SentimentAnalysisService from "./SentimentAnalysisService";
 import ArticleEnhancementModel, {IArticleEnhancement} from "../models/ArticleEnhancementSchema";
-import {GetProcessingStatusResponse, ReadingTimeComplexityResponse, SentimentAnalysisResponse, SentimentResult} from "../types/ai";
+import {GetEnhancementStatusByIdsResponse, GetProcessingStatusResponse, ReadingTimeComplexityResponse, SentimentAnalysisResponse, SentimentResult} from "../types/ai";
 
 class ArticleEnhancementService {
     private static activeJobs = new Set<string>();
@@ -160,6 +160,42 @@ class ArticleEnhancementService {
         }
     }
 
+    static async getEnhancementStatusByIds(articleIds: string[]): Promise<GetEnhancementStatusByIdsResponse> {
+        try {
+            const hasActiveJobs = articleIds.some(id => this.activeJobs.has(id));
+
+            const enhancements: IArticleEnhancement[] = await ArticleEnhancementModel.find({
+                articleId: {$in: articleIds}
+            });
+
+            const completedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'completed').length;
+            const failedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'failed').length;
+            const processedCount = completedCount + failedCount;
+
+            const progress = articleIds.length > 0 ? Math.round((processedCount / articleIds.length) * 100) : 0;
+
+            const articles = enhancements
+                .filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'completed')
+                .map(({articleId, url, sentiment, complexity}) => ({
+                    articleId,
+                    url,
+                    sentiment,
+                    complexity,
+                    enhanced: true,
+                }));
+
+            let status: EnhancementStatus = 'processing';
+            if (!hasActiveJobs && processedCount >= articleIds.length) {
+                status = 'complete';
+            }
+
+            return {status, progress, articles};
+        } catch (error: any) {
+            console.error('ERROR: getting enhancement status by IDs:'.red.bold, error.message);
+            return {status: 'failed', progress: 0, articles: []};
+        }
+    }
+
     static mergeEnhancementsWithArticles(articles: Article[], enhancements: { [articleId: string]: IArticleEnhancement }): Article[] {
         return articles.map(article => {
             const articleId = this.generateArticleId(article);
@@ -168,6 +204,7 @@ class ArticleEnhancementService {
             if (enhancement) {
                 return {
                     ...article,
+                    articleId,  // TODO: Remove when Article interface has non-null articleId
                     sentimentData: enhancement.sentiment,
                     complexity: enhancement.complexity,
                     enhanced: true,

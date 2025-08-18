@@ -1,4 +1,4 @@
-import {ArticleComplexities, EnhancementStatus} from "./news";
+import {Article, ArticleComplexities, EnhancementStatus} from "./news";
 
 /*export const SUMMARIZATION_STYLES: SummarizationStyle[] = ['concise', 'standard', 'detailed'];
 export type SummarizationStyle = 'concise' | 'standard' | 'detailed';*/
@@ -155,6 +155,12 @@ export interface ReadingTimeComplexityResponse {
 export interface GetProcessingStatusResponse {
     status: EnhancementStatus;
     progress: number;
+}
+
+export interface GetEnhancementStatusByIdsResponse {
+    status: EnhancementStatus;
+    progress: number;
+    articles: Partial<Article>[];
 }
 
 export interface GetUserStrikeStatusResponse {

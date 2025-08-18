@@ -88,6 +88,7 @@ export interface Article {
         name: string | null;
     };
     author: string | null;
+    articleId?: string | null;
     title: string | null;
     description: string | null;
     url: string | null;
