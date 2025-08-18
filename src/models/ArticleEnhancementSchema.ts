@@ -1,0 +1,64 @@
+import {Document, model, Model, Schema} from 'mongoose';
+import {SentimentResult} from "../types/ai";
+import {ARTICLE_COMPLEXITIES, ArticleComplexities, PROCESSING_STATUSES, ProcessingStatus} from "../types/news";
+
+export interface IArticleEnhancement extends Document {
+    articleId: string;
+    url: string;
+    sentiment?: {
+        sentiment: SentimentResult;
+        confidence: number;
+        emoji: string;
+        color: string;
+    };
+    complexity?: {
+        level: ArticleComplexities;
+        readingTimeMinutes: number;
+        wordCount: number;
+    };
+    processingStatus: ProcessingStatus;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+interface IArticleEnhancementModel extends Model<IArticleEnhancement> {
+}
+
+const ArticleEnhancementSchema = new Schema<IArticleEnhancement>({
+    articleId: {
+        type: String,
+        required: true,
+        unique: true,
+    },
+    url: {
+        type: String,
+        required: true,
+    },
+    sentiment: {
+        sentiment: String,
+        confidence: Number,
+        emoji: String,
+        color: String,
+    },
+    complexity: {
+        level: {
+            type: String,
+            enum: ARTICLE_COMPLEXITIES,
+        },
+        readingTimeMinutes: Number,
+        wordCount: Number,
+    },
+    processingStatus: {
+        type: String,
+        default: 'pending',
+        enum: PROCESSING_STATUSES,
+    },
+}, {
+    timestamps: true,
+});
+
+ArticleEnhancementSchema.index({processingStatus: 1});
+
+const ArticleEnhancementModel: IArticleEnhancementModel = model<IArticleEnhancement, IArticleEnhancementModel>('ArticleEnhancement', ArticleEnhancementSchema);
+
+export default ArticleEnhancementModel;

@@ -21,6 +21,16 @@ export type ValidNYTimesSection = typeof VALID_NYTIMES_SECTIONS[number];
 export type Topic = keyof typeof TOPIC_QUERIES;
 export type Country = keyof typeof COUNTRY_KEYWORDS;
 
+export const ARTICLE_COMPLEXITIES = ['easy', 'medium', 'hard'];
+export type ArticleComplexities = typeof ARTICLE_COMPLEXITIES[number];
+
+export const PROCESSING_STATUSES = ['pending', 'completed', 'failed'];
+export type ProcessingStatus = typeof PROCESSING_STATUSES[number];
+
+export const ENHANCEMENT_STATUSES = ['processing', 'complete', 'failed'];
+export type EnhancementStatus = typeof ENHANCEMENT_STATUSES[number];
+
+
 export const sourceMap: Record<string, SupportedSource> = {
     // english
     'techcrunch.com': 'techcrunch',
@@ -86,6 +96,12 @@ export interface Article {
     content: string | null;
     qualityScore?: QualityScore;
     sentimentData?: SentimentData;
+    complexity?: {
+        level: ArticleComplexities;
+        readingTimeMinutes: number;
+        wordCount: number;
+    };
+    enhanced?: boolean;
 }
 
 export interface RSSFeed {

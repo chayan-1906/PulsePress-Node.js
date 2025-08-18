@@ -50,7 +50,7 @@ async function connectDB() {
 
         return connection;
     } catch (error) {
-        console.log('ERROR: inside catch of connectDB:'.red.bold, error);
+        console.error('ERROR: inside catch of connectDB:'.red.bold, error);
         cachedConnection = null;
         throw error;
     }

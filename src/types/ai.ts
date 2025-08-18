@@ -1,3 +1,5 @@
+import {ArticleComplexities, EnhancementStatus} from "./news";
+
 /*export const SUMMARIZATION_STYLES: SummarizationStyle[] = ['concise', 'standard', 'detailed'];
 export type SummarizationStyle = 'concise' | 'standard' | 'detailed';*/
 
@@ -142,6 +144,17 @@ export interface SentimentAnalysisResponse {
     sentiment?: SentimentResult;
     confidence?: number;
     error?: string;
+}
+
+export interface ReadingTimeComplexityResponse {
+    level: ArticleComplexities;
+    readingTimeMinutes: number;
+    wordCount: number;
+}
+
+export interface GetProcessingStatusResponse {
+    status: EnhancementStatus;
+    progress: number;
 }
 
 export interface GetUserStrikeStatusResponse {

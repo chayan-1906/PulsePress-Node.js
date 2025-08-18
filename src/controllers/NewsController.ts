@@ -9,6 +9,7 @@ import {
     fetchAllRSSFeeds,
     fetchGuardianNews,
     fetchMultiSourceNews,
+    fetchMultiSourceNewsEnhanced,
     fetchNEWSORGEverything,
     fetchNEWSORGTopHeadlines,
     fetchNYTimesNews,
@@ -417,6 +418,55 @@ const exploreTopicController = async (req: Request, res: Response) => {
     }
 }
 
+const fetchMultiSourceNewsEnhancedController = async (req: Request, res: Response) => {
+    console.info('fetchMultiSourceNewsEnhancedController called'.bgMagenta.white.italic);
+    try {
+        const email = (req as AuthRequest).email;
+        const {q, category, sources, pageSize, page}: Partial<MultisourceFetchNewsParams> = req.query;
+
+        if (!q && !category && !sources) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('q_category_sources'),
+                errorMsg: 'At least one of q (query), category, or sources parameter is required',
+            }));
+            return;
+        }
+
+        let pageSizeNumber, pageNumber;
+        if (pageSize && !isNaN(pageSize)) {
+            pageSizeNumber = Number(pageSize);
+        }
+        if (page && !isNaN(page)) {
+            pageNumber = Number(page);
+        }
+
+        console.time('ENHANCED_MULTISOURCE_FETCH_TIME'.bgGreen.white.italic);
+        const enhancedResults = await fetchMultiSourceNewsEnhanced({
+            email,
+            q,
+            category,
+            sources,
+            pageSize: pageSizeNumber,
+            page: pageNumber,
+        });
+        console.timeEnd('ENHANCED_MULTISOURCE_FETCH_TIME'.bgGreen.white.italic);
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: `Enhanced multisource news completed! ${enhancedResults.metadata.enhancedCount}/${enhancedResults.metadata.totalArticles} articles have AI insights ✨`,
+            searchResults: enhancedResults,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of fetchMultiSourceNewsEnhancedController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: 'Something went wrong',
+        }));
+    }
+}
+
 export {
     fetchNEWSORGTopHeadlinesController,
     fetchNEWSORGEverythingController,
@@ -425,6 +475,7 @@ export {
     fetchNYTimesTopStoriesController,
     fetchAllRSSFeedsController,
     fetchMultiSourceNewsController,
+    fetchMultiSourceNewsEnhancedController,
     scrapeWebsiteController,
     exploreTopicController,
 };
