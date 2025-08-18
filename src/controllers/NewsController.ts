@@ -4,7 +4,7 @@ import {isListEmpty} from "../utils/list";
 import {AuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
 import {COUNTRY_KEYWORDS, TOPIC_METADATA, TOPIC_QUERIES} from "../utils/constants";
-import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
+import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import ArticleEnhancementService from "../services/ArticleEnhancementService";
 import {
     fetchAllRSSFeeds,
@@ -471,9 +471,10 @@ const fetchMultiSourceNewsEnhancedController = async (req: Request, res: Respons
 const fetchEnhancementStatusController = async (req: Request, res: Response) => {
     console.info('fetchEnhancementStatusController called'.bgMagenta.white.italic);
     try {
-        const {articleIds} = req.query;
+        const email = (req as AuthRequest).email;
+        const {articleIds}: { articleIds?: string } = req.query;
 
-        if (!articleIds || typeof articleIds !== 'string') {
+        if (!articleIds) {
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateMissingCode('articleIds'),
@@ -494,12 +495,32 @@ const fetchEnhancementStatusController = async (req: Request, res: Response) => 
         }
 
         console.time('ENHANCEMENT_STATUS_CHECK_TIME'.bgGreen.white.italic);
-        const statusResults = await ArticleEnhancementService.getEnhancementStatusByIds(articleIdArray);
+        const statusResults = await ArticleEnhancementService.getEnhancementStatusByIds({email, articleIds: articleIdArray});
+        const {status, progress, articles, error} = statusResults;
+        if (error) {
+            if (error === generateNotFoundCode('user')) {
+                console.error('User not found'.yellow.italic);
+                res.status(404).send(new ApiResponse({
+                    success: false,
+                    errorCode: generateNotFoundCode('user'),
+                    errorMsg: 'User not found',
+                }));
+                return;
+            }
+
+            console.error('error in getEnhancementStatusByIds:'.yellow.italic, error);
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: error,
+                errorMsg: 'Failed to fetch status',
+            }));
+            return;
+        }
         console.timeEnd('ENHANCEMENT_STATUS_CHECK_TIME'.bgGreen.white.italic);
 
-        const message = statusResults.status === 'complete'
-            ? `All enhancements completed! ${statusResults.articles.length}/${articleIdArray.length} articles enhanced ✨`
-            : `Enhancement in progress: ${statusResults.progress}% complete (${statusResults.articles.length}/${articleIdArray.length} articles)`;
+        const message = status === 'complete'
+            ? `All enhancements completed! ${articles?.length}/${articleIdArray.length} articles enhanced ✨`
+            : `Enhancement in progress: ${progress}% complete (${articles?.length}/${articleIdArray.length} articles)`;
 
         res.status(200).send(new ApiResponse({
             success: true,

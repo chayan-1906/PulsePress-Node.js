@@ -1,19 +1,35 @@
 import "colors";
 import {createHash} from 'crypto';
-import {Article, ArticleComplexities, EnhancementStatus} from "../types/news";
+import StrikeService from "./StrikeService";
+import {getUserByEmail} from "./AuthService";
+import {generateNotFoundCode} from "../utils/generateErrorCodes";
 import SentimentAnalysisService from "./SentimentAnalysisService";
+import {Article, ArticleComplexities, EnhancementStatus} from "../types/news";
 import ArticleEnhancementModel, {IArticleEnhancement} from "../models/ArticleEnhancementSchema";
-import {GetEnhancementStatusByIdsResponse, GetProcessingStatusResponse, ReadingTimeComplexityResponse, SentimentAnalysisResponse, SentimentResult} from "../types/ai";
+import {
+    EnhanceArticlesInBackgroundParams,
+    GetEnhancementForArticlesParams,
+    GetEnhancementStatusByIdsParams,
+    GetEnhancementStatusByIdsResponse,
+    GetProcessingStatusParams,
+    GetProcessingStatusResponse,
+    MergeEnhancementsWithArticlesParams,
+    ReadingTimeComplexityParams,
+    ReadingTimeComplexityResponse,
+    SentimentAnalysisResponse,
+    SentimentResult
+} from "../types/ai";
 
 class ArticleEnhancementService {
     private static activeJobs = new Set<string>();
 
-    private static generateArticleId(article: Article): string {
+    // TODO: Create interface for params
+    private static generateArticleId({article}: { article: Article }): string {
         const data = `${article.url}-${article.title}`;
         return createHash('md5').update(data).digest('hex');
     }
 
-    private static calculateReadingTimeComplexity(article: Article): ReadingTimeComplexityResponse {
+    private static calculateReadingTimeComplexity({article}: ReadingTimeComplexityParams): ReadingTimeComplexityResponse {
         const text = (article.content || article.description || '').toLowerCase();
         const words = text.split(/\s+/).filter(word => word.length > 0);
         const wordCount = words.length;
@@ -36,13 +52,13 @@ class ArticleEnhancementService {
         return {level, readingTimeMinutes, wordCount};
     }
 
-    static isBackgroundProcessingActive(articles: Article[]): boolean {
-        const articleIds = articles.map(article => this.generateArticleId(article));
+    /*static isBackgroundProcessingActive(articles: Article[]): boolean {
+        const articleIds = articles.map(article => this.generateArticleId({article}));
         return articleIds.some(id => this.activeJobs.has(id));
-    }
+    }*/
 
-    static async getProcessingStatus(articles: Article[]): Promise<GetProcessingStatusResponse> {
-        const articleIds = articles.map(article => this.generateArticleId(article));
+    static async getProcessingStatus({articles}: GetProcessingStatusParams): Promise<GetProcessingStatusResponse> {
+        const articleIds = articles.map(article => this.generateArticleId({article}));
 
         const hasActiveJobs = articleIds.some(id => this.activeJobs.has(id));
 
@@ -63,10 +79,27 @@ class ArticleEnhancementService {
         }
     }
 
-    static async enhanceArticlesInBackground(articles: Article[]): Promise<void> {
+    static async enhanceArticlesInBackground({email, articles}: EnhanceArticlesInBackgroundParams): Promise<void> {
         console.log(`Starting background enhancement for ${articles.length} articles`.cyan.italic);
 
-        const articleIds = articles.map(article => this.generateArticleId(article));
+        if (email) {
+            try {
+                const {user} = await getUserByEmail({email});
+                const {isBlocked} = await StrikeService.checkUserBlock(email);
+                if (!user || isBlocked) {
+                    console.error('User not found - no AI enhancements'.yellow.italic);
+                    return;
+                }
+            } catch (error: any) {
+                console.error('User verification failed, skipping enhancements'.red.bold);
+                return;
+            }
+        } else {
+            console.log('No user email provided - no AI enhancements'.yellow.italic);
+            return;
+        }
+
+        const articleIds = articles.map(article => this.generateArticleId({article}));
         articleIds.forEach(id => this.activeJobs.add(id));
 
         setTimeout(async () => {
@@ -77,7 +110,7 @@ class ArticleEnhancementService {
                         continue;
                     }
 
-                    const articleId = this.generateArticleId(article);
+                    const articleId = this.generateArticleId({article});
 
                     const existingEnhancedArticle: IArticleEnhancement | null = await ArticleEnhancementModel.findOne({articleId});
                     if (existingEnhancedArticle && existingEnhancedArticle.processingStatus === 'completed') {
@@ -96,7 +129,7 @@ class ArticleEnhancementService {
                     );
                     console.log(`Processing enhancements for article: ${articleId}`.cyan);
 
-                    const complexity = this.calculateReadingTimeComplexity(article);
+                    const complexity = this.calculateReadingTimeComplexity({article});
 
                     const sentimentResult: SentimentAnalysisResponse = await SentimentAnalysisService.analyzeSentiment({
                         content: article.content || article.description || article.title || '',
@@ -123,7 +156,7 @@ class ArticleEnhancementService {
                     console.log(`Successfully enhanced article: ${articleId}`.green);
 
                 } catch (error: any) {
-                    const articleId = this.generateArticleId(article);
+                    const articleId = this.generateArticleId({article});
                     console.error(`Enhancement failed for article ${articleId}:`.red.bold, error.message);
 
                     await ArticleEnhancementModel.findOneAndUpdate(
@@ -141,9 +174,9 @@ class ArticleEnhancementService {
         }, 500);
     }
 
-    static async getEnhancementsForArticles(articles: Article[]): Promise<{ [articleId: string]: IArticleEnhancement }> {
+    static async getEnhancementsForArticles({articles}: GetEnhancementForArticlesParams): Promise<{ [articleId: string]: IArticleEnhancement }> {
         try {
-            const articleIds = articles.map(article => this.generateArticleId(article));
+            const articleIds = articles.map(article => this.generateArticleId({article}));
 
             const completedEnhancements: IArticleEnhancement[] = await ArticleEnhancementModel.find({
                 articleId: {$in: articleIds},
@@ -160,12 +193,19 @@ class ArticleEnhancementService {
         }
     }
 
-    static async getEnhancementStatusByIds(articleIds: string[]): Promise<GetEnhancementStatusByIdsResponse> {
+    static async getEnhancementStatusByIds({email, articleIds}: GetEnhancementStatusByIdsParams): Promise<GetEnhancementStatusByIdsResponse> {
         try {
+            if (email) {
+                const {user} = await getUserByEmail({email});
+                if (!user) {
+                    return {error: generateNotFoundCode('user')};
+                }
+            }
+
             const hasActiveJobs = articleIds.some(id => this.activeJobs.has(id));
 
             const enhancements: IArticleEnhancement[] = await ArticleEnhancementModel.find({
-                articleId: {$in: articleIds}
+                articleId: {$in: articleIds},
             });
 
             const completedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'completed').length;
@@ -196,9 +236,9 @@ class ArticleEnhancementService {
         }
     }
 
-    static mergeEnhancementsWithArticles(articles: Article[], enhancements: { [articleId: string]: IArticleEnhancement }): Article[] {
+    static mergeEnhancementsWithArticles({articles, enhancements}: MergeEnhancementsWithArticlesParams): Article[] {
         return articles.map(article => {
-            const articleId = this.generateArticleId(article);
+            const articleId = this.generateArticleId({article});
             const enhancement = enhancements[articleId];
 
             if (enhancement) {

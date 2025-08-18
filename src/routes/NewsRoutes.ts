@@ -25,7 +25,7 @@ router.get('/nytimes/top-stories', fetchNYTimesTopStoriesController); // /api/v1
 router.get('/rss', fetchAllRSSFeedsController);                   // /api/v1/news/rss?sources=prothom_alo,zeenews_bengali&language=bengali&pageSize=12&page=2
 router.get('/multi-source', authMiddlewareOptional, fetchMultiSourceNewsController);                   // /api/v1/news/multi-source?q=tesla&category=technology&sources=techcrunch&pageSize=10&page=1
 router.get('/multi-source/enhanced', authMiddlewareOptional, fetchMultiSourceNewsEnhancedController);    // /api/v1/news/multi-source/enhanced?q=tesla&category=technology&sources=techcrunch&pageSize=10&page=1 (RECOMMENDED FOR HOME SCREEN)
-router.get('/multi-source/enhancement-status', fetchEnhancementStatusController);    // /api/v1/news/multi-source/enhancement-status?articleIds=id1,id2,id3 (FOR POLLING)
+router.get('/multi-source/enhancement-status', authMiddlewareOptional, fetchEnhancementStatusController);    // /api/v1/news/multi-source/enhancement-status?articleIds=id1,id2,id3 (FOR POLLING)
 router.post('/scrape', newsScrapingRateLimiter, scrapeWebsiteController); // /api/v1/news/scrape
 router.get('/explore/:topic', exploreTopicController); // /api/v1/news/explore/:topic
 

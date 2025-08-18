@@ -1120,7 +1120,7 @@ const scrapeMultipleArticles = async ({urls}: ScrapeMultipleWebsitesParams) => {
     return results;
 }
 
-const fetchMultiSourceNewsFast = async ({q, category, sources, pageSize = 10, page = 1}: MultisourceFetchNewsParams) => {
+const fetchMultiSourceNewsFast = async ({email, q, category, sources, pageSize = 10, page = 1}: MultisourceFetchNewsParams) => {
     console.log('Fast multisource news fetch:'.bgBlue.white.bold, {q, category, sources, pageSize, page});
 
     const startTime = Date.now();
@@ -1240,7 +1240,7 @@ const fetchMultiSourceNewsFast = async ({q, category, sources, pageSize = 10, pa
 
     // Start background enhancement (fire and forget)
     if (sortedResults.length > 0) {
-        ArticleEnhancementService.enhanceArticlesInBackground(sortedResults).then(r => {
+        ArticleEnhancementService.enhanceArticlesInBackground({email: email || '', articles: sortedResults}).then(r => {
         });
     }
 
@@ -1270,17 +1270,17 @@ const fetchMultiSourceNewsEnhanced = async ({email, q, category, sources, pageSi
     const fastResults = await fetchMultiSourceNewsFast({email, q, category, sources, pageSize, page});
 
     console.time('ENHANCEMENT_CHECK_TIME'.bgCyan.white.italic);
-    const existingEnhancements = await ArticleEnhancementService.getEnhancementsForArticles(fastResults.articles);
+    const existingEnhancements = await ArticleEnhancementService.getEnhancementsForArticles({articles: fastResults.articles});
     console.timeEnd('ENHANCEMENT_CHECK_TIME'.bgCyan.white.italic);
 
-    const enhancedArticles = ArticleEnhancementService.mergeEnhancementsWithArticles(fastResults.articles, existingEnhancements);
+    const enhancedArticles = ArticleEnhancementService.mergeEnhancementsWithArticles({articles: fastResults.articles, enhancements: existingEnhancements});
 
     const enhancedCount = enhancedArticles.filter(article => article.enhanced).length;
     const totalTime = Date.now() - startTime;
 
     console.log(`Progressive enhanced multisource: ${enhancedCount}/${enhancedArticles.length} articles have AI enhancements (${totalTime}ms)`.green);
 
-    const processingStatus = await ArticleEnhancementService.getProcessingStatus(enhancedArticles);
+    const processingStatus = await ArticleEnhancementService.getProcessingStatus({articles: enhancedArticles});
 
     const status: EnhancementStatus = processingStatus.status;
     const progress: number = processingStatus.progress;

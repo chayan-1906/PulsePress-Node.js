@@ -1,4 +1,5 @@
 import {Article, ArticleComplexities, EnhancementStatus} from "./news";
+import {IArticleEnhancement} from "../models/ArticleEnhancementSchema";
 
 /*export const SUMMARIZATION_STYLES: SummarizationStyle[] = ['concise', 'standard', 'detailed'];
 export type SummarizationStyle = 'concise' | 'standard' | 'detailed';*/
@@ -158,9 +159,10 @@ export interface GetProcessingStatusResponse {
 }
 
 export interface GetEnhancementStatusByIdsResponse {
-    status: EnhancementStatus;
-    progress: number;
-    articles: Partial<Article>[];
+    status?: EnhancementStatus;
+    progress?: number;
+    articles?: Partial<Article>[];
+    error?: string;
 }
 
 export interface GetUserStrikeStatusResponse {
@@ -215,6 +217,35 @@ export interface TagGenerationParams {
 export interface SentimentAnalysisParams {
     url?: string;
     content?: string;
+}
+
+export interface ReadingTimeComplexityParams {
+    article: Article;
+}
+
+export interface GetProcessingStatusParams {
+    articles: Article[];
+}
+
+export interface EnhanceArticlesInBackgroundParams {
+    email: string;
+    articles: Article[];
+}
+
+export interface GetEnhancementForArticlesParams {
+    articles: Article[];
+}
+
+export interface GetEnhancementStatusByIdsParams {
+    email: string;
+    articleIds: string[];
+}
+
+export interface MergeEnhancementsWithArticlesParams {
+    articles: Article[];
+    enhancements: {
+        [articleId: string]: IArticleEnhancement;
+    };
 }
 
 export interface GetUserStrikeStatusParams {
