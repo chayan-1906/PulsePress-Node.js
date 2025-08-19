@@ -90,9 +90,24 @@ class TagGenerationService {
                     Each tag should represent a meaningful category that is directly relevant to the news content, helping users better understand and filter information.`;
 
         const result = await model.generateContent(prompt);
-        const responseText = result.response.text().trim();
+        let responseText = result.response.text().trim();
 
         console.log('Gemini tag generation response:'.cyan, responseText);
+
+        if (responseText.startsWith('```json')) {
+            responseText = responseText.substring(7);
+        }
+        if (responseText.startsWith('```')) {
+            responseText = responseText.substring(3);
+        }
+        if (responseText.endsWith('```')) {
+            responseText = responseText.substring(0, responseText.length - 3);
+        }
+        responseText = responseText.trim();
+
+        if (responseText !== result.response.text().trim()) {
+            console.log('Stripped markdown, clean JSON:'.yellow, responseText);
+        }
 
         try {
             const parsed = JSON.parse(responseText);

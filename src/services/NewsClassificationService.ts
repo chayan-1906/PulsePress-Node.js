@@ -115,7 +115,6 @@ class NewsClassificationService {
         const prompt = `Analyze this query to determine if it's seeking NEWS content or NON-NEWS content.
 
                         Context: This is a news app where users search for current events and breaking news.
-                        
 
                         NEWS queries are about:
                         - Current events, recent developments, breaking news
@@ -139,7 +138,7 @@ class NewsClassificationService {
                         Query to analyze: "${truncatedText}"
 
                         Based on the context and pattern analysis, is this user looking for NEWS or NON-NEWS content?
-                        
+
                         Respond with EXACTLY one word: either "news" or "non_news"
                     `;
 

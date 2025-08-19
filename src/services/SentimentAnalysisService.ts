@@ -94,9 +94,24 @@ class SentimentAnalysisService {
                     Confidence must be a number between 0.1 and 1.0`;
 
         const result = await model.generateContent(prompt);
-        const responseText = result.response.text().trim();
+        let responseText = result.response.text().trim();
 
         console.log('Gemini sentiment analysis response:'.cyan, responseText);
+
+        if (responseText.startsWith('```json')) {
+            responseText = responseText.substring(7);
+        }
+        if (responseText.startsWith('```')) {
+            responseText = responseText.substring(3);
+        }
+        if (responseText.endsWith('```')) {
+            responseText = responseText.substring(0, responseText.length - 3);
+        }
+        responseText = responseText.trim();
+
+        if (responseText !== result.response.text().trim()) {
+            console.log('Stripped markdown, clean JSON:'.yellow, responseText);
+        }
 
         const parsed = JSON.parse(responseText);
 
@@ -218,7 +233,7 @@ class SentimentAnalysisService {
     }
 
     /**
-     * Analyze sentiment for multiple articles in batches to avoid overwhelming the API
+     * Analyze sentiment for multiple articles in batches
      */
     async enrichArticlesWithSentiment(articles: any[], shouldAnalyze: boolean = true): Promise<EnrichedArticleWithSentiment[]> {
         if (!shouldAnalyze || !articles?.length) {

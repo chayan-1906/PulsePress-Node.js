@@ -22,7 +22,7 @@ export type SentimentResult = typeof SENTIMENT_TYPES[number];
 export const COMPLEXITY_LEVELS = ['easy', 'medium', 'hard'] as const;
 export type ComplexityLevel = typeof COMPLEXITY_LEVELS[number];
 
-export const AI_ARTICLE_ENHANCEMENT_TYPES = ['sentiment', 'keyPoints', 'complexityMeter'];
+export const AI_ARTICLE_ENHANCEMENT_TYPES = ['sentiment', 'keyPoints', 'complexityMeter'];  // TODO: Add Content related FAQs
 export type AIArticleEnhancement = typeof AI_ARTICLE_ENHANCEMENT_TYPES[number];
 
 export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {

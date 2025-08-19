@@ -1,10 +1,10 @@
 import "colors";
 import {createHash} from 'crypto';
 import {genAI} from "./AIService";
-import {AI_ENHANCEMENT_MODELS} from "../utils/constants";
 import StrikeService from "./StrikeService";
 import {getUserByEmail} from "./AuthService";
 import {Article, EnhancementStatus} from "../types/news";
+import {AI_ENHANCEMENT_MODELS} from "../utils/constants";
 import {generateNotFoundCode} from "../utils/generateErrorCodes";
 import SentimentAnalysisService from "./SentimentAnalysisService";
 import ReadingTimeAnalysisService from "./ReadingTimeAnalysisService";
@@ -41,7 +41,7 @@ class ArticleEnhancementService {
             return {error: 'EMPTY_CONTENT'};
         }
 
-        // Truncate content to avoid token limits  
+        // Truncate content to avoid token limits
         const truncatedContent = content.substring(0, 3000);
 
         for (let i = 0; i < AI_ENHANCEMENT_MODELS.length; i++) {
@@ -66,6 +66,8 @@ class ArticleEnhancementService {
                     prompt += `COMPLEXITY METER: Rate the article's difficulty level as easy, medium, or hard based on vocabulary, sentence structure, and concepts.\n\n`;
                 }
 
+                // TODO: Add Content related FAQs
+
                 prompt += `Article content: "${truncatedContent}"\n\n`;
                 prompt += `CRITICAL: Return ONLY the JSON object below. Do NOT wrap it in markdown code blocks or add explanatory text.\n\n`;
                 prompt += `Return exactly this format:\n{\n`;
@@ -79,13 +81,29 @@ class ArticleEnhancementService {
                 if (tasks.includes('complexityMeter')) {
                     prompt += `  "complexityMeter": {"level": "medium", "reasoning": "Contains technical terms but accessible language"}\n`;
                 }
+                // TODO: Add Content related FAQs
 
                 prompt += `}`;
 
                 const result = await model.generateContent(prompt);
-                const responseText = result.response.text().trim();
+                let responseText = result.response.text().trim();
 
                 console.log('Combined AI response:'.cyan, responseText);
+
+                if (responseText.startsWith('```json')) {
+                    responseText = responseText.substring(7);
+                }
+                if (responseText.startsWith('```')) {
+                    responseText = responseText.substring(3);
+                }
+                if (responseText.endsWith('```')) {
+                    responseText = responseText.substring(0, responseText.length - 3);
+                }
+                responseText = responseText.trim();
+
+                if (responseText !== result.response.text().trim()) {
+                    console.log('Stripped markdown, clean JSON:'.yellow, responseText);
+                }
 
                 const parsed = JSON.parse(responseText);
                 const response: CombinedAIResponse = {};
@@ -113,6 +131,8 @@ class ArticleEnhancementService {
                         };
                     }
                 }
+
+                // TODO: Add Content related FAQs
 
                 console.log(`✅ AI enhancement successful with model:`.green, modelName);
                 console.log('Combined AI enhancement result:'.green, response);
