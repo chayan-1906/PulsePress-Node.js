@@ -1,5 +1,5 @@
 import {Document, model, Model, Schema} from 'mongoose';
-import {SentimentResult} from "../types/ai";
+import {COMPLEXITY_LEVELS, ComplexityLevel, SentimentResult} from "../types/ai";
 import {ARTICLE_COMPLEXITIES, ArticleComplexities, PROCESSING_STATUSES, ProcessingStatus} from "../types/news";
 
 export interface IArticleEnhancement extends Document {
@@ -15,6 +15,11 @@ export interface IArticleEnhancement extends Document {
         level: ArticleComplexities;
         readingTimeMinutes: number;
         wordCount: number;
+    };
+    keyPoints?: string[];
+    complexityMeter?: {
+        level: ComplexityLevel;
+        reasoning: string;
     };
     processingStatus: ProcessingStatus;
     createdAt: Date;
@@ -47,6 +52,16 @@ const ArticleEnhancementSchema = new Schema<IArticleEnhancement>({
         },
         readingTimeMinutes: Number,
         wordCount: Number,
+    },
+    keyPoints: [{
+        type: String,
+    }],
+    complexityMeter: {
+        level: {
+            type: String,
+            enum: COMPLEXITY_LEVELS,
+        },
+        reasoning: String,
     },
     processingStatus: {
         type: String,

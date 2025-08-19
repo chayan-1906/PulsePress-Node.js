@@ -1310,5 +1310,5 @@ export {
     fetchAllRSSFeeds,
     fetchMultiSourceNews,
     fetchMultiSourceNewsEnhanced,
-    scrapeMultipleArticles
+    scrapeMultipleArticles,
 };

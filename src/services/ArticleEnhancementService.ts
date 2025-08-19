@@ -1,5 +1,7 @@
 import "colors";
 import {createHash} from 'crypto';
+import {genAI} from "./AIService";
+import {AI_ENHANCEMENT_MODELS} from "../utils/constants";
 import StrikeService from "./StrikeService";
 import {getUserByEmail} from "./AuthService";
 import {Article, EnhancementStatus} from "../types/news";
@@ -8,6 +10,8 @@ import SentimentAnalysisService from "./SentimentAnalysisService";
 import ReadingTimeAnalysisService from "./ReadingTimeAnalysisService";
 import ArticleEnhancementModel, {IArticleEnhancement} from "../models/ArticleEnhancementSchema";
 import {
+    CombinedAIParams,
+    CombinedAIResponse,
     EnhanceArticlesInBackgroundParams,
     GetEnhancementForArticlesParams,
     GetEnhancementStatusByIdsParams,
@@ -15,8 +19,6 @@ import {
     GetProcessingStatusParams,
     GetProcessingStatusResponse,
     MergeEnhancementsWithArticlesParams,
-    SentimentAnalysisResponse,
-    SentimentResult
 } from "../types/ai";
 
 class ArticleEnhancementService {
@@ -26,6 +28,106 @@ class ArticleEnhancementService {
     private static generateArticleId({article}: { article: Article }): string {
         const data = `${article.url}-${article.title}`;
         return createHash('md5').update(data).digest('hex');
+    }
+
+    /**
+     * Combined AI enhancement method - sentiment analysis, key points extractor, and complexity meter
+     */
+    private static async aiEnhanceArticle({content, tasks}: CombinedAIParams): Promise<CombinedAIResponse> {
+        console.log('Running combined AI enhancement:'.cyan.italic, tasks);
+
+        if (!content || content.trim().length === 0) {
+            console.log('Empty content provided for AI enhancement'.yellow.italic);
+            return {error: 'EMPTY_CONTENT'};
+        }
+
+        // Truncate content to avoid token limits  
+        const truncatedContent = content.substring(0, 3000);
+
+        for (let i = 0; i < AI_ENHANCEMENT_MODELS.length; i++) {
+            const modelName = AI_ENHANCEMENT_MODELS[i];
+            console.log(`Trying AI enhancement with model ${i + 1}/${AI_ENHANCEMENT_MODELS.length}:`.cyan, modelName);
+
+            try {
+                const model = genAI.getGenerativeModel({model: modelName});
+
+                // Build dynamic prompt based on requested tasks (no numbering)
+                let prompt = `Analyze this news article and provide the following information:\n\n`;
+
+                if (tasks.includes('sentiment')) {
+                    prompt += `SENTIMENT: Classify the overall emotional tone as positive, negative, or neutral. Consider the impact and emotional tone, not just individual words.\n\n`;
+                }
+
+                if (tasks.includes('keyPoints')) {
+                    prompt += `KEY POINTS: Extract 3-5 main points from the article as a bullet list.\n\n`;
+                }
+
+                if (tasks.includes('complexityMeter')) {
+                    prompt += `COMPLEXITY METER: Rate the article's difficulty level as easy, medium, or hard based on vocabulary, sentence structure, and concepts.\n\n`;
+                }
+
+                prompt += `Article content: "${truncatedContent}"\n\n`;
+                prompt += `CRITICAL: Return ONLY the JSON object below. Do NOT wrap it in markdown code blocks or add explanatory text.\n\n`;
+                prompt += `Return exactly this format:\n{\n`;
+
+                if (tasks.includes('sentiment')) {
+                    prompt += `  "sentiment": {"type": "positive", "confidence": 0.85},\n`;
+                }
+                if (tasks.includes('keyPoints')) {
+                    prompt += `  "keyPoints": ["Point 1", "Point 2", "Point 3"],\n`;
+                }
+                if (tasks.includes('complexityMeter')) {
+                    prompt += `  "complexityMeter": {"level": "medium", "reasoning": "Contains technical terms but accessible language"}\n`;
+                }
+
+                prompt += `}`;
+
+                const result = await model.generateContent(prompt);
+                const responseText = result.response.text().trim();
+
+                console.log('Combined AI response:'.cyan, responseText);
+
+                const parsed = JSON.parse(responseText);
+                const response: CombinedAIResponse = {};
+
+                if (tasks.includes('sentiment') && parsed.sentiment) {
+                    if (['positive', 'negative', 'neutral'].includes(parsed.sentiment.type)) {
+                        response.sentiment = {
+                            type: parsed.sentiment.type,
+                            confidence: parsed.sentiment.confidence || 0.5,
+                            emoji: SentimentAnalysisService.getSentimentEmoji(parsed.sentiment.type),
+                            color: SentimentAnalysisService.getSentimentColor(parsed.sentiment.type)
+                        };
+                    }
+                }
+
+                if (tasks.includes('keyPoints') && parsed.keyPoints && Array.isArray(parsed.keyPoints)) {
+                    response.keyPoints = parsed.keyPoints;
+                }
+
+                if (tasks.includes('complexityMeter') && parsed.complexityMeter) {
+                    if (['easy', 'medium', 'hard'].includes(parsed.complexityMeter.level)) {
+                        response.complexityMeter = {
+                            level: parsed.complexityMeter.level,
+                            reasoning: parsed.complexityMeter.reasoning || 'AI analysis completed',
+                        };
+                    }
+                }
+
+                console.log(`✅ AI enhancement successful with model:`.green, modelName);
+                console.log('Combined AI enhancement result:'.green, response);
+                return response;
+            } catch (error: any) {
+                console.log(`❌ Model failed:`.yellow.bold, modelName, 'Error:'.yellow.italic, error.message);
+                if (i === AI_ENHANCEMENT_MODELS.length - 1) {
+                    console.error('🚨 All AI enhancement models failed'.red.bold);
+                    return {error: 'AI_ENHANCEMENT_FAILED'};
+                }
+            }
+        }
+
+        console.error('🚨 All AI enhancement models failed'.red.bold);
+        return {error: 'AI_ENHANCEMENT_FAILED'};
     }
 
     /*static isBackgroundProcessingActive(articles: Article[]): boolean {
@@ -105,26 +207,43 @@ class ArticleEnhancementService {
                     );
                     console.log(`Processing enhancements for article: ${articleId}`.cyan);
 
+                    // Calculate reading time/complexity (non-AI)
                     const complexity = ReadingTimeAnalysisService.calculateReadingTimeComplexity({article});
 
-                    const sentimentResult: SentimentAnalysisResponse = await SentimentAnalysisService.analyzeSentiment({
+                    // Combined AI enhancements (sentiment + keyPoints + complexityMeter)
+                    const aiResult = await this.aiEnhanceArticle({
                         content: article.content || article.description || article.title || '',
+                        tasks: ['sentiment', 'keyPoints', 'complexityMeter']
                     });
 
+                    // Prepare enhancement data
                     let sentimentData = undefined;
-                    if (!sentimentResult.error && sentimentResult.sentiment) {
-                        sentimentData = {
-                            sentiment: sentimentResult.sentiment as SentimentResult,
-                            confidence: sentimentResult.confidence || 0,
-                            emoji: SentimentAnalysisService.getSentimentEmoji(sentimentResult.sentiment),
-                            color: SentimentAnalysisService.getSentimentColor(sentimentResult.sentiment),
-                        };
+                    let keyPoints = undefined;
+                    let complexityMeter = undefined;
+
+                    if (!aiResult.error) {
+                        // Process sentiment data
+                        if (aiResult.sentiment) {
+                            sentimentData = aiResult.sentiment;
+                        }
+
+                        // Process key points
+                        if (aiResult.keyPoints) {
+                            keyPoints = aiResult.keyPoints;
+                        }
+
+                        // Process complexity meter
+                        if (aiResult.complexityMeter) {
+                            complexityMeter = aiResult.complexityMeter;
+                        }
                     }
 
                     await ArticleEnhancementModel.findOneAndUpdate(
                         {articleId},
                         {
                             sentiment: sentimentData,
+                            keyPoints,
+                            complexityMeter,
                             complexity,
                             processingStatus: 'completed',
                         },

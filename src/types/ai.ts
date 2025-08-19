@@ -19,6 +19,12 @@ export type ClassificationResult = typeof CLASSIFICATION_TYPES[number];
 export const SENTIMENT_TYPES = ['positive', 'negative', 'neutral'] as const;
 export type SentimentResult = typeof SENTIMENT_TYPES[number];
 
+export const COMPLEXITY_LEVELS = ['easy', 'medium', 'hard'] as const;
+export type ComplexityLevel = typeof COMPLEXITY_LEVELS[number];
+
+export const AI_ARTICLE_ENHANCEMENT_TYPES = ['sentiment', 'keyPoints', 'complexityMeter'];
+export type AIArticleEnhancement = typeof AI_ARTICLE_ENHANCEMENT_TYPES[number];
+
 export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
     'en': 'English',
     'es': 'Español',
@@ -153,6 +159,21 @@ export interface ReadingTimeComplexityResponse {
     wordCount: number;
 }
 
+export interface CombinedAIResponse {
+    sentiment?: {
+        type: SentimentResult;
+        confidence: number;
+        emoji: string;
+        color: string;
+    };
+    keyPoints?: string[];
+    complexityMeter?: {
+        level: ComplexityLevel;
+        reasoning: string;
+    };
+    error?: string;
+}
+
 export interface GetProcessingStatusResponse {
     status: EnhancementStatus;
     progress: number;
@@ -221,6 +242,11 @@ export interface SentimentAnalysisParams {
 
 export interface ReadingTimeComplexityParams {
     article: Article;
+}
+
+export interface CombinedAIParams {
+    content: string;
+    tasks: AIArticleEnhancement[];
 }
 
 export interface GetProcessingStatusParams {
