@@ -227,16 +227,13 @@ class ArticleEnhancementService {
                     );
                     console.log(`Processing enhancements for article: ${articleId}`.cyan);
 
-                    // Calculate reading time/complexity (non-AI)
                     const complexity = ReadingTimeAnalysisService.calculateReadingTimeComplexity({article});
 
-                    // Combined AI enhancements (sentiment + keyPoints + complexityMeter)
                     const aiResult = await this.aiEnhanceArticle({
                         content: article.content || article.description || article.title || '',
-                        tasks: ['sentiment', 'keyPoints', 'complexityMeter']
+                        tasks: ['sentiment', 'keyPoints', 'complexityMeter'],
                     });
 
-                    // Prepare enhancement data
                     let sentimentData = undefined;
                     let keyPoints = undefined;
                     let complexityMeter = undefined;
@@ -269,7 +266,6 @@ class ArticleEnhancementService {
                         },
                     );
                     console.log(`Successfully enhanced article: ${articleId}`.green);
-
                 } catch (error: any) {
                     const articleId = this.generateArticleId({article});
                     console.error(`Enhancement failed for article ${articleId}:`.red.bold, error.message);
@@ -299,7 +295,7 @@ class ArticleEnhancementService {
             });
 
             const enhancementMap: { [articleId: string]: IArticleEnhancement } = {};
-            completedEnhancements.forEach(enhancement => enhancementMap[enhancement.articleId] = enhancement);
+            completedEnhancements.forEach((enhancement: IArticleEnhancement) => enhancementMap[enhancement.articleId] = enhancement);
 
             return enhancementMap;
         } catch (error: any) {
@@ -331,11 +327,13 @@ class ArticleEnhancementService {
 
             const articles = enhancements
                 .filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'completed')
-                .map(({articleId, url, sentiment, complexity}) => ({
+                .map(({articleId, url, sentiment, complexity, complexityMeter, keyPoints}) => ({
                     articleId,
                     url,
                     sentiment,
                     complexity,
+                    complexityMeter,
+                    keyPoints,
                     enhanced: true,
                 }));
 
@@ -361,6 +359,8 @@ class ArticleEnhancementService {
                     ...article,
                     articleId,  // TODO: Remove when Article interface has non-null articleId
                     sentimentData: enhancement.sentiment,
+                    keyPoints: enhancement.keyPoints,
+                    complexityMeter: enhancement.complexityMeter,
                     complexity: enhancement.complexity,
                     enhanced: true,
                 };
