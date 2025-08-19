@@ -181,10 +181,7 @@ const saveSummaryToCache = async ({contentHash, summary, language, style}: SaveS
 }
 
 const getCachedSummary = async ({contentHash}: GetCachedSummaryParams): Promise<ICachedSummary | null> => {
-    const cachedSummary: ICachedSummary | null = await CachedSummaryModel.findOne({
-        contentHash,
-        expiresAt: {$gt: new Date()}, // not expired
-    });
+    const cachedSummary: ICachedSummary | null = await CachedSummaryModel.findOne({contentHash});
     console.log('cachedSummary'.cyan.italic, cachedSummary);
     return cachedSummary;
 }

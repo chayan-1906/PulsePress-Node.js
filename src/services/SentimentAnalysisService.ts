@@ -1,18 +1,16 @@
 import "colors";
-import {createHash} from 'crypto';
 import {genAI} from "./AIService";
 import {AI_PROMPTS} from "../utils/prompts";
-import {GEMINI_API_KEY, NODE_ENV} from "../config/config";
+import {GEMINI_API_KEY} from "../config/config";
 import {SENTIMENT_ANALYSIS_MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
-import CachedSentimentModel, {ICachedSentiment} from "../models/CachedSentimentSchema";
 import {EnrichedArticleWithSentiment, SentimentAnalysisParams, SentimentAnalysisResponse, SentimentResult} from "../types/ai";
 
 class SentimentAnalysisService {
     /**
      * Analyzes the sentiment of news article content using Gemini AI
      */
-    async analyzeSentiment({content}: SentimentAnalysisParams): Promise<SentimentAnalysisResponse> {
+    static async analyzeSentiment({content}: SentimentAnalysisParams): Promise<SentimentAnalysisResponse> {
         console.log('Analyzing sentiment for content...'.cyan.italic);
 
         if (!content || content.trim().length === 0) {
@@ -22,18 +20,6 @@ class SentimentAnalysisService {
 
         // Truncate content to avoid token limits
         const truncatedContent = content.substring(0, 3000);
-
-        const contentHash = this.generateContentHash(truncatedContent);
-        console.log('Content hash generated for sentiment caching:'.cyan.italic, contentHash);
-
-        if (NODE_ENV === 'production') {
-            const cached = await this.getCachedSentiment(contentHash);
-            const {sentiment, confidence} = cached || {};
-            if (cached) {
-                console.log('Returning cached sentiment result:'.green, {sentiment, confidence});
-                return {sentiment, confidence};
-            }
-        }
 
         for (let i = 0; i < SENTIMENT_ANALYSIS_MODELS.length; i++) {
             const model = SENTIMENT_ANALYSIS_MODELS[i];
@@ -46,10 +32,6 @@ class SentimentAnalysisService {
                 if (result.sentiment && result.confidence) {
                     console.log(`✅ Sentiment analysis successful with model:`.green, model);
                     console.log('Sentiment analysis result:'.green, {sentiment: result.sentiment, confidence: result.confidence});
-
-                    if (NODE_ENV === 'production') {
-                        await this.saveSentimentToCache(contentHash, result.sentiment, result.confidence);
-                    }
 
                     return result;
                 }
@@ -67,7 +49,7 @@ class SentimentAnalysisService {
     /**
      * Analyze sentiment using Gemini AI
      */
-    private async analyzeWithGemini(modelName: string, content: string): Promise<SentimentAnalysisResponse> {
+    static async analyzeWithGemini(modelName: string, content: string): Promise<SentimentAnalysisResponse> {
         if (!GEMINI_API_KEY) {
             console.error('Gemini API key not configured'.red.bold);
             return {error: generateMissingCode('gemini_api_key')};
@@ -113,7 +95,7 @@ class SentimentAnalysisService {
     /**
      * Get emoji representation for sentiment
      */
-    getSentimentEmoji(sentiment: SentimentResult): string {
+    static getSentimentEmoji(sentiment: SentimentResult): string {
         switch (sentiment) {
             case 'positive':
                 return '😊';
@@ -129,7 +111,7 @@ class SentimentAnalysisService {
     /**
      * Get color indicator for sentiment (for UI styling)
      */
-    getSentimentColor(sentiment: SentimentResult): string {
+    static getSentimentColor(sentiment: SentimentResult): string {
         switch (sentiment) {
             case 'positive':
                 return 'green';
@@ -143,46 +125,9 @@ class SentimentAnalysisService {
     }
 
     /**
-     * Generate hash for caching sentiment results
-     */
-    private generateContentHash(content: string): string {
-        return createHash('sha256').update(content).digest('hex');
-    }
-
-    /**
-     * Get cached sentiment result
-     */
-    private async getCachedSentiment(contentHash: string): Promise<ICachedSentiment | null> {
-        try {
-            const cached = await CachedSentimentModel.findOne({
-                contentHash,
-                expiresAt: {$gt: new Date()},
-            });
-            console.log('Cached sentiment lookup:'.cyan.italic, cached ? 'found' : 'not found');
-            return cached;
-        } catch (error: any) {
-            console.error('Error retrieving cached sentiment:'.yellow.italic, error.message);
-            return null;
-        }
-    }
-
-    /**
-     * Save sentiment result to cache
-     */
-    private async saveSentimentToCache(contentHash: string, sentiment: SentimentResult, confidence: number): Promise<void> {
-        try {
-            await CachedSentimentModel.create({contentHash, sentiment, confidence});
-            console.log('Sentiment result cached successfully:'.green, {sentiment, confidence});
-        } catch (error: any) {
-            console.error('Error saving sentiment to cache:'.yellow.italic, error.message);
-            // Don't throw error, caching failure shouldn't break the main functionality
-        }
-    }
-
-    /**
      * Analyze sentiment for an individual article and add sentiment data
      */
-    async enrichArticleWithSentiment(article: any, shouldAnalyze: boolean = true): Promise<EnrichedArticleWithSentiment> {
+    static async enrichArticleWithSentiment(article: any, shouldAnalyze: boolean = true): Promise<EnrichedArticleWithSentiment> {
         if (!shouldAnalyze) {
             return article;
         }
@@ -219,7 +164,7 @@ class SentimentAnalysisService {
     /**
      * Analyze sentiment for multiple articles in batches
      */
-    async enrichArticlesWithSentiment(articles: any[], shouldAnalyze: boolean = true): Promise<EnrichedArticleWithSentiment[]> {
+    static async enrichArticlesWithSentiment(articles: any[], shouldAnalyze: boolean = true): Promise<EnrichedArticleWithSentiment[]> {
         if (!shouldAnalyze || !articles?.length) {
             return articles;
         }
@@ -252,4 +197,4 @@ class SentimentAnalysisService {
     }
 }
 
-export default new SentimentAnalysisService();
+export default SentimentAnalysisService;
