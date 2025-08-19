@@ -79,6 +79,27 @@ export interface EnrichedArticleWithSentiment {
     };
 }
 
+export interface EnrichedArticleWithKeyPoints {
+    source: {
+        id: string | null;
+        name: string | null;
+    };
+    author: string | null;
+    title: string | null;
+    description: string | null;
+    url: string | null;
+    urlToImage: string | null;
+    publishedAt: string | null;
+    content: string | null;
+    qualityScore?: {
+        score: number;
+        reasons: string[];
+        isRelevant: boolean;
+        isProfessional: boolean;
+    };
+    keyPoints?: string[];
+}
+
 export interface StrikeHistoryEvent {
     strikeNumber: number;
     appliedAt: Date;
@@ -150,6 +171,11 @@ export interface TagGenerationResponse {
 export interface SentimentAnalysisResponse {
     sentiment?: SentimentResult;
     confidence?: number;
+    error?: string;
+}
+
+export interface KeyPointsExtractionResponse {
+    keyPoints?: string[];
     error?: string;
 }
 
@@ -236,6 +262,11 @@ export interface TagGenerationParams {
 }
 
 export interface SentimentAnalysisParams {
+    url?: string;
+    content?: string;
+}
+
+export interface KeyPointsExtractionParams {
     url?: string;
     content?: string;
 }

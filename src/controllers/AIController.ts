@@ -8,9 +8,10 @@ import {summarizeArticle} from "../services/AIService";
 import {getUserByEmail} from "../services/AuthService";
 import {scrapeMultipleArticles} from "../services/NewsService";
 import SentimentAnalysisService from "../services/SentimentAnalysisService";
+import KeyPointsExtractionService from "../services/KeyPointsExtractionService";
 import NewsClassificationService from "../services/NewsClassificationService";
 import TagGenerationService from "../services/TagGenerationService";
-import {SentimentAnalysisParams, SUMMARIZATION_STYLES, SummarizeArticleParams, TagGenerationParams} from "../types/ai";
+import {KeyPointsExtractionParams, SentimentAnalysisParams, SUMMARIZATION_STYLES, SummarizeArticleParams, TagGenerationParams} from "../types/ai";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 
 const classifyContentController = async (req: Request, res: Response) => {
@@ -452,4 +453,108 @@ const generateTagsController = async (req: Request, res: Response) => {
     }
 }
 
-export {classifyContentController, summarizeArticleController, analyzeSentimentController, generateTagsController};
+const fetchKeyPointsController = async (req: Request, res: Response) => {
+    console.info('fetchKeyPointsController called'.bgMagenta.white.italic);
+
+    try {
+        const email = (req as AuthRequest).email;
+        const {content, url}: KeyPointsExtractionParams = req.body;
+
+        const {user} = await getUserByEmail({email});
+        if (!user) {
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
+            }));
+            return;
+        }
+
+        if (!content && !url) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'CONTENT_OR_URL_REQUIRED',
+                errorMsg: 'Either content or URL must be provided for key points extraction',
+            }));
+            return;
+        }
+
+        if (content && url) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'CONTENT_AND_URL_CONFLICT',
+                errorMsg: 'Provide either content or URL, not both',
+            }));
+            return;
+        }
+
+        let contentToAnalyze = content;
+
+        if (!content && url) {
+            console.log('Scraping URL for key points extraction:'.cyan.italic, url);
+            const scrapedArticles = await scrapeMultipleArticles({urls: [url]});
+
+            if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
+                res.status(400).send(new ApiResponse({
+                    success: false,
+                    errorCode: 'SCRAPING_FAILED',
+                    errorMsg: 'Failed to scrape the provided URL',
+                }));
+                return;
+            }
+
+            contentToAnalyze = scrapedArticles[0]?.content || '';
+        }
+
+        if (!contentToAnalyze || contentToAnalyze.trim().length === 0) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'EMPTY_CONTENT',
+                errorMsg: 'No content available for key points extraction',
+            }));
+            return;
+        }
+
+        const {keyPoints, error} = await KeyPointsExtractionService.extractKeyPoints({content: contentToAnalyze});
+
+        if (error) {
+            let errorMsg = 'Failed to extract key points';
+            if (error === 'EMPTY_CONTENT') {
+                errorMsg = 'No content provided for analysis';
+            } else if (error === generateMissingCode('gemini_api_key')) {
+                errorMsg = 'Key points extraction service is temporarily unavailable';
+            } else if (error === 'KEY_POINTS_EXTRACTION_FAILED') {
+                errorMsg = 'Key points extraction failed, please try again';
+            } else if (error === 'KEY_POINTS_PARSE_ERROR') {
+                errorMsg = 'Unable to parse extracted key points, please try again';
+            } else if (error === 'NO_VALID_KEY_POINTS') {
+                errorMsg = 'No valid key points found in the content';
+            }
+
+            res.status(500).send(new ApiResponse({
+                success: false,
+                errorCode: error,
+                errorMsg,
+            }));
+            return;
+        }
+
+        console.log('Key points extraction completed:'.cyan.italic, keyPoints);
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'Key points extracted successfully 🎉',
+            keyPoints,
+            contentPreview: contentToAnalyze.substring(0, 200) + '...',
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of fetchKeyPointsController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            errorCode: error.errorCode,
+            errorMsg: error.message || 'Something went wrong',
+        }));
+    }
+}
+
+export {classifyContentController, summarizeArticleController, analyzeSentimentController, generateTagsController, fetchKeyPointsController};

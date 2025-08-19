@@ -114,7 +114,7 @@ class ArticleEnhancementService {
                             type: parsed.sentiment.type,
                             confidence: parsed.sentiment.confidence || 0.5,
                             emoji: SentimentAnalysisService.getSentimentEmoji(parsed.sentiment.type),
-                            color: SentimentAnalysisService.getSentimentColor(parsed.sentiment.type)
+                            color: SentimentAnalysisService.getSentimentColor(parsed.sentiment.type),
                         };
                     }
                 }

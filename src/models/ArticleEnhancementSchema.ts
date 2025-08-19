@@ -71,7 +71,7 @@ const ArticleEnhancementSchema = new Schema<IArticleEnhancement>({
     createdAt: {
         type: Date,
         default: Date.now,
-        expires: 5 * 60, // 5 minutes in seconds
+        expires: 2 * 60 * 60, // 2 hours in seconds
         // expires: 7 * 24 * 60 * 60, // 7 days in seconds TODO: Uncomment it, for production, news should be deleted after 7 days
     },
 }, {
