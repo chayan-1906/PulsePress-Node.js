@@ -66,7 +66,7 @@ const convertGuardianToArticle = (guardianArticle: GuardianArticle): Article => 
     url: guardianArticle.webUrl,
     urlToImage: guardianArticle.fields?.thumbnail || null,
     publishedAt: guardianArticle.webPublicationDate,
-    content: guardianArticle.fields?.bodyText || null,
+    content: guardianArticle.fields?.bodyText?.substring(0, 100) + '...' || null,
 })
 
 const convertNYTimesToArticle = (nytArticle: NYTimesArticle): Article => ({
@@ -80,7 +80,7 @@ const convertNYTimesToArticle = (nytArticle: NYTimesArticle): Article => ({
     url: nytArticle.web_url,
     urlToImage: nytArticle.multimedia?.[0]?.url ? `https://static01.nyt.com/${nytArticle.multimedia[0].url}` : null,
     publishedAt: nytArticle.pub_date,
-    content: nytArticle.lead_paragraph || null,
+    content: nytArticle.lead_paragraph?.substring(0, 100) + '...' || null,
 })
 
 /*
@@ -305,6 +305,18 @@ const assessContentQuality = (article: Article, query?: string): QualityScore =>
 
 const isDuplicateArticle = (article: Article, existing: Article[]): boolean => {
     return existing.some(existingArticle => !!(article.url && existingArticle.url && article.url === existingArticle.url));
+}
+
+const cleanScrapedText = (text: string): string => {
+    if (!text) return '';
+
+    return text
+        // Remove all types of newlines and replace with single space
+        .replace(/\r\n|\r|\n/g, ' ')
+        // Replace multiple spaces, tabs with single space
+        .replace(/\s+/g, ' ')
+        // Remove leading and trailing whitespace
+        .trim();
 }
 
 const fetchNEWSORGTopHeadlines = async ({country, category, sources, q, pageSize = 10, page = 1}: NEWSORGTopHeadlinesParams) => {
@@ -556,7 +568,7 @@ const fetchNYTimesTopStories = async ({section = 'home'}: NYTimesTopStoriesParam
             url: story.url,
             urlToImage: story.multimedia?.[0]?.url || null,
             publishedAt: story.published_date,
-            content: story.abstract,
+            content: story.abstract?.substring(0, 100) + '...',
         } as Article));
 
         const result = {
@@ -937,7 +949,7 @@ const fetchMultiSourceNews = async ({email, q, category, sources, pageSize = 10,
                     url: rss.url || null,
                     urlToImage: null,
                     publishedAt: rss.publishedAt || null,
-                    content: rss.content || null
+                    content: rss.content?.substring(0, 100) + '...' || null,
                 } as Article));
 
                 const qualityArticles = rssArticles
@@ -1066,14 +1078,16 @@ const scrapeArticle = async ({url}: ScrapeWebsiteParams) => {
             throw new Error('Failed to parse article content');
         }
 
+        const cleanedContent = cleanScrapedText(article.textContent || '');
+
         return {
             url,
-            title: article.title || '',
-            content: article.textContent || '',
-            excerpt: article.excerpt || '',
-            byline: article.byline || '',
-            length: article.length || 0,
-            readingTimeMinutes: Math.ceil((article.length || 0) / 200),
+            title: cleanScrapedText(article.title || ''),
+            content: cleanedContent,
+            excerpt: cleanScrapedText(article.excerpt || ''),
+            byline: cleanScrapedText(article.byline || ''),
+            length: cleanedContent.length,
+            readingTimeMinutes: Math.ceil(cleanedContent.length / 200),
             timestamp: new Date().toISOString(),
             method: 'readability',
             status: 200,
@@ -1138,8 +1152,8 @@ const fetchMultiSourceNewsFast = async ({email, q, category, sources, pageSize =
     // Simplified approach - parallel API calls, no quality scoring
     const apiPromises = [];
 
-    // NewsAPI (50% of articles)
-    const newsApiCount = Math.ceil(pageSize * 0.5);
+    // NewsAPI (10% of articles)
+    const newsApiCount = Math.ceil(pageSize * 0.1);
     if (newsApiRequestCount < Number.parseInt(NEWSAPI_QUOTA_REQUESTS!)) {
         if (simplifiedQuery) {
             apiPromises.push(
@@ -1148,7 +1162,7 @@ const fetchMultiSourceNewsFast = async ({email, q, category, sources, pageSize =
                     language: 'en',
                     sortBy: 'relevancy',
                     pageSize: newsApiCount,
-                    page
+                    page,
                 }).then(result => ({source: 'NewsAPI-Search', result}))
                     .catch(err => ({source: 'NewsAPI-Search', error: err.message}))
             );
@@ -1159,7 +1173,7 @@ const fetchMultiSourceNewsFast = async ({email, q, category, sources, pageSize =
                     category: topic !== 'general' ? topic : undefined,
                     sources: optimizedSources,
                     pageSize: newsApiCount,
-                    page
+                    page,
                 }).then(result => ({source: 'NewsAPI-Headlines', result}))
                     .catch(err => ({source: 'NewsAPI-Headlines', error: err.message}))
             );
@@ -1175,19 +1189,50 @@ const fetchMultiSourceNewsFast = async ({email, q, category, sources, pageSize =
                 section: topic !== 'general' ? topic : undefined,
                 orderBy: 'newest',
                 pageSize: guardianCount,
-                page
+                page,
             }).then(result => ({source: 'Guardian', result}))
                 .catch(err => ({source: 'Guardian', error: err.message}))
         );
     }
 
-    // RSS (20% of articles)
-    const rssCount = Math.ceil(pageSize * 0.2);
+    // NYTimes (20% of articles)
+    const nytimesCount = Math.ceil(pageSize * 0.2);
+    const nytSection = mapToNYTimesSection(topic);
+    if (nytimesApiRequestCount < Number.parseInt(NYTIMES_QUOTA_REQUESTS!)) {
+        if (simplifiedQuery) {
+            apiPromises.push(
+                fetchNYTimesNews({
+                    q: simplifiedQuery,
+                    section: nytSection,
+                    sort: 'newest',
+                    pageSize: nytimesCount,
+                    page,
+                }).then(result => ({source: 'NYTimes-Search', result}))
+                    .catch(err => ({source: 'NYTimes-Search', error: err.message}))
+            );
+        } else {
+            apiPromises.push(
+                fetchNYTimesTopStories({
+                    section: nytSection
+                }).then(result => {
+                    // Limit results to desired count for consistency
+                    const limitedResult = {
+                        ...result,
+                        articles: result.articles?.slice(0, nytimesCount) || []
+                    };
+                    return {source: 'NYTimes-TopStories', result: limitedResult};
+                }).catch(err => ({source: 'NYTimes-TopStories', error: err.message}))
+            );
+        }
+    }
+
+    // RSS (40% of articles)
+    const rssCount = Math.ceil(pageSize * 0.4);
     apiPromises.push(fetchAllRSSFeeds({
             q: simplifiedQuery,
             sources: optimizedSources,
             pageSize: rssCount,
-            page
+        page,
         }).then(rssResults => {
             const articles = rssResults.map(rss => ({
                 source: {id: null, name: rss.source?.name || 'RSS Feed'},
@@ -1197,7 +1242,7 @@ const fetchMultiSourceNewsFast = async ({email, q, category, sources, pageSize =
                 url: rss.url || null,
                 urlToImage: null,
                 publishedAt: rss.publishedAt || null,
-                content: rss.content || null
+                content: rss.content?.substring(0, 100) + '...' || null,
             } as Article));
             return {source: 'RSS', result: {articles}};
         }).catch((error: any) => ({source: 'RSS', error: error.message}))
@@ -1213,10 +1258,15 @@ const fetchMultiSourceNewsFast = async ({email, q, category, sources, pageSize =
                 errors.push(`${apiResult.source}: ${apiResult.error}`);
                 console.log(`${apiResult.source} failed:`.yellow, apiResult.error);
             } else if (apiResult.result && apiResult.result.articles && apiResult.result.articles.length > 0) {
-                // Simple deduplication by URL
-                const newArticles = apiResult.result.articles.filter((article: Article) =>
-                    article.url && !results.some(existing => existing.url === article.url)
-                );
+                // Simple deduplication by URL and tag with source API
+                const newArticles = apiResult.result.articles
+                    .filter((article: Article) =>
+                        article.url && !results.some(existing => existing.url === article.url)
+                    )
+                    .map((article: Article) => ({
+                        ...article,
+                        sourceApi: apiResult.source // Tag each article with the API source
+                    }));
 
                 results.push(...newArticles);
                 usedSources.push(apiResult.source);
@@ -1236,7 +1286,29 @@ const fetchMultiSourceNewsFast = async ({email, q, category, sources, pageSize =
         .slice(0, pageSize);
 
     const loadTime = Date.now() - startTime;
+
+    const distribution = {
+        'NewsAPI-Search': 0,
+        'NewsAPI-Headlines': 0,
+        'Guardian': 0,
+        'NYTimes-Search': 0,
+        'NYTimes-TopStories': 0,
+        'RSS': 0
+    };
+
+    sortedResults.forEach(article => {
+        const sourceApi = (article as any).sourceApi;
+        if (sourceApi && distribution.hasOwnProperty(sourceApi)) {
+            distribution[sourceApi as keyof typeof distribution]++;
+        }
+    });
+
+    const newsApiTotal = distribution['NewsAPI-Search'] + distribution['NewsAPI-Headlines'];
+    const nytimesTotal = distribution['NYTimes-Search'] + distribution['NYTimes-TopStories'];
+
     console.log(`Fast multisource completed: ${sortedResults.length} articles in ${loadTime}ms from [${usedSources.join(', ')}]`.bgGreen.white.bold);
+    console.log(`Actual distribution: NewsAPI(${newsApiTotal}), Guardian(${distribution.Guardian}), NYTimes(${nytimesTotal}), RSS(${distribution.RSS})`.cyan.italic);
+    console.log(`Target ratios: NewsAPI(10%), Guardian(30%), NYTimes(20%), RSS(40%)`.cyan.italic);
 
     // Start background enhancement (fire and forget)
     if (sortedResults.length > 0) {
@@ -1253,6 +1325,19 @@ const fetchMultiSourceNewsFast = async ({email, q, category, sources, pageSize =
             usedSources,
             errors: errors.length > 0 ? errors : undefined,
             enhanced: false,
+            distribution: {
+                newsApi: newsApiTotal,
+                guardian: distribution.Guardian,
+                nytimes: nytimesTotal,
+                rss: distribution.RSS,
+                total: sortedResults.length
+            },
+            targetRatios: {
+                newsApi: '10%',
+                guardian: '30%',
+                nytimes: '20%',
+                rss: '40%'
+            },
             apiRequestCounts: {
                 newsApi: newsApiRequestCount,
                 guardian: guardianApiRequestCount,
