@@ -26,7 +26,7 @@ const MagicLinkSchema = new Schema<IMagicLink>({
     },
     expiresAt: {
         type: Date,
-        required: true,
+        required: true, // Needed because TTL runs every 60s
     },
     isUsed: {
         type: Boolean,

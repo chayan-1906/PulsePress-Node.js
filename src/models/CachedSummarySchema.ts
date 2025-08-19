@@ -37,8 +37,8 @@ const CachedSummarySchema = new Schema<ICachedSummary>({
     },
     expiresAt: {
         type: Date,
-        default: () => new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-        index: {expireAfterSeconds: 0} // MongoDB TTL, MongoDB automatically deletes when expiresAt is reached
+        default: Date.now,
+        expires: 24 * 60 * 60 * 1000,    // 24h - MongoDB TTL, MongoDB automatically deletes when expiresAt is reached
     },
 }, {
     timestamps: true,
