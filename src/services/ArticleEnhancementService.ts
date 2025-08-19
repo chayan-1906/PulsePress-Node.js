@@ -1,6 +1,7 @@
 import "colors";
 import {createHash} from 'crypto';
 import {genAI} from "./AIService";
+import {AI_PROMPTS} from "../utils/prompts";
 import StrikeService from "./StrikeService";
 import {getUserByEmail} from "./AuthService";
 import {Article, EnhancementStatus} from "../types/news";
@@ -51,25 +52,25 @@ class ArticleEnhancementService {
             try {
                 const model = genAI.getGenerativeModel({model: modelName});
 
-                // Build dynamic prompt based on requested tasks (no numbering)
+                // Build dynamic prompt based on requested tasks using the same prompt functions
                 let prompt = `Analyze this news article and provide the following information:\n\n`;
 
                 if (tasks.includes('sentiment')) {
-                    prompt += `SENTIMENT: Classify the overall emotional tone as positive, negative, or neutral. Consider the impact and emotional tone, not just individual words.\n\n`;
+                    prompt += `SENTIMENT ANALYSIS:\n${AI_PROMPTS.SENTIMENT_ANALYSIS()}\n\n`;
                 }
 
                 if (tasks.includes('keyPoints')) {
-                    prompt += `KEY POINTS: Extract 3-5 main points from the article as a bullet list.\n\n`;
+                    prompt += `KEY POINTS EXTRACTION:\n${AI_PROMPTS.KEY_POINTS_EXTRACTION()}\n\n`;
                 }
 
                 if (tasks.includes('complexityMeter')) {
-                    prompt += `COMPLEXITY METER: Rate the article's difficulty level as easy, medium, or hard based on vocabulary, sentence structure, and concepts.\n\n`;
+                    prompt += `COMPLEXITY METER:\n${AI_PROMPTS.COMPLEXITY_METER()}\n\n`;
                 }
 
                 // TODO: Add Content related FAQs
 
                 prompt += `Article content: "${truncatedContent}"\n\n`;
-                prompt += `CRITICAL: Return ONLY the JSON object below. Do NOT wrap it in markdown code blocks or add explanatory text.\n\n`;
+                prompt += `${AI_PROMPTS.JSON_FORMAT_INSTRUCTIONS}\n\n`;
                 prompt += `Return exactly this format:\n{\n`;
 
                 if (tasks.includes('sentiment')) {

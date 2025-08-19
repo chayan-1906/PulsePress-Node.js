@@ -1,5 +1,6 @@
 import "colors";
 import {genAI} from "./AIService";
+import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {AI_ENHANCEMENT_MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
@@ -55,28 +56,7 @@ class ComplexityMeterService {
 
         const model = genAI.getGenerativeModel({model: modelName});
 
-        const prompt = `Analyze this news article content and rate its difficulty level based on vocabulary, sentence structure, and concepts.
-
-                    Guidelines for complexity rating:
-                    - EASY: Simple vocabulary, short sentences, common topics, accessible to general readers
-                    - MEDIUM: Moderate vocabulary, mixed sentence lengths, some technical terms but generally accessible
-                    - HARD: Complex vocabulary, long sentences, technical jargon, specialized knowledge required
-
-                    Consider:
-                    - Word difficulty and technical terminology
-                    - Sentence structure complexity
-                    - Concept abstraction level
-                    - Required background knowledge
-
-                    Article content: "${content}"
-
-                    CRITICAL: Return ONLY the JSON object below. Do NOT wrap it in markdown code blocks, backticks, or any other formatting. Do NOT add any explanatory text before or after the JSON.
-
-                    Return exactly this format:
-                    {"complexityMeter": {"level": "medium", "reasoning": "Contains technical terms but accessible language"}}
-
-                    Valid level values: easy, medium, hard
-                    Reasoning should briefly explain the rating.`;
+        const prompt = AI_PROMPTS.COMPLEXITY_METER(content);
 
         const result = await model.generateContent(prompt);
         let responseText = result.response.text().trim();

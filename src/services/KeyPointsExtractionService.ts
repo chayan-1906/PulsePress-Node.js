@@ -1,5 +1,6 @@
 import "colors";
 import {genAI} from "./AIService";
+import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {AI_ENHANCEMENT_MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
@@ -55,23 +56,7 @@ class KeyPointsExtractionService {
 
         const model = genAI.getGenerativeModel({model: modelName});
 
-        const prompt = `Analyze this news article content and extract 3-5 key points that summarize the most important information.
-
-                    Guidelines for key points extraction:
-                    - Focus on main facts, events, and outcomes mentioned in the article
-                    - Each point should be concise but informative (1-2 sentences max)
-                    - Prioritize factual information over opinions
-                    - Avoid redundancy between points
-                    - Present points in order of importance
-
-                    Article content: "${content}"
-
-                    CRITICAL: Return ONLY the JSON object below. Do NOT wrap it in markdown code blocks, backticks, or any other formatting. Do NOT add any explanatory text before or after the JSON.
-
-                    Return exactly this format:
-                    {"keyPoints": ["Point 1", "Point 2", "Point 3"]}
-
-                    Each key point should be a clear, concise statement.`;
+        const prompt = AI_PROMPTS.KEY_POINTS_EXTRACTION(content);
 
         const result = await model.generateContent(prompt);
         let responseText = result.response.text().trim();

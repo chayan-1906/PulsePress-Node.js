@@ -1,6 +1,7 @@
 import "colors";
 import {createHash} from 'crypto';
 import {genAI} from "./AIService";
+import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY, NODE_ENV} from "../config/config";
 import {SENTIMENT_ANALYSIS_MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
@@ -74,24 +75,7 @@ class SentimentAnalysisService {
 
         const model = genAI.getGenerativeModel({model: modelName});
 
-        const prompt = `Analyze the sentiment of this news article content and determine if the overall tone is positive, negative, or neutral.
-
-                    Guidelines for sentiment classification:
-                    - POSITIVE: Good news, achievements, progress, solutions, celebrations, positive outcomes, uplifting stories
-                    - NEGATIVE: Bad news, problems, conflicts, disasters, failures, scandals, tragedies, concerning developments
-                    - NEUTRAL: Factual reporting without emotional tone, balanced coverage, informational updates, routine announcements
-
-                    Consider the overall impact and emotional tone of the article, not just individual words.
-
-                    Article content: "${content}"
-
-                    CRITICAL: Return ONLY the JSON object below. Do NOT wrap it in markdown code blocks, backticks, or any other formatting. Do NOT add any explanatory text before or after the JSON.
-
-                    Return exactly this format:
-                    {"sentiment": "positive", "confidence": 0.85}
-
-                    Valid sentiment values: positive, negative, neutral
-                    Confidence must be a number between 0.1 and 1.0`;
+        const prompt = AI_PROMPTS.SENTIMENT_ANALYSIS(content);
 
         const result = await model.generateContent(prompt);
         let responseText = result.response.text().trim();

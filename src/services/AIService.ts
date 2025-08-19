@@ -4,10 +4,11 @@ import {GoogleGenerativeAI} from "@google/generative-ai";
 import {Translate} from '@google-cloud/translate/build/src/v2';
 import {isListEmpty} from "../utils/list";
 import StrikeService from "./StrikeService";
+import {AI_PROMPTS} from "../utils/prompts";
 import {getUserByEmail} from "./AuthService";
 import {scrapeMultipleArticles} from "./NewsService";
-import CachedSummaryModel, {ICachedSummary} from "../models/CachedSummarySchema";
 import {AI_SUMMARIZATION_MODELS} from "../utils/constants";
+import CachedSummaryModel, {ICachedSummary} from "../models/CachedSummarySchema";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {GEMINI_API_KEY, GEMINI_QUOTA_MS, GEMINI_QUOTA_REQUESTS, GOOGLE_TRANSLATE_API_KEY, NODE_ENV} from "../config/config";
 import {
@@ -104,11 +105,11 @@ const summarizeArticle = async ({email, content, url, language = 'en', style = '
 
         let prompt = '';
         if (style === 'concise') {
-            prompt = `Summarize the following news article in 20% of its original length. Focus only on the key facts and avoid unnecessary details.\n Content: ${articleContent}`;
+            prompt = AI_PROMPTS.SUMMARIZATION.CONCISE(articleContent);
         } else if (style === 'standard') {
-            prompt = `Provide a balanced summary of the following news article in 40% of its original length. Include the main points while keeping the core context intact.\n Content: ${articleContent}`;
+            prompt = AI_PROMPTS.SUMMARIZATION.STANDARD(articleContent);
         } else if (style === 'detailed') {
-            prompt = `Summarize the following news article in 60% of its original length. Include more context and background to preserve the depth of the article.\n Content: ${articleContent}`;
+            prompt = AI_PROMPTS.SUMMARIZATION.DETAILED(articleContent);
         }
 
         for (const modelName of AI_SUMMARIZATION_MODELS) {
