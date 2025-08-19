@@ -179,6 +179,14 @@ export interface KeyPointsExtractionResponse {
     error?: string;
 }
 
+export interface ComplexityMeterResponse {
+    complexityMeter?: {
+        level: ComplexityLevel;
+        reasoning: string;
+    };
+    error?: string;
+}
+
 export interface ReadingTimeComplexityResponse {
     level: ArticleComplexities;
     readingTimeMinutes: number;
@@ -267,6 +275,11 @@ export interface SentimentAnalysisParams {
 }
 
 export interface KeyPointsExtractionParams {
+    url?: string;
+    content?: string;
+}
+
+export interface ComplexityMeterParams {
     url?: string;
     content?: string;
 }
