@@ -2,9 +2,10 @@ import "colors";
 import {createHash} from 'crypto';
 import StrikeService from "./StrikeService";
 import {getUserByEmail} from "./AuthService";
+import {Article, EnhancementStatus} from "../types/news";
 import {generateNotFoundCode} from "../utils/generateErrorCodes";
 import SentimentAnalysisService from "./SentimentAnalysisService";
-import {Article, ArticleComplexities, EnhancementStatus} from "../types/news";
+import ReadingTimeAnalysisService from "./ReadingTimeAnalysisService";
 import ArticleEnhancementModel, {IArticleEnhancement} from "../models/ArticleEnhancementSchema";
 import {
     EnhanceArticlesInBackgroundParams,
@@ -14,8 +15,6 @@ import {
     GetProcessingStatusParams,
     GetProcessingStatusResponse,
     MergeEnhancementsWithArticlesParams,
-    ReadingTimeComplexityParams,
-    ReadingTimeComplexityResponse,
     SentimentAnalysisResponse,
     SentimentResult
 } from "../types/ai";
@@ -27,29 +26,6 @@ class ArticleEnhancementService {
     private static generateArticleId({article}: { article: Article }): string {
         const data = `${article.url}-${article.title}`;
         return createHash('md5').update(data).digest('hex');
-    }
-
-    private static calculateReadingTimeComplexity({article}: ReadingTimeComplexityParams): ReadingTimeComplexityResponse {
-        const text = (article.content || article.description || '').toLowerCase();
-        const words = text.split(/\s+/).filter(word => word.length > 0);
-        const wordCount = words.length;
-
-        // Simple reading time calculation (200 words per minute average)
-        const readingTimeMinutes = Math.max(1, Math.ceil(wordCount / 200));
-
-        // Simple complexity calculation based on word count and sentence length
-        const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
-        const avgWordsPerSentence = wordCount / Math.max(1, sentences.length);
-
-        let level: ArticleComplexities = 'easy';
-
-        if (wordCount > 800 || avgWordsPerSentence > 20) {
-            level = 'hard';
-        } else if (wordCount > 400 || avgWordsPerSentence > 15) {
-            level = 'medium';
-        }
-
-        return {level, readingTimeMinutes, wordCount};
     }
 
     /*static isBackgroundProcessingActive(articles: Article[]): boolean {
@@ -129,7 +105,7 @@ class ArticleEnhancementService {
                     );
                     console.log(`Processing enhancements for article: ${articleId}`.cyan);
 
-                    const complexity = this.calculateReadingTimeComplexity({article});
+                    const complexity = ReadingTimeAnalysisService.calculateReadingTimeComplexity({article});
 
                     const sentimentResult: SentimentAnalysisResponse = await SentimentAnalysisService.analyzeSentiment({
                         content: article.content || article.description || article.title || '',
