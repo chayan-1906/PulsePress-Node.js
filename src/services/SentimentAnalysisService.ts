@@ -5,6 +5,7 @@ import {GEMINI_API_KEY} from "../config/config";
 import {SENTIMENT_ANALYSIS_MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
 import {EnrichedArticleWithSentiment, SentimentAnalysisParams, SentimentAnalysisResponse, SentimentResult} from "../types/ai";
+import {Article} from "../types/news";
 
 class SentimentAnalysisService {
     /**
@@ -164,7 +165,7 @@ class SentimentAnalysisService {
     /**
      * Analyze sentiment for multiple articles in batches
      */
-    static async enrichArticlesWithSentiment(articles: any[], shouldAnalyze: boolean = true): Promise<EnrichedArticleWithSentiment[]> {
+    static async enrichArticlesWithSentiment(articles: any[], shouldAnalyze: boolean = true): Promise<Article[]> {
         if (!shouldAnalyze || !articles?.length) {
             return articles;
         }

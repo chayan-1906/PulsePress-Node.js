@@ -88,7 +88,7 @@ export interface Article {
         name: string | null;
     };
     author: string | null;
-    articleId?: string | null;
+    articleId: string | null;
     title: string | null;
     description: string | null;
     url: string | null;
@@ -119,16 +119,6 @@ export interface RSSFeed {
     // comments: string;
     // guid: string;
     // isoDate: string;
-}
-
-export interface RSSSearchResult {
-    item: RSSFeed;
-    score: number;
-    matches: readonly {
-        indices: readonly number[][];
-        value?: string;
-        key?: string;
-    }[];
 }
 
 export interface GuardianArticle {
@@ -354,4 +344,10 @@ export interface ExploreTopicParams {
     country?: Country;
     page?: number;
     pageSize?: number;
+}
+
+export interface GenerateArticleIdParams {
+    article?: Partial<Article>;
+    title?: string;
+    url?: string;
 }

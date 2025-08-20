@@ -13,6 +13,7 @@ import ArticleEnhancementService from "./ArticleEnhancementService";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
 import {RSS_SOURCES, TOPIC_SPECIFIC_SOURCES, TRUSTED_NEWS_SOURCES, USER_AGENTS} from "../utils/constants";
 import {GUARDIAN_API_KEY, GUARDIAN_QUOTA_REQUESTS, NEWSAPI_QUOTA_REQUESTS, NEWSAPIORG_QUOTA_MS, NODE_ENV, NYTIMES_API_KEY, NYTIMES_QUOTA_REQUESTS, RSS_CACHE_DURATION} from "../config/config";
+import {generateArticleId} from "../utils/generateArticleId";
 import {
     Article,
     EnhancementStatus,
@@ -47,7 +48,6 @@ let newsApiRequestCount = 0;
 let guardianApiRequestCount = 0;
 let nytimesApiRequestCount = 0;
 
-// Reset counters daily (simplified - in production, use proper job scheduler)
 setInterval(() => {
     newsApiRequestCount = 0;
     guardianApiRequestCount = 0;
@@ -55,33 +55,89 @@ setInterval(() => {
     console.log('Daily API counters reset'.cyan.italic);
 }, Number.parseInt(NEWSAPIORG_QUOTA_MS!));
 
-const convertGuardianToArticle = (guardianArticle: GuardianArticle): Article => ({
-    source: {
-        id: 'guardian',
-        name: 'The Guardian',
-    },
-    author: guardianArticle.fields?.byline || null,
-    title: guardianArticle.fields?.headline || guardianArticle.webTitle,
-    description: guardianArticle.fields?.bodyText?.substring(0, 100) + '...' || null,
-    url: guardianArticle.webUrl,
-    urlToImage: guardianArticle.fields?.thumbnail || null,
-    publishedAt: guardianArticle.webPublicationDate,
-    content: guardianArticle.fields?.bodyText?.substring(0, 100) + '...' || null,
-})
+const convertGuardianToArticle = (guardianArticle: GuardianArticle): Article => {
+    const title = guardianArticle.fields?.headline || guardianArticle.webTitle;
+    const url = guardianArticle.webUrl;
+    const article: Article = {
+        source: {
+            id: 'guardian',
+            name: 'The Guardian',
+        },
+        author: guardianArticle.fields?.byline || null,
+        articleId: generateArticleId({title, url}),
+        title,
+        description: guardianArticle.fields?.bodyText?.substring(0, 100) + '...' || null,
+        url,
+        urlToImage: guardianArticle.fields?.thumbnail || null,
+        publishedAt: guardianArticle.webPublicationDate,
+        content: guardianArticle.fields?.bodyText?.substring(0, 100) + '...' || null,
+    };
+    console.log('convertGuardianToArticle:', article);
+    return article;
+}
 
-const convertNYTimesToArticle = (nytArticle: NYTimesArticle): Article => ({
-    source: {
-        id: 'nytimes',
-        name: 'The New York Times',
-    },
-    author: nytArticle.byline?.original || null,
-    title: nytArticle.headline?.main || null,
-    description: nytArticle.abstract || nytArticle.snippet || null,
-    url: nytArticle.web_url,
-    urlToImage: nytArticle.multimedia?.[0]?.url ? `https://static01.nyt.com/${nytArticle.multimedia[0].url}` : null,
-    publishedAt: nytArticle.pub_date,
-    content: nytArticle.lead_paragraph?.substring(0, 100) + '...' || null,
-})
+const convertNYTimesToArticle = (nytArticle: NYTimesArticle): Article => {
+    const title = nytArticle.headline?.main;
+    const url = nytArticle.web_url;
+    const article: Article = {
+        source: {
+            id: 'nytimes',
+            name: 'The New York Times',
+        },
+        author: nytArticle.byline?.original || null,
+        articleId: generateArticleId({title, url}),
+        title,
+        description: nytArticle.abstract || nytArticle.snippet || null,
+        url,
+        urlToImage: nytArticle.multimedia?.[0]?.url ? `https://static01.nyt.com/${nytArticle.multimedia[0].url}` : null,
+        publishedAt: nytArticle.pub_date,
+        content: nytArticle.lead_paragraph?.substring(0, 100) + '...' || null,
+    };
+    console.log('convertNYTimesToArticle:', article);
+    return article;
+}
+
+const convertNYTimesTopStoryToArticle = (story: NYTimesTopStoriesResponse['results'][0]): Article => {
+    const title = story.title;
+    const url = story.url;
+    const article: Article = {
+        source: {
+            id: 'nytimes',
+            name: 'The New York Times',
+        },
+        author: story.byline,
+        articleId: generateArticleId({title, url}),
+        title,
+        description: story.abstract,
+        url,
+        urlToImage: story.multimedia?.[0]?.url || null,
+        publishedAt: story.published_date,
+        content: story.abstract?.substring(0, 100) + '...' || null,
+    };
+    console.log('convertNYTimesTopStoryToArticle:', article);
+    return article;
+}
+
+const convertRSSFeedToArticle = (rss: RSSFeed): Article => {
+    const title = rss.title || '';
+    const url = rss.url || '';
+    const article: Article = {
+        source: {
+            id: null,
+            name: rss.source?.name || 'RSS Feed',
+        },
+        author: rss.source?.creator || null,
+        articleId: generateArticleId({title, url}),
+        title,
+        description: rss.contentSnippet || null,
+        url,
+        urlToImage: null,
+        publishedAt: rss.publishedAt || null,
+        content: rss.content?.substring(0, 100) + '...' || null,
+    };
+    console.log('convertRSSFeedToArticle:', article);
+    return article;
+}
 
 /*
 * Workflow -
@@ -348,6 +404,14 @@ const fetchNEWSORGTopHeadlines = async ({country, category, sources, q, pageSize
         newsApiRequestCount++;
         console.log('topHeadlines from NewsAPIOrg:'.cyan.italic, topHeadlinesResponse);
 
+        // Add articleId to each article
+        if (topHeadlinesResponse.articles) {
+            topHeadlinesResponse.articles = topHeadlinesResponse.articles.map((article: Article) => ({
+                ...article,
+                articleId: generateArticleId({article}),
+            }));
+        }
+
         if (NODE_ENV === 'production') {
             TOPHEADLINES_CACHE.set(cacheKey, {data: topHeadlinesResponse, timestamp: Date.now()});
         }
@@ -389,6 +453,13 @@ const fetchNEWSORGEverything = async ({sources, from, to, sortBy, language, q, p
         );
         newsApiRequestCount++;
         console.log('everything from NewsAPIOrg:'.cyan.italic, everything);
+
+        if (everything.articles) {
+            everything.articles = everything.articles.map((article: Article) => ({
+                ...article,
+                articleId: generateArticleId({article}),
+            }));
+        }
 
         if (NODE_ENV === 'production') {
             EVERYTHING_NEWS_CACHE.set(cacheKey, {data: everything, timestamp: Date.now()});
@@ -506,7 +577,7 @@ const fetchNYTimesNews = async ({q, section, sort = 'newest', fromDate, toDate, 
             return {articles: [], totalResults: 0};
         }
 
-        const articles = nytResponse.response.docs.map(convertNYTimesToArticle);
+        const articles: Article[] = nytResponse.response.docs.map(convertNYTimesToArticle);
         const nytResponseMeta = nytResponse.response.metadata;
         const totalHits = nytResponseMeta?.hits || 0;
 
@@ -557,19 +628,7 @@ const fetchNYTimesTopStories = async ({section = 'home'}: NYTimesTopStoriesParam
         nytimesApiRequestCount++;
         console.log(`NYTimes Top Stories API request ${nytimesApiRequestCount}/${NYTIMES_QUOTA_REQUESTS}:`.cyan.italic, nytResponse.num_results, 'results');
 
-        const articles = nytResponse.results?.map(story => ({
-            source: {
-                id: 'nytimes',
-                name: 'The New York Times',
-            },
-            author: story.byline,
-            title: story.title,
-            description: story.abstract,
-            url: story.url,
-            urlToImage: story.multimedia?.[0]?.url || null,
-            publishedAt: story.published_date,
-            content: story.abstract?.substring(0, 100) + '...',
-        } as Article));
+        const articles: Article[] = nytResponse.results?.map(convertNYTimesTopStoryToArticle);
 
         const result = {
             articles,
@@ -635,7 +694,7 @@ const fetchAllRSSFeeds = async ({q, sources, languages = 'english', pageSize = 1
         const allItems = results
             .filter(r => r.status === 'fulfilled' && r.value)
             .flatMap(r => (r as PromiseFulfilledResult<RSSFeed[]>).value)
-            .sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
+            .sort((a: RSSFeed, b: RSSFeed) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
 
         if (q && q.trim()) {
             console.log(`Searching RSS feeds for: "${q}"`.cyan.italic);
@@ -938,31 +997,14 @@ const fetchMultiSourceNews = async ({email, q, category, sources, pageSize = 10,
             const rssResults = await fetchAllRSSFeeds({q: simplifiedQuery, sources: optimizedSources, pageSize: remainingSlots3 * 2, page});
 
             if (rssResults && rssResults.length > 0) {
-                const rssArticles = rssResults.map(rss => ({
-                    source: {
-                        id: null,
-                        name: rss.source?.name || 'RSS Feed',
-                    },
-                    author: rss.source?.creator || null,
-                    title: rss.title || null,
-                    description: rss.contentSnippet || null,
-                    url: rss.url || null,
-                    urlToImage: null,
-                    publishedAt: rss.publishedAt || null,
-                    content: rss.content?.substring(0, 100) + '...' || null,
-                } as Article));
+                const rssArticles = rssResults.map(convertRSSFeedToArticle);
 
                 const qualityArticles = rssArticles
                     .map(article => {
                         article.qualityScore = assessContentQuality(article, q);
                         return article;
                     })
-                    .filter(article =>
-                        article.qualityScore!.isProfessional &&
-                        article.qualityScore!.isRelevant &&
-                        article.qualityScore!.score > 0.2 && // Slightly lower threshold for RSS
-                        !isDuplicateArticle(article, results)
-                    )
+                    .filter((article: Article) => article.qualityScore!.isProfessional && article.qualityScore!.isRelevant && article.qualityScore!.score > 0.2 && !isDuplicateArticle(article, results))
                     .sort((a, b) => b.qualityScore!.score - a.qualityScore!.score)
                     .slice(0, remainingSlots3);
 
@@ -1234,16 +1276,7 @@ const fetchMultiSourceNewsFast = async ({email, q, category, sources, pageSize =
             pageSize: rssCount,
         page,
         }).then(rssResults => {
-            const articles = rssResults.map(rss => ({
-                source: {id: null, name: rss.source?.name || 'RSS Feed'},
-                author: rss.source?.creator || null,
-                title: rss.title || null,
-                description: rss.contentSnippet || null,
-                url: rss.url || null,
-                urlToImage: null,
-                publishedAt: rss.publishedAt || null,
-                content: rss.content?.substring(0, 100) + '...' || null,
-            } as Article));
+        const articles = rssResults.map(convertRSSFeedToArticle);
             return {source: 'RSS', result: {articles}};
         }).catch((error: any) => ({source: 'RSS', error: error.message}))
     );

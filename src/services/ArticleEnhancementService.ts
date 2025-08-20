@@ -1,11 +1,11 @@
 import "colors";
-import {createHash} from 'crypto';
 import {genAI} from "./AIService";
 import {AI_PROMPTS} from "../utils/prompts";
 import StrikeService from "./StrikeService";
 import {getUserByEmail} from "./AuthService";
 import {Article, EnhancementStatus} from "../types/news";
 import {AI_ENHANCEMENT_MODELS} from "../utils/constants";
+import {generateArticleId} from "../utils/generateArticleId";
 import {generateNotFoundCode} from "../utils/generateErrorCodes";
 import SentimentAnalysisService from "./SentimentAnalysisService";
 import ReadingTimeAnalysisService from "./ReadingTimeAnalysisService";
@@ -25,11 +25,6 @@ import {
 class ArticleEnhancementService {
     private static activeJobs = new Set<string>();
 
-    // TODO: Create interface for params
-    private static generateArticleId({article}: { article: Article }): string {
-        const data = `${article.url}-${article.title}`;
-        return createHash('md5').update(data).digest('hex');
-    }
 
     /**
      * Combined AI enhancement method - sentiment analysis, key points extractor, and complexity meter
@@ -152,14 +147,14 @@ class ArticleEnhancementService {
     }
 
     /*static isBackgroundProcessingActive(articles: Article[]): boolean {
-        const articleIds = articles.map(article => this.generateArticleId({article}));
+        const articleIds = articles.map(article => generateArticleId(article));
         return articleIds.some(id => this.activeJobs.has(id));
     }*/
 
     static async getProcessingStatus({articles}: GetProcessingStatusParams): Promise<GetProcessingStatusResponse> {
-        const articleIds = articles.map(article => this.generateArticleId({article}));
+        const articleIds = articles.map((article: Article) => generateArticleId({article}));
 
-        const hasActiveJobs = articleIds.some(id => this.activeJobs.has(id));
+        const hasActiveJobs = articleIds.some((id: string) => this.activeJobs.has(id));
 
         const enhancements: IArticleEnhancement[] = await ArticleEnhancementModel.find({
             articleId: {$in: articleIds},
@@ -198,8 +193,8 @@ class ArticleEnhancementService {
             return;
         }
 
-        const articleIds = articles.map(article => this.generateArticleId({article}));
-        articleIds.forEach(id => this.activeJobs.add(id));
+        const articleIds = articles.map((article: Article) => generateArticleId({article}));
+        articleIds.forEach((id: string) => this.activeJobs.add(id));
 
         setTimeout(async () => {
             for (const article of articles) {
@@ -209,7 +204,7 @@ class ArticleEnhancementService {
                         continue;
                     }
 
-                    const articleId = this.generateArticleId({article});
+                    const articleId = generateArticleId({article});
 
                     const existingEnhancedArticle: IArticleEnhancement | null = await ArticleEnhancementModel.findOne({articleId});
                     if (existingEnhancedArticle && existingEnhancedArticle.processingStatus === 'completed') {
@@ -268,7 +263,7 @@ class ArticleEnhancementService {
                     );
                     console.log(`Successfully enhanced article: ${articleId}`.green);
                 } catch (error: any) {
-                    const articleId = this.generateArticleId({article});
+                    const articleId = generateArticleId({article});
                     console.error(`Enhancement failed for article ${articleId}:`.red.bold, error.message);
 
                     await ArticleEnhancementModel.findOneAndUpdate(
@@ -281,14 +276,14 @@ class ArticleEnhancementService {
                 }
             }
 
-            articleIds.forEach(id => this.activeJobs.delete(id));
+            articleIds.forEach((id: string) => this.activeJobs.delete(id));
             console.log('Background enhancement processing completed'.green.bold);
         }, 500);
     }
 
     static async getEnhancementsForArticles({articles}: GetEnhancementForArticlesParams): Promise<{ [articleId: string]: IArticleEnhancement }> {
         try {
-            const articleIds = articles.map(article => this.generateArticleId({article}));
+            const articleIds = articles.map((article: Article) => generateArticleId({article}));
 
             const completedEnhancements: IArticleEnhancement[] = await ArticleEnhancementModel.find({
                 articleId: {$in: articleIds},
@@ -314,7 +309,7 @@ class ArticleEnhancementService {
                 }
             }
 
-            const hasActiveJobs = articleIds.some(id => this.activeJobs.has(id));
+            const hasActiveJobs = articleIds.some((id: string) => this.activeJobs.has(id));
 
             const enhancements: IArticleEnhancement[] = await ArticleEnhancementModel.find({
                 articleId: {$in: articleIds},
@@ -352,13 +347,12 @@ class ArticleEnhancementService {
 
     static mergeEnhancementsWithArticles({articles, enhancements}: MergeEnhancementsWithArticlesParams): Article[] {
         return articles.map(article => {
-            const articleId = this.generateArticleId({article});
+            const articleId = generateArticleId({article});
             const enhancement = enhancements[articleId];
 
             if (enhancement) {
                 return {
                     ...article,
-                    articleId,  // TODO: Remove when Article interface has non-null articleId
                     sentimentData: enhancement.sentiment,
                     keyPoints: enhancement.keyPoints,
                     complexityMeter: enhancement.complexityMeter,
