@@ -1,6 +1,6 @@
 import "colors";
 import {getUserByEmail} from "./AuthService";
-import {updateSourceAnalytics} from "./AnalyticsService";
+import AnalyticsService from "./AnalyticsService";
 import BookmarkModel, {IBookmark} from "../models/BookmarkSchema";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {
@@ -46,7 +46,7 @@ const toggleBookmark = async ({email, articleUrl, title, source, description, im
 
                 // Track unbookmark analytics
                 if (isDeleted) {
-                    await updateSourceAnalytics({source, action: 'unbookmark'})
+                    await AnalyticsService.updateSourceAnalytics({source, action: 'unbookmark'})
                         .catch((error: any) => console.error('Analytics update failed:'.red.bold, error));
                 }
 
@@ -61,7 +61,7 @@ const toggleBookmark = async ({email, articleUrl, title, source, description, im
 
                 // Track bookmark analytics
                 if (savedBookmark) {
-                    await updateSourceAnalytics({source, action: 'bookmark'})
+                    await AnalyticsService.updateSourceAnalytics({source, action: 'bookmark'})
                         .catch((error: any) => console.error('Analytics update failed:'.red.bold, error));
                 }
 

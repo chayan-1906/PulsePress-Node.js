@@ -1,7 +1,7 @@
 import "colors";
 import {Request, Response} from "express";
 import {ApiResponse} from "../utils/ApiResponse";
-import {getSourceAnalytics, getTopPerformingSources} from "../services/AnalyticsService";
+import AnalyticsService from "../services/AnalyticsService";
 import {GetSourceAnalyticsParams, GetTopPerformingSourcesParams} from "../types/analytics";
 
 const getSourceAnalyticsController = async (req: Request, res: Response) => {
@@ -15,7 +15,7 @@ const getSourceAnalyticsController = async (req: Request, res: Response) => {
             limitNumber = Number(limit);
         }
 
-        const {sourceAnalytics, totalSources, error} = await getSourceAnalytics({limit: limitNumber, sortBy, sortOrder});
+        const {sourceAnalytics, totalSources, error} = await AnalyticsService.getSourceAnalytics({limit: limitNumber, sortBy, sortOrder});
 
         if (error) {
             res.status(500).send(new ApiResponse({
@@ -56,7 +56,7 @@ const getTopPerformingSourcesController = async (req: Request, res: Response) =>
             minViewsNumber = Number(minViews);
         }
 
-        const {topSources, totalSources, error} = await getTopPerformingSources({limit: limitNumber, minViews: minViewsNumber});
+        const {topSources, totalSources, error} = await AnalyticsService.getTopPerformingSources({limit: limitNumber, minViews: minViewsNumber});
 
         if (error) {
             res.status(500).send(new ApiResponse({

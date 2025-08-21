@@ -1,9 +1,9 @@
 import "colors";
 import {getUserByEmail} from "./AuthService";
 import {RSS_SOURCES} from "../utils/constants";
+import AnalyticsService from "./AnalyticsService";
 import BookmarkModel from "../models/BookmarkSchema";
 import {sourceMap, SupportedSource} from "../types/news";
-import {getTopPerformingSources} from "./AnalyticsService";
 import ReadingHistoryModel from "../models/ReadingHistorySchema";
 import UserPreferenceModel from "../models/UserPreferenceSchema";
 import {NODE_ENV, RECOMMENDATION_CACHE_DURATION} from "../config/config";
@@ -49,7 +49,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
             ReadingHistoryModel.find({userExternalId: user.userExternalId}),
             BookmarkModel.find({userExternalId: user.userExternalId}),
             UserPreferenceModel.findOne({userExternalId: user.userExternalId}),
-            getTopPerformingSources({limit: 5, minViews: 5}),
+            AnalyticsService.getTopPerformingSources({limit: 5, minViews: 5}),
         ]);
 
         // Determine preferred languages (fallback to English if none set)
