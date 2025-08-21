@@ -1,5 +1,6 @@
 import "colors";
 import AuthService from "./AuthService";
+import NewsService from "./NewsService";
 import {RSS_SOURCES} from "../utils/constants";
 import AnalyticsService from "./AnalyticsService";
 import BookmarkModel from "../models/BookmarkSchema";
@@ -8,7 +9,6 @@ import ReadingHistoryModel from "../models/ReadingHistorySchema";
 import UserPreferenceModel from "../models/UserPreferenceSchema";
 import {NODE_ENV, RECOMMENDATION_CACHE_DURATION} from "../config/config";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
-import {fetchAllRSSFeeds, fetchGuardianNews, fetchNEWSORGTopHeadlines, fetchNYTimesTopStories} from "./NewsService";
 import {GetContentRecommendationsParams, GetContentRecommendationsResponse, RecommendedArticle} from "../types/content-recommendation";
 
 const RECOMMENDATION_CACHE = new Map<string, { data: GetContentRecommendationsResponse, timestamp: number }>();
@@ -74,7 +74,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
 
         // Fetch from each preferred language
         preferredLanguages.forEach(language => {
-            newsPromises.push(fetchAllRSSFeeds({
+            newsPromises.push(NewsService.fetchAllRSSFeeds({
                 languages: language,
                 pageSize: rssFetchSize,
             }));
@@ -83,7 +83,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
         // Prioritize top performing sources
         const topSourcesToFetch = topPerformingSources.slice(0, 3);
         if (topSourcesToFetch.length > 0) {
-            newsPromises.push(fetchAllRSSFeeds({
+            newsPromises.push(NewsService.fetchAllRSSFeeds({
                 sources: topSourcesToFetch.join(','),
                 languages: preferredLanguages.join(','),
                 pageSize: rssFetchSize,
@@ -94,7 +94,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
         const topUserSources = Object.keys(sourceFrequency).slice(0, 3);
         const uniqueUserSources = topUserSources.filter(s => !topSourcesToFetch.includes(s));
         if (uniqueUserSources.length > 0) {
-            newsPromises.push(fetchAllRSSFeeds({
+            newsPromises.push(NewsService.fetchAllRSSFeeds({
                 sources: uniqueUserSources.join(','),
                 languages: preferredLanguages.join(','),
                 pageSize: rssFetchSize,
@@ -106,7 +106,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
             const primaryCategory = preferences.preferredCategories[0];
 
             // NewsAPI
-            newsPromises.push(fetchNEWSORGTopHeadlines({
+            newsPromises.push(NewsService.fetchNEWSORGTopHeadlines({
                 category: primaryCategory,
                 pageSize: categoryFetchSize,
             }));
@@ -114,7 +114,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
             // Guardian - map category and fetch
             const guardianSection = CATEGORY_MAPPING[primaryCategory]?.guardian;
             if (guardianSection) {
-                newsPromises.push(fetchGuardianNews({
+                newsPromises.push(NewsService.fetchGuardianNews({
                     section: guardianSection,
                     pageSize: apiSourceFetchSize,
                     orderBy: 'newest',
@@ -124,7 +124,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
             // NYTimes - map category and fetch top stories
             const nytimesSection = CATEGORY_MAPPING[primaryCategory]?.nytimes;
             if (nytimesSection) {
-                newsPromises.push(fetchNYTimesTopStories({
+                newsPromises.push(NewsService.fetchNYTimesTopStories({
                     section: nytimesSection,
                 }));
             }
@@ -135,7 +135,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
 
                 const guardianSecondarySection = CATEGORY_MAPPING[secondaryCategory]?.guardian;
                 if (guardianSecondarySection) {
-                    newsPromises.push(fetchGuardianNews({
+                    newsPromises.push(NewsService.fetchGuardianNews({
                         section: guardianSecondarySection,
                         pageSize: Math.ceil(apiSourceFetchSize * 0.5),
                         orderBy: 'relevance',
@@ -144,20 +144,20 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
 
                 const nytimesSecondarySection = CATEGORY_MAPPING[secondaryCategory]?.nytimes;
                 if (nytimesSecondarySection) {
-                    newsPromises.push(fetchNYTimesTopStories({
+                    newsPromises.push(NewsService.fetchNYTimesTopStories({
                         section: nytimesSecondarySection,
                     }));
                 }
             }
         } else {
             // If no preferred categories, fetch general/world news from Guardian and NYTimes
-            newsPromises.push(fetchGuardianNews({
+            newsPromises.push(NewsService.fetchGuardianNews({
                 section: 'world',
                 pageSize: apiSourceFetchSize,
                 orderBy: 'newest',
             }));
 
-            newsPromises.push(fetchNYTimesTopStories({
+            newsPromises.push(NewsService.fetchNYTimesTopStories({
                 section: 'world',
             }));
         }

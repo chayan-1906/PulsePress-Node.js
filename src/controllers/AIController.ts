@@ -2,11 +2,11 @@ import "colors";
 import {Request, Response} from "express";
 import {AuthRequest} from "../types/auth";
 import {isListEmpty} from "../utils/list";
+import NewsService from "../services/NewsService";
 import {ApiResponse} from "../utils/ApiResponse";
 import AuthService from "../services/AuthService";
 import StrikeService from "../services/StrikeService";
 import {summarizeArticle} from "../services/AIService";
-import {scrapeMultipleArticles} from "../services/NewsService";
 import TagGenerationService from "../services/TagGenerationService";
 import ComplexityMeterService from "../services/ComplexityMeterService";
 import SentimentAnalysisService from "../services/SentimentAnalysisService";
@@ -43,7 +43,7 @@ const classifyContentController = async (req: Request, res: Response) => {
 
         if (url && !text) {
             console.log('Scraping URL for classification:'.cyan.italic, url);
-            const scrapedArticles = await scrapeMultipleArticles({urls: [url]});
+            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
                 res.status(400).send(new ApiResponse({
@@ -148,7 +148,7 @@ const summarizeArticleController = async (req: Request, res: Response) => {
         let articleContent = content || '';
         if (!content && url) {
             console.info('Scraping article content for classification check'.bgMagenta.white.italic);
-            const scrapedArticles = await scrapeMultipleArticles({urls: [url]});
+            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
                 console.error('Scraping failed:'.red.bold, scrapedArticles[0]?.error);
@@ -300,7 +300,7 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
 
         if (!content && url) {
             console.log('Scraping URL for sentiment analysis:'.cyan.italic, url);
-            const scrapedArticles = await scrapeMultipleArticles({urls: [url]});
+            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
                 res.status(400).send(new ApiResponse({
@@ -493,7 +493,7 @@ const fetchKeyPointsController = async (req: Request, res: Response) => {
 
         if (!content && url) {
             console.log('Scraping URL for key points extraction:'.cyan.italic, url);
-            const scrapedArticles = await scrapeMultipleArticles({urls: [url]});
+            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
                 res.status(400).send(new ApiResponse({
@@ -597,7 +597,7 @@ const fetchComplexityMeterController = async (req: Request, res: Response) => {
 
         if (!content && url) {
             console.log('Scraping URL for complexity analysis:'.cyan.italic, url);
-            const scrapedArticles = await scrapeMultipleArticles({urls: [url]});
+            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
                 res.status(400).send(new ApiResponse({

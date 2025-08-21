@@ -3,10 +3,10 @@ import {createHash} from 'crypto';
 import {GoogleGenerativeAI} from "@google/generative-ai";
 import {Translate} from '@google-cloud/translate/build/src/v2';
 import AuthService from "./AuthService";
+import NewsService from "./NewsService";
 import {isListEmpty} from "../utils/list";
 import StrikeService from "./StrikeService";
 import {AI_PROMPTS} from "../utils/prompts";
-import {scrapeMultipleArticles} from "./NewsService";
 import {AI_SUMMARIZATION_MODELS} from "../utils/constants";
 import CachedSummaryModel, {ICachedSummary} from "../models/CachedSummarySchema";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
@@ -67,7 +67,7 @@ const summarizeArticle = async ({email, content, url, language = 'en', style = '
         let articleContent = content || '';
         if (!content && url) {
             console.info('inside !content && url'.bgMagenta.white.italic);
-            const scrapedArticles = await scrapeMultipleArticles({urls: [url]});
+            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
                 console.error('Scraping failed:'.red.bold, {count: scrapedArticles.length}, {error: scrapedArticles[0].error})
                 return {error: 'SCRAPING_FAILED'};

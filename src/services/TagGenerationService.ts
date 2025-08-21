@@ -1,8 +1,8 @@
 import "colors";
 import {genAI} from "./AIService";
+import NewsService from "./NewsService";
 import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
-import {scrapeMultipleArticles} from "./NewsService";
 import {AI_TAG_GENERATION_MODELS} from "../utils/constants";
 import {TagGenerationParams, TagGenerationResponse} from "../types/ai";
 
@@ -26,7 +26,7 @@ class TagGenerationService {
         let articleContent = content || '';
         if (!content && url) {
             console.info('Scraping URL for tag generation:'.cyan.italic, url);
-            const scrapedArticles = await scrapeMultipleArticles({urls: [url]});
+            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
                 console.error('Scraping failed:'.red.bold, scrapedArticles[0]?.error);

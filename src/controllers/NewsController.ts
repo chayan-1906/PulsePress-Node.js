@@ -3,20 +3,10 @@ import {Request, Response} from "express";
 import {isListEmpty} from "../utils/list";
 import {AuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
+import NewsService from "../services/NewsService";
 import {COUNTRY_KEYWORDS, TOPIC_METADATA, TOPIC_QUERIES} from "../utils/constants";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import ArticleEnhancementService from "../services/ArticleEnhancementService";
-import {
-    fetchAllRSSFeeds,
-    fetchGuardianNews,
-    fetchMultiSourceNews,
-    fetchMultiSourceNewsEnhanced,
-    fetchNEWSORGEverything,
-    fetchNEWSORGTopHeadlines,
-    fetchNYTimesNews,
-    fetchNYTimesTopStories,
-    scrapeMultipleArticles,
-} from "../services/NewsService";
 import {
     Country,
     ExploreTopicParams,
@@ -45,7 +35,7 @@ const fetchNEWSORGTopHeadlinesController = async (req: Request, res: Response) =
         if (page && !isNaN(page)) {
             pageNumber = Number(page);
         }
-        const topHeadlines = await fetchNEWSORGTopHeadlines({country, category, sources, q, pageSize: pageSizeNumber, page: pageNumber});
+        const topHeadlines = await NewsService.fetchNEWSORGTopHeadlines({country, category, sources, q, pageSize: pageSizeNumber, page: pageNumber});
         console.log('top headlines:'.cyan.italic, topHeadlines);
 
         res.status(200).send(new ApiResponse({
@@ -85,7 +75,7 @@ const fetchNEWSORGEverythingController = async (req: Request, res: Response) => 
         if (page && !isNaN(page)) {
             pageNumber = Number(page);
         }
-        const everything = await fetchNEWSORGEverything({sources, from, to, sortBy, language, q, pageSize: pageSizeNumber, page: pageNumber});
+        const everything = await NewsService.fetchNEWSORGEverything({sources, from, to, sortBy, language, q, pageSize: pageSizeNumber, page: pageNumber});
         console.log('everything:'.cyan.italic, everything);
 
         res.status(200).send(new ApiResponse({
@@ -116,7 +106,7 @@ const fetchGuardianNewsController = async (req: Request, res: Response) => {
             pageNumber = Number(page);
         }
 
-        const guardianResults = await fetchGuardianNews({q, section, fromDate, toDate, orderBy, pageSize: pageSizeNumber, page: pageNumber});
+        const guardianResults = await NewsService.fetchGuardianNews({q, section, fromDate, toDate, orderBy, pageSize: pageSizeNumber, page: pageNumber});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -158,7 +148,7 @@ const fetchNYTimesNewsController = async (req: Request, res: Response) => {
             pageNumber = Number(page);
         }
 
-        const nytResults = await fetchNYTimesNews({q, section, sort, fromDate, toDate, pageSize: pageSizeNumber, page: pageNumber});
+        const nytResults = await NewsService.fetchNYTimesNews({q, section, sort, fromDate, toDate, pageSize: pageSizeNumber, page: pageNumber});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -191,7 +181,7 @@ const fetchNYTimesTopStoriesController = async (req: Request, res: Response) => 
             return;
         }
 
-        const nytTopStories = await fetchNYTimesTopStories({section});
+        const nytTopStories = await NewsService.fetchNYTimesTopStories({section});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -244,7 +234,7 @@ const fetchAllRSSFeedsController = async (req: Request, res: Response) => {
         }
 
         console.time('RSS_FETCH_TIME'.bgMagenta.white.italic);
-        const rssFeeds = await fetchAllRSSFeeds({q, sources, languages, pageSize: pageSizeNumber, page: pageNumber});
+        const rssFeeds = await NewsService.fetchAllRSSFeeds({q, sources, languages, pageSize: pageSizeNumber, page: pageNumber});
         console.timeEnd('RSS_FETCH_TIME'.bgMagenta.white.italic);
         console.log('rss feeds:'.green.bold, rssFeeds.length);
 
@@ -293,7 +283,7 @@ const fetchMultiSourceNewsController = async (req: Request, res: Response) => {
         }
 
         console.time('MULTISOURCE_FETCH_TIME'.bgMagenta.white.italic);
-        const multisourceResults = await fetchMultiSourceNews({
+        const multisourceResults = await NewsService.fetchMultiSourceNews({
             email,
             q,
             category,
@@ -333,7 +323,7 @@ const scrapeWebsiteController = async (req: Request, res: Response) => {
             return;
         }
 
-        const scrapedArticles = await scrapeMultipleArticles({urls});
+        const scrapedArticles = await NewsService.scrapeMultipleArticles({urls});
         console.log('scraped contents:'.cyan.italic, scrapedArticles);
 
         const total = urls.length;
@@ -395,7 +385,7 @@ const exploreTopicController = async (req: Request, res: Response) => {
         }
 
         console.time('TOPIC_EXPLORATION_TIME'.bgMagenta.white.italic);
-        const topicResults = await fetchMultiSourceNews({
+        const topicResults = await NewsService.fetchMultiSourceNews({
             q: predefinedQuery,
             category: topic,
             pageSize: pageSizeNumber,
@@ -443,7 +433,7 @@ const fetchMultiSourceNewsEnhancedController = async (req: Request, res: Respons
         }
 
         console.time('ENHANCED_MULTISOURCE_FETCH_TIME'.bgGreen.white.italic);
-        const enhancedResults = await fetchMultiSourceNewsEnhanced({
+        const enhancedResults = await NewsService.fetchMultiSourceNewsEnhanced({
             email,
             q,
             category,
