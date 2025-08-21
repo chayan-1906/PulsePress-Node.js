@@ -8,7 +8,7 @@ class StrikeService {
     /**
      * Check if user is currently blocked and handle 48-hour reset
      */
-    async checkUserBlock(email: string): Promise<StrikeCheckResult> {
+    static async checkUserBlock(email: string): Promise<StrikeCheckResult> {
         try {
             const user = await UserModel.findOne({email});
             if (!user) {
@@ -85,7 +85,7 @@ class StrikeService {
     /**
      * Apply a strike to user for non-news query
      */
-    async applyStrike(email: string): Promise<StrikeResult> {
+    static async applyStrike(email: string): Promise<StrikeResult> {
         try {
             const blockCheck = await this.checkUserBlock(email);
             const wasReset = blockCheck.wasReset || false;
@@ -203,7 +203,7 @@ class StrikeService {
     /**
      * Manually reset strikes for user (admin function)
      */
-    async resetStrikes(email: string): Promise<boolean> {
+    static async resetStrikes(email: string): Promise<boolean> {
         try {
             await UserModel.updateOne(
                 {email},
@@ -230,7 +230,7 @@ class StrikeService {
     /**
      * Get user's current strike information
      */
-    async getUserStrikes(email: string): Promise<{ count: number; lastStrikeAt?: Date; blockedUntil?: Date; history?: StrikeHistoryEvent[] } | null> {
+    static async getUserStrikes(email: string): Promise<{ count: number; lastStrikeAt?: Date; blockedUntil?: Date; history?: StrikeHistoryEvent[] } | null> {
         try {
             // Check for reset first
             await this.checkUserBlock(email);
@@ -247,7 +247,7 @@ class StrikeService {
     /**
      * Check if user strikes should be reset (48 hours since last strike)
      */
-    async checkForAutoReset(email: string): Promise<boolean> {
+    static async checkForAutoReset(email: string): Promise<boolean> {
         try {
             const user = await UserModel.findOne({email});
             if (!user || !user.newsClassificationStrikes?.lastStrikeAt || user.newsClassificationStrikes.count === 0) {
@@ -271,7 +271,7 @@ class StrikeService {
     /**
      * Format remaining block time in human-readable format
      */
-    private formatRemainingTime(blockedUntil: Date, now: Date): string {
+    static formatRemainingTime(blockedUntil: Date, now: Date): string {
         const remainingMs = blockedUntil.getTime() - now.getTime();
         const remainingMinutes = Math.ceil(remainingMs / (1000 * 60));
 
@@ -285,4 +285,4 @@ class StrikeService {
     }
 }
 
-export default new StrikeService();
+export default StrikeService;

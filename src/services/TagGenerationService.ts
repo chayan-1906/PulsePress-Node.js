@@ -10,7 +10,7 @@ class TagGenerationService {
     /**
      * Generate relevant tags for news article content using Gemini AI
      */
-    async generateTags({content, url}: TagGenerationParams): Promise<TagGenerationResponse> {
+    static async generateTags({content, url}: TagGenerationParams): Promise<TagGenerationResponse> {
         console.log('Generating tags for content...'.cyan.italic);
 
         if (!content && !url) {
@@ -70,7 +70,7 @@ class TagGenerationService {
     /**
      * Generate tags using Gemini AI
      */
-    private async generateWithGemini(modelName: string, content: string): Promise<TagGenerationResponse> {
+    static async generateWithGemini(modelName: string, content: string): Promise<TagGenerationResponse> {
         const model = genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.TAG_GENERATION(content);
@@ -121,4 +121,4 @@ class TagGenerationService {
     }
 }
 
-export default new TagGenerationService();
+export default TagGenerationService;

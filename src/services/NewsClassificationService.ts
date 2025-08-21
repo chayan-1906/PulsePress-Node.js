@@ -8,12 +8,12 @@ import {AIClassification, ClassificationResult} from "../types/ai";
 import {GEMINI_API_KEY, HUGGINGFACE_API_TOKEN} from "../config/config";
 
 class NewsClassificationService {
-    private readonly huggingFaceUrl = 'https://api-inference.huggingface.co/models/facebook/bart-large-mnli';
+    static readonly huggingFaceUrl = 'https://api-inference.huggingface.co/models/facebook/bart-large-mnli';
 
     /**
      * Main classification method with HuggingFace -> Gemini fallback
      */
-    async classifyContent(text: string): Promise<ClassificationResult> {
+    static async classifyContent(text: string): Promise<ClassificationResult> {
         console.log('Classifying content for news detection...'.cyan.italic, text);
 
         if (!text || text.trim().length === 0) {
@@ -42,7 +42,7 @@ class NewsClassificationService {
     /**
      * HuggingFace BART-based classification using zero-shot classification
      */
-    private async classifyWithHuggingFace(text: string): Promise<ClassificationResult> {
+    static async classifyWithHuggingFace(text: string): Promise<ClassificationResult> {
         if (!HUGGINGFACE_API_TOKEN) {
             throw new Error('HuggingFace API token not configured');
         }
@@ -102,7 +102,7 @@ class NewsClassificationService {
     /**
      * Gemini-based classification fallback with enhanced prompting
      */
-    private async classifyWithGemini(text: string): Promise<ClassificationResult> {
+    static async classifyWithGemini(text: string): Promise<ClassificationResult> {
         if (!GEMINI_API_KEY) {
             throw new Error('Gemini API key not configured');
         }
@@ -142,4 +142,4 @@ class NewsClassificationService {
     }
 }
 
-export default new NewsClassificationService();
+export default NewsClassificationService;
