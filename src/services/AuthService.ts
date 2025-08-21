@@ -7,7 +7,7 @@ import {generateMagicLink} from "./MagicLinkService";
 import BookmarkModel from "../models/BookmarkSchema";
 import UserModel, {IUser} from "../models/UserSchema";
 import MagicLinkModel from "../models/MagicLinkSchema";
-import {modifyUserPreference} from "./UserPreferenceService";
+import UserPreferenceService from "./UserPreferenceService";
 import ReadingHistoryModel from "../models/ReadingHistorySchema";
 import UserPreferenceModel from "../models/UserPreferenceSchema";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
@@ -66,7 +66,7 @@ const registerUser = async ({name, email, password, confirmPassword}: RegisterPa
             const [newUser] = await UserModel.create([{name, email, password: hashedPassword, authProvider: 'email'}], {session});
             console.log('user created:'.cyan.italic, newUser);
 
-            const {userPreference, error} = await modifyUserPreference({
+            const {userPreference, error} = await UserPreferenceService.modifyUserPreference({
                 email,
                 user: newUser,
                 preferredLanguage: 'en',
@@ -265,7 +265,7 @@ const loginWithGoogle = async ({code}: LoginWithGoogleParams): Promise<LoginResp
             const {accessToken, refreshToken} = await generateJWT(newUser);
             console.log('user created:'.cyan.italic, newUser);
 
-            const {userPreference, error} = await modifyUserPreference({
+            const {userPreference, error} = await UserPreferenceService.modifyUserPreference({
                 email: email || '',
                 user: newUser,
                 preferredLanguage: 'en',

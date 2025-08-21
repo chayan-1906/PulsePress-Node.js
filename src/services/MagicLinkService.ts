@@ -3,7 +3,7 @@ import {getUserByEmail} from './AuthService';
 import EmailService from './EmailService';
 import UserModel, {IUser} from "../models/UserSchema";
 import MagicLinkModel from "../models/MagicLinkSchema";
-import {modifyUserPreference} from "./UserPreferenceService";
+import UserPreferenceService from "./UserPreferenceService";
 import generateNanoIdWithAlphabet from "../utils/generateUUID";
 import AuthSessionModel, {IAuthSession} from "../models/AuthSessionSchema";
 import {generateInvalidCode, generateNotFoundCode} from "../utils/generateErrorCodes";
@@ -66,7 +66,7 @@ const verifyMagicLink = async ({token}: VerifyMagicLinkParams): Promise<VerifyMa
             ], {session});
             console.log('user created:'.cyan.italic, newUser);
 
-            const {userPreference, error} = await modifyUserPreference({
+            const {userPreference, error} = await UserPreferenceService.modifyUserPreference({
                 email: magicLink.email,
                 user: newUser,
                 preferredLanguage: 'en',
