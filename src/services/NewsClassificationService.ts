@@ -1,11 +1,11 @@
 import "colors";
 import axios from "axios";
 import {genAI} from "./AIService";
-import {ClassificationResult} from "../types/ai";
+import {AI_PROMPTS} from "../utils/prompts";
 import {buildHeader} from "../utils/buildHeader";
 import {AI_SUMMARIZATION_MODELS} from "../utils/constants";
+import {AIClassification, ClassificationResult} from "../types/ai";
 import {GEMINI_API_KEY, HUGGINGFACE_API_TOKEN} from "../config/config";
-import {AI_PROMPTS} from "../utils/prompts";
 
 class NewsClassificationService {
     private readonly huggingFaceUrl = 'https://api-inference.huggingface.co/models/facebook/bart-large-mnli';
@@ -120,7 +120,7 @@ class NewsClassificationService {
         console.log('Gemini enhanced classification response:'.cyan, responseText);
 
         try {
-            const parsed = JSON.parse(responseText);
+            const parsed: AIClassification = JSON.parse(responseText);
             if (parsed.classification === 'news' || parsed.classification === 'non_news') {
                 return parsed.classification;
             }

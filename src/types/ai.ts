@@ -147,6 +147,29 @@ export interface UserStrikeHistory {
 }
 
 
+/** ------------- AI Service JSON Parse Interfaces ------------- */
+
+export interface AISentiment {
+    sentiment: SentimentResult;
+    confidence?: number;
+}
+
+export interface AIClassification {
+    classification: ClassificationResult;
+}
+
+export interface AIKeyPoints {
+    keyPoints: string[];
+}
+
+export interface AIComplexityMeter {
+    complexityMeter: {
+        level: ComplexityLevel;
+        reasoning?: string;
+    };
+}
+
+
 /** ------------- API response types ------------- */
 
 export interface SummarizeArticleResponse {

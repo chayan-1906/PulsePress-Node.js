@@ -4,7 +4,7 @@ import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {AI_ENHANCEMENT_MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
-import {KeyPointsExtractionParams, KeyPointsExtractionResponse} from "../types/ai";
+import {AIKeyPoints, KeyPointsExtractionParams, KeyPointsExtractionResponse} from "../types/ai";
 
 class KeyPointsExtractionService {
     /**
@@ -78,7 +78,7 @@ class KeyPointsExtractionService {
             console.log('Stripped markdown, clean JSON:'.yellow, responseText);
         }
 
-        const parsed = JSON.parse(responseText);
+        const parsed: AIKeyPoints = JSON.parse(responseText);
 
         if (!parsed.keyPoints || !Array.isArray(parsed.keyPoints) || parsed.keyPoints.length === 0) {
             console.error('Invalid key points array in response:'.red, parsed.keyPoints);

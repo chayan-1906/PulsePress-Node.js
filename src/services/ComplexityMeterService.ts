@@ -4,7 +4,7 @@ import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {AI_ENHANCEMENT_MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
-import {COMPLEXITY_LEVELS, ComplexityMeterParams, ComplexityMeterResponse} from "../types/ai";
+import {AIComplexityMeter, COMPLEXITY_LEVELS, ComplexityMeterParams, ComplexityMeterResponse} from "../types/ai";
 
 class ComplexityMeterService {
     /**
@@ -78,7 +78,7 @@ class ComplexityMeterService {
             console.log('Stripped markdown, clean JSON:'.yellow, responseText);
         }
 
-        const parsed = JSON.parse(responseText);
+        const parsed: AIComplexityMeter = JSON.parse(responseText);
 
         if (!parsed.complexityMeter || !parsed.complexityMeter.level) {
             console.error('Invalid complexity meter in response:'.red, parsed.complexityMeter);

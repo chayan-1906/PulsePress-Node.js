@@ -1,11 +1,11 @@
 import "colors";
 import {genAI} from "./AIService";
+import {Article} from "../types/news";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {SENTIMENT_ANALYSIS_MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
-import {EnrichedArticleWithSentiment, SentimentAnalysisParams, SentimentAnalysisResponse, SentimentResult} from "../types/ai";
-import {Article} from "../types/news";
+import {AISentiment, EnrichedArticleWithSentiment, SENTIMENT_TYPES, SentimentAnalysisParams, SentimentAnalysisResponse, SentimentResult} from "../types/ai";
 
 class SentimentAnalysisService {
     /**
@@ -80,9 +80,9 @@ class SentimentAnalysisService {
             console.log('Stripped markdown, clean JSON:'.yellow, responseText);
         }
 
-        const parsed = JSON.parse(responseText);
+        const parsed: AISentiment = JSON.parse(responseText);
 
-        if (!parsed.sentiment || !['positive', 'negative', 'neutral'].includes(parsed.sentiment)) {
+        if (!parsed.sentiment || !SENTIMENT_TYPES.includes(parsed.sentiment)) {
             console.error('Invalid sentiment value in response:'.red, parsed.sentiment);
             return {error: 'SENTIMENT_PARSE_ERROR'};
         }

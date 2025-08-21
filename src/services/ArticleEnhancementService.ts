@@ -20,6 +20,7 @@ import {
     GetProcessingStatusParams,
     GetProcessingStatusResponse,
     MergeEnhancementsWithArticlesParams,
+    SENTIMENT_TYPES,
 } from "../types/ai";
 
 class ArticleEnhancementService {
@@ -101,11 +102,11 @@ class ArticleEnhancementService {
                     console.log('Stripped markdown, clean JSON:'.yellow, responseText);
                 }
 
-                const parsed = JSON.parse(responseText);
+                const parsed: CombinedAIResponse = JSON.parse(responseText);
                 const response: CombinedAIResponse = {};
 
                 if (tasks.includes('sentiment') && parsed.sentiment) {
-                    if (['positive', 'negative', 'neutral'].includes(parsed.sentiment.type)) {
+                    if (SENTIMENT_TYPES.includes(parsed.sentiment.type)) {
                         response.sentiment = {
                             type: parsed.sentiment.type,
                             confidence: parsed.sentiment.confidence || 0.5,

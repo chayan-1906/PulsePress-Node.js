@@ -110,14 +110,14 @@ class TagGenerationService {
         }
 
         try {
-            const parsed = JSON.parse(responseText);
+            const parsed: string[] = JSON.parse(responseText);
 
             if (!Array.isArray(parsed)) {
                 console.error('Response is not an array:'.red, parsed);
                 return {error: 'TAG_PARSE_ERROR'};
             }
 
-            const validTags = parsed.filter(tag => typeof tag === 'string' && tag.trim().length > 0 && tag.trim().length <= 20).map(tag => tag.trim());
+            const validTags: string[] = parsed.filter((tag: string) => tag.trim().length > 0 && tag.trim().length <= 20).map(tag => tag.trim());
 
             if (validTags.length === 0) {
                 console.error('No valid tags found in response:'.red, parsed);
