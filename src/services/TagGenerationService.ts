@@ -1,6 +1,7 @@
 import "colors";
 import {genAI} from "./AIService";
 import {isListEmpty} from "../utils/list";
+import {AI_PROMPTS} from "../utils/prompts";
 import {scrapeMultipleArticles} from "./NewsService";
 import {AI_TAG_GENERATION_MODELS} from "../utils/constants";
 import {TagGenerationParams, TagGenerationResponse} from "../types/ai";
@@ -72,22 +73,7 @@ class TagGenerationService {
     private async generateWithGemini(modelName: string, content: string): Promise<TagGenerationResponse> {
         const model = genAI.getGenerativeModel({model: modelName});
 
-        const prompt = `Analyze this news article and generate 3-5 relevant tags that categorize its content.
-
-                    Guidelines for tag generation:
-                    - Generate tags that represent the main topics, categories, or themes
-                    - Use single words or short phrases (1-3 words maximum)
-                    - Make tags specific and relevant to the article content
-                    - Avoid generic words like "news" or "article"
-
-                    Article content: "${content}"
-
-                    CRITICAL: Return ONLY the JSON array below. Do NOT wrap it in markdown code blocks, backticks, or any other formatting. Do NOT add any explanatory text before or after the JSON.
-
-                    Return exactly this format:
-                    ["Politics", "Economy", "Breaking"]
-
-                    Each tag should represent a meaningful category that is directly relevant to the news content, helping users better understand and filter information.`;
+        const prompt = AI_PROMPTS.TAG_GENERATION(content);
 
         const result = await model.generateContent(prompt);
         let responseText = result.response.text().trim();

@@ -26,7 +26,6 @@ import {
 class ArticleEnhancementService {
     private static activeJobs = new Set<string>();
 
-
     /**
      * Combined AI enhancement method - sentiment analysis, key points extractor, and complexity meter
      */
