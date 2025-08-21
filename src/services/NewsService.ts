@@ -8,12 +8,12 @@ import {isListEmpty} from "../utils/list";
 import {parseRSS} from "../utils/parseRSS";
 import {getUserByEmail} from "./AuthService";
 import {buildHeader} from "../utils/buildHeader";
+import {generateArticleId} from "../utils/generateArticleId";
 import SentimentAnalysisService from "./SentimentAnalysisService";
 import ArticleEnhancementService from "./ArticleEnhancementService";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
 import {RSS_SOURCES, TOPIC_SPECIFIC_SOURCES, TRUSTED_NEWS_SOURCES, USER_AGENTS} from "../utils/constants";
 import {GUARDIAN_API_KEY, GUARDIAN_QUOTA_REQUESTS, NEWSAPI_QUOTA_REQUESTS, NEWSAPIORG_QUOTA_MS, NODE_ENV, NYTIMES_API_KEY, NYTIMES_QUOTA_REQUESTS, RSS_CACHE_DURATION} from "../config/config";
-import {generateArticleId} from "../utils/generateArticleId";
 import {
     Article,
     EnhancementStatus,
@@ -1082,13 +1082,7 @@ const scrapeArticle = async ({url}: ScrapeWebsiteParams) => {
         for (const userAgent of USER_AGENTS) {
             try {
                 response = await axios.get(url, {
-                    headers: {
-                        'User-Agent': userAgent,
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                        'Accept-Language': 'en-US,en;q=0.5',
-                        'Accept-Encoding': 'gzip, deflate',
-                        'Referer': 'https://www.google.com/',
-                    },
+                    headers: buildHeader('webscraping', userAgent),
                     timeout: 10000,
                 });
                 break; // Success - exit loop
@@ -1115,6 +1109,7 @@ const scrapeArticle = async ({url}: ScrapeWebsiteParams) => {
 
         const reader = new Readability(dom.window.document);
         const article = reader.parse();
+        console.log('article:', article);
 
         if (!article) {
             throw new Error('Failed to parse article content');

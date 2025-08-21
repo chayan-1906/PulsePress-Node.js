@@ -2,6 +2,7 @@ import axios from "axios";
 import Parser from "rss-parser";
 import {RSSFeed} from "../types/news";
 import {USER_AGENTS} from "./constants";
+import {buildHeader} from "./buildHeader";
 
 const parseRSS = async (rssFeedUrl: string): Promise<RSSFeed[]> => {
     let lastError;
@@ -9,20 +10,7 @@ const parseRSS = async (rssFeedUrl: string): Promise<RSSFeed[]> => {
     for (const userAgent of USER_AGENTS) {
         try {
             const response = await axios.get(rssFeedUrl, {
-                headers: {
-                    'User-Agent': userAgent,
-                    'Accept': 'application/rss+xml, application/xml, text/xml, application/atom+xml, */*',
-                    'Accept-Language': 'en-US,en;q=0.9,bn;q=0.8',
-                    'Accept-Encoding': 'gzip, deflate, br',
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache',
-                    'Referer': 'https://www.google.com/',
-                    'Sec-Fetch-Dest': 'document',
-                    'Sec-Fetch-Mode': 'navigate',
-                    'Sec-Fetch-Site': 'cross-site',
-                    'Upgrade-Insecure-Requests': '1',
-                    'Connection': 'keep-alive',
-                },
+                headers: buildHeader('rss', userAgent),
                 timeout: 15000,
                 maxRedirects: 5,
                 validateStatus: (status) => status < 500, // Accept even 4xx errors to see what we get
