@@ -32,7 +32,8 @@ import {
     UpdateUserResponse
 } from "../types/auth";
 
-const registerUser = async ({name, email, password, confirmPassword}: RegisterParams): Promise<RegisterResponse> => {
+class AuthService {
+    static async registerUser({name, email, password, confirmPassword}: RegisterParams): Promise<RegisterResponse> {
     try {
         if (!name) {
             return {error: generateMissingCode('name')};
@@ -47,13 +48,13 @@ const registerUser = async ({name, email, password, confirmPassword}: RegisterPa
             return {error: generateInvalidCode('password')};
         }
 
-        const hashedPassword = await hashPassword(password);
-        const isMatched = comparePassword(password, confirmPassword);
+        const hashedPassword = await this.hashPassword(password);
+        const isMatched = this.comparePassword(password, confirmPassword);
         if (!isMatched) {
             return {error: 'PASSWORD_MISMATCH'};
         }
 
-        const {user} = await getUserByEmail({email});
+        const {user} = await this.getUserByEmail({email});
         if (user) {
             console.info('user exists'.bgMagenta.white.italic);
             return {error: 'ALREADY_REGISTERED'};
@@ -101,13 +102,13 @@ const registerUser = async ({name, email, password, confirmPassword}: RegisterPa
     }
 }
 
-const loginUser = async ({email, password}: LoginParams): Promise<LoginResponse> => {
+    static async loginUser({email, password}: LoginParams): Promise<LoginResponse> {
     try {
         if (!password) {
             return {error: generateMissingCode('password')};
         }
 
-        const {user} = await getUserByEmail({email});
+        const {user} = await this.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
@@ -124,12 +125,12 @@ const loginUser = async ({email, password}: LoginParams): Promise<LoginResponse>
             }
         }
 
-        const isMatched = await verifyPassword(password, user.password!);
+        const isMatched = await this.verifyPassword(password, user.password!);
         if (!isMatched) {
             return {error: generateInvalidCode('credentials')};
         }
 
-        const {accessToken, refreshToken} = await generateJWT(user);
+        const {accessToken, refreshToken} = await this.generateJWT(user);
 
         return {user, accessToken, refreshToken};
     } catch (error: any) {
@@ -138,9 +139,9 @@ const loginUser = async ({email, password}: LoginParams): Promise<LoginResponse>
     }
 }
 
-const resetPassword = async ({email, currentPassword, newPassword}: ResetPasswordParams): Promise<ResetPasswordResponse> => {
+    static async resetPassword({email, currentPassword, newPassword}: ResetPasswordParams): Promise<ResetPasswordResponse> {
     try {
-        const {user} = await getUserByEmail({email});
+        const {user} = await this.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
@@ -175,7 +176,7 @@ const resetPassword = async ({email, currentPassword, newPassword}: ResetPasswor
             return {error: generateMissingCode('new_password')};
         }
 
-        const isMatched = await verifyPassword(currentPassword, user.password!);
+        const isMatched = await this.verifyPassword(currentPassword, user.password!);
         if (!isMatched) {
             return {error: generateInvalidCode('credentials')};
         }
@@ -187,7 +188,7 @@ const resetPassword = async ({email, currentPassword, newPassword}: ResetPasswor
         if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*])(?=.{6,})/.test(newPassword)) {
             return {error: generateInvalidCode('new_password')};
         }
-        user.password = await hashPassword(newPassword);
+        user.password = await this.hashPassword(newPassword);
         await user.save();
         console.log('password reset:'.cyan.italic);
 
@@ -198,7 +199,7 @@ const resetPassword = async ({email, currentPassword, newPassword}: ResetPasswor
     }
 }
 
-const refreshToken = async ({refreshToken: rawRefreshToken}: RefreshTokenParams): Promise<RefreshTokenResponse> => {
+    static async refreshToken({refreshToken: rawRefreshToken}: RefreshTokenParams): Promise<RefreshTokenResponse> {
     try {
         if (!rawRefreshToken) {
             return {error: generateMissingCode('refreshToken')};
@@ -223,7 +224,7 @@ const refreshToken = async ({refreshToken: rawRefreshToken}: RefreshTokenParams)
     }
 }
 
-const loginWithGoogle = async ({code}: LoginWithGoogleParams): Promise<LoginResponse> => {
+    static async loginWithGoogle({code}: LoginWithGoogleParams): Promise<LoginResponse> {
     try {
         if (!code) {
             return {error: generateInvalidCode('code')};
@@ -240,14 +241,14 @@ const loginWithGoogle = async ({code}: LoginWithGoogleParams): Promise<LoginResp
 
         const {id: googleId, name, email, picture: profilePicture} = userInfoResponse.data;
 
-        const {user} = await getUserByEmail({email});
+        const {user} = await this.getUserByEmail({email});
         if (user) {
             console.info('user exists'.bgMagenta.white.italic);
             user.authProvider = 'google';
             user.isVerified = true;
             user.googleId = googleId || '';
             await user.save();
-            const {accessToken, refreshToken} = await generateJWT(user);
+            const {accessToken, refreshToken} = await this.generateJWT(user);
             return {user, accessToken, refreshToken};
         }
 
@@ -262,7 +263,7 @@ const loginWithGoogle = async ({code}: LoginWithGoogleParams): Promise<LoginResp
 
             const [newUser] = await UserModel.create([{googleId, name, email, profilePicture, isVerified: true, authProvider: 'google'}], {session});
 
-            const {accessToken, refreshToken} = await generateJWT(newUser);
+            const {accessToken, refreshToken} = await this.generateJWT(newUser);
             console.log('user created:'.cyan.italic, newUser);
 
             const {userPreference, error} = await UserPreferenceService.modifyUserPreference({
@@ -297,9 +298,9 @@ const loginWithGoogle = async ({code}: LoginWithGoogleParams): Promise<LoginResp
     }
 }
 
-const updateUser = async ({email, name, password, profilePicture}: UpdateUserParams): Promise<UpdateUserResponse> => {
+    static async updateUser({email, name, password, profilePicture}: UpdateUserParams): Promise<UpdateUserResponse> {
     try {
-        const {user} = await getUserByEmail({email});
+        const {user} = await this.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
@@ -311,7 +312,7 @@ const updateUser = async ({email, name, password, profilePicture}: UpdateUserPar
             if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*])(?=.{6,})/.test(password)) {
                 return {error: generateInvalidCode('password')};
             }
-            user.password = await hashPassword(password);
+            user.password = await this.hashPassword(password);
         }
         user.profilePicture = profilePicture;   // user can remove profile picture
         const updatedUser: IUser | null = await user.save();
@@ -326,7 +327,7 @@ const updateUser = async ({email, name, password, profilePicture}: UpdateUserPar
     }
 }
 
-const hashPassword = async (password: string): Promise<string> => {
+    private static async hashPassword(password: string): Promise<string> {
     try {
         const hashedPassword = await bcryptjs.hash(password, 10);
         console.info('hashPassword:'.bgMagenta.white.italic, hashedPassword);
@@ -337,7 +338,7 @@ const hashPassword = async (password: string): Promise<string> => {
     }
 }
 
-const comparePassword = (password1: string, password2: string): boolean => {
+    private static comparePassword(password1: string, password2: string): boolean {
     try {
         const isMatched = password1 === password2;
         if (!isMatched) {
@@ -352,7 +353,7 @@ const comparePassword = (password1: string, password2: string): boolean => {
     }
 }
 
-const verifyPassword = async (password: string, hashedPassword: string): Promise<boolean> => {
+    private static async verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
     try {
         const isMatched = await bcryptjs.compare(password, hashedPassword);
         if (!isMatched) {
@@ -367,7 +368,7 @@ const verifyPassword = async (password: string, hashedPassword: string): Promise
     }
 }
 
-const generateJWT = async (user: IUser): Promise<GenerateJWTResponse> => {
+    static async generateJWT(user: IUser): Promise<GenerateJWTResponse> {
     try {
         const accessToken = jwt.sign(
             {userExternalId: user.userExternalId, email: user.email},
@@ -394,7 +395,7 @@ const generateJWT = async (user: IUser): Promise<GenerateJWTResponse> => {
     }
 }
 
-const getUserByEmail = async ({email}: GetUserByEmailParams): Promise<GetUserByEmailResponse> => {
+    static async getUserByEmail({email}: GetUserByEmailParams): Promise<GetUserByEmailResponse> {
     try {
         if (!email) {
             return {error: generateMissingCode('email')};
@@ -412,7 +413,7 @@ const getUserByEmail = async ({email}: GetUserByEmailParams): Promise<GetUserByE
     }
 }
 
-const deleteAccount = async ({email}: DeleteAccountByEmailParams): Promise<DeleteAccountByEmailResponse> => {
+    static async deleteAccount({email}: DeleteAccountByEmailParams): Promise<DeleteAccountByEmailResponse> {
     const session = await mongoose.startSession();
     session.startTransaction();
 
@@ -447,5 +448,6 @@ const deleteAccount = async ({email}: DeleteAccountByEmailParams): Promise<Delet
         await session.endSession();               // Clean up the session
     }
 }
+}
 
-export {registerUser, loginUser, resetPassword, refreshToken, loginWithGoogle, updateUser, generateJWT, getUserByEmail, deleteAccount};
+export default AuthService;

@@ -2,11 +2,11 @@ import "colors";
 import {Request, Response} from "express";
 import {getAuthUrl} from "../utils/OAuth";
 import {ApiResponse} from "../utils/ApiResponse";
+import AuthService from "../services/AuthService";
 import {verifyTokenErrorHTML} from "../templates/verifyTokenErrorHTML";
 import {verifyTokenSuccessHTML} from "../templates/verifyTokenSuccessHTML";
 import {checkAuthStatus, generateMagicLink, verifyMagicLink} from "../services/MagicLinkService";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
-import {deleteAccount, getUserByEmail, loginUser, loginWithGoogle, refreshToken, registerUser, resetPassword, updateUser} from "../services/AuthService";
 import {
     AuthRequest,
     CheckAuthStatusParams,
@@ -61,7 +61,7 @@ const registerUserController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {user, error} = await registerUser({name, email, password, confirmPassword});
+        const {user, error} = await AuthService.registerUser({name, email, password, confirmPassword});
         if (error === generateInvalidCode('password')) {
             console.error('Password does not follow regex'.yellow.italic);
             res.status(400).send(new ApiResponse({
@@ -138,7 +138,7 @@ const loginController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {user, accessToken, refreshToken, error} = await loginUser({email, password});
+        const {user, accessToken, refreshToken, error} = await AuthService.loginUser({email, password});
         if (error === generateNotFoundCode('user')) {
             console.error('User not found'.yellow.italic);
             res.status(404).send(new ApiResponse({
@@ -221,7 +221,7 @@ const resetPasswordController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {user, error} = await resetPassword({email, currentPassword, newPassword});
+        const {user, error} = await AuthService.resetPassword({email, currentPassword, newPassword});
         if (error === generateNotFoundCode('user')) {
             console.error('User not found'.yellow.italic);
             res.status(404).send(new ApiResponse({
@@ -317,7 +317,7 @@ const refreshTokenController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {accessToken} = await refreshToken({refreshToken: rawRefreshToken});
+        const {accessToken} = await AuthService.refreshToken({refreshToken: rawRefreshToken});
         console.log('token refreshed:'.cyan.italic, {accessToken});
 
         res.status(200).send(new ApiResponse({
@@ -354,7 +354,7 @@ const loginWithGoogleController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {error, user, accessToken, refreshToken} = await loginWithGoogle({code});
+        const {error, user, accessToken, refreshToken} = await AuthService.loginWithGoogle({code});
         if (error === generateInvalidCode('email_address')) {
             console.error('Invalid email address'.yellow.italic);
             res.status(400).send(new ApiResponse({
@@ -508,7 +508,7 @@ const getUserProfileController = async (req: Request, res: Response) => {
     try {
         const email = (req as AuthRequest).email;
 
-        const {user} = await getUserByEmail({email});
+        const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             console.error('User not found'.yellow.italic);
             res.status(404).send(new ApiResponse({
@@ -560,7 +560,7 @@ const updateUserController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {user, error} = await updateUser({email, name, password, profilePicture});
+        const {user, error} = await AuthService.updateUser({email, name, password, profilePicture});
         if (error === generateNotFoundCode('user')) {
             console.error('User not found'.yellow.italic);
             res.status(404).send(new ApiResponse({
@@ -611,7 +611,7 @@ const deleteAccountController = async (req: Request, res: Response) => {
     try {
         const email = (req as AuthRequest).email;
 
-        const {isDeleted, error} = await deleteAccount({email});
+        const {isDeleted, error} = await AuthService.deleteAccount({email});
         if (error === generateNotFoundCode('user')) {
             console.error('User not found'.yellow.italic);
             res.status(404).send(new ApiResponse({

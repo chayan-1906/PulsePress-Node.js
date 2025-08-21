@@ -1,8 +1,8 @@
 import "colors";
 import {genAI} from "./AIService";
+import AuthService from "./AuthService";
 import {AI_PROMPTS} from "../utils/prompts";
 import StrikeService from "./StrikeService";
-import {getUserByEmail} from "./AuthService";
 import {Article, EnhancementStatus} from "../types/news";
 import {AI_ENHANCEMENT_MODELS} from "../utils/constants";
 import {generateArticleId} from "../utils/generateArticleId";
@@ -178,7 +178,7 @@ class ArticleEnhancementService {
 
         if (email) {
             try {
-                const {user} = await getUserByEmail({email});
+                const {user} = await AuthService.getUserByEmail({email});
                 const {isBlocked} = await StrikeService.checkUserBlock(email);
                 if (!user || isBlocked) {
                     console.error('User not found - no AI enhancements'.yellow.italic);
@@ -303,7 +303,7 @@ class ArticleEnhancementService {
     static async getEnhancementStatusByIds({email, articleIds}: GetEnhancementStatusByIdsParams): Promise<GetEnhancementStatusByIdsResponse> {
         try {
             if (email) {
-                const {user} = await getUserByEmail({email});
+                const {user} = await AuthService.getUserByEmail({email});
                 if (!user) {
                     return {error: generateNotFoundCode('user')};
                 }

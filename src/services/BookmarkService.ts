@@ -1,5 +1,5 @@
 import "colors";
-import {getUserByEmail} from "./AuthService";
+import AuthService from "./AuthService";
 import AnalyticsService from "./AnalyticsService";
 import BookmarkModel, {IBookmark} from "../models/BookmarkSchema";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
@@ -19,7 +19,7 @@ import {
 class BookmarkService {
     static async toggleBookmark({email, articleUrl, title, source, description, imageUrl, publishedAt}: ToggleBookmarkParams): Promise<ToggleBookmarkResponse> {
         try {
-            const {user, error} = await getUserByEmail({email});
+            const {user, error} = await AuthService.getUserByEmail({email});
             if (!user) {
                 return {error: generateNotFoundCode('user')};
             }
@@ -79,7 +79,7 @@ class BookmarkService {
 
     static async getBookmarkStatus({email, articleUrl}: IsBookmarkedParams): Promise<IsBookmarkedResponse> {
         try {
-            const {user, error} = await getUserByEmail({email});
+            const {user, error} = await AuthService.getUserByEmail({email});
             if (!user) {
                 return {error: generateNotFoundCode('user')};
             }
@@ -103,7 +103,7 @@ class BookmarkService {
 
     static async getAllBookmarks({email, pageSize = 10, page = 1}: GetAllBookmarksParams): Promise<GetAllBookmarksResponse> {
         try {
-            const {user, error} = await getUserByEmail({email});
+            const {user, error} = await AuthService.getUserByEmail({email});
             if (!user) {
                 return {error: generateNotFoundCode('user')};
             }
@@ -127,7 +127,7 @@ class BookmarkService {
 
     static async getBookmarkCount({email}: GetAllBookmarksParams): Promise<GetBookmarkCountResponse> {
         try {
-            const {user, error} = await getUserByEmail({email});
+            const {user, error} = await AuthService.getUserByEmail({email});
             if (!user) {
                 return {error: generateNotFoundCode('user')};
             }
@@ -144,7 +144,7 @@ class BookmarkService {
 
     static async searchBookmarks({email, q, sources, sortBy = 'createdAt', sortOrder = 'desc', pageSize = 10, page = 1}: SearchBookmarksParams): Promise<SearchBookmarksResponse> {
         try {
-            const {user, error} = await getUserByEmail({email});
+            const {user, error} = await AuthService.getUserByEmail({email});
             if (!user) {
                 return {error: generateNotFoundCode('user')};
             }

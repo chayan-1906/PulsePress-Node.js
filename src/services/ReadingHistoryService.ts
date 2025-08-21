@@ -1,4 +1,4 @@
-import {getUserByEmail} from "./AuthService";
+import AuthService from "./AuthService";
 import AnalyticsService from "./AnalyticsService";
 import ReadingHistoryModel, {IReadingHistory} from "../models/ReadingHistorySchema";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
@@ -23,7 +23,7 @@ import {
 const modifyReadingHistory = async (
     {email, title, articleUrl, source, description, readAt, readDuration, completed, publishedAt}: ModifyReadingHistoryParams): Promise<ModifyReadingHistoryResponse> => {
     try {
-        const {user, error} = await getUserByEmail({email});
+        const {user, error} = await AuthService.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
@@ -95,7 +95,7 @@ const modifyReadingHistory = async (
 
 const getReadingHistories = async ({email, pageSize = 10, page = 1}: GetReadingHistoryParams): Promise<GetReadingHistoryResponse> => {
     try {
-        const {user, error} = await getUserByEmail({email});
+        const {user, error} = await AuthService.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
@@ -119,7 +119,7 @@ const getReadingHistories = async ({email, pageSize = 10, page = 1}: GetReadingH
 
 const completeArticle = async ({email, articleUrl}: CompleteArticleParams): Promise<CompleteArticleResponse> => {
     try {
-        const {user, error} = await getUserByEmail({email});
+        const {user, error} = await AuthService.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
@@ -151,7 +151,7 @@ const completeArticle = async ({email, articleUrl}: CompleteArticleParams): Prom
 
 const clearReadingHistories = async ({email}: ClearReadingHistoryParams): Promise<ClearReadingHistoryResponse> => {
     try {
-        const {user, error} = await getUserByEmail({email});
+        const {user, error} = await AuthService.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
@@ -169,7 +169,7 @@ const clearReadingHistories = async ({email}: ClearReadingHistoryParams): Promis
 
 const getReadingAnalytics = async ({email}: GetReadingAnalyticsParams): Promise<GetReadingAnalyticsResponse> => {
     try {
-        const {user, error} = await getUserByEmail({email});
+        const {user, error} = await AuthService.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
@@ -251,7 +251,7 @@ const searchReadingHistories = async (
      * */
 
     try {
-        const {user} = await getUserByEmail({email});
+        const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
@@ -302,7 +302,7 @@ const searchReadingHistories = async (
 
 const deleteReadingHistory = async ({email, readingHistoryExternalId}: DeleteReadingHistoryParams): Promise<DeleteReadingHistoryResponse> => {
     try {
-        const {user, error} = await getUserByEmail({email});
+        const {user, error} = await AuthService.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }

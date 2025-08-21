@@ -4,9 +4,9 @@ import Fuse from "fuse.js";
 import {JSDOM, VirtualConsole} from 'jsdom';
 import {Readability} from "@mozilla/readability";
 import {apis} from "../utils/apis";
+import AuthService from "./AuthService";
 import {isListEmpty} from "../utils/list";
 import {parseRSS} from "../utils/parseRSS";
-import {getUserByEmail} from "./AuthService";
 import {buildHeader} from "../utils/buildHeader";
 import {generateArticleId} from "../utils/generateArticleId";
 import SentimentAnalysisService from "./SentimentAnalysisService";
@@ -1038,7 +1038,7 @@ const fetchMultiSourceNews = async ({email, q, category, sources, pageSize = 10,
     if (email) {
         try {
             // Verify user exists
-            const {user} = await getUserByEmail({email});
+            const {user} = await AuthService.getUserByEmail({email});
             if (user) {
                 console.log('User verified, enriching articles with sentiment analysis...'.cyan.italic);
                 console.time('MULTISOURCE_SENTIMENT_ENRICHMENT_TIME'.bgCyan.white.italic);

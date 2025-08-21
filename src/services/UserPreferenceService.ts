@@ -1,6 +1,6 @@
 import "colors";
 import {ClientSession} from "mongoose";
-import {getUserByEmail} from "./AuthService";
+import AuthService from "./AuthService";
 import {hasInvalidItems} from "../utils/list";
 import {clearRecommendationCache} from "./ContentRecommendationService";
 import UserPreferenceModel, {IUserPreference} from "../models/UserPreferenceSchema";
@@ -19,7 +19,7 @@ class UserPreferenceService {
     static async modifyUserPreference(
         {email, user, preferredLanguage, preferredCategories, preferredSources, summaryStyle, newsLanguages, session}: ModifyUserPreferenceParams): Promise<ModifyUserPreferenceResponse> {
         try {
-            const targetUser = user || (await getUserByEmail({email})).user;
+            const targetUser = user || (await AuthService.getUserByEmail({email})).user;
             if (!targetUser) {
                 return {error: generateNotFoundCode('user')};
             }
@@ -81,7 +81,7 @@ class UserPreferenceService {
                 return {error: generateMissingCode('email')};
             }
 
-            const {user} = await getUserByEmail({email});
+            const {user} = await AuthService.getUserByEmail({email});
             if (!user) {
                 return {error: generateNotFoundCode('user')};
             }
@@ -104,7 +104,7 @@ class UserPreferenceService {
                 return {error: generateMissingCode('email')};
             }
 
-            const {user} = await getUserByEmail({email});
+            const {user} = await AuthService.getUserByEmail({email});
             if (!user) {
                 return {error: generateNotFoundCode('user')};
             }

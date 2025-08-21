@@ -1,5 +1,5 @@
 import "colors";
-import {getUserByEmail} from "./AuthService";
+import AuthService from "./AuthService";
 import {RSS_SOURCES} from "../utils/constants";
 import AnalyticsService from "./AnalyticsService";
 import BookmarkModel from "../models/BookmarkSchema";
@@ -30,7 +30,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
             return {error: generateMissingCode('email')};
         }
 
-        const {user} = await getUserByEmail({email});
+        const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }

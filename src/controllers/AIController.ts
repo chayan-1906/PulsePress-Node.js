@@ -3,17 +3,17 @@ import {Request, Response} from "express";
 import {AuthRequest} from "../types/auth";
 import {isListEmpty} from "../utils/list";
 import {ApiResponse} from "../utils/ApiResponse";
+import AuthService from "../services/AuthService";
 import StrikeService from "../services/StrikeService";
 import {summarizeArticle} from "../services/AIService";
-import {getUserByEmail} from "../services/AuthService";
 import {scrapeMultipleArticles} from "../services/NewsService";
-import SentimentAnalysisService from "../services/SentimentAnalysisService";
-import KeyPointsExtractionService from "../services/KeyPointsExtractionService";
-import ComplexityMeterService from "../services/ComplexityMeterService";
-import NewsClassificationService from "../services/NewsClassificationService";
 import TagGenerationService from "../services/TagGenerationService";
-import {ComplexityMeterParams, KeyPointsExtractionParams, SentimentAnalysisParams, SUMMARIZATION_STYLES, SummarizeArticleParams, TagGenerationParams} from "../types/ai";
+import ComplexityMeterService from "../services/ComplexityMeterService";
+import SentimentAnalysisService from "../services/SentimentAnalysisService";
+import NewsClassificationService from "../services/NewsClassificationService";
+import KeyPointsExtractionService from "../services/KeyPointsExtractionService";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
+import {ComplexityMeterParams, KeyPointsExtractionParams, SentimentAnalysisParams, SUMMARIZATION_STYLES, SummarizeArticleParams, TagGenerationParams} from "../types/ai";
 
 const classifyContentController = async (req: Request, res: Response) => {
     console.info('classifyContentController called'.bgMagenta.white.italic);
@@ -268,7 +268,7 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
         const email = (req as AuthRequest).email;
         const {content, url}: SentimentAnalysisParams = req.body;
 
-        const {user} = await getUserByEmail({email});
+        const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             res.status(404).send(new ApiResponse({
                 success: false,
@@ -374,7 +374,7 @@ const generateTagsController = async (req: Request, res: Response) => {
         const email = (req as AuthRequest).email;
         const {content, url}: TagGenerationParams = req.body;
 
-        const {user} = await getUserByEmail({email});
+        const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             res.status(404).send(new ApiResponse({
                 success: false,
@@ -461,7 +461,7 @@ const fetchKeyPointsController = async (req: Request, res: Response) => {
         const email = (req as AuthRequest).email;
         const {content, url}: KeyPointsExtractionParams = req.body;
 
-        const {user} = await getUserByEmail({email});
+        const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             res.status(404).send(new ApiResponse({
                 success: false,
@@ -565,7 +565,7 @@ const fetchComplexityMeterController = async (req: Request, res: Response) => {
         const email = (req as AuthRequest).email;
         const {content, url}: ComplexityMeterParams = req.body;
 
-        const {user} = await getUserByEmail({email});
+        const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             res.status(404).send(new ApiResponse({
                 success: false,

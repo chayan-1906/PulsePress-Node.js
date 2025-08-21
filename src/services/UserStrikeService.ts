@@ -1,12 +1,12 @@
 import "colors";
+import AuthService from "./AuthService";
 import StrikeService from "./StrikeService";
-import {getUserByEmail} from "./AuthService";
 import {STRIKE_COOLDOWN_COUNT, STRIKE_LONG_BLOCK_DURATION, STRIKE_TEMPORARY_BLOCK_COUNT, STRIKE_TEMPORARY_BLOCK_DURATION} from "../config/config";
 import {GetUserStrikeHistoryParams, GetUserStrikeHistoryResponse, GetUserStrikeStatusParams, GetUserStrikeStatusResponse, UserStrikeHistory, UserStrikeStatus} from "../types/ai";
 
 const getUserStrikeStatus = async ({email}: GetUserStrikeStatusParams): Promise<GetUserStrikeStatusResponse> => {
     try {
-        const {user} = await getUserByEmail({email});
+        const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             return {error: 'USER_NOT_FOUND'};
         }
@@ -75,7 +75,7 @@ const getUserStrikeStatus = async ({email}: GetUserStrikeStatusParams): Promise<
 
 const getUserStrikeHistory = async ({email, limit = 10}: GetUserStrikeHistoryParams): Promise<GetUserStrikeHistoryResponse> => {
     try {
-        const {user} = await getUserByEmail({email});
+        const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             return {error: 'USER_NOT_FOUND'};
         }

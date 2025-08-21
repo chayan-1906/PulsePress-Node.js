@@ -2,10 +2,10 @@ import "colors";
 import {createHash} from 'crypto';
 import {GoogleGenerativeAI} from "@google/generative-ai";
 import {Translate} from '@google-cloud/translate/build/src/v2';
+import AuthService from "./AuthService";
 import {isListEmpty} from "../utils/list";
 import StrikeService from "./StrikeService";
 import {AI_PROMPTS} from "../utils/prompts";
-import {getUserByEmail} from "./AuthService";
 import {scrapeMultipleArticles} from "./NewsService";
 import {AI_SUMMARIZATION_MODELS} from "../utils/constants";
 import CachedSummaryModel, {ICachedSummary} from "../models/CachedSummarySchema";
@@ -82,7 +82,7 @@ const summarizeArticle = async ({email, content, url, language = 'en', style = '
         }
         console.info('articleContent'.bgMagenta.white.italic, articleContent);
 
-        const {user} = await getUserByEmail({email});
+        const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }

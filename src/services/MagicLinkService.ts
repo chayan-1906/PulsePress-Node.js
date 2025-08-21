@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import {getUserByEmail} from './AuthService';
+import AuthService from './AuthService';
 import EmailService from './EmailService';
 import UserModel, {IUser} from "../models/UserSchema";
 import MagicLinkModel from "../models/MagicLinkSchema";
@@ -50,7 +50,7 @@ const verifyMagicLink = async ({token}: VerifyMagicLinkParams): Promise<VerifyMa
         return {error: generateInvalidCode('magic_link')};
     }
 
-    const {user} = await getUserByEmail({email: magicLink.email});
+    const {user} = await AuthService.getUserByEmail({email: magicLink.email});
     let finalUser: IUser;
     if (!user) {
         const session = await mongoose.startSession();
@@ -100,8 +100,7 @@ const verifyMagicLink = async ({token}: VerifyMagicLinkParams): Promise<VerifyMa
         finalUser = user;
     }
 
-    const {generateJWT} = await import('./AuthService');
-    const {accessToken, refreshToken} = await generateJWT(finalUser);
+    const {accessToken, refreshToken} = await AuthService.generateJWT(finalUser);
 
     await Promise.all([
         magicLink.deleteOne(),
@@ -125,7 +124,7 @@ const verifyMagicLink = async ({token}: VerifyMagicLinkParams): Promise<VerifyMa
 // only for magicLink users -- not designed for google oauth and email/pass users
 const checkAuthStatus = async ({email}: CheckAuthStatusParams): Promise<CheckAuthStatusResponse> => {
     try {
-        const {user} = await getUserByEmail({email});
+        const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
