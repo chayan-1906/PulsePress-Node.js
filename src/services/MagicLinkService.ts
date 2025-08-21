@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import {getUserByEmail} from './AuthService';
-import {sendMagicLink} from './EmailService';
+import EmailService from './EmailService';
 import UserModel, {IUser} from "../models/UserSchema";
 import MagicLinkModel from "../models/MagicLinkSchema";
 import {modifyUserPreference} from "./UserPreferenceService";
@@ -30,7 +30,7 @@ const generateMagicLink = async ({email}: GenerateMagicLinkParams): Promise<Gene
         const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
         await MagicLinkModel.create({email, token, expiresAt});
-        await sendMagicLink(email, token);
+        await EmailService.sendMagicLink(email, token);
 
         return {success: true, message: 'Magic link sent to your email'};
     } catch (error: any) {
