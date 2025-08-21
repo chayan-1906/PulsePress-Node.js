@@ -95,6 +95,29 @@ const AI_PROMPTS = {
         Content: ${content}`
     },
 
+    NEWS_CLASSIFICATION: (content?: string) => {
+        const instructions = `Read the given content properly and classify it as either news or non_news content.
+
+        NEWS content includes: current events, breaking news, recent developments, sports events, business news, political news, technology news.
+        NON-NEWS content includes: educational content, tutorials, personal emails, notifications, advertisements, historical information, general knowledge.`;
+
+        if (!content) {
+            return instructions;
+        }
+
+        return `${instructions}
+
+        Content to classify: "${content}"
+
+        CRITICAL: Return ONLY the JSON object below. Do NOT wrap it in markdown code blocks, backticks, or any other formatting. Do NOT add any explanatory text before or after the JSON.
+
+        Return exactly this format:
+        {"classification": "news", "confidence": 0.85}
+
+        Valid classification values: news, non_news
+        Confidence must be a number between 0.1 and 1.0`;
+    },
+
     JSON_FORMAT_INSTRUCTIONS: `CRITICAL: Return ONLY the JSON object below. Do NOT wrap it in markdown code blocks, backticks, or any other formatting. Do NOT add any explanatory text before or after the JSON.`,
 };
 

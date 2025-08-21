@@ -2,8 +2,10 @@ import "colors";
 import axios from "axios";
 import {genAI} from "./AIService";
 import {ClassificationResult} from "../types/ai";
+import {buildHeader} from "../utils/buildHeader";
 import {AI_SUMMARIZATION_MODELS} from "../utils/constants";
 import {GEMINI_API_KEY, HUGGINGFACE_API_TOKEN} from "../config/config";
+import {AI_PROMPTS} from "../utils/prompts";
 
 class NewsClassificationService {
     private readonly huggingFaceUrl = 'https://api-inference.huggingface.co/models/facebook/bart-large-mnli';
@@ -12,7 +14,7 @@ class NewsClassificationService {
      * Main classification method with HuggingFace -> Gemini fallback
      */
     async classifyContent(text: string): Promise<ClassificationResult> {
-        console.log('Classifying content for news detection...'.cyan.italic);
+        console.log('Classifying content for news detection...'.cyan.italic, text);
 
         if (!text || text.trim().length === 0) {
             console.log('Empty text provided for classification'.yellow.italic);
@@ -45,14 +47,17 @@ class NewsClassificationService {
             throw new Error('HuggingFace API token not configured');
         }
 
+        // Truncate text for HuggingFace
         const truncatedText = text.substring(0, 2000);
 
         const payload = {
             inputs: truncatedText,
             parameters: {
                 candidate_labels: [
-                    'news article, current events, journalism, breaking news, news report',
-                    'educational content, tutorial, general knowledge, how-to guide, academic content',
+                    'current news and breaking news content',
+                    'educational content and tutorials',
+                    'personal notifications and emails',
+                    'advertisements and promotional content',
                 ],
             },
         };
@@ -61,12 +66,9 @@ class NewsClassificationService {
             this.huggingFaceUrl,
             payload,
             {
-                headers: {
-                    'Authorization': `Bearer ${HUGGINGFACE_API_TOKEN}`,
-                    'Content-Type': 'application/json',
-                },
+                headers: buildHeader('huggingface'),
                 timeout: 10000,
-            }
+            },
         );
 
         const result = response.data;
@@ -75,9 +77,9 @@ class NewsClassificationService {
             throw new Error('Invalid HuggingFace API response format');
         }
 
-        // Check if the first (highest scoring) label is news-related
-        const topLabel = result.labels[0];
-        const topScore = result.scores[0];
+        const topLabelIndex = result.scores.indexOf(Math.max(...result.scores));
+        const topLabel = result.labels[topLabelIndex];
+        const topScore = result.scores[topLabelIndex];
 
         console.log('HuggingFace classification result:'.cyan, {
             topLabel,
@@ -86,16 +88,15 @@ class NewsClassificationService {
             allScores: result.scores,
         });
 
-        // If news-related label has high confidence (>0.6), classify as news
-        if (topLabel.includes('news') && topScore > 0.6) {
-            return 'news';
-        } else if (topScore > 0.7) {
-            // High confidence non-news
-            return 'non_news';
-        } else {
-            // Low confidence, let Gemini decide
-            throw new Error('Low confidence classification from HuggingFace');
+        if (topScore > 0.5) {
+            if (topLabel.includes('current news') || topLabel.includes('breaking news')) {
+                return 'news';
+            } else if (topLabel.includes('educational') || topLabel.includes('non-news')) {
+                return 'non_news';
+            }
         }
+
+        throw new Error('Low confidence classification from HuggingFace');
     }
 
     /**
@@ -109,47 +110,29 @@ class NewsClassificationService {
         // Truncate text for Gemini
         const truncatedText = text.substring(0, 4000);
 
-
         const model = genAI.getGenerativeModel({model: AI_SUMMARIZATION_MODELS[0]});
 
-        const prompt = `Analyze this query to determine if it's seeking NEWS content or NON-NEWS content.
-
-                        Context: This is a news app where users search for current events and breaking news.
-
-                        NEWS queries are about:
-                        - Current events, recent developments, breaking news
-                        - Sports events, matches, tournaments, scores (like "Eng vs Ind test series")
-                        - Business news, earnings, market updates, corporate announcements  
-                        - Political developments, elections, government actions
-                        - Technology launches, updates, industry news
-                        - Any recent happenings, factual reporting about current events
-                        - Specific events with dates, teams, companies, or locations
-
-                        NON-NEWS queries are about:
-                        - Educational explanations ("What is photosynthesis?", "How does AI work?")
-                        - Historical information ("History of Rome", "Background of WWI")
-                        - General tutorials ("How to cook pasta", "Learning Python")
-                        - Theoretical concepts, academic research, definitions
-                        - Personal advice, lifestyle tips, entertainment recommendations
-
-                        IMPORTANT: Sports queries like "Eng vs Ind 5-match test series" are NEWS queries about current/upcoming sporting events.
-                        Business queries like "Tesla earnings Q3" are NEWS queries about current corporate developments.
-
-                        Query to analyze: "${truncatedText}"
-
-                        Based on the context and pattern analysis, is this user looking for NEWS or NON-NEWS content?
-
-                        Respond with EXACTLY one word: either "news" or "non_news"
-                    `;
+        const prompt = AI_PROMPTS.NEWS_CLASSIFICATION(truncatedText);
 
         const result = await model.generateContent(prompt);
-        const responseText = result.response.text().trim().toLowerCase();
+        const responseText = result.response.text().trim();
 
         console.log('Gemini enhanced classification response:'.cyan, responseText);
 
-        if (responseText.includes('news') && !responseText.includes('non_news')) {
+        try {
+            const parsed = JSON.parse(responseText);
+            if (parsed.classification === 'news' || parsed.classification === 'non_news') {
+                return parsed.classification;
+            }
+        } catch (error) {
+            console.log('Failed to parse JSON response from Gemini:'.yellow, error);
+        }
+
+        // Fallback parsing for non-JSON responses
+        const lowerText = responseText.toLowerCase();
+        if (lowerText.includes('news') && !lowerText.includes('non_news')) {
             return 'news';
-        } else if (responseText.includes('non_news')) {
+        } else if (lowerText.includes('non_news')) {
             return 'non_news';
         } else {
             console.log('Unexpected Gemini response format:'.yellow, responseText);

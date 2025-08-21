@@ -1,6 +1,6 @@
-import {NEWSAPIORG_API_KEY} from "../config/config";
+import {HUGGINGFACE_API_TOKEN, NEWSAPIORG_API_KEY} from "../config/config";
 
-const buildHeader = (apiType: 'newsapi' | 'guardian' | 'nytimes' = 'newsapi') => {
+const buildHeader = (apiType: 'newsapi' | 'guardian' | 'nytimes' | 'huggingface' = 'newsapi') => {
     const obj = {
         'Content-Type': 'application/json',
         'Charset': 'UTF-8',
@@ -18,6 +18,11 @@ const buildHeader = (apiType: 'newsapi' | 'guardian' | 'nytimes' = 'newsapi') =>
             break;
         case 'nytimes':
             // NYTimes API key is passed as query parameter, not header
+            break;
+        case 'huggingface':
+            if (HUGGINGFACE_API_TOKEN) {
+                obj['Authorization'] = `Bearer ${HUGGINGFACE_API_TOKEN}`;
+            }
             break;
     }
 
