@@ -2,9 +2,9 @@ import "colors";
 import {Request, Response} from "express";
 import {AuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
+import BookmarkService from "../services/BookmarkService";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {GetAllBookmarksParams, IsBookmarkedParams, SearchBookmarksParams, ToggleBookmarkParams} from "../types/bookmark";
-import {getAllBookmarks, getBookmarkCount, getBookmarkStatus, searchBookmarks, toggleBookmark} from "../services/BookmarkService";
 
 const toggleBookmarkController = async (req: Request, res: Response) => {
     console.info('toggleBookmarkController called'.bgMagenta.white.italic);
@@ -49,7 +49,7 @@ const toggleBookmarkController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {bookmark, added, deleted, error} = await toggleBookmark({email, articleUrl, title, source, description, imageUrl, publishedAt});
+        const {bookmark, added, deleted, error} = await BookmarkService.toggleBookmark({email, articleUrl, title, source, description, imageUrl, publishedAt});
         if (error === generateMissingCode('email')) {
             console.error('Email is missing'.yellow.italic);
             res.status(400).send(new ApiResponse({
@@ -121,7 +121,7 @@ const isBookmarkedController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {isBookmarked, error} = await getBookmarkStatus({email, articleUrl});
+        const {isBookmarked, error} = await BookmarkService.getBookmarkStatus({email, articleUrl});
         if (error === generateMissingCode('email')) {
             console.error('Email is missing'.yellow.italic);
             res.status(400).send(new ApiResponse({
@@ -172,7 +172,7 @@ const getAllBookmarksController = async (req: Request, res: Response) => {
             pageNumber = Number(page);
         }
 
-        const {bookmarkedArticles, totalCount, currentPage, totalPages, error} = await getAllBookmarks({email, pageSize: pageSizeNumber, page: pageNumber});
+        const {bookmarkedArticles, totalCount, currentPage, totalPages, error} = await BookmarkService.getAllBookmarks({email, pageSize: pageSizeNumber, page: pageNumber});
         if (error === generateMissingCode('email')) {
             console.error('Email is missing'.yellow.italic);
             res.status(400).send(new ApiResponse({
@@ -217,7 +217,7 @@ const getBookmarkCountController = async (req: Request, res: Response) => {
     try {
         const email = (req as AuthRequest).email;
 
-        const {count, error} = await getBookmarkCount({email});
+        const {count, error} = await BookmarkService.getBookmarkCount({email});
         if (error === generateMissingCode('email')) {
             console.error('Email is missing'.yellow.italic);
             res.status(400).send(new ApiResponse({
@@ -268,7 +268,7 @@ const searchBookmarksController = async (req: Request, res: Response) => {
             pageNumber = Number(page);
         }
 
-        const {bookmarks, totalCount, currentPage, totalPages, error} = await searchBookmarks({email, q, sources, sortBy, sortOrder, pageSize: pageSizeNumber, page: pageNumber});
+        const {bookmarks, totalCount, currentPage, totalPages, error} = await BookmarkService.searchBookmarks({email, q, sources, sortBy, sortOrder, pageSize: pageSizeNumber, page: pageNumber});
         if (error === generateMissingCode('email')) {
             console.error('Email is missing'.yellow.italic);
             res.status(400).send(new ApiResponse({
