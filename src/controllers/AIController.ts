@@ -8,12 +8,13 @@ import AuthService from "../services/AuthService";
 import StrikeService from "../services/StrikeService";
 import {summarizeArticle} from "../services/AIService";
 import TagGenerationService from "../services/TagGenerationService";
+import QuestionAnswerService from "../services/QuestionAnswerService";
 import ComplexityMeterService from "../services/ComplexityMeterService";
 import SentimentAnalysisService from "../services/SentimentAnalysisService";
 import NewsClassificationService from "../services/NewsClassificationService";
 import KeyPointsExtractionService from "../services/KeyPointsExtractionService";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
-import {ComplexityMeterParams, KeyPointsExtractionParams, SentimentAnalysisParams, SUMMARIZATION_STYLES, SummarizeArticleParams, TagGenerationParams} from "../types/ai";
+import {ComplexityMeterParams, KeyPointsExtractionParams, QuestionAnsweringParams, QuestionGenerationParams, SentimentAnalysisParams, SUMMARIZATION_STYLES, SummarizeArticleParams, TagGenerationParams} from "../types/ai";
 
 const classifyContentController = async (req: Request, res: Response) => {
     console.info('classifyContentController called'.bgMagenta.white.italic);
@@ -662,4 +663,161 @@ const fetchComplexityMeterController = async (req: Request, res: Response) => {
     }
 }
 
-export {classifyContentController, summarizeArticleController, analyzeSentimentController, generateTagsController, fetchKeyPointsController, fetchComplexityMeterController};
+const generateQuestionsController = async (req: Request, res: Response) => {
+    console.info('generateQuestionsController called'.bgMagenta.white.italic);
+
+    try {
+        const email = (req as AuthRequest).email;
+        const {content}: QuestionGenerationParams = req.body;
+
+        const {user} = await AuthService.getUserByEmail({email});
+        if (!user) {
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
+            }));
+            return;
+        }
+
+        if (!content || content.trim().length === 0) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'EMPTY_CONTENT',
+                errorMsg: 'Content is required for question generation',
+            }));
+            return;
+        }
+
+        const {questions, error} = await QuestionAnswerService.generateQuestions({content});
+
+        if (error) {
+            let errorMsg = 'Failed to generate questions';
+            let statusCode = 500;
+
+            if (error === generateInvalidCode('content')) {
+                errorMsg = 'No content provided for question generation';
+                statusCode = 400;
+            } else if (error === generateMissingCode('gemini_api_key')) {
+                errorMsg = 'Question generation service is temporarily unavailable';
+                statusCode = 500;
+            } else if (error === 'QUESTION_GENERATION_FAILED') {
+                errorMsg = 'Question generation failed, please try again';
+                statusCode = 500;
+            } else if (error === 'QUESTION_PARSE_ERROR' || error === 'NO_VALID_QUESTIONS') {
+                errorMsg = 'Unable to generate valid questions, please try again';
+                statusCode = 500;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
+                success: false,
+                errorCode: error,
+                errorMsg,
+            }));
+            return;
+        }
+
+        console.log('Questions generated successfully:'.cyan.italic, questions);
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'Questions generated successfully 🎉',
+            questions,
+            contentPreview: content.substring(0, 200) + '...',
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of generateQuestionsController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            errorCode: error.errorCode,
+            errorMsg: error.message || 'Something went wrong',
+        }));
+    }
+}
+
+const answerQuestionController = async (req: Request, res: Response) => {
+    console.info('answerQuestionController called'.bgMagenta.white.italic);
+
+    try {
+        const email = (req as AuthRequest).email;
+        const {content, question}: QuestionAnsweringParams = req.body;
+
+        const {user} = await AuthService.getUserByEmail({email});
+        if (!user) {
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
+            }));
+            return;
+        }
+
+        if (!content || content.trim().length === 0) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('content'),
+                errorMsg: 'Content is required for question answering',
+            }));
+            return;
+        }
+
+        if (!question || question.trim().length === 0) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateInvalidCode('question'),
+                errorMsg: 'Question is required for answering',
+            }));
+            return;
+        }
+
+        const {answer, error} = await QuestionAnswerService.answerQuestion({content, question});
+
+        if (error) {
+            let errorMsg = 'Failed to answer question';
+            let statusCode = 500;
+
+            if (error === generateInvalidCode('content')) {
+                errorMsg = 'No content provided for question answering';
+                statusCode = 400;
+            } else if (error === generateInvalidCode('question')) {
+                errorMsg = 'No question provided for answering';
+                statusCode = 400;
+            } else if (error === generateMissingCode('gemini_api_key')) {
+                errorMsg = 'Question answering service is temporarily unavailable';
+                statusCode = 500;
+            } else if (error === 'QUESTION_ANSWERING_FAILED') {
+                errorMsg = 'Question answering failed, please try again';
+                statusCode = 500;
+            } else if (error === 'ANSWER_PARSE_ERROR') {
+                errorMsg = 'Unable to generate a valid answer, please try again';
+                statusCode = 500;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
+                success: false,
+                errorCode: error,
+                errorMsg,
+            }));
+            return;
+        }
+
+        console.log('Question answered successfully:'.cyan.italic, {question, answer: answer?.substring(0, 100) + '...'});
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'Question answered successfully 🎉',
+            question,
+            answer,
+            contentPreview: content.substring(0, 200) + '...',
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of answerQuestionController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            errorCode: error.errorCode,
+            errorMsg: error.message || 'Something went wrong',
+        }));
+    }
+}
+
+export {classifyContentController, summarizeArticleController, analyzeSentimentController, generateTagsController, fetchKeyPointsController, fetchComplexityMeterController, generateQuestionsController, answerQuestionController};

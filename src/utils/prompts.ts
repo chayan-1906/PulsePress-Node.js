@@ -95,17 +95,11 @@ const AI_PROMPTS = {
         Content: ${content}`
     },
 
-    NEWS_CLASSIFICATION: (content?: string) => {
-        const instructions = `Read the given content properly and classify it as either news or non_news content.
+    NEWS_CLASSIFICATION: (content: string) => {
+        return `Read the given content properly and classify it as either news or non_news content
 
-        NEWS content includes: current events, breaking news, recent developments, sports events, business news, political news, technology news.
-        NON-NEWS content includes: educational content, tutorials, personal emails, notifications, advertisements, historical information, general knowledge.`;
-
-        if (!content) {
-            return instructions;
-        }
-
-        return `${instructions}
+        NEWS content includes: current events, breaking news, recent developments, sports events, business news, political news, technology news
+        NON-NEWS content includes: educational content, tutorials, personal emails, notifications, advertisements, historical information, general knowledge
 
         Content to classify: "${content}"
 
@@ -118,20 +112,14 @@ const AI_PROMPTS = {
         Confidence must be a number between 0.1 and 1.0`;
     },
 
-    TAG_GENERATION: (content?: string) => {
-        const instructions = `Analyze this news article and generate 3-5 relevant tags that categorize its content.
+    TAG_GENERATION: (content: string) => {
+        return `Analyze this news article and generate 3-5 relevant tags that categorize its content.
 
         Guidelines for tag generation:
         - Generate tags that represent the main topics, categories, or themes
         - Use single words or short phrases (1-3 words maximum)
         - Make tags specific and relevant to the article content
-        - Avoid generic words like "news" or "article"`;
-
-        if (!content) {
-            return instructions;
-        }
-
-        return `${instructions}
+        - Avoid generic words like "news" or "article"
 
         Article content: "${content}"
 
@@ -141,6 +129,51 @@ const AI_PROMPTS = {
         ["Politics", "Economy", "Breaking"]
 
         Each tag should represent a meaningful category that is directly relevant to the news content, helping users better understand and filter information.`;
+    },
+
+    QUESTION_GENERATION: (content: string) => {
+        return `Analyze this news article and generate 3-5 short, simple questions that readers might naturally ask after reading it.
+
+        Guidelines for question generation:
+        - Keep questions very short (maximum 8-10 words)
+        - Use simple, everyday vocabulary that anyone can understand
+        - Focus on basic "what", "why", "how", "when", or "what next" questions
+        - Make questions conversational and direct
+        - Avoid complex terms, multiple clauses, or academic language
+        - Questions should be easy to understand for non-native English speakers
+        - Avoid questions already clearly answered in the article
+
+        Article content: "${content}"
+
+        CRITICAL: Return ONLY the JSON object below. Do NOT wrap it in markdown code blocks, backticks, or any other formatting. Do NOT add any explanatory text before or after the JSON.
+
+        Return exactly this format:
+        {"questions": ["What happens next?", "Why did this happen?", "How will this help?"]}
+
+        Each question should be short, simple, and easy to understand.`;
+    },
+
+    QUESTION_ANSWERING: (content: string, question: string) => {
+        return `You are an AI assistant that answers questions about news articles. Based on the provided article content and the specific question asked, provide a comprehensive and accurate answer.
+
+        Guidelines for answering:
+        - Answer based strictly on the information provided in the article
+        - If the article doesn't contain enough information to fully answer the question, acknowledge this clearly
+        - Provide context and background when helpful
+        - Keep the answer informative but concise (2-4 sentences typically)
+        - Use a clear, professional tone
+        - If the question asks for speculation about future events, base your response on facts from the article and clearly indicate any uncertainty
+
+        Article content: "${content}"
+
+        Question: "${question}"
+
+        CRITICAL: Return ONLY the JSON object below. Do NOT wrap it in markdown code blocks, backticks, or any other formatting. Do NOT add any explanatory text before or after the JSON.
+
+        Return exactly this format:
+        {"answer": "Based on the article, the implementation will begin next quarter and is expected to impact approximately 50,000 residents by providing new healthcare services."}
+
+        The answer should be comprehensive yet concise, directly addressing the question asked.`;
     },
 
     JSON_FORMAT_INSTRUCTIONS: `CRITICAL: Return ONLY the JSON object below. Do NOT wrap it in markdown code blocks, backticks, or any other formatting. Do NOT add any explanatory text before or after the JSON.`,

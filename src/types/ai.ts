@@ -169,6 +169,14 @@ export interface AIComplexityMeter {
     };
 }
 
+export interface AIQuestionGeneration {
+    questions: string[];
+}
+
+export interface AIQuestionAnswering {
+    answer: string;
+}
+
 
 /** ------------- API response types ------------- */
 
@@ -214,6 +222,16 @@ export interface ReadingTimeComplexityResponse {
     level: ArticleComplexities;
     readingTimeMinutes: number;
     wordCount: number;
+}
+
+export interface QuestionGenerationResponse {
+    questions?: string[];
+    error?: string;
+}
+
+export interface QuestionAnsweringResponse {
+    answer?: string;
+    error?: string;
 }
 
 export interface CombinedAIResponse {
@@ -309,6 +327,15 @@ export interface ComplexityMeterParams {
 
 export interface ReadingTimeComplexityParams {
     article: Article;
+}
+
+export interface QuestionGenerationParams {
+    content: string;
+}
+
+export interface QuestionAnsweringParams {
+    content: string;
+    question: string;
 }
 
 export interface CombinedAIParams {

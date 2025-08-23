@@ -147,18 +147,32 @@ export const SENTIMENT_ANALYSIS_MODELS = [
     'gemini-2.5-flash',
     'gemini-2.0-flash-lite',
     'gemini-2.0-flash',
+    'gemini-2.5-flash-lite-preview-06-17',
+    'gemini-1.5-flash',
 ];
 
 export const AI_TAG_GENERATION_MODELS = [
     'gemini-2.5-flash',
     'gemini-2.0-flash-lite',
     'gemini-2.0-flash',
+    'gemini-2.5-flash-lite-preview-06-17',
+    'gemini-1.5-flash',
 ];
 
 export const AI_ENHANCEMENT_MODELS = [
     'gemini-2.5-flash',
     'gemini-2.0-flash-lite',
     'gemini-2.0-flash',
+    'gemini-2.5-flash-lite-preview-06-17',
+    'gemini-1.5-flash',
+];
+
+export const QUESTION_ANSWER_MODELS = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-2.5-flash-lite-preview-06-17',
+    'gemini-1.5-flash',
 ];
 
 const USER_AGENTS = [

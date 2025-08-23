@@ -138,9 +138,9 @@ const summarizeArticle = async ({email, content, url, language = 'en', style = '
         }
 
         // After AI generates summary, save to cache:
-        if (NODE_ENV === 'production') {
-            await saveSummaryToCache({contentHash: hash, summary: finalSummary, language, style});
-        }
+        // if (NODE_ENV === 'production') {
+        await saveSummaryToCache({contentHash: hash, summary: finalSummary, language, style});
+        // }
 
         return {
             summary: finalSummary,
