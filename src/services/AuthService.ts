@@ -405,7 +405,8 @@ class AuthService {
             return {error: generateNotFoundCode('user')};
         }
 
-        console.log('userByEmail:'.cyan.italic, {user})
+        // console.log('userByEmail:'.cyan.italic, {user});
+        console.log('userByEmail -- user found'.cyan.italic);
         return {user};
     } catch (error: any) {
         console.error('ERROR: inside catch of getUserByEmail:'.red.bold, error);

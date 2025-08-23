@@ -662,4 +662,4 @@ const fetchComplexityMeterController = async (req: Request, res: Response) => {
     }
 }
 
-export {classifyContentController, summarizeArticleController, analyzeSentimentController, generateTagsController, fetchKeyPointsController, fetchComplexityMeterController};
+aexport {classifyContentController, summarizeArticleController, analyzeSentimentController, generateTagsController, fetchKeyPointsController, fetchComplexityMeterController};

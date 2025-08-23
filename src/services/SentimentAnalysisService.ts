@@ -50,7 +50,7 @@ class SentimentAnalysisService {
     /**
      * Analyze sentiment using Gemini AI
      */
-    static async analyzeWithGemini(modelName: string, content: string): Promise<SentimentAnalysisResponse> {
+    private static async analyzeWithGemini(modelName: string, content: string): Promise<SentimentAnalysisResponse> {
         if (!GEMINI_API_KEY) {
             console.error('Gemini API key not configured'.red.bold);
             return {error: generateMissingCode('gemini_api_key')};
@@ -128,7 +128,7 @@ class SentimentAnalysisService {
     /**
      * Analyze sentiment for an individual article and add sentiment data
      */
-    static async enrichArticleWithSentiment(article: any, shouldAnalyze: boolean = true): Promise<EnrichedArticleWithSentiment> {
+    private static async enrichArticleWithSentiment(article: any, shouldAnalyze: boolean = true): Promise<EnrichedArticleWithSentiment> {
         if (!shouldAnalyze) {
             return article;
         }

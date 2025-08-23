@@ -70,7 +70,7 @@ class TagGenerationService {
     /**
      * Generate tags using Gemini AI
      */
-    static async generateWithGemini(modelName: string, content: string): Promise<TagGenerationResponse> {
+    private static async generateWithGemini(modelName: string, content: string): Promise<TagGenerationResponse> {
         const model = genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.TAG_GENERATION(content);

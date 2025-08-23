@@ -48,7 +48,7 @@ class KeyPointsExtractionService {
     /**
      * Extract key points using Gemini AI
      */
-    static async extractWithGemini(modelName: string, content: string): Promise<KeyPointsExtractionResponse> {
+    private static async extractWithGemini(modelName: string, content: string): Promise<KeyPointsExtractionResponse> {
         if (!GEMINI_API_KEY) {
             console.error('Gemini API key not configured'.red.bold);
             return {error: generateMissingCode('gemini_api_key')};

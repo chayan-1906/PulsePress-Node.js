@@ -42,7 +42,7 @@ class NewsClassificationService {
     /**
      * HuggingFace BART-based classification using zero-shot classification
      */
-    static async classifyWithHuggingFace(text: string): Promise<ClassificationResult> {
+    private static async classifyWithHuggingFace(text: string): Promise<ClassificationResult> {
         if (!HUGGINGFACE_API_TOKEN) {
             throw new Error('HuggingFace API token not configured');
         }
@@ -102,7 +102,7 @@ class NewsClassificationService {
     /**
      * Gemini-based classification fallback with enhanced prompting
      */
-    static async classifyWithGemini(text: string): Promise<ClassificationResult> {
+    private static async classifyWithGemini(text: string): Promise<ClassificationResult> {
         if (!GEMINI_API_KEY) {
             throw new Error('Gemini API key not configured');
         }

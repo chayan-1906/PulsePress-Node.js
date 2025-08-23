@@ -48,7 +48,7 @@ class ComplexityMeterService {
     /**
      * Analyze complexity using Gemini AI
      */
-    static async analyzeWithGemini(modelName: string, content: string): Promise<ComplexityMeterResponse> {
+    private static async analyzeWithGemini(modelName: string, content: string): Promise<ComplexityMeterResponse> {
         if (!GEMINI_API_KEY) {
             console.error('Gemini API key not configured'.red.bold);
             return {error: generateMissingCode('gemini_api_key')};

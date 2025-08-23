@@ -4,7 +4,6 @@ import {STRIKE_COOLDOWN_COUNT, STRIKE_LONG_BLOCK_DURATION, STRIKE_TEMPORARY_BLOC
 import {StrikeCheckResult, StrikeHistoryEvent, StrikeResult, UserStrikeBlock} from "../types/ai";
 
 class StrikeService {
-
     /**
      * Check if user is currently blocked and handle 48-hour reset
      */
@@ -203,7 +202,7 @@ class StrikeService {
     /**
      * Manually reset strikes for user (admin function)
      */
-    static async resetStrikes(email: string): Promise<boolean> {
+    private static async resetStrikes(email: string): Promise<boolean> {
         try {
             await UserModel.updateOne(
                 {email},
@@ -247,7 +246,7 @@ class StrikeService {
     /**
      * Check if user strikes should be reset (48 hours since last strike)
      */
-    static async checkForAutoReset(email: string): Promise<boolean> {
+    private static async checkForAutoReset(email: string): Promise<boolean> {
         try {
             const user = await UserModel.findOne({email});
             if (!user || !user.newsClassificationStrikes?.lastStrikeAt || user.newsClassificationStrikes.count === 0) {
@@ -271,7 +270,7 @@ class StrikeService {
     /**
      * Format remaining block time in human-readable format
      */
-    static formatRemainingTime(blockedUntil: Date, now: Date): string {
+    private static formatRemainingTime(blockedUntil: Date, now: Date): string {
         const remainingMs = blockedUntil.getTime() - now.getTime();
         const remainingMinutes = Math.ceil(remainingMs / (1000 * 60));
 
