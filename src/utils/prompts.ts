@@ -112,6 +112,7 @@ const AI_PROMPTS = {
         Confidence must be a number between 0.1 and 1.0`;
     },
 
+    // TODO: Make content optional, it's going to be called in ArticleEnhancementService. Articles list should have smart tags
     TAG_GENERATION: (content: string) => {
         return `Analyze this news article and generate 3-5 relevant tags that categorize its content.
 
@@ -174,6 +175,43 @@ const AI_PROMPTS = {
         {"answer": "Based on the article, the implementation will begin next quarter and is expected to impact approximately 50,000 residents by providing new healthcare services."}
 
         The answer should be comprehensive yet concise, directly addressing the question asked.`;
+    },
+
+    GEOGRAPHIC_EXTRACTION: (content?: string) => {
+        const instructions = `Analyze this news article content and extract ALL geographic locations mentioned in the text. Be comprehensive and thorough.
+
+        Guidelines for geographic extraction:
+        - Extract ALL cities, states/provinces, countries, regions, and geographic landmarks
+        - Include locations mentioned directly OR indirectly (e.g., "the capital" if context shows it's Washington D.C.)
+        - Include location abbreviations and their full names (e.g., both "NYC" and "New York City" if both appear)
+        - Include locations in company names, event names, or proper nouns (e.g., "California-based Tesla")
+        - Use standard, internationally recognized names when possible
+        - For ambiguous names, choose the most likely interpretation based on context
+        - Include up to 10 locations maximum to be comprehensive
+        - Sort by importance to the news story: most central/relevant locations first
+        - Avoid generic terms like "overseas", "abroad", "local area" unless they refer to specific places in context
+
+        Examples of what TO include:
+        - "Silicon Valley" → "Silicon Valley"  
+        - "the Bay Area" → "San Francisco Bay Area"
+        - "DC" → "Washington D.C."
+        - "Tesla's Austin factory" → "Austin"
+        - "border region" → [specific border if mentioned]`;
+
+        if (!content) {
+            return instructions;
+        }
+
+        return `${instructions}
+
+        Article content: "${content}"
+
+        CRITICAL: Return ONLY the JSON object below. Do NOT wrap it in markdown code blocks, backticks, or any other formatting. Do NOT add any explanatory text before or after the JSON.
+
+        Return exactly this format:
+        {"locations": ["New York City", "California", "United States", "Silicon Valley"]}
+
+        Each location should be a clear, properly formatted geographic name. Be thorough - don't miss any locations mentioned in the text.`;
     },
 
     JSON_FORMAT_INSTRUCTIONS: `CRITICAL: Return ONLY the JSON object below. Do NOT wrap it in markdown code blocks, backticks, or any other formatting. Do NOT add any explanatory text before or after the JSON.`,

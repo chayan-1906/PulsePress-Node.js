@@ -5,11 +5,12 @@ import {
     analyzeSentimentController,
     answerQuestionController,
     classifyContentController,
+    extractLocationsController,
     fetchComplexityMeterController,
     fetchKeyPointsController,
     generateQuestionsController,
     generateTagsController,
-    summarizeArticleController
+    summarizeArticleController,
 } from "../controllers/AIController";
 
 const router = Router();
@@ -22,6 +23,7 @@ router.post('/extract-key-points', authMiddleware, aiRateLimiter, newsScrapingRa
 router.post('/complexity-meter', authMiddleware, aiRateLimiter, newsScrapingRateLimiter, fetchComplexityMeterController);  // /api/v1/ai/complexity-meter
 router.post('/generate-questions', authMiddleware, aiRateLimiter, newsScrapingRateLimiter, generateQuestionsController);  // /api/v1/ai/generate-questions
 router.post('/answer-question', authMiddleware, aiRateLimiter, newsScrapingRateLimiter, answerQuestionController);  // /api/v1/ai/answer-question
+router.post('/extract-locations', authMiddleware, aiRateLimiter, newsScrapingRateLimiter, extractLocationsController);  // /api/v1/ai/extract-locations
 // TODO Implement: A progressive API for news article details screen, similar to /multi-source/enhanced
 
 export default router;

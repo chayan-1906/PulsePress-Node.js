@@ -21,6 +21,7 @@ export interface IArticleEnhancement extends Document {
         level: ComplexityLevel;
         reasoning: string;
     };
+    locations?: string[];
     processingStatus: ProcessingStatus;
     createdAt: Date;
     updatedAt: Date;
@@ -63,6 +64,9 @@ const ArticleEnhancementSchema = new Schema<IArticleEnhancement>({
         },
         reasoning: String,
     },
+    locations: [{
+        type: String,
+    }],
     processingStatus: {
         type: String,
         default: 'pending',

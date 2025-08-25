@@ -22,7 +22,7 @@ export type SentimentResult = typeof SENTIMENT_TYPES[number];
 export const COMPLEXITY_LEVELS = ['easy', 'medium', 'hard'] as const;
 export type ComplexityLevel = typeof COMPLEXITY_LEVELS[number];
 
-export const AI_ARTICLE_ENHANCEMENT_TYPES = ['sentiment', 'keyPoints', 'complexityMeter'];  // TODO: Add Content related FAQs
+export const AI_ARTICLE_ENHANCEMENT_TYPES = ['sentiment', 'keyPoints', 'complexityMeter', 'geoExtraction'];
 export type AIArticleEnhancement = typeof AI_ARTICLE_ENHANCEMENT_TYPES[number];
 
 export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
@@ -177,6 +177,10 @@ export interface AIQuestionAnswering {
     answer: string;
 }
 
+export interface AIGeographicExtraction {
+    locations: string[];
+}
+
 
 /** ------------- API response types ------------- */
 
@@ -234,7 +238,13 @@ export interface QuestionAnsweringResponse {
     error?: string;
 }
 
+export interface GeographicExtractionResponse {
+    locations?: string[];
+    error?: string;
+}
+
 export interface CombinedAIResponse {
+    tags?: string[],
     sentiment?: {
         type: SentimentResult;
         confidence: number;
@@ -246,6 +256,7 @@ export interface CombinedAIResponse {
         level: ComplexityLevel;
         reasoning: string;
     };
+    locations?: string[];
     error?: string;
 }
 
@@ -336,6 +347,11 @@ export interface QuestionGenerationParams {
 export interface QuestionAnsweringParams {
     content: string;
     question: string;
+}
+
+export interface GeographicExtractionParams {
+    url?: string;
+    content?: string;
 }
 
 export interface CombinedAIParams {

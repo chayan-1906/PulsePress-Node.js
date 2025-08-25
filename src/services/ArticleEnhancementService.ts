@@ -6,9 +6,9 @@ import StrikeService from "./StrikeService";
 import {Article, EnhancementStatus} from "../types/news";
 import {AI_ENHANCEMENT_MODELS} from "../utils/constants";
 import {generateArticleId} from "../utils/generateArticleId";
-import {generateNotFoundCode} from "../utils/generateErrorCodes";
 import SentimentAnalysisService from "./SentimentAnalysisService";
 import ReadingTimeAnalysisService from "./ReadingTimeAnalysisService";
+import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import ArticleEnhancementModel, {IArticleEnhancement} from "../models/ArticleEnhancementSchema";
 import {
     CombinedAIParams,
@@ -34,11 +34,11 @@ class ArticleEnhancementService {
 
         if (!content || content.trim().length === 0) {
             console.log('Empty content provided for AI enhancement'.yellow.italic);
-            return {error: 'EMPTY_CONTENT'};
+            return {error: generateMissingCode('content')};
         }
 
         // Truncate content to avoid token limits
-        const truncatedContent = content.substring(0, 3000);
+        const truncatedContent = content.substring(0, 4000);
 
         for (let i = 0; i < AI_ENHANCEMENT_MODELS.length; i++) {
             const modelName = AI_ENHANCEMENT_MODELS[i];
@@ -49,6 +49,8 @@ class ArticleEnhancementService {
 
                 // Build dynamic prompt based on requested tasks using the same prompt functions
                 let prompt = `Analyze this news article and provide the following information:\n\n`;
+
+                // TODO: Add Tag Generation
 
                 if (tasks.includes('sentiment')) {
                     prompt += `SENTIMENT ANALYSIS:\n${AI_PROMPTS.SENTIMENT_ANALYSIS()}\n\n`;
@@ -62,12 +64,17 @@ class ArticleEnhancementService {
                     prompt += `COMPLEXITY METER:\n${AI_PROMPTS.COMPLEXITY_METER()}\n\n`;
                 }
 
+                if (tasks.includes('geoExtraction')) {
+                    prompt += `GEOGRAPHIC EXTRACTION:\n${AI_PROMPTS.GEOGRAPHIC_EXTRACTION()}\n\n`;
+                }
+
                 // TODO: Add Content related FAQs
 
                 prompt += `Article content: "${truncatedContent}"\n\n`;
                 prompt += `${AI_PROMPTS.JSON_FORMAT_INSTRUCTIONS}\n\n`;
                 prompt += `Return exactly this format:\n{\n`;
 
+                // TODO: Add Tag Generation
                 if (tasks.includes('sentiment')) {
                     prompt += `  "sentiment": {"type": "positive", "confidence": 0.85},\n`;
                 }
@@ -75,7 +82,10 @@ class ArticleEnhancementService {
                     prompt += `  "keyPoints": ["Point 1", "Point 2", "Point 3"],\n`;
                 }
                 if (tasks.includes('complexityMeter')) {
-                    prompt += `  "complexityMeter": {"level": "medium", "reasoning": "Contains technical terms but accessible language"}\n`;
+                    prompt += `  "complexityMeter": {"level": "medium", "reasoning": "Contains technical terms but accessible language"},\n`;
+                }
+                if (tasks.includes('geoExtraction')) {
+                    prompt += `  "locations": ["New York City", "California", "United States"]\n`;
                 }
                 // TODO: Add Content related FAQs
 
@@ -125,6 +135,13 @@ class ArticleEnhancementService {
                             level: parsed.complexityMeter.level,
                             reasoning: parsed.complexityMeter.reasoning || 'AI analysis completed',
                         };
+                    }
+                }
+
+                if (tasks.includes('geoExtraction') && parsed.locations && Array.isArray(parsed.locations)) {
+                    const validLocations = parsed.locations.filter(location => location && location.trim().length > 0);
+                    if (validLocations.length > 0) {
+                        response.locations = validLocations;
                     }
                 }
 
@@ -227,12 +244,13 @@ class ArticleEnhancementService {
 
                     const aiResult = await this.aiEnhanceArticle({
                         content: article.content || article.description || article.title || '',
-                        tasks: ['sentiment', 'keyPoints', 'complexityMeter'],
+                        tasks: ['sentiment', 'keyPoints', 'complexityMeter', 'geoExtraction'],
                     });
 
                     let sentimentData = undefined;
                     let keyPoints = undefined;
                     let complexityMeter = undefined;
+                    let locations = undefined;
 
                     if (!aiResult.error) {
                         // Process sentiment data
@@ -249,6 +267,11 @@ class ArticleEnhancementService {
                         if (aiResult.complexityMeter) {
                             complexityMeter = aiResult.complexityMeter;
                         }
+
+                        // Process geographic locations
+                        if (aiResult.locations) {
+                            locations = aiResult.locations;
+                        }
                     }
 
                     await ArticleEnhancementModel.findOneAndUpdate(
@@ -257,6 +280,7 @@ class ArticleEnhancementService {
                             sentiment: sentimentData,
                             keyPoints,
                             complexityMeter,
+                            locations,
                             complexity,
                             processingStatus: 'completed',
                         },
@@ -323,13 +347,14 @@ class ArticleEnhancementService {
 
             const articles = enhancements
                 .filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'completed')
-                .map(({articleId, url, sentiment, complexity, complexityMeter, keyPoints}) => ({
+                .map(({articleId, url, sentiment, complexity, complexityMeter, keyPoints, locations}) => ({
                     articleId,
                     url,
                     sentiment,
                     complexity,
                     complexityMeter,
                     keyPoints,
+                    locations,
                     enhanced: true,
                 }));
 
@@ -356,6 +381,7 @@ class ArticleEnhancementService {
                     sentimentData: enhancement.sentiment,
                     keyPoints: enhancement.keyPoints,
                     complexityMeter: enhancement.complexityMeter,
+                    locations: enhancement.locations,
                     complexity: enhancement.complexity,
                     enhanced: true,
                 };

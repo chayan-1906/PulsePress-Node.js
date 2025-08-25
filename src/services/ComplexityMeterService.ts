@@ -15,11 +15,11 @@ class ComplexityMeterService {
 
         if (!content || content.trim().length === 0) {
             console.log('Empty content provided for complexity analysis'.yellow.italic);
-            return {error: 'EMPTY_CONTENT'};
+            return {error: generateMissingCode('content')};
         }
 
         // Truncate content to avoid token limits
-        const truncatedContent = content.substring(0, 3000);
+        const truncatedContent = content.substring(0, 4000);
 
         for (let i = 0; i < AI_ENHANCEMENT_MODELS.length; i++) {
             const model = AI_ENHANCEMENT_MODELS[i];

@@ -16,11 +16,11 @@ class SentimentAnalysisService {
 
         if (!content || content.trim().length === 0) {
             console.log('Empty content provided for sentiment analysis'.yellow.italic);
-            return {error: 'EMPTY_CONTENT'};
+            return {error: generateMissingCode('content')};
         }
 
         // Truncate content to avoid token limits
-        const truncatedContent = content.substring(0, 3000);
+        const truncatedContent = content.substring(0, 4000);
 
         for (let i = 0; i < SENTIMENT_ANALYSIS_MODELS.length; i++) {
             const model = SENTIMENT_ANALYSIS_MODELS[i];

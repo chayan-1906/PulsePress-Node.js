@@ -13,8 +13,19 @@ import ComplexityMeterService from "../services/ComplexityMeterService";
 import SentimentAnalysisService from "../services/SentimentAnalysisService";
 import NewsClassificationService from "../services/NewsClassificationService";
 import KeyPointsExtractionService from "../services/KeyPointsExtractionService";
+import GeographicExtractionService from "../services/GeographicExtractionService";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
-import {ComplexityMeterParams, KeyPointsExtractionParams, QuestionAnsweringParams, QuestionGenerationParams, SentimentAnalysisParams, SUMMARIZATION_STYLES, SummarizeArticleParams, TagGenerationParams} from "../types/ai";
+import {
+    ComplexityMeterParams,
+    GeographicExtractionParams,
+    KeyPointsExtractionParams,
+    QuestionAnsweringParams,
+    QuestionGenerationParams,
+    SentimentAnalysisParams,
+    SUMMARIZATION_STYLES,
+    SummarizeArticleParams,
+    TagGenerationParams
+} from "../types/ai";
 
 const classifyContentController = async (req: Request, res: Response) => {
     console.info('classifyContentController called'.bgMagenta.white.italic);
@@ -61,8 +72,8 @@ const classifyContentController = async (req: Request, res: Response) => {
         if (!contentToClassify || contentToClassify.trim().length === 0) {
             res.status(400).send(new ApiResponse({
                 success: false,
-                errorCode: 'EMPTY_CONTENT',
-                errorMsg: 'No content available for classification',
+                errorCode: generateMissingCode('content'),
+                errorMsg: 'Content is required for classification',
             }));
             return;
         }
@@ -318,8 +329,8 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
         if (!contentToAnalyze || contentToAnalyze.trim().length === 0) {
             res.status(400).send(new ApiResponse({
                 success: false,
-                errorCode: 'EMPTY_CONTENT',
-                errorMsg: 'No content available for sentiment analysis',
+                errorCode: generateMissingCode('content'),
+                errorMsg: 'Content is required for sentiment analysis',
             }));
             return;
         }
@@ -328,7 +339,7 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
 
         if (error) {
             let errorMsg = 'Failed to analyze sentiment';
-            if (error === 'EMPTY_CONTENT') {
+            if (error === generateMissingCode('content')) {
                 errorMsg = 'No content provided for analysis';
             } else if (error === generateMissingCode('gemini_api_key')) {
                 errorMsg = 'Sentiment analysis service is temporarily unavailable';
@@ -418,7 +429,7 @@ const generateTagsController = async (req: Request, res: Response) => {
             } else if (error === 'SCRAPING_FAILED') {
                 errorMsg = 'Failed to scrape the provided URL';
                 statusCode = 400;
-            } else if (error === 'EMPTY_CONTENT') {
+            } else if (error === generateMissingCode('content')) {
                 errorMsg = 'No content available for tag generation';
                 statusCode = 400;
             } else if (error === 'TAG_GENERATION_FAILED') {
@@ -511,7 +522,7 @@ const fetchKeyPointsController = async (req: Request, res: Response) => {
         if (!contentToAnalyze || contentToAnalyze.trim().length === 0) {
             res.status(400).send(new ApiResponse({
                 success: false,
-                errorCode: 'EMPTY_CONTENT',
+                errorCode: generateMissingCode('content'),
                 errorMsg: 'No content available for key points extraction',
             }));
             return;
@@ -521,7 +532,7 @@ const fetchKeyPointsController = async (req: Request, res: Response) => {
 
         if (error) {
             let errorMsg = 'Failed to extract key points';
-            if (error === 'EMPTY_CONTENT') {
+            if (error === generateMissingCode('content')) {
                 errorMsg = 'No content provided for analysis';
             } else if (error === generateMissingCode('gemini_api_key')) {
                 errorMsg = 'Key points extraction service is temporarily unavailable';
@@ -615,8 +626,8 @@ const fetchComplexityMeterController = async (req: Request, res: Response) => {
         if (!contentToAnalyze || contentToAnalyze.trim().length === 0) {
             res.status(400).send(new ApiResponse({
                 success: false,
-                errorCode: 'EMPTY_CONTENT',
-                errorMsg: 'No content available for complexity analysis',
+                errorCode: generateMissingCode('content'),
+                errorMsg: 'Content is required for complexity analysis',
             }));
             return;
         }
@@ -625,7 +636,7 @@ const fetchComplexityMeterController = async (req: Request, res: Response) => {
 
         if (error) {
             let errorMsg = 'Failed to generate complexity meter';
-            if (error === 'EMPTY_CONTENT') {
+            if (error === generateMissingCode('content')) {
                 errorMsg = 'No content provided for analysis';
             } else if (error === generateMissingCode('gemini_api_key')) {
                 errorMsg = 'Complexity analysis service is temporarily unavailable';
@@ -683,7 +694,7 @@ const generateQuestionsController = async (req: Request, res: Response) => {
         if (!content || content.trim().length === 0) {
             res.status(400).send(new ApiResponse({
                 success: false,
-                errorCode: 'EMPTY_CONTENT',
+                errorCode: generateMissingCode('content'),
                 errorMsg: 'Content is required for question generation',
             }));
             return;
@@ -820,4 +831,118 @@ const answerQuestionController = async (req: Request, res: Response) => {
     }
 }
 
-export {classifyContentController, summarizeArticleController, analyzeSentimentController, generateTagsController, fetchKeyPointsController, fetchComplexityMeterController, generateQuestionsController, answerQuestionController};
+const extractLocationsController = async (req: Request, res: Response) => {
+    console.info('extractLocationsController called'.bgMagenta.white.italic);
+
+    try {
+        const email = (req as AuthRequest).email;
+        const {content, url}: GeographicExtractionParams = req.body;
+
+        const {user} = await AuthService.getUserByEmail({email});
+        if (!user) {
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
+            }));
+            return;
+        }
+
+        if (!content && !url) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'CONTENT_OR_URL_REQUIRED',
+                errorMsg: 'Either content or URL must be provided for location extraction',
+            }));
+            return;
+        }
+
+        if (content && url) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'CONTENT_AND_URL_CONFLICT',
+                errorMsg: 'Provide either content or URL, not both',
+            }));
+            return;
+        }
+
+        let contentToAnalyze = content;
+
+        if (!content && url) {
+            console.log('Scraping URL for location extraction:'.cyan.italic, url);
+            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
+
+            if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
+                res.status(400).send(new ApiResponse({
+                    success: false,
+                    errorCode: 'SCRAPING_FAILED',
+                    errorMsg: 'Failed to scrape the provided URL',
+                }));
+                return;
+            }
+
+            contentToAnalyze = scrapedArticles[0]?.content || '';
+        }
+
+        if (!contentToAnalyze || contentToAnalyze.trim().length === 0) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('content'),
+                errorMsg: 'Content is required for location extraction',
+            }));
+            return;
+        }
+
+        const {locations, error} = await GeographicExtractionService.extractLocations({content: contentToAnalyze});
+
+        if (error) {
+            let errorMsg = 'Failed to extract geographic locations';
+            if (error === generateMissingCode('content')) {
+                errorMsg = 'No content provided for analysis';
+            } else if (error === generateMissingCode('gemini_api_key')) {
+                errorMsg = 'Geographic extraction service is temporarily unavailable';
+            } else if (error === 'GEOGRAPHIC_EXTRACTION_FAILED') {
+                errorMsg = 'Geographic extraction failed, please try again';
+            } else if (error === 'GEOGRAPHIC_PARSE_ERROR') {
+                errorMsg = 'Unable to parse extracted locations, please try again';
+            } else if (error === 'NO_VALID_LOCATIONS') {
+                errorMsg = 'No valid locations found in the content';
+            }
+
+            res.status(500).send(new ApiResponse({
+                success: false,
+                errorCode: error,
+                errorMsg,
+            }));
+            return;
+        }
+
+        console.log('Location extraction completed:'.cyan.italic, locations);
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'Geographic locations extracted successfully 🎉',
+            locations,
+            contentPreview: contentToAnalyze.substring(0, 200) + '...',
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of extractLocationsController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            errorCode: error.errorCode,
+            errorMsg: error.message || 'Something went wrong',
+        }));
+    }
+}
+
+export {
+    classifyContentController,
+    summarizeArticleController,
+    analyzeSentimentController,
+    generateTagsController,
+    fetchKeyPointsController,
+    fetchComplexityMeterController,
+    generateQuestionsController,
+    answerQuestionController,
+    extractLocationsController,
+};

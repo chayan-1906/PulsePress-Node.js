@@ -4,6 +4,7 @@ import NewsService from "./NewsService";
 import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
 import {AI_TAG_GENERATION_MODELS} from "../utils/constants";
+import {generateMissingCode} from "../utils/generateErrorCodes";
 import {TagGenerationParams, TagGenerationResponse} from "../types/ai";
 
 class TagGenerationService {
@@ -38,11 +39,11 @@ class TagGenerationService {
 
         if (!articleContent || articleContent.trim().length === 0) {
             console.log('Empty content provided for tag generation'.yellow.italic);
-            return {error: 'EMPTY_CONTENT'};
+            return {error: generateMissingCode('content')};
         }
 
         // Truncate content to avoid token limits - use title and description primarily
-        const truncatedContent = articleContent.substring(0, 3000);
+        const truncatedContent = articleContent.substring(0, 4000);
 
         for (let i = 0; i < AI_TAG_GENERATION_MODELS.length; i++) {
             const model = AI_TAG_GENERATION_MODELS[i];
