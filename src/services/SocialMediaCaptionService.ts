@@ -6,7 +6,15 @@ import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS} from "../utils/constants";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
-import {SOCIAL_MEDIA_CAPTION_STYLES, SOCIAL_MEDIA_PLATFORMS, SocialMediaCaptionParams, SocialMediaCaptionResponse, SocialMediaCaptionStyle, SocialMediaPlatform} from "../types/ai";
+import {
+    AISocialMediaCaption,
+    SOCIAL_MEDIA_CAPTION_STYLES,
+    SOCIAL_MEDIA_PLATFORMS,
+    SocialMediaCaptionParams,
+    SocialMediaCaptionResponse,
+    SocialMediaCaptionStyle,
+    SocialMediaPlatform
+} from "../types/ai";
 
 class SocialMediaCaptionService {
     /**
@@ -112,9 +120,9 @@ class SocialMediaCaptionService {
             console.log('Stripped markdown, clean JSON:'.yellow, responseText);
         }
 
-        const parsed = JSON.parse(responseText);
+        const parsed: AISocialMediaCaption = JSON.parse(responseText);
 
-        if (!parsed.caption || typeof parsed.caption !== 'string') {
+        if (!parsed.caption) {
             console.error('Invalid caption in response:'.red, parsed.caption);
             return {error: 'CAPTION_PARSE_ERROR'};
         }
@@ -133,10 +141,10 @@ class SocialMediaCaptionService {
 
         return {
             caption: parsed.caption,
-            hashtags: hashtags,
-            platform: platform as SocialMediaPlatform,
-            style: style as SocialMediaCaptionStyle,
-            characterCount: characterCount,
+            hashtags,
+            platform,
+            style,
+            characterCount,
             powered_by: modelName,
         };
     }

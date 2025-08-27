@@ -1,3 +1,5 @@
+import {IMPACT_LEVELS} from "../types/ai";
+
 const AI_PROMPTS = {
     TAG_GENERATION: (content?: string) => {
         const instructions = `Analyze this news article and generate 3-5 relevant tags that categorize its content.
@@ -21,7 +23,7 @@ const AI_PROMPTS = {
         Return exactly this format:
         ["Politics", "Economy", "Breaking"]
 
-        Each tag should represent a meaningful category that is directly relevant to the news content, helping users better understand and filter information.`;
+        Each tag should represent a meaningful category that is directly relevant to the news content, helping users better understand and filter information`;
     },
 
     SENTIMENT_ANALYSIS: (content?: string) => {
@@ -74,7 +76,7 @@ const AI_PROMPTS = {
         Return exactly this format:
         {"keyPoints": ["Point 1", "Point 2", "Point 3"]}
 
-        Each key point should be a clear, concise statement.`;
+        Each key point should be a clear, concise statement`;
     },
 
     COMPLEXITY_METER: (content?: string) => {
@@ -105,17 +107,38 @@ const AI_PROMPTS = {
         {"complexityMeter": {"level": "medium", "reasoning": "Contains technical terms but accessible language"}}
 
         Valid level values: easy, medium, hard
-        Reasoning should briefly explain the rating.`;
+        Reasoning should briefly explain the rating`;
     },
 
     SUMMARIZATION: {
         CONCISE: (content: string) => `Summarize the following news article in 20% of its original length. Focus only on the key facts and avoid unnecessary details.
 
+        IMPORTANT LANGUAGE REQUIREMENTS:
+        - Use simple, clear English that everyone can understand
+        - Avoid complex words, technical jargon, or confusing terms  
+        - Write like you're explaining to a friend in everyday conversation
+        - Use short, simple sentences that are easy to read
+        - Make it accessible for all people, including non-native English speakers
+
         Content: ${content}`,
         STANDARD: (content: string) => `Provide a balanced summary of the following news article in 40% of its original length. Include the main points while keeping the core context intact.
 
+        IMPORTANT LANGUAGE REQUIREMENTS:
+        - Use simple, clear English that everyone can understand
+        - Avoid complex words, technical jargon, or confusing terms
+        - Write like you're explaining to a friend in everyday conversation  
+        - Use short, simple sentences that are easy to read
+        - Make it accessible for all people, including non-native English speakers
+
         Content: ${content}`,
         DETAILED: (content: string) => `Summarize the following news article in 60% of its original length. Include more context and background to preserve the depth of the article.
+
+        IMPORTANT LANGUAGE REQUIREMENTS:
+        - Use simple, clear English that everyone can understand
+        - Avoid complex words, technical jargon, or confusing terms
+        - Write like you're explaining to a friend in everyday conversation
+        - Use short, simple sentences that are easy to read  
+        - Make it accessible for all people, including non-native English speakers
 
         Content: ${content}`
     },
@@ -156,7 +179,7 @@ const AI_PROMPTS = {
         Return exactly this format:
         {"questions": ["What happens next?", "Why did this happen?", "How will this help?"]}
 
-        Each question should be short, simple, and easy to understand.`;
+        Each question should be short, simple, and easy to understand`;
     },
 
     QUESTION_ANSWERING: (content: string, question: string) => {
@@ -179,7 +202,7 @@ const AI_PROMPTS = {
         Return exactly this format:
         {"answer": "Based on the article, the implementation will begin next quarter and is expected to impact approximately 50,000 residents by providing new healthcare services."}
 
-        The answer should be comprehensive yet concise, directly addressing the question asked.`;
+        The answer should be comprehensive yet concise, directly addressing the question asked`;
     },
 
     GEOGRAPHIC_EXTRACTION: (content?: string) => {
@@ -216,7 +239,7 @@ const AI_PROMPTS = {
         Return exactly this format:
         {"locations": ["New York City", "California", "United States", "Silicon Valley"]}
 
-        Each location should be a clear, properly formatted geographic name. Be thorough - don't miss any locations mentioned in the text.`;
+        Each location should be a clear, properly formatted geographic name. Be thorough - don't miss any locations mentioned in the text`;
     },
 
     SOCIAL_MEDIA_CAPTION: (content: string, platform?: string, style?: string) => {
@@ -251,6 +274,9 @@ const AI_PROMPTS = {
         - Include 3-5 relevant hashtags that boost discoverability
         - Use appropriate tone for the platform and style
         - Make it compelling enough to encourage clicks and engagement
+        - IMPORTANT: Use simple, clear English that everyone can easily understand
+        - Avoid complex words, technical jargon, or confusing terms
+        - Write like you're explaining to a friend in everyday conversation
 
         Platform-specific guidelines:
         ${defaultPlatform === 'twitter' ? '- Use Twitter-style brevity and punch\n- Include relevant trending hashtags\n- Consider using emojis sparingly' : ''}
@@ -266,6 +292,72 @@ const AI_PROMPTS = {
         {"caption": "Your engaging caption here", "hashtags": ["#News", "#Breaking", "#Technology"], "characterCount": 245}
 
         The caption should be optimized for ${defaultPlatform} with ${defaultStyle} style, staying under ${charLimit} characters total`;
+    },
+
+    NEWS_INSIGHTS_ANALYSIS: (content: string) => {
+        return `Analyze this news article and provide comprehensive insights beyond just summarization. Act as an expert news analyst providing deeper understanding.
+
+        LANGUAGE REQUIREMENTS:
+        - CRITICAL: Use simple, clear English that any person can easily understand
+        - Avoid technical jargon, complex words, or industry-specific terms
+        - Write like you're explaining to a smart friend who isn't an expert
+        - Use everyday words and short, clear sentences
+        - Make it accessible to all education levels and backgrounds
+
+        Analysis Requirements:
+
+        KEY THEMES EXTRACTION:
+        - Identify 3-5 main themes/topics covered in the article
+        - Focus on broader categories (e.g., "Money Issues", "Weather Changes", "New Technology", "Countries Working Together")
+        - Use clear, simple theme names that anyone can understand
+
+        IMPACT ASSESSMENT:
+        - Determine the significance level: local, regional, national, or global (use exactly these lowercase words)
+        - Provide 1-2 sentence description explaining why this level of impact in simple terms
+        - Consider both immediate and potential long-term effects
+        - Explain what this means for regular people
+
+        CONTEXT CONNECTIONS:
+        - Identify 2-4 connections to recent related events, trends, or ongoing situations
+        - Reference timeframes when relevant (e.g., "connects to problems that started in 2019")
+        - Focus on meaningful connections that help readers understand the bigger picture
+        - Explain connections in plain, simple language
+
+        STAKEHOLDER ANALYSIS:
+        - Winners: Who benefits from these developments (use simple, clear descriptions)
+        - Losers: Who faces negative impacts or losses (explain in everyday terms)
+        - Affected: Who is impacted but outcome is unclear or mixed
+        - Use specific but simple descriptions that anyone can understand
+
+        TIMELINE CONTEXT:
+        - Identify 2-4 key background events or developments that led to this news
+        - Provide context for "how we got here" in simple terms
+        - Focus on recent relevant history (past 1-3 years typically)
+        - Explain background events using clear, everyday language
+
+        Article content: "${content}"
+
+        CRITICAL: Return ONLY the JSON object below. Do NOT wrap it in markdown code blocks, backticks, or any other formatting. Do NOT add any explanatory text before or after the JSON.
+
+        Return exactly this format:
+        {
+            "keyThemes": ["Theme 1", "Theme 2", "Theme 3"],
+            "impactAssessment": {
+                "level": "national",
+                "description": "Description of why this impact level and what it means"
+            },
+            "contextConnections": ["Connection to event 1", "Connection to trend 2"],
+            "stakeholderAnalysis": {
+                "winners": ["Group 1", "Group 2"],
+                "losers": ["Group 3", "Group 4"],
+                "affected": ["Group 5", "Group 6"]
+            },
+            "timelineContext": ["Background event 1", "Background event 2"]
+        }
+
+        IMPORTANT: The level in impactAssessment must be exactly one of these lowercase words: ${IMPACT_LEVELS.join(', ')}
+
+        Provide insightful, expert-level analysis that helps readers understand the deeper significance and context of this news`;
     },
 
     JSON_FORMAT_INSTRUCTIONS: `CRITICAL: Return ONLY the JSON object below. Do NOT wrap it in markdown code blocks, backticks, or any other formatting. Do NOT add any explanatory text before or after the JSON.`,

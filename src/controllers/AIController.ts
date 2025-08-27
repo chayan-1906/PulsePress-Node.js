@@ -7,6 +7,7 @@ import {ApiResponse} from "../utils/ApiResponse";
 import AuthService from "../services/AuthService";
 import StrikeService from "../services/StrikeService";
 import {summarizeArticle} from "../services/AIService";
+import NewsInsightsService from "../services/NewsInsightsService";
 import TagGenerationService from "../services/TagGenerationService";
 import QuestionAnswerService from "../services/QuestionAnswerService";
 import ComplexityMeterService from "../services/ComplexityMeterService";
@@ -20,6 +21,7 @@ import {
     ComplexityMeterParams,
     GeographicExtractionParams,
     KeyPointsExtractionParams,
+    NewsInsightsParams,
     QuestionAnsweringParams,
     QuestionGenerationParams,
     SentimentAnalysisParams,
@@ -975,15 +977,6 @@ const generateSocialMediaCaptionController = async (req: Request, res: Response)
             return;
         }
 
-        /*if (!platform) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('platform'),
-                errorMsg: 'Platform is required for caption generation',
-            }));
-            return;
-        }*/
-
         if (platform && !SOCIAL_MEDIA_PLATFORMS.includes(platform)) {
             res.status(400).send(new ApiResponse({
                 success: false,
@@ -1065,6 +1058,131 @@ const generateSocialMediaCaptionController = async (req: Request, res: Response)
     }
 }
 
+const generateNewsInsightsController = async (req: Request, res: Response) => {
+    console.info('generateNewsInsightsController called'.bgMagenta.white.italic);
+
+    try {
+        const email = (req as AuthRequest).email;
+        const {content, url}: NewsInsightsParams = req.body;
+
+        if (!content && !url) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'CONTENT_OR_URL_REQUIRED',
+                errorMsg: 'Either content or URL must be provided for news insights analysis',
+            }));
+            return;
+        }
+
+        if (content && url) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'CONTENT_AND_URL_CONFLICT',
+                errorMsg: 'Provide either content or URL, not both',
+            }));
+            return;
+        }
+
+        let contentToAnalyze = content;
+
+        if (!content && url) {
+            console.log('Scraping URL for news insights analysis:'.cyan.italic, url);
+            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
+
+            if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
+                res.status(400).send(new ApiResponse({
+                    success: false,
+                    errorCode: 'SCRAPING_FAILED',
+                    errorMsg: 'Failed to scrape the provided URL',
+                }));
+                return;
+            }
+
+            contentToAnalyze = scrapedArticles[0]?.content || '';
+        }
+
+        if (!contentToAnalyze || contentToAnalyze.trim().length === 0) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('content'),
+                errorMsg: 'Content is required for news insights analysis',
+            }));
+            return;
+        }
+
+        const {user} = await AuthService.getUserByEmail({email});
+        if (!user) {
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
+            }));
+            return;
+        }
+
+        const {keyThemes, impactAssessment, contextConnections, stakeholderAnalysis, timelineContext, powered_by, error} = await NewsInsightsService.generateInsights({content: contentToAnalyze});
+
+        if (error) {
+            let errorMsg = 'Failed to generate news insights analysis';
+            let statusCode = 500;
+
+            if (error === 'CONTENT_OR_URL_REQUIRED') {
+                errorMsg = 'Either content or URL must be provided';
+                statusCode = 400;
+            } else if (error === 'CONTENT_AND_URL_CONFLICT') {
+                errorMsg = 'Provide either content or URL, not both';
+                statusCode = 400;
+            } else if (error === 'SCRAPING_FAILED') {
+                errorMsg = 'Failed to scrape the provided URL';
+                statusCode = 400;
+            } else if (error === generateMissingCode('content')) {
+                errorMsg = 'No content provided for analysis';
+                statusCode = 400;
+            } else if (error === generateMissingCode('gemini_api_key')) {
+                errorMsg = 'News insights analysis service is temporarily unavailable';
+                statusCode = 500;
+            } else if (error === 'NEWS_INSIGHTS_ANALYSIS_FAILED') {
+                errorMsg = 'News insights analysis failed, please try again';
+                statusCode = 500;
+            } else if (error === 'NEWS_INSIGHTS_PARSE_ERROR') {
+                errorMsg = 'Unable to parse news insights analysis results, please try again';
+                statusCode = 500;
+            } else if (error === 'NO_VALID_THEMES') {
+                errorMsg = 'No valid themes found in the content';
+                statusCode = 500;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
+                success: false,
+                errorCode: error,
+                errorMsg,
+            }));
+            return;
+        }
+
+        console.log('News insights analysis completed:'.cyan.italic, {themesCount: keyThemes?.length || 0, impactLevel: impactAssessment?.level, powered_by});
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'News insights analysis completed successfully 🎉',
+            keyThemes,
+            impactAssessment,
+            contextConnections,
+            stakeholderAnalysis,
+            timelineContext,
+            powered_by,
+            contentPreview: contentToAnalyze.substring(0, 200) + '...',
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of generateNewsInsightsController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            errorCode: error.errorCode,
+            errorMsg: error.message || 'Something went wrong during news insights analysis',
+        }));
+    }
+}
+
 export {
     classifyContentController,
     summarizeArticleController,
@@ -1076,4 +1194,5 @@ export {
     answerQuestionController,
     extractLocationsController,
     generateSocialMediaCaptionController,
+    generateNewsInsightsController,
 };

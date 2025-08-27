@@ -28,6 +28,12 @@ export type SocialMediaPlatform = typeof SOCIAL_MEDIA_PLATFORMS[number];
 export const SOCIAL_MEDIA_CAPTION_STYLES = ['professional', 'casual', 'engaging', 'viral'] as const;
 export type SocialMediaCaptionStyle = typeof SOCIAL_MEDIA_CAPTION_STYLES[number];
 
+export const IMPACT_LEVELS = ['local', 'regional', 'national', 'global'] as const;
+export type ImpactLevel = typeof IMPACT_LEVELS[number];
+
+export const STAKEHOLDER_TYPES = ['consumers', 'businesses', 'government', 'investors', 'workers', 'environment', 'technology'] as const;
+export type StakeholderType = typeof STAKEHOLDER_TYPES[number];
+
 export const AI_ARTICLE_ENHANCEMENT_TYPES = ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'geoExtraction'];
 export type AIArticleEnhancement = typeof AI_ARTICLE_ENHANCEMENT_TYPES[number];
 
@@ -166,6 +172,28 @@ export interface AIGeographicExtraction {
     locations: string[];
 }
 
+export interface AISocialMediaCaption {
+    caption: string;
+    hashtags: string[];
+    platform: SocialMediaPlatform;
+    style: SocialMediaCaptionStyle;
+}
+
+export interface AINewsInsights {
+    keyThemes: string[];
+    impactAssessment: {
+        level: ImpactLevel;
+        description: string;
+    };
+    contextConnections: string[];
+    stakeholderAnalysis: {
+        winners: string[];
+        losers: string[];
+        affected: string[];
+    };
+    timelineContext: string[];
+}
+
 
 /** ------------- API response types ------------- */
 
@@ -240,6 +268,23 @@ export interface SocialMediaCaptionResponse {
     platform?: SocialMediaPlatform;
     style?: SocialMediaCaptionStyle;
     characterCount?: number;
+    powered_by?: string;
+    error?: string;
+}
+
+export interface NewsInsightsResponse {
+    keyThemes?: string[];
+    impactAssessment?: {
+        level: ImpactLevel;
+        description: string;
+    };
+    contextConnections?: string[];
+    stakeholderAnalysis?: {
+        winners?: string[];
+        losers?: string[];
+        affected?: string[];
+    };
+    timelineContext?: string[];
     powered_by?: string;
     error?: string;
 }
@@ -361,6 +406,11 @@ export interface SocialMediaCaptionParams {
     content?: string;
     platform?: SocialMediaPlatform;
     style?: SocialMediaCaptionStyle;
+}
+
+export interface NewsInsightsParams {
+    url?: string;
+    content?: string;
 }
 
 export interface CombinedAIParams {

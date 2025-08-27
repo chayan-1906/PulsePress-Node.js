@@ -199,6 +199,14 @@ export const AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS = [
     'gemini-1.5-flash',
 ];
 
+export const AI_NEWS_INSIGHTS_MODELS = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-2.5-flash-lite-preview-06-17',
+    'gemini-1.5-flash',
+];
+
 export const AI_ENHANCEMENT_MODELS = [
     'gemini-2.5-flash',
     'gemini-2.0-flash-lite',
