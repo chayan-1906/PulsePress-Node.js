@@ -27,7 +27,7 @@ class ArticleEnhancementService {
     private static activeJobs = new Set<string>();
 
     /**
-     * Combined AI enhancement method - sentiment analysis, key points extractor, and complexity meter
+     * Combined AI enhancement method - smart tags, sentiment analysis, key points extractor, complexity meter, geographic entity locations
      */
     private static async aiEnhanceArticle({content, tasks}: CombinedAIParams): Promise<CombinedAIResponse> {
         console.log('Running combined AI enhancement:'.cyan.italic, tasks);
@@ -50,7 +50,9 @@ class ArticleEnhancementService {
                 // Build dynamic prompt based on requested tasks using the same prompt functions
                 let prompt = `Analyze this news article and provide the following information:\n\n`;
 
-                // TODO: Add Tag Generation
+                if (tasks.includes('tags')) {
+                    prompt += `SMART TAGS GENERATION:\n${AI_PROMPTS.TAG_GENERATION()}\n\n`;
+                }
 
                 if (tasks.includes('sentiment')) {
                     prompt += `SENTIMENT ANALYSIS:\n${AI_PROMPTS.SENTIMENT_ANALYSIS()}\n\n`;
@@ -68,13 +70,13 @@ class ArticleEnhancementService {
                     prompt += `GEOGRAPHIC EXTRACTION:\n${AI_PROMPTS.GEOGRAPHIC_EXTRACTION()}\n\n`;
                 }
 
-                // TODO: Add Content related FAQs
-
                 prompt += `Article content: "${truncatedContent}"\n\n`;
                 prompt += `${AI_PROMPTS.JSON_FORMAT_INSTRUCTIONS}\n\n`;
                 prompt += `Return exactly this format:\n{\n`;
 
-                // TODO: Add Tag Generation
+                if (tasks.includes('tags')) {
+                    prompt += `  "tags": ["Politics", "Economy", "Breaking"]\n`;
+                }
                 if (tasks.includes('sentiment')) {
                     prompt += `  "sentiment": {"type": "positive", "confidence": 0.85},\n`;
                 }
@@ -87,7 +89,6 @@ class ArticleEnhancementService {
                 if (tasks.includes('geoExtraction')) {
                     prompt += `  "locations": ["New York City", "California", "United States"]\n`;
                 }
-                // TODO: Add Content related FAQs
 
                 prompt += `}`;
 
@@ -112,7 +113,13 @@ class ArticleEnhancementService {
                 }
 
                 const parsed: CombinedAIResponse = JSON.parse(responseText);
+                console.log('parsed response:'.cyan.italic, parsed);
+
                 const response: CombinedAIResponse = {};
+
+                if (tasks.includes('tags') && parsed.tags) {
+                    response.tags = parsed.tags;
+                }
 
                 if (tasks.includes('sentiment') && parsed.sentiment) {
                     if (SENTIMENT_TYPES.includes(parsed.sentiment.type)) {
@@ -144,8 +151,6 @@ class ArticleEnhancementService {
                         response.locations = validLocations;
                     }
                 }
-
-                // TODO: Add Content related FAQs
 
                 console.log(`✅ AI enhancement successful with model:`.green, modelName);
                 console.log('Combined AI enhancement result:'.green, response);
@@ -242,17 +247,23 @@ class ArticleEnhancementService {
 
                     const complexity = ReadingTimeAnalysisService.calculateReadingTimeComplexity({article});
 
-                    const aiResult = await this.aiEnhanceArticle({
+                    const aiResult: CombinedAIResponse = await this.aiEnhanceArticle({
                         content: article.content || article.description || article.title || '',
-                        tasks: ['sentiment', 'keyPoints', 'complexityMeter', 'geoExtraction'],
+                        tasks: ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'geoExtraction'],
                     });
 
+                    let tags = undefined;
                     let sentimentData = undefined;
                     let keyPoints = undefined;
                     let complexityMeter = undefined;
                     let locations = undefined;
 
                     if (!aiResult.error) {
+                        // Process tags
+                        if (aiResult.tags) {
+                            tags = aiResult.tags;
+                        }
+
                         // Process sentiment data
                         if (aiResult.sentiment) {
                             sentimentData = aiResult.sentiment;
@@ -273,10 +284,12 @@ class ArticleEnhancementService {
                             locations = aiResult.locations;
                         }
                     }
+                    console.log('aiResult:'.cyan.italic, aiResult);
 
-                    await ArticleEnhancementModel.findOneAndUpdate(
+                    const updatedEnhancedArticle = await ArticleEnhancementModel.findOneAndUpdate(
                         {articleId},
                         {
+                            tags,
                             sentiment: sentimentData,
                             keyPoints,
                             complexityMeter,
@@ -285,7 +298,7 @@ class ArticleEnhancementService {
                             processingStatus: 'completed',
                         },
                     );
-                    console.log(`Successfully enhanced article: ${articleId}`.green);
+                    console.log(`Successfully enhanced article: ${articleId}`.green, updatedEnhancedArticle);
                 } catch (error: any) {
                     const articleId = generateArticleId({article});
                     console.error(`Enhancement failed for article ${articleId}:`.red.bold, error.message);
@@ -347,9 +360,10 @@ class ArticleEnhancementService {
 
             const articles = enhancements
                 .filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'completed')
-                .map(({articleId, url, sentiment, complexity, complexityMeter, keyPoints, locations}) => ({
+                .map(({articleId, url, tags, sentiment, complexity, complexityMeter, keyPoints, locations}) => ({
                     articleId,
                     url,
+                    tags,
                     sentiment,
                     complexity,
                     complexityMeter,
@@ -378,6 +392,7 @@ class ArticleEnhancementService {
             if (enhancement) {
                 return {
                     ...article,
+                    tags: enhancement.tags,
                     sentimentData: enhancement.sentiment,
                     keyPoints: enhancement.keyPoints,
                     complexityMeter: enhancement.complexityMeter,

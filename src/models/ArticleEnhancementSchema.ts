@@ -5,6 +5,7 @@ import {ARTICLE_COMPLEXITIES, ArticleComplexities, PROCESSING_STATUSES, Processi
 export interface IArticleEnhancement extends Document {
     articleId: string;
     url: string;
+    tags?: string[];
     sentiment?: {
         sentiment: SentimentResult;
         confidence: number;
@@ -40,6 +41,9 @@ const ArticleEnhancementSchema = new Schema<IArticleEnhancement>({
         type: String,
         required: true,
     },
+    tags: [{
+        type: String,
+    }],
     sentiment: {
         sentiment: String,
         confidence: Number,

@@ -212,9 +212,9 @@ class AuthService {
         }
 
         const newAccessToken = jwt.sign(
-            {userExternalId: user.userExternalId},
+            {userExternalId: user.userExternalId, email: user.email},
             ACCESS_TOKEN_SECRET!,
-            {expiresIn: ACCESS_TOKEN_EXPIRY as SignOptions['expiresIn']}
+            {expiresIn: ACCESS_TOKEN_EXPIRY as SignOptions['expiresIn']},
         );
 
         return {accessToken: newAccessToken};

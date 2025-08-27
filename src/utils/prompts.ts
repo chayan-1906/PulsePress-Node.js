@@ -1,4 +1,29 @@
 const AI_PROMPTS = {
+    TAG_GENERATION: (content?: string) => {
+        const instructions = `Analyze this news article and generate 3-5 relevant tags that categorize its content.
+
+        Guidelines for tag generation:
+        - Generate tags that represent the main topics, categories, or themes
+        - Use single words or short phrases (1-3 words maximum)
+        - Make tags specific and relevant to the article content
+        - Avoid generic words like "news" or "article"`;
+
+        if (!content) {
+            return instructions;
+        }
+
+        return `${instructions}
+
+        Article content: "${content}"
+
+        CRITICAL: Return ONLY the JSON array below. Do NOT wrap it in markdown code blocks, backticks, or any other formatting. Do NOT add any explanatory text before or after the JSON.
+
+        Return exactly this format:
+        ["Politics", "Economy", "Breaking"]
+
+        Each tag should represent a meaningful category that is directly relevant to the news content, helping users better understand and filter information.`;
+    },
+
     SENTIMENT_ANALYSIS: (content?: string) => {
         const instructions = `Analyze the sentiment of this news article content and determine if the overall tone is positive, negative, or neutral.
 
@@ -110,26 +135,6 @@ const AI_PROMPTS = {
 
         Valid classification values: news, non_news
         Confidence must be a number between 0.1 and 1.0`;
-    },
-
-    // TODO: Make content optional, it's going to be called in ArticleEnhancementService. Articles list should have smart tags
-    TAG_GENERATION: (content: string) => {
-        return `Analyze this news article and generate 3-5 relevant tags that categorize its content.
-
-        Guidelines for tag generation:
-        - Generate tags that represent the main topics, categories, or themes
-        - Use single words or short phrases (1-3 words maximum)
-        - Make tags specific and relevant to the article content
-        - Avoid generic words like "news" or "article"
-
-        Article content: "${content}"
-
-        CRITICAL: Return ONLY the JSON array below. Do NOT wrap it in markdown code blocks, backticks, or any other formatting. Do NOT add any explanatory text before or after the JSON.
-
-        Return exactly this format:
-        ["Politics", "Economy", "Breaking"]
-
-        Each tag should represent a meaningful category that is directly relevant to the news content, helping users better understand and filter information.`;
     },
 
     QUESTION_GENERATION: (content: string) => {
