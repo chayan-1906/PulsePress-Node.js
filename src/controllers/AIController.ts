@@ -11,6 +11,7 @@ import TagGenerationService from "../services/TagGenerationService";
 import QuestionAnswerService from "../services/QuestionAnswerService";
 import ComplexityMeterService from "../services/ComplexityMeterService";
 import SentimentAnalysisService from "../services/SentimentAnalysisService";
+import SocialMediaCaptionService from "../services/SocialMediaCaptionService";
 import NewsClassificationService from "../services/NewsClassificationService";
 import KeyPointsExtractionService from "../services/KeyPointsExtractionService";
 import GeographicExtractionService from "../services/GeographicExtractionService";
@@ -22,6 +23,9 @@ import {
     QuestionAnsweringParams,
     QuestionGenerationParams,
     SentimentAnalysisParams,
+    SOCIAL_MEDIA_CAPTION_STYLES,
+    SOCIAL_MEDIA_PLATFORMS,
+    SocialMediaCaptionParams,
     SUMMARIZATION_STYLES,
     SummarizeArticleParams,
     TagGenerationParams
@@ -115,18 +119,6 @@ const summarizeArticleController = async (req: Request, res: Response) => {
         const email = (req as AuthRequest).email;
         const {content, url, language, style}: SummarizeArticleParams = req.body;
 
-        const {isBlocked, message, blockedUntil, blockType} = await StrikeService.checkUserBlock(email);
-        if (isBlocked) {
-            res.status(403).send(new ApiResponse({
-                success: false,
-                errorCode: 'USER_BLOCKED',
-                errorMsg: message,
-                blockedUntil,
-                blockType,
-            }));
-            return;
-        }
-
         if (!content && !url) {
             console.error('Content and url both are missing'.yellow.italic);
             res.status(400).send(new ApiResponse({
@@ -180,6 +172,18 @@ const summarizeArticleController = async (req: Request, res: Response) => {
                 success: false,
                 errorCode: generateMissingCode('content'),
                 errorMsg: 'No content available for processing',
+            }));
+            return;
+        }
+
+        const {isBlocked, message, blockedUntil, blockType} = await StrikeService.checkUserBlock(email);
+        if (isBlocked) {
+            res.status(403).send(new ApiResponse({
+                success: false,
+                errorCode: 'USER_BLOCKED',
+                errorMsg: message,
+                blockedUntil,
+                blockType,
             }));
             return;
         }
@@ -280,16 +284,6 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
         const email = (req as AuthRequest).email;
         const {content, url}: SentimentAnalysisParams = req.body;
 
-        const {user} = await AuthService.getUserByEmail({email});
-        if (!user) {
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
-
         if (!content && !url) {
             res.status(400).send(new ApiResponse({
                 success: false,
@@ -331,6 +325,16 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
                 success: false,
                 errorCode: generateMissingCode('content'),
                 errorMsg: 'Content is required for sentiment analysis',
+            }));
+            return;
+        }
+
+        const {user} = await AuthService.getUserByEmail({email});
+        if (!user) {
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
             }));
             return;
         }
@@ -386,16 +390,6 @@ const generateTagsController = async (req: Request, res: Response) => {
         const email = (req as AuthRequest).email;
         const {content, url}: TagGenerationParams = req.body;
 
-        const {user} = await AuthService.getUserByEmail({email});
-        if (!user) {
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
-
         if (!content && !url) {
             res.status(400).send(new ApiResponse({
                 success: false,
@@ -410,6 +404,16 @@ const generateTagsController = async (req: Request, res: Response) => {
                 success: false,
                 errorCode: 'CONTENT_AND_URL_CONFLICT',
                 errorMsg: 'Provide either content or URL, not both',
+            }));
+            return;
+        }
+
+        const {user} = await AuthService.getUserByEmail({email});
+        if (!user) {
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
             }));
             return;
         }
@@ -473,16 +477,6 @@ const fetchKeyPointsController = async (req: Request, res: Response) => {
         const email = (req as AuthRequest).email;
         const {content, url}: KeyPointsExtractionParams = req.body;
 
-        const {user} = await AuthService.getUserByEmail({email});
-        if (!user) {
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
-
         if (!content && !url) {
             res.status(400).send(new ApiResponse({
                 success: false,
@@ -524,6 +518,16 @@ const fetchKeyPointsController = async (req: Request, res: Response) => {
                 success: false,
                 errorCode: generateMissingCode('content'),
                 errorMsg: 'No content available for key points extraction',
+            }));
+            return;
+        }
+
+        const {user} = await AuthService.getUserByEmail({email});
+        if (!user) {
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
             }));
             return;
         }
@@ -577,16 +581,6 @@ const fetchComplexityMeterController = async (req: Request, res: Response) => {
         const email = (req as AuthRequest).email;
         const {content, url}: ComplexityMeterParams = req.body;
 
-        const {user} = await AuthService.getUserByEmail({email});
-        if (!user) {
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
-
         if (!content && !url) {
             res.status(400).send(new ApiResponse({
                 success: false,
@@ -628,6 +622,16 @@ const fetchComplexityMeterController = async (req: Request, res: Response) => {
                 success: false,
                 errorCode: generateMissingCode('content'),
                 errorMsg: 'Content is required for complexity analysis',
+            }));
+            return;
+        }
+
+        const {user} = await AuthService.getUserByEmail({email});
+        if (!user) {
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
             }));
             return;
         }
@@ -681,21 +685,21 @@ const generateQuestionsController = async (req: Request, res: Response) => {
         const email = (req as AuthRequest).email;
         const {content}: QuestionGenerationParams = req.body;
 
+        if (!content || content.trim().length === 0) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('content'),
+                errorMsg: 'Content is required for question generation',
+            }));
+            return;
+        }
+
         const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             res.status(404).send(new ApiResponse({
                 success: false,
                 errorCode: generateNotFoundCode('user'),
                 errorMsg: 'User not found',
-            }));
-            return;
-        }
-
-        if (!content || content.trim().length === 0) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('content'),
-                errorMsg: 'Content is required for question generation',
             }));
             return;
         }
@@ -753,16 +757,6 @@ const answerQuestionController = async (req: Request, res: Response) => {
         const email = (req as AuthRequest).email;
         const {content, question}: QuestionAnsweringParams = req.body;
 
-        const {user} = await AuthService.getUserByEmail({email});
-        if (!user) {
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
-
         if (!content || content.trim().length === 0) {
             res.status(400).send(new ApiResponse({
                 success: false,
@@ -777,6 +771,16 @@ const answerQuestionController = async (req: Request, res: Response) => {
                 success: false,
                 errorCode: generateInvalidCode('question'),
                 errorMsg: 'Question is required for answering',
+            }));
+            return;
+        }
+
+        const {user} = await AuthService.getUserByEmail({email});
+        if (!user) {
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
             }));
             return;
         }
@@ -838,16 +842,6 @@ const extractLocationsController = async (req: Request, res: Response) => {
         const email = (req as AuthRequest).email;
         const {content, url}: GeographicExtractionParams = req.body;
 
-        const {user} = await AuthService.getUserByEmail({email});
-        if (!user) {
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
-
         if (!content && !url) {
             res.status(400).send(new ApiResponse({
                 success: false,
@@ -893,11 +887,32 @@ const extractLocationsController = async (req: Request, res: Response) => {
             return;
         }
 
+        const {user} = await AuthService.getUserByEmail({email});
+        if (!user) {
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
+            }));
+            return;
+        }
+
         const {locations, error} = await GeographicExtractionService.extractLocations({content: contentToAnalyze});
 
         if (error) {
             let errorMsg = 'Failed to extract geographic locations';
-            if (error === generateMissingCode('content')) {
+            let statusCode = 500;
+
+            if (error === 'CONTENT_OR_URL_REQUIRED') {
+                errorMsg = 'Either content or URL must be provided';
+                statusCode = 400;
+            } else if (error === 'CONTENT_AND_URL_CONFLICT') {
+                errorMsg = 'Provide either content or URL, not both';
+                statusCode = 400;
+            } else if (error === 'SCRAPING_FAILED') {
+                errorMsg = 'Failed to scrape the provided URL';
+                statusCode = 400;
+            } else if (error === generateMissingCode('content')) {
                 errorMsg = 'No content provided for analysis';
             } else if (error === generateMissingCode('gemini_api_key')) {
                 errorMsg = 'Geographic extraction service is temporarily unavailable';
@@ -909,7 +924,7 @@ const extractLocationsController = async (req: Request, res: Response) => {
                 errorMsg = 'No valid locations found in the content';
             }
 
-            res.status(500).send(new ApiResponse({
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
                 errorCode: error,
                 errorMsg,
@@ -935,6 +950,121 @@ const extractLocationsController = async (req: Request, res: Response) => {
     }
 }
 
+const generateSocialMediaCaptionController = async (req: Request, res: Response) => {
+    console.info('generateSocialMediaCaptionController called'.bgMagenta.white.italic);
+
+    try {
+        const email = (req as AuthRequest).email;
+        const {content, url, platform, style}: SocialMediaCaptionParams = req.body;
+
+        if (!content && !url) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'CONTENT_OR_URL_REQUIRED',
+                errorMsg: 'Either content or URL must be provided for caption generation',
+            }));
+            return;
+        }
+
+        if (content && url) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'CONTENT_AND_URL_CONFLICT',
+                errorMsg: 'Provide either content or URL, not both',
+            }));
+            return;
+        }
+
+        /*if (!platform) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('platform'),
+                errorMsg: 'Platform is required for caption generation',
+            }));
+            return;
+        }*/
+
+        if (platform && !SOCIAL_MEDIA_PLATFORMS.includes(platform)) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateInvalidCode('platform'),
+                errorMsg: `Platform must be one of: ${SOCIAL_MEDIA_PLATFORMS.join(', ')}`,
+            }));
+            return;
+        }
+
+        const {user} = await AuthService.getUserByEmail({email});
+        if (!user) {
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
+            }));
+            return;
+        }
+
+        const {caption, hashtags, characterCount, powered_by, error} = await SocialMediaCaptionService.generateCaption({content, url, platform, style});
+
+        if (error) {
+            let errorMsg = 'Failed to generate social media caption';
+            let statusCode = 500;
+
+            if (error === 'CONTENT_OR_URL_REQUIRED') {
+                errorMsg = 'Either content or URL must be provided';
+                statusCode = 400;
+            } else if (error === 'CONTENT_AND_URL_CONFLICT') {
+                errorMsg = 'Provide either content or URL, not both';
+                statusCode = 400;
+            } else if (error === 'SCRAPING_FAILED') {
+                errorMsg = 'Failed to scrape the provided URL';
+                statusCode = 400;
+            } else if (error === generateMissingCode('content')) {
+                errorMsg = 'No content available for caption generation';
+                statusCode = 400;
+            } else if (error === generateInvalidCode('platform')) {
+                errorMsg = `Invalid platform. Must be one of: ${SOCIAL_MEDIA_PLATFORMS.join(', ')}`;
+                statusCode = 400;
+            } else if (error === generateInvalidCode('style')) {
+                errorMsg = `Invalid style provided. Must be one of: ${SOCIAL_MEDIA_CAPTION_STYLES.join(', ')}`;
+                statusCode = 400;
+            } else if (error === 'CAPTION_GENERATION_FAILED') {
+                errorMsg = 'Caption generation failed, please try again';
+                statusCode = 500;
+            } else if (error === 'CAPTION_PARSE_ERROR') {
+                errorMsg = 'Unable to parse generated caption, please try again';
+                statusCode = 500;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
+                success: false,
+                errorCode: error,
+                errorMsg,
+            }));
+            return;
+        }
+
+        console.log('Social media caption generated successfully:'.cyan.italic, {platform, style, characterCount, powered_by});
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message: 'Social media caption generated successfully 🎉',
+            caption,
+            hashtags,
+            platform,
+            style: style || 'engaging',
+            characterCount,
+            powered_by,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of generateSocialMediaCaptionController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            errorCode: error.errorCode,
+            errorMsg: error.message || 'Something went wrong during caption generation',
+        }));
+    }
+}
+
 export {
     classifyContentController,
     summarizeArticleController,
@@ -945,4 +1075,5 @@ export {
     generateQuestionsController,
     answerQuestionController,
     extractLocationsController,
+    generateSocialMediaCaptionController,
 };

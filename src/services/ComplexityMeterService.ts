@@ -2,7 +2,7 @@ import "colors";
 import {genAI} from "./AIService";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
-import {AI_ENHANCEMENT_MODELS} from "../utils/constants";
+import {AI_COMPLEXITY_METER__MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
 import {AIComplexityMeter, COMPLEXITY_LEVELS, ComplexityMeterParams, ComplexityMeterResponse} from "../types/ai";
 
@@ -21,9 +21,9 @@ class ComplexityMeterService {
         // Truncate content to avoid token limits
         const truncatedContent = content.substring(0, 4000);
 
-        for (let i = 0; i < AI_ENHANCEMENT_MODELS.length; i++) {
-            const model = AI_ENHANCEMENT_MODELS[i];
-            console.log(`Trying complexity analysis with model ${i + 1}/${AI_ENHANCEMENT_MODELS.length}:`.cyan, model);
+        for (let i = 0; i < AI_COMPLEXITY_METER__MODELS.length; i++) {
+            const model = AI_COMPLEXITY_METER__MODELS[i];
+            console.log(`Trying complexity analysis with model ${i + 1}/${AI_COMPLEXITY_METER__MODELS.length}:`.cyan, model);
 
             try {
                 let result: ComplexityMeterResponse;

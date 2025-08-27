@@ -143,14 +143,6 @@ export const AI_SUMMARIZATION_MODELS = [
     // 'huggingface:facebook/bart-large-cnn',
 ];
 
-export const SENTIMENT_ANALYSIS_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite-preview-06-17',
-    'gemini-1.5-flash',
-];
-
 export const AI_TAG_GENERATION_MODELS = [
     'gemini-2.5-flash',
     'gemini-2.0-flash-lite',
@@ -159,7 +151,23 @@ export const AI_TAG_GENERATION_MODELS = [
     'gemini-1.5-flash',
 ];
 
-export const AI_ENHANCEMENT_MODELS = [
+export const AI_SENTIMENT_ANALYSIS_MODELS = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-2.5-flash-lite-preview-06-17',
+    'gemini-1.5-flash',
+];
+
+export const AI_KEY_POINTS_EXTRACTOR_MODELS = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-2.5-flash-lite-preview-06-17',
+    'gemini-1.5-flash',
+];
+
+export const AI_COMPLEXITY_METER__MODELS = [
     'gemini-2.5-flash',
     'gemini-2.0-flash-lite',
     'gemini-2.0-flash',
@@ -176,6 +184,22 @@ export const QUESTION_ANSWER_MODELS = [
 ];
 
 export const AI_GEOGRAPHIC_EXTRACTION_MODELS = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-2.5-flash-lite-preview-06-17',
+    'gemini-1.5-flash',
+];
+
+export const AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-2.5-flash-lite-preview-06-17',
+    'gemini-1.5-flash',
+];
+
+export const AI_ENHANCEMENT_MODELS = [
     'gemini-2.5-flash',
     'gemini-2.0-flash-lite',
     'gemini-2.0-flash',

@@ -219,6 +219,55 @@ const AI_PROMPTS = {
         Each location should be a clear, properly formatted geographic name. Be thorough - don't miss any locations mentioned in the text.`;
     },
 
+    SOCIAL_MEDIA_CAPTION: (content: string, platform?: string, style?: string) => {
+        const platformLimits = {
+            'twitter': 280,
+            'instagram': 2200,
+            'linkedin': 3000,
+            'facebook': 63206,
+        };
+
+        const styleGuidelines = {
+            'professional': 'Use formal tone, industry terminology, and authoritative language. Focus on credibility and expertise',
+            'casual': 'Use conversational tone, everyday language, and a friendly approach. Keep it approachable and relatable',
+            'engaging': 'Use questions, calls-to-action, and interactive elements. Encourage audience participation and discussion',
+            'viral': 'Use trending terms, emojis, controversial takes, or surprising angles. Make it shareable and attention-grabbing',
+        };
+
+        const defaultPlatform = platform || 'twitter';
+        const defaultStyle = style || 'engaging';
+        const charLimit = platformLimits[defaultPlatform as keyof typeof platformLimits] || 280;
+        const styleGuide = styleGuidelines[defaultStyle as keyof typeof styleGuidelines];
+
+        return `Create an engaging social media caption for ${defaultPlatform} based on this news article.
+
+        Platform: ${defaultPlatform}
+        Character limit: ${charLimit} characters
+        Style: ${defaultStyle} - ${styleGuide}
+
+        Caption Requirements:
+        - Stay within ${charLimit} character limit (including spaces and hashtags)
+        - Capture the essence of the news story in an engaging way
+        - Include 3-5 relevant hashtags that boost discoverability
+        - Use appropriate tone for the platform and style
+        - Make it compelling enough to encourage clicks and engagement
+
+        Platform-specific guidelines:
+        ${defaultPlatform === 'twitter' ? '- Use Twitter-style brevity and punch\n- Include relevant trending hashtags\n- Consider using emojis sparingly' : ''}
+        ${defaultPlatform === 'instagram' ? '- Use visual storytelling language\n- Include popular and niche hashtags\n- Use emojis and line breaks for readability' : ''}
+        ${defaultPlatform === 'linkedin' ? '- Use professional tone and industry insights\n- Include business-relevant hashtags\n- Focus on professional implications' : ''}
+        ${defaultPlatform === 'facebook' ? '- Use conversational tone\n- Include questions to encourage comments\n- Use emojis to add personality' : ''}
+
+        Article content: "${content}"
+
+        CRITICAL: Return ONLY the JSON object below. Do NOT wrap it in markdown code blocks, backticks, or any other formatting. Do NOT add any explanatory text before or after the JSON.
+
+        Return exactly this format:
+        {"caption": "Your engaging caption here", "hashtags": ["#News", "#Breaking", "#Technology"], "characterCount": 245}
+
+        The caption should be optimized for ${defaultPlatform} with ${defaultStyle} style, staying under ${charLimit} characters total`;
+    },
+
     JSON_FORMAT_INSTRUCTIONS: `CRITICAL: Return ONLY the JSON object below. Do NOT wrap it in markdown code blocks, backticks, or any other formatting. Do NOT add any explanatory text before or after the JSON.`,
 };
 

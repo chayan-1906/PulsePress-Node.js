@@ -22,6 +22,12 @@ export type SentimentResult = typeof SENTIMENT_TYPES[number];
 export const COMPLEXITY_LEVELS = ['easy', 'medium', 'hard'] as const;
 export type ComplexityLevel = typeof COMPLEXITY_LEVELS[number];
 
+export const SOCIAL_MEDIA_PLATFORMS = ['twitter', 'instagram', 'linkedin', 'facebook'] as const;
+export type SocialMediaPlatform = typeof SOCIAL_MEDIA_PLATFORMS[number];
+
+export const SOCIAL_MEDIA_CAPTION_STYLES = ['professional', 'casual', 'engaging', 'viral'] as const;
+export type SocialMediaCaptionStyle = typeof SOCIAL_MEDIA_CAPTION_STYLES[number];
+
 export const AI_ARTICLE_ENHANCEMENT_TYPES = ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'geoExtraction'];
 export type AIArticleEnhancement = typeof AI_ARTICLE_ENHANCEMENT_TYPES[number];
 
@@ -77,27 +83,6 @@ export interface EnrichedArticleWithSentiment {
         emoji: string;
         color: string;
     };
-}
-
-export interface EnrichedArticleWithKeyPoints {
-    source: {
-        id: string | null;
-        name: string | null;
-    };
-    author: string | null;
-    title: string | null;
-    description: string | null;
-    url: string | null;
-    urlToImage: string | null;
-    publishedAt: string | null;
-    content: string | null;
-    qualityScore?: {
-        score: number;
-        reasons: string[];
-        isRelevant: boolean;
-        isProfessional: boolean;
-    };
-    keyPoints?: string[];
 }
 
 export interface StrikeHistoryEvent {
@@ -186,8 +171,8 @@ export interface AIGeographicExtraction {
 
 export interface SummarizeArticleResponse {
     summary?: string;
-    powered_by?: string;
     wasClassified?: 'news' | 'non_news' | 'classification_skipped';
+    powered_by?: string;
     error?: string;
     errorMsg?: string;
 }
@@ -206,11 +191,13 @@ export interface TagGenerationResponse {
 export interface SentimentAnalysisResponse {
     sentiment?: SentimentResult;
     confidence?: number;
+    // TODO: Add powered_by
     error?: string;
 }
 
 export interface KeyPointsExtractionResponse {
     keyPoints?: string[];
+    // TODO: Add powered_by
     error?: string;
 }
 
@@ -219,6 +206,7 @@ export interface ComplexityMeterResponse {
         level: ComplexityLevel;
         reasoning: string;
     };
+    // TODO: Add powered_by
     error?: string;
 }
 
@@ -230,16 +218,29 @@ export interface ReadingTimeComplexityResponse {
 
 export interface QuestionGenerationResponse {
     questions?: string[];
+    // TODO: Add powered_by
     error?: string;
 }
 
 export interface QuestionAnsweringResponse {
     answer?: string;
+    // TODO: Add powered_by
     error?: string;
 }
 
 export interface GeographicExtractionResponse {
     locations?: string[];
+    // TODO: Add powered_by
+    error?: string;
+}
+
+export interface SocialMediaCaptionResponse {
+    caption?: string;
+    hashtags?: string[];
+    platform?: SocialMediaPlatform;
+    style?: SocialMediaCaptionStyle;
+    characterCount?: number;
+    powered_by?: string;
     error?: string;
 }
 
@@ -257,6 +258,7 @@ export interface CombinedAIResponse {
         reasoning: string;
     };
     locations?: string[];
+    // TODO: Add powered_by
     error?: string;
 }
 
@@ -352,6 +354,13 @@ export interface QuestionAnsweringParams {
 export interface GeographicExtractionParams {
     url?: string;
     content?: string;
+}
+
+export interface SocialMediaCaptionParams {
+    url?: string;
+    content?: string;
+    platform?: SocialMediaPlatform;
+    style?: SocialMediaCaptionStyle;
 }
 
 export interface CombinedAIParams {

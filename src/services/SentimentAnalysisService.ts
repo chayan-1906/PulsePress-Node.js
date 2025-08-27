@@ -3,7 +3,7 @@ import {genAI} from "./AIService";
 import {Article} from "../types/news";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
-import {SENTIMENT_ANALYSIS_MODELS} from "../utils/constants";
+import {AI_SENTIMENT_ANALYSIS_MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
 import {AISentiment, EnrichedArticleWithSentiment, SENTIMENT_TYPES, SentimentAnalysisParams, SentimentAnalysisResponse, SentimentResult} from "../types/ai";
 
@@ -22,9 +22,9 @@ class SentimentAnalysisService {
         // Truncate content to avoid token limits
         const truncatedContent = content.substring(0, 4000);
 
-        for (let i = 0; i < SENTIMENT_ANALYSIS_MODELS.length; i++) {
-            const model = SENTIMENT_ANALYSIS_MODELS[i];
-            console.log(`Trying sentiment analysis with model ${i + 1}/${SENTIMENT_ANALYSIS_MODELS.length}:`.cyan, model);
+        for (let i = 0; i < AI_SENTIMENT_ANALYSIS_MODELS.length; i++) {
+            const model = AI_SENTIMENT_ANALYSIS_MODELS[i];
+            console.log(`Trying sentiment analysis with model ${i + 1}/${AI_SENTIMENT_ANALYSIS_MODELS.length}:`.cyan, model);
 
             try {
                 let result: SentimentAnalysisResponse;

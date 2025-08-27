@@ -2,7 +2,7 @@ import "colors";
 import {genAI} from "./AIService";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
-import {AI_ENHANCEMENT_MODELS} from "../utils/constants";
+import {AI_KEY_POINTS_EXTRACTOR_MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
 import {AIKeyPoints, KeyPointsExtractionParams, KeyPointsExtractionResponse} from "../types/ai";
 
@@ -21,9 +21,9 @@ class KeyPointsExtractionService {
         // Truncate content to avoid token limits
         const truncatedContent = content.substring(0, 4000);
 
-        for (let i = 0; i < AI_ENHANCEMENT_MODELS.length; i++) {
-            const model = AI_ENHANCEMENT_MODELS[i];
-            console.log(`Trying key points extraction with model ${i + 1}/${AI_ENHANCEMENT_MODELS.length}:`.cyan, model);
+        for (let i = 0; i < AI_KEY_POINTS_EXTRACTOR_MODELS.length; i++) {
+            const model = AI_KEY_POINTS_EXTRACTOR_MODELS[i];
+            console.log(`Trying key points extraction with model ${i + 1}/${AI_KEY_POINTS_EXTRACTOR_MODELS.length}:`.cyan, model);
 
             try {
                 let result: KeyPointsExtractionResponse;
