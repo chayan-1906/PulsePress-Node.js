@@ -34,7 +34,7 @@ export type ImpactLevel = typeof IMPACT_LEVELS[number];
 export const STAKEHOLDER_TYPES = ['consumers', 'businesses', 'government', 'investors', 'workers', 'environment', 'technology'] as const;
 export type StakeholderType = typeof STAKEHOLDER_TYPES[number];
 
-export const AI_ARTICLE_ENHANCEMENT_TYPES = ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'geoExtraction'];
+export const AI_ARTICLE_ENHANCEMENT_TYPES = ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'geoExtraction', 'questions', 'newsInsights'];
 export type AIArticleEnhancement = typeof AI_ARTICLE_ENHANCEMENT_TYPES[number];
 
 export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
@@ -303,6 +303,21 @@ export interface CombinedAIResponse {
         reasoning: string;
     };
     locations?: string[];
+    questions?: string[];
+    newsInsights?: {
+        keyThemes: string[];
+        impactAssessment: {
+            level: ImpactLevel;
+            description: string;
+        };
+        contextConnections: string[];
+        stakeholderAnalysis: {
+            winners: string[];
+            losers: string[];
+            affected: string[];
+        };
+        timelineContext: string[];
+    };
     // TODO: Add powered_by
     error?: string;
 }
@@ -384,7 +399,9 @@ export interface ComplexityMeterParams {
 }
 
 export interface ReadingTimeComplexityParams {
-    article: Article;
+    // article: Article;
+    content?: string;
+    description?: string;
 }
 
 export interface QuestionGenerationParams {
@@ -416,6 +433,16 @@ export interface NewsInsightsParams {
 export interface CombinedAIParams {
     content: string;
     tasks: AIArticleEnhancement[];
+}
+
+export interface CombinedAIDetailsParams {
+    email?: string;
+    article: {
+        title?: string;
+        content?: string;
+        url?: string;
+        description?: string;
+    };
 }
 
 export interface GetProcessingStatusParams {

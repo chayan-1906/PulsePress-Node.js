@@ -20,7 +20,7 @@ import {
     GuardianArticle,
     GuardianResponse,
     GuardianSearchParams,
-    MultisourceFetchNewsParams,
+    FetchMultisourceNewsParams,
     NEWSORGEverythingParams,
     NEWSORGTopHeadlinesAPIResponse,
     NEWSORGTopHeadlinesParams,
@@ -809,7 +809,7 @@ class NewsService {
         return null;
     }
 
-    static async fetchMultiSourceNews({email, q, category, sources, pageSize = 10, page = 1}: MultisourceFetchNewsParams) {
+    static async fetchMultiSourceNews({email, q, category, sources, pageSize = 10, page = 1}: FetchMultisourceNewsParams) {
         console.log('Professional multisource news fetch:'.bgBlue.white.bold, {q, category, sources, pageSize, page});
 
         const topic = this.determineTopicFromQuery(q, category);
@@ -1172,7 +1172,7 @@ class NewsService {
         return results;
     }
 
-    private static async fetchMultiSourceNewsFast({email, q, category, sources, pageSize = 10, page = 1}: MultisourceFetchNewsParams) {
+    private static async fetchMultiSourceNewsFast({email, q, category, sources, pageSize = 10, page = 1}: FetchMultisourceNewsParams) {
         console.log('Fast multisource news fetch:'.bgBlue.white.bold, {q, category, sources, pageSize, page});
 
         const startTime = Date.now();
@@ -1375,7 +1375,7 @@ class NewsService {
         };
     }
 
-    static async fetchMultiSourceNewsEnhanced({email, q, category, sources, pageSize = 10, page = 1}: MultisourceFetchNewsParams) {
+    static async fetchMultiSourceNewsEnhanced({email, q, category, sources, pageSize = 10, page = 1}: FetchMultisourceNewsParams) {
         console.log('Enhanced multisource news fetch (Progressive):'.bgBlue.white.bold, {q, category, sources, pageSize, page});
 
         const startTime = Date.now();

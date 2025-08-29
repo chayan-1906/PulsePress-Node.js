@@ -322,13 +322,21 @@ export interface RSSFeedParams {
     page?: number;
 }
 
-export interface MultisourceFetchNewsParams {
+export interface FetchMultisourceNewsParams {
     email?: string;
     q?: string;
     category?: string;
     sources?: string;
     pageSize?: number;
     page?: number;
+}
+
+export interface FetchMultisourceNewsEnhancementStatusParams {
+    articleIds: string;
+}
+
+export interface FetchArticleDetailsEnhancementStatusParams {
+    articleId: string;
 }
 
 export interface ScrapeWebsiteParams {

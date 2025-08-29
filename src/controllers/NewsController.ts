@@ -4,14 +4,16 @@ import {isListEmpty} from "../utils/list";
 import {AuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
 import NewsService from "../services/NewsService";
+import ArticleEnhancementService from "../services/ArticleEnhancementService";
 import {COUNTRY_KEYWORDS, TOPIC_METADATA, TOPIC_QUERIES} from "../utils/constants";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
-import ArticleEnhancementService from "../services/ArticleEnhancementService";
 import {
     Country,
     ExploreTopicParams,
+    FetchArticleDetailsEnhancementStatusParams,
+    FetchMultisourceNewsEnhancementStatusParams,
+    FetchMultisourceNewsParams,
     GuardianSearchParams,
-    MultisourceFetchNewsParams,
     NEWSORGEverythingParams,
     NEWSORGTopHeadlinesParams,
     NYTimesSearchParams,
@@ -263,7 +265,7 @@ const fetchMultiSourceNewsController = async (req: Request, res: Response) => {
     console.info('fetchMultiSourceNewsController called'.bgMagenta.white.italic);
     try {
         const email = (req as AuthRequest).email;
-        const {q, category, sources, pageSize, page}: Partial<MultisourceFetchNewsParams> = req.query;
+        const {q, category, sources, pageSize, page}: Partial<FetchMultisourceNewsParams> = req.query;
 
         if (!q && !category && !sources) {
             res.status(400).send(new ApiResponse({
@@ -413,7 +415,7 @@ const fetchMultiSourceNewsEnhancedController = async (req: Request, res: Respons
     console.info('fetchMultiSourceNewsEnhancedController called'.bgMagenta.white.italic);
     try {
         const email = (req as AuthRequest).email;
-        const {q, category, sources, pageSize, page}: Partial<MultisourceFetchNewsParams> = req.query;
+        const {q, category, sources, pageSize, page}: Partial<FetchMultisourceNewsParams> = req.query;
 
         if (!q && !category && !sources) {
             res.status(400).send(new ApiResponse({
@@ -458,11 +460,11 @@ const fetchMultiSourceNewsEnhancedController = async (req: Request, res: Respons
     }
 }
 
-const fetchEnhancementStatusController = async (req: Request, res: Response) => {
+const fetchMultiSourceNewsEnhancementStatusController = async (req: Request, res: Response) => {
     console.info('fetchEnhancementStatusController called'.bgMagenta.white.italic);
     try {
         const email = (req as AuthRequest).email;
-        const {articleIds}: { articleIds?: string } = req.query;
+        const {articleIds}: Partial<FetchMultisourceNewsEnhancementStatusParams> = req.query;
 
         if (!articleIds) {
             res.status(400).send(new ApiResponse({
@@ -527,6 +529,156 @@ const fetchEnhancementStatusController = async (req: Request, res: Response) => 
     }
 }
 
+const fetchArticleDetailsEnhancedController = async (req: Request, res: Response) => {
+    console.info('fetchArticleDetailsEnhancedController called'.bgMagenta.white.italic);
+    try {
+        const email = (req as AuthRequest).email;
+        const {title, content, url, description} = req.body;
+
+        if (!title || !url) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('title_url'),
+                errorMsg: 'Both title and URL are required for article enhancement',
+            }));
+            return;
+        }
+
+        console.time('ARTICLE_DETAILS_ENHANCEMENT_TIME'.bgGreen.white.italic);
+        const enhancementResult = await ArticleEnhancementService.enhanceArticleForDetails({
+            email,
+            article: {title, content, url, description},
+        });
+        console.timeEnd('ARTICLE_DETAILS_ENHANCEMENT_TIME'.bgGreen.white.italic);
+
+        if (enhancementResult.error) {
+            if (enhancementResult.error === generateNotFoundCode('user')) {
+                console.error('User not found'.yellow.italic);
+                res.status(404).send(new ApiResponse({
+                    success: false,
+                    errorCode: generateNotFoundCode('user'),
+                    errorMsg: 'User not found',
+                }));
+                return;
+            }
+
+            if (enhancementResult.error === generateMissingCode('email')) {
+                console.error('Email is missing'.yellow.italic);
+                res.status(400).send(new ApiResponse({
+                    success: false,
+                    errorCode: generateMissingCode('email'),
+                    errorMsg: 'User authentication required',
+                }));
+                return;
+            }
+
+            if (enhancementResult.error === generateMissingCode('article_data')) {
+                console.error('Article data is incomplete'.yellow.italic);
+                res.status(400).send(new ApiResponse({
+                    success: false,
+                    errorCode: generateMissingCode('article_data'),
+                    errorMsg: 'Article title and URL are required',
+                }));
+                return;
+            }
+
+            console.error('Enhancement failed:'.yellow.italic, enhancementResult.error);
+            res.status(500).send(new ApiResponse({
+                success: false,
+                errorCode: 'ENHANCEMENT_FAILED',
+                errorMsg: 'Failed to enhance article',
+            }));
+            return;
+        }
+
+        const message = enhancementResult.status === 'complete'
+            ? 'Article enhancement completed! All AI insights are ready ✨'
+            : 'Article enhancement started! Processing AI insights in background 🚀';
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message,
+            article: enhancementResult.article,
+            status: enhancementResult.status,
+            articleId: enhancementResult.article?.articleId || enhancementResult.articleId,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of fetchArticleDetailsEnhancedController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: 'Something went wrong during article enhancement',
+        }));
+    }
+}
+
+const fetchArticleDetailsEnhancementStatusController = async (req: Request, res: Response) => {
+    console.info('fetchArticleDetailsEnhancementStatusController called'.bgMagenta.white.italic);
+    try {
+        const email = (req as AuthRequest).email;
+        const {articleId}: Partial<FetchArticleDetailsEnhancementStatusParams> = req.query;
+
+        if (!articleId) {
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('articleId'),
+                errorMsg: 'ArticleId parameter is required',
+            }));
+            return;
+        }
+
+        console.time('ARTICLE_DETAILS_ENHANCEMENT_STATUS_CHECK_TIME'.bgGreen.white.italic);
+        const statusResult = await ArticleEnhancementService.getEnhancementStatusByIds({
+            email,
+            articleIds: [articleId],
+        });
+        const {status, progress, articles, error} = statusResult;
+        console.timeEnd('ARTICLE_DETAILS_ENHANCEMENT_STATUS_CHECK_TIME'.bgGreen.white.italic);
+
+        if (error) {
+            if (error === generateNotFoundCode('user')) {
+                console.error('User not found'.yellow.italic);
+                res.status(404).send(new ApiResponse({
+                    success: false,
+                    errorCode: generateNotFoundCode('user'),
+                    errorMsg: 'User not found',
+                }));
+                return;
+            }
+
+            console.error('error in getEnhancementStatusByIds:'.yellow.italic, error);
+            res.status(404).send(new ApiResponse({
+                success: false,
+                errorCode: error,
+                errorMsg: 'Failed to fetch article enhancement status',
+            }));
+            return;
+        }
+
+        const article = articles && articles.length > 0 ? articles[0] : null;
+
+        const message = status === 'complete' && article
+            ? 'Article enhancement completed! All AI insights are ready ✨'
+            : `Article enhancement in progress: ${progress}% complete`;
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message,
+            article,
+            status,
+            progress,
+            articleId,
+        }));
+    } catch (error: any) {
+        console.error('ERROR: inside catch of fetchArticleDetailsEnhancementStatusController:'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: 'Something went wrong while checking enhancement status',
+        }));
+    }
+}
+
 export {
     fetchNEWSORGTopHeadlinesController,
     fetchNEWSORGEverythingController,
@@ -536,7 +688,9 @@ export {
     fetchAllRSSFeedsController,
     fetchMultiSourceNewsController,
     fetchMultiSourceNewsEnhancedController,
-    fetchEnhancementStatusController,
+    fetchMultiSourceNewsEnhancementStatusController,
     scrapeWebsiteController,
     exploreTopicController,
+    fetchArticleDetailsEnhancedController,
+    fetchArticleDetailsEnhancementStatusController,
 };

@@ -3,14 +3,17 @@ import {genAI} from "./AIService";
 import AuthService from "./AuthService";
 import {AI_PROMPTS} from "../utils/prompts";
 import StrikeService from "./StrikeService";
+import NewsInsightsService from "./NewsInsightsService";
 import {Article, EnhancementStatus} from "../types/news";
 import {AI_ENHANCEMENT_MODELS} from "../utils/constants";
+import QuestionAnswerService from "./QuestionAnswerService";
 import {generateArticleId} from "../utils/generateArticleId";
 import SentimentAnalysisService from "./SentimentAnalysisService";
 import ReadingTimeAnalysisService from "./ReadingTimeAnalysisService";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import ArticleEnhancementModel, {IArticleEnhancement} from "../models/ArticleEnhancementSchema";
 import {
+    CombinedAIDetailsParams,
     CombinedAIParams,
     CombinedAIResponse,
     EnhanceArticlesInBackgroundParams,
@@ -24,7 +27,30 @@ import {
 } from "../types/ai";
 
 class ArticleEnhancementService {
-    private static activeJobs = new Set<string>();
+    /**
+     * Clean up orphaned jobs that have been stuck in 'pending' status for too long
+     */
+    private static async cleanupOrphanedJobs(): Promise<void> {
+        try {
+            const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+            const result = await ArticleEnhancementModel.updateMany(
+                {
+                    processingStatus: 'pending',
+                    updatedAt: {$lt: tenMinutesAgo},
+                },
+                {
+                    processingStatus: 'failed',
+                    updatedAt: new Date(),
+                },
+            );
+
+            if (result.modifiedCount > 0) {
+                console.log(`🧹 Cleaned up ${result.modifiedCount} orphaned pending jobs`.yellow);
+            }
+        } catch (error: any) {
+            console.error('Failed to cleanup orphaned jobs:'.red, error.message);
+        }
+    }
 
     /**
      * Combined AI enhancement method - smart tags, sentiment analysis, key points extractor, complexity meter, geographic entity locations
@@ -168,6 +194,196 @@ class ArticleEnhancementService {
         return {error: 'AI_ENHANCEMENT_FAILED'};
     }
 
+    /**
+     * Enhanced method for article details screen - includes all AI enhancements plus questions and news insights
+     */
+    static async enhanceArticleForDetails({email, article}: CombinedAIDetailsParams) {
+        console.log('Enhanced article details processing started'.bgBlue.white.bold);
+
+        if (email) {
+            try {
+                const {user} = await AuthService.getUserByEmail({email});
+                const {isBlocked} = await StrikeService.checkUserBlock(email);
+                if (!user || isBlocked) {
+                    console.error('User not found or blocked - no AI enhancements'.yellow.italic);
+                    return {error: generateNotFoundCode('user')};
+                }
+            } catch (error: any) {
+                console.error('User verification failed, skipping enhancements'.red.bold);
+                return {error: generateNotFoundCode('user')};
+            }
+        } else {
+            console.log('No user email provided - no AI enhancements'.yellow.italic);
+            return {error: generateMissingCode('email')};
+        }
+
+        const articleId = generateArticleId({article});
+        const articleUrl = article.url;
+
+        if (!articleUrl || !article.title) {
+            return {error: generateMissingCode('article_data')};
+        }
+
+        await this.cleanupOrphanedJobs();
+
+        const existingPendingJob = await ArticleEnhancementModel.findOne({
+            articleId,
+            processingStatus: 'pending',
+        });
+
+        if (existingPendingJob) {
+            console.log(`Article ${articleId} is already being processed`.yellow);
+            return {status: 'processing', articleId};
+        }
+
+        const existingEnhancedArticle: IArticleEnhancement | null = await ArticleEnhancementModel.findOne({articleId});
+
+        if (existingEnhancedArticle && existingEnhancedArticle.processingStatus === 'completed') {
+            const needsDetailsEnhancements = !existingEnhancedArticle.questions || !existingEnhancedArticle.newsInsights;
+
+            if (!needsDetailsEnhancements) {
+                console.log(`Article ${articleId} already fully enhanced for details`.green);
+                const enhancedArticleData = {
+                    articleId,
+                    url: existingEnhancedArticle.url,
+                    tags: existingEnhancedArticle.tags,
+                    sentimentData: existingEnhancedArticle.sentiment,
+                    keyPoints: existingEnhancedArticle.keyPoints,
+                    complexityMeter: existingEnhancedArticle.complexityMeter,
+                    locations: existingEnhancedArticle.locations,
+                    questions: existingEnhancedArticle.questions,
+                    newsInsights: existingEnhancedArticle.newsInsights,
+                    complexity: existingEnhancedArticle.complexity,
+                    enhanced: true,
+                };
+                return {article: enhancedArticleData, status: 'complete'};
+            }
+        }
+
+        setTimeout(async () => {
+            try {
+                console.log(`Processing details enhancements for article: ${articleId}`.cyan);
+
+                await ArticleEnhancementModel.findOneAndUpdate(
+                    {articleId},
+                    {
+                        articleId,
+                        url: articleUrl,
+                        processingStatus: 'pending',
+                    },
+                    {upsert: true},
+                );
+
+                const content = article.content || article.description || article.title || '';
+                const complexity = ReadingTimeAnalysisService.calculateReadingTimeComplexity({content});
+
+                const aiResult: CombinedAIResponse = await this.aiEnhanceArticle({
+                    content,
+                    tasks: ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'geoExtraction'],
+                });
+
+                let questions = undefined;
+                let newsInsights = undefined;
+
+                // Generate questions for News Bot
+                try {
+                    const questionResult = await QuestionAnswerService.generateQuestions({content});
+                    if (!questionResult.error && questionResult.questions) {
+                        questions = questionResult.questions;
+                    }
+                } catch (error: any) {
+                    console.error('Failed to generate questions:'.red.bold, error.message);
+                }
+
+                // Generate news insights
+                try {
+                    const insightsResult = await NewsInsightsService.generateInsights({content});
+                    if (!insightsResult.error) {
+                        newsInsights = {
+                            keyThemes: insightsResult.keyThemes || [],
+                            impactAssessment: insightsResult.impactAssessment || {level: 'local', description: ''},
+                            contextConnections: insightsResult.contextConnections || [],
+                            stakeholderAnalysis: insightsResult.stakeholderAnalysis || {winners: [], losers: [], affected: []},
+                            timelineContext: insightsResult.timelineContext || [],
+                        };
+                    }
+                } catch (error: any) {
+                    console.error('Failed to generate news insights:'.red.bold, error.message);
+                }
+
+                let tags = undefined;
+                let sentimentData = undefined;
+                let keyPoints = undefined;
+                let complexityMeter = undefined;
+                let locations = undefined;
+
+                if (!aiResult.error) {
+                    tags = aiResult.tags;
+                    sentimentData = aiResult.sentiment;
+                    keyPoints = aiResult.keyPoints;
+                    complexityMeter = aiResult.complexityMeter;
+                    locations = aiResult.locations;
+                }
+
+                await ArticleEnhancementModel.findOneAndUpdate(
+                    {articleId},
+                    {
+                        tags,
+                        sentiment: sentimentData,
+                        keyPoints,
+                        complexityMeter,
+                        locations,
+                        questions,
+                        newsInsights,
+                        complexity,
+                        processingStatus: 'completed',
+                    }
+                );
+
+                console.log(`✅ Successfully enhanced article for details: ${articleId}`.green);
+            } catch (error: any) {
+                console.error(`Enhancement failed for article ${articleId}:`.red.bold, error.message);
+                await ArticleEnhancementModel.findOneAndUpdate(
+                    {articleId},
+                    {processingStatus: 'failed'},
+                ).catch((error: any) => {
+                    console.error('ERROR: couldn\'t update article enhancement in DB:'.red.bold, error);
+                });
+            }
+        }, 500);
+
+        if (existingEnhancedArticle) {
+            const enhancedArticleData = {
+                articleId,
+                url: existingEnhancedArticle.url,
+                title: article.title,
+                content: article.content,
+                description: article.description,
+                tags: existingEnhancedArticle.tags,
+                sentimentData: existingEnhancedArticle.sentiment,
+                keyPoints: existingEnhancedArticle.keyPoints,
+                complexityMeter: existingEnhancedArticle.complexityMeter,
+                locations: existingEnhancedArticle.locations,
+                questions: existingEnhancedArticle.questions,
+                newsInsights: existingEnhancedArticle.newsInsights,
+                complexity: existingEnhancedArticle.complexity,
+                enhanced: existingEnhancedArticle.processingStatus === 'completed',
+            };
+            return {article: enhancedArticleData, status: 'processing'};
+        }
+
+        const basicArticleData = {
+            articleId,
+            url: articleUrl,
+            title: article.title,
+            content: article.content,
+            description: article.description,
+            enhanced: false,
+        };
+
+        return {article: basicArticleData, status: 'processing'};
+    }
+
     /*static isBackgroundProcessingActive(articles: Article[]): boolean {
         const articleIds = articles.map(article => generateArticleId(article));
         return articleIds.some(id => this.activeJobs.has(id));
@@ -176,7 +392,12 @@ class ArticleEnhancementService {
     static async getProcessingStatus({articles}: GetProcessingStatusParams): Promise<GetProcessingStatusResponse> {
         const articleIds = articles.map((article: Article) => generateArticleId({article}));
 
-        const hasActiveJobs = articleIds.some((id: string) => this.activeJobs.has(id));
+        // Check for pending jobs in database
+        const pendingJobs = await ArticleEnhancementModel.find({
+            articleId: {$in: articleIds},
+            processingStatus: 'pending'
+        });
+        const hasActiveJobs = pendingJobs.length > 0;
 
         const enhancements: IArticleEnhancement[] = await ArticleEnhancementModel.find({
             articleId: {$in: articleIds},
@@ -215,8 +436,7 @@ class ArticleEnhancementService {
             return;
         }
 
-        const articleIds = articles.map((article: Article) => generateArticleId({article}));
-        articleIds.forEach((id: string) => this.activeJobs.add(id));
+        // Database will track processing status for each article
 
         setTimeout(async () => {
             for (const article of articles) {
@@ -245,7 +465,7 @@ class ArticleEnhancementService {
                     );
                     console.log(`Processing enhancements for article: ${articleId}`.cyan);
 
-                    const complexity = ReadingTimeAnalysisService.calculateReadingTimeComplexity({article});
+                    const complexity = ReadingTimeAnalysisService.calculateReadingTimeComplexity({content: article.content || '', description: article.description || ''});
 
                     const aiResult: CombinedAIResponse = await this.aiEnhanceArticle({
                         content: article.content || article.description || article.title || '',
@@ -313,7 +533,7 @@ class ArticleEnhancementService {
                 }
             }
 
-            articleIds.forEach((id: string) => this.activeJobs.delete(id));
+            // Database status already updated for all articles
             console.log('Background enhancement processing completed'.green.bold);
         }, 500);
     }
@@ -346,7 +566,15 @@ class ArticleEnhancementService {
                 }
             }
 
-            const hasActiveJobs = articleIds.some((id: string) => this.activeJobs.has(id));
+            // Clean up any orphaned jobs first
+            await this.cleanupOrphanedJobs();
+
+            // Check for pending jobs in database
+            const pendingJobs = await ArticleEnhancementModel.find({
+                articleId: {$in: articleIds},
+                processingStatus: 'pending'
+            });
+            const hasActiveJobs = pendingJobs.length > 0;
 
             const enhancements: IArticleEnhancement[] = await ArticleEnhancementModel.find({
                 articleId: {$in: articleIds},
@@ -360,7 +588,7 @@ class ArticleEnhancementService {
 
             const articles = enhancements
                 .filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'completed')
-                .map(({articleId, url, tags, sentiment, complexity, complexityMeter, keyPoints, locations}) => ({
+                .map(({articleId, url, tags, sentiment, complexity, complexityMeter, keyPoints, locations, questions, newsInsights}) => ({
                     articleId,
                     url,
                     tags,
@@ -369,6 +597,8 @@ class ArticleEnhancementService {
                     complexityMeter,
                     keyPoints,
                     locations,
+                    questions,
+                    newsInsights,
                     enhanced: true,
                 }));
 
@@ -397,6 +627,8 @@ class ArticleEnhancementService {
                     keyPoints: enhancement.keyPoints,
                     complexityMeter: enhancement.complexityMeter,
                     locations: enhancement.locations,
+                    questions: enhancement.questions,
+                    newsInsights: enhancement.newsInsights,
                     complexity: enhancement.complexity,
                     enhanced: true,
                 };

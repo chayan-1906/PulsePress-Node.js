@@ -1,5 +1,5 @@
 import {Document, model, Model, Schema} from 'mongoose';
-import {COMPLEXITY_LEVELS, ComplexityLevel, SentimentResult} from "../types/ai";
+import {COMPLEXITY_LEVELS, ComplexityLevel, SentimentResult, ImpactLevel, IMPACT_LEVELS} from "../types/ai";
 import {ARTICLE_COMPLEXITIES, ArticleComplexities, PROCESSING_STATUSES, ProcessingStatus} from "../types/news";
 
 export interface IArticleEnhancement extends Document {
@@ -23,6 +23,21 @@ export interface IArticleEnhancement extends Document {
         reasoning: string;
     };
     locations?: string[];
+    questions?: string[];
+    newsInsights?: {
+        keyThemes: string[];
+        impactAssessment: {
+            level: ImpactLevel;
+            description: string;
+        };
+        contextConnections: string[];
+        stakeholderAnalysis: {
+            winners: string[];
+            losers: string[];
+            affected: string[];
+        };
+        timelineContext: string[];
+    };
     processingStatus: ProcessingStatus;
     createdAt: Date;
     updatedAt: Date;
@@ -71,6 +86,38 @@ const ArticleEnhancementSchema = new Schema<IArticleEnhancement>({
     locations: [{
         type: String,
     }],
+    questions: [{
+        type: String,
+    }],
+    newsInsights: {
+        keyThemes: [{
+            type: String,
+        }],
+        impactAssessment: {
+            level: {
+                type: String,
+                enum: IMPACT_LEVELS,
+            },
+            description: String,
+        },
+        contextConnections: [{
+            type: String,
+        }],
+        stakeholderAnalysis: {
+            winners: [{
+                type: String,
+            }],
+            losers: [{
+                type: String,
+            }],
+            affected: [{
+                type: String,
+            }],
+        },
+        timelineContext: [{
+            type: String,
+        }],
+    },
     processingStatus: {
         type: String,
         default: 'pending',

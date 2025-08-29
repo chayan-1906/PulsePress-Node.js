@@ -5,8 +5,8 @@ class ReadingTimeAnalysisService {
     /**
      * Calculate reading time and complexity for an article
      */
-    static calculateReadingTimeComplexity({article}: ReadingTimeComplexityParams): ReadingTimeComplexityResponse {
-        const text = (article.content || article.description || '').toLowerCase();
+    static calculateReadingTimeComplexity({content, description}: ReadingTimeComplexityParams): ReadingTimeComplexityResponse {
+        const text = (content || description || '').toLowerCase();
         const words = text.split(/\s+/).filter(word => word.length > 0);
         const wordCount = words.length;
 
