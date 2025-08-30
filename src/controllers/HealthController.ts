@@ -1,12 +1,12 @@
 import "colors";
 import {Request, Response} from "express";
 import {ApiResponse} from "../utils/ApiResponse";
-import {checkDatabaseHealth, checkGeminiAIHealth, checkGoogleServicesHealth, checkNewsAPIHealth, checkOverallSystemHealth, checkRSSFeedsHealth} from "../services/HealthService";
+import HealthService from "../services/HealthService";
 
-const checkNewsAPIHealthController = async (req: Request, res: Response) => {
+const checkNewsAPIOrgHealthController = async (req: Request, res: Response) => {
     console.info('checkNewsAPIHealthController called'.bgMagenta.white.italic);
     try {
-        const healthCheck = await checkNewsAPIHealth();
+        const healthCheck = await HealthService.checkNewsAPIOrgHealth();
 
         if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
             res.status(200).send(new ApiResponse({
@@ -27,7 +27,7 @@ const checkNewsAPIHealthController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong while checking news api org health!',
         }));
     }
 }
@@ -35,8 +35,8 @@ const checkNewsAPIHealthController = async (req: Request, res: Response) => {
 const checkRSSFeedsHealthController = async (req: Request, res: Response) => {
     console.info('checkRSSFeedsHealthController called'.bgMagenta.white.italic);
     try {
-        const healthCheck = await checkRSSFeedsHealth();
-        console.log('DEBUG - healthCheck.status:', JSON.stringify(healthCheck.status), 'Type:', typeof healthCheck.status);
+        const healthCheck = await HealthService.checkRSSFeedsHealth();
+        console.debug('DEBUG - healthCheck.status:', JSON.stringify(healthCheck.status), 'Type:', typeof healthCheck.status);
 
         console.log('DEBUG - About to check condition');
         if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
@@ -61,7 +61,7 @@ const checkRSSFeedsHealthController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: 'Something went wrong while checking rss feeds health!',
         }));
     }
 }
@@ -69,7 +69,7 @@ const checkRSSFeedsHealthController = async (req: Request, res: Response) => {
 const checkGoogleServicesHealthController = async (req: Request, res: Response) => {
     console.info('checkGoogleServicesHealthController called'.bgMagenta.white.italic);
     try {
-        const healthCheck = await checkGoogleServicesHealth();
+        const healthCheck = await HealthService.checkGoogleServicesHealth();
 
         if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
             res.status(200).send(new ApiResponse({
@@ -90,7 +90,7 @@ const checkGoogleServicesHealthController = async (req: Request, res: Response) 
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: 'Something went wrong while checking google services health!',
         }));
     }
 }
@@ -98,7 +98,7 @@ const checkGoogleServicesHealthController = async (req: Request, res: Response) 
 const checkGeminiAIHealthController = async (req: Request, res: Response) => {
     console.info('checkGeminiAIHealthController called'.bgMagenta.white.italic);
     try {
-        const healthCheck = await checkGeminiAIHealth();
+        const healthCheck = await HealthService.checkGeminiAIHealth();
 
         if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
             res.status(200).send(new ApiResponse({
@@ -119,7 +119,7 @@ const checkGeminiAIHealthController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: 'Something went wrong while checking gemini ai\'s health!',
         }));
     }
 }
@@ -127,7 +127,7 @@ const checkGeminiAIHealthController = async (req: Request, res: Response) => {
 const checkDatabaseHealthController = async (req: Request, res: Response) => {
     console.info('checkDatabaseHealthController called'.bgMagenta.white.italic);
     try {
-        const healthCheck = await checkDatabaseHealth();
+        const healthCheck = await HealthService.checkDatabaseHealth();
 
         if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
             res.status(200).send(new ApiResponse({
@@ -148,7 +148,7 @@ const checkDatabaseHealthController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: 'Something went wrong while checking database health!',
         }));
     }
 }
@@ -156,7 +156,7 @@ const checkDatabaseHealthController = async (req: Request, res: Response) => {
 const checkOverallSystemHealthController = async (req: Request, res: Response) => {
     console.info('checkOverallSystemHealthController called'.bgMagenta.white.italic);
     try {
-        const healthCheck = await checkOverallSystemHealth();
+        const healthCheck = await HealthService.checkOverallSystemHealth();
 
         if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
             res.status(200).send(new ApiResponse({
@@ -177,16 +177,16 @@ const checkOverallSystemHealthController = async (req: Request, res: Response) =
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: 'Something went wrong while checking overall system health!',
         }));
     }
 }
 
 export {
-    checkNewsAPIHealthController,
+    checkNewsAPIOrgHealthController,
     checkRSSFeedsHealthController,
     checkGoogleServicesHealthController,
     checkGeminiAIHealthController,
     checkDatabaseHealthController,
-    checkOverallSystemHealthController
+    checkOverallSystemHealthController,
 };

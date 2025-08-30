@@ -3,14 +3,14 @@ import {
     checkDatabaseHealthController,
     checkGeminiAIHealthController,
     checkGoogleServicesHealthController,
-    checkNewsAPIHealthController,
+    checkNewsAPIOrgHealthController,
     checkOverallSystemHealthController,
     checkRSSFeedsHealthController
 } from "../controllers/HealthController";
 
 const router = Router();
 
-router.get('/news', checkNewsAPIHealthController);                  // /health/news
+router.get('/news', checkNewsAPIOrgHealthController);               // /health/news
 router.get('/rss', checkRSSFeedsHealthController);                  // /health/rss
 router.get('/google-service', checkGoogleServicesHealthController); // /health/google-service
 router.get('/ai', checkGeminiAIHealthController);                   // /health/ai
