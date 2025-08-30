@@ -437,12 +437,7 @@ export interface CombinedAIParams {
 
 export interface CombinedAIDetailsParams {
     email?: string;
-    article: {
-        title?: string;
-        content?: string;
-        url?: string;
-        description?: string;
-    };
+    url: string;
 }
 
 export interface GetProcessingStatusParams {

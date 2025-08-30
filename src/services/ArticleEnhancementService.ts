@@ -1,12 +1,11 @@
 import "colors";
 import {genAI} from "./AIService";
 import AuthService from "./AuthService";
+import NewsService from "./NewsService";
 import {AI_PROMPTS} from "../utils/prompts";
 import StrikeService from "./StrikeService";
-import NewsInsightsService from "./NewsInsightsService";
 import {Article, EnhancementStatus} from "../types/news";
 import {AI_ENHANCEMENT_MODELS} from "../utils/constants";
-import QuestionAnswerService from "./QuestionAnswerService";
 import {generateArticleId} from "../utils/generateArticleId";
 import SentimentAnalysisService from "./SentimentAnalysisService";
 import ReadingTimeAnalysisService from "./ReadingTimeAnalysisService";
@@ -96,6 +95,14 @@ class ArticleEnhancementService {
                     prompt += `GEOGRAPHIC EXTRACTION:\n${AI_PROMPTS.GEOGRAPHIC_EXTRACTION()}\n\n`;
                 }
 
+                if (tasks.includes('questions')) {
+                    prompt += `QUESTION GENERATION:\n${AI_PROMPTS.QUESTION_GENERATION(truncatedContent)}\n\n`;
+                }
+
+                if (tasks.includes('newsInsights')) {
+                    prompt += `NEWS INSIGHTS ANALYSIS:\n${AI_PROMPTS.NEWS_INSIGHTS_ANALYSIS(truncatedContent)}\n\n`;
+                }
+
                 prompt += `Article content: "${truncatedContent}"\n\n`;
                 prompt += `${AI_PROMPTS.JSON_FORMAT_INSTRUCTIONS}\n\n`;
                 prompt += `Return exactly this format:\n{\n`;
@@ -113,7 +120,19 @@ class ArticleEnhancementService {
                     prompt += `  "complexityMeter": {"level": "medium", "reasoning": "Contains technical terms but accessible language"},\n`;
                 }
                 if (tasks.includes('geoExtraction')) {
-                    prompt += `  "locations": ["New York City", "California", "United States"]\n`;
+                    prompt += `  "locations": ["New York City", "California", "United States"],\n`;
+                }
+                if (tasks.includes('questions')) {
+                    prompt += `  "questions": ["What happens next?", "How will this affect people?", "Why is this important?"],\n`;
+                }
+                if (tasks.includes('newsInsights')) {
+                    prompt += `  "newsInsights": {
+                        "keyThemes": ["Economic Impact", "Social Change"],
+                        "impactAssessment": {"level": "national", "description": "This will affect the entire country"},
+                        "contextConnections": ["Related to previous policy", "Similar to 2020 event"],
+                        "stakeholderAnalysis": {"winners": ["Tech companies"], "losers": ["Traditional media"], "affected": ["General public"]},
+                        "timelineContext": ["This follows last month's announcement"]
+                      }\n`;
                 }
 
                 prompt += `}`;
@@ -178,6 +197,23 @@ class ArticleEnhancementService {
                     }
                 }
 
+                if (tasks.includes('questions') && parsed.questions && Array.isArray(parsed.questions)) {
+                    const validQuestions = parsed.questions.filter(question => question && question.trim().length > 0);
+                    if (validQuestions.length > 0) {
+                        response.questions = validQuestions;
+                    }
+                }
+
+                if (tasks.includes('newsInsights') && parsed.newsInsights) {
+                    response.newsInsights = {
+                        keyThemes: Array.isArray(parsed.newsInsights.keyThemes) ? parsed.newsInsights.keyThemes : [],
+                        impactAssessment: parsed.newsInsights.impactAssessment || {level: 'local', description: ''},
+                        contextConnections: Array.isArray(parsed.newsInsights.contextConnections) ? parsed.newsInsights.contextConnections : [],
+                        stakeholderAnalysis: parsed.newsInsights.stakeholderAnalysis || {winners: [], losers: [], affected: []},
+                        timelineContext: Array.isArray(parsed.newsInsights.timelineContext) ? parsed.newsInsights.timelineContext : [],
+                    };
+                }
+
                 console.log(`✅ AI enhancement successful with model:`.green, modelName);
                 console.log('Combined AI enhancement result:'.green, response);
                 return response;
@@ -197,7 +233,7 @@ class ArticleEnhancementService {
     /**
      * Enhanced method for article details screen - includes all AI enhancements plus questions and news insights
      */
-    static async enhanceArticleForDetails({email, article}: CombinedAIDetailsParams) {
+    static async enhanceArticleForDetails({email, url}: CombinedAIDetailsParams) {
         console.log('Enhanced article details processing started'.bgBlue.white.bold);
 
         if (email) {
@@ -212,17 +248,29 @@ class ArticleEnhancementService {
                 console.error('User verification failed, skipping enhancements'.red.bold);
                 return {error: generateNotFoundCode('user')};
             }
-        } else {
+        }
+        // TODO: Probably need to remove the else
+        else {
             console.log('No user email provided - no AI enhancements'.yellow.italic);
             return {error: generateMissingCode('email')};
         }
 
-        const articleId = generateArticleId({article});
-        const articleUrl = article.url;
-
-        if (!articleUrl || !article.title) {
-            return {error: generateMissingCode('article_data')};
+        if (!url || !url.trim()) {
+            return {error: generateMissingCode('url')};
         }
+
+        const articleId = generateArticleId({article: {url}});
+
+        console.log('Scraping article content:'.cyan.italic, url);
+        const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
+
+        if (!scrapedArticles || scrapedArticles.length === 0 || scrapedArticles[0].error) {
+            console.error('Failed to scrape article:'.red.bold, scrapedArticles?.[0]?.error);
+            return {error: 'SCRAPING_FAILED'};
+        }
+
+        const {url: articleUrl, title, content} = scrapedArticles[0];
+        const article = {url: articleUrl, title, content};
 
         await this.cleanupOrphanedJobs();
 
@@ -240,22 +288,11 @@ class ArticleEnhancementService {
 
         if (existingEnhancedArticle && existingEnhancedArticle.processingStatus === 'completed') {
             const needsDetailsEnhancements = !existingEnhancedArticle.questions || !existingEnhancedArticle.newsInsights;
+            const {url, tags, sentiment: sentimentData, keyPoints, complexityMeter, locations, questions, newsInsights, complexity} = existingEnhancedArticle;
 
             if (!needsDetailsEnhancements) {
                 console.log(`Article ${articleId} already fully enhanced for details`.green);
-                const enhancedArticleData = {
-                    articleId,
-                    url: existingEnhancedArticle.url,
-                    tags: existingEnhancedArticle.tags,
-                    sentimentData: existingEnhancedArticle.sentiment,
-                    keyPoints: existingEnhancedArticle.keyPoints,
-                    complexityMeter: existingEnhancedArticle.complexityMeter,
-                    locations: existingEnhancedArticle.locations,
-                    questions: existingEnhancedArticle.questions,
-                    newsInsights: existingEnhancedArticle.newsInsights,
-                    complexity: existingEnhancedArticle.complexity,
-                    enhanced: true,
-                };
+                const enhancedArticleData = {articleId, url, tags, sentimentData, keyPoints, complexityMeter, locations, questions, newsInsights, complexity, enhanced: true};
                 return {article: enhancedArticleData, status: 'complete'};
             }
         }
@@ -266,56 +303,25 @@ class ArticleEnhancementService {
 
                 await ArticleEnhancementModel.findOneAndUpdate(
                     {articleId},
-                    {
-                        articleId,
-                        url: articleUrl,
-                        processingStatus: 'pending',
-                    },
+                    {articleId, url, processingStatus: 'pending'},
                     {upsert: true},
                 );
 
-                const content = article.content || article.description || article.title || '';
+                const content = article.content || article.title || '';
                 const complexity = ReadingTimeAnalysisService.calculateReadingTimeComplexity({content});
 
                 const aiResult: CombinedAIResponse = await this.aiEnhanceArticle({
                     content,
-                    tasks: ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'geoExtraction'],
+                    tasks: ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'geoExtraction', 'questions', 'newsInsights'],
                 });
-
-                let questions = undefined;
-                let newsInsights = undefined;
-
-                // Generate questions for News Bot
-                try {
-                    const questionResult = await QuestionAnswerService.generateQuestions({content});
-                    if (!questionResult.error && questionResult.questions) {
-                        questions = questionResult.questions;
-                    }
-                } catch (error: any) {
-                    console.error('Failed to generate questions:'.red.bold, error.message);
-                }
-
-                // Generate news insights
-                try {
-                    const insightsResult = await NewsInsightsService.generateInsights({content});
-                    if (!insightsResult.error) {
-                        newsInsights = {
-                            keyThemes: insightsResult.keyThemes || [],
-                            impactAssessment: insightsResult.impactAssessment || {level: 'local', description: ''},
-                            contextConnections: insightsResult.contextConnections || [],
-                            stakeholderAnalysis: insightsResult.stakeholderAnalysis || {winners: [], losers: [], affected: []},
-                            timelineContext: insightsResult.timelineContext || [],
-                        };
-                    }
-                } catch (error: any) {
-                    console.error('Failed to generate news insights:'.red.bold, error.message);
-                }
 
                 let tags = undefined;
                 let sentimentData = undefined;
                 let keyPoints = undefined;
                 let complexityMeter = undefined;
                 let locations = undefined;
+                let questions = undefined;
+                let newsInsights = undefined;
 
                 if (!aiResult.error) {
                     tags = aiResult.tags;
@@ -323,6 +329,8 @@ class ArticleEnhancementService {
                     keyPoints = aiResult.keyPoints;
                     complexityMeter = aiResult.complexityMeter;
                     locations = aiResult.locations;
+                    questions = aiResult.questions;
+                    newsInsights = aiResult.newsInsights;
                 }
 
                 await ArticleEnhancementModel.findOneAndUpdate(
@@ -358,7 +366,6 @@ class ArticleEnhancementService {
                 url: existingEnhancedArticle.url,
                 title: article.title,
                 content: article.content,
-                description: article.description,
                 tags: existingEnhancedArticle.tags,
                 sentimentData: existingEnhancedArticle.sentiment,
                 keyPoints: existingEnhancedArticle.keyPoints,
@@ -374,10 +381,9 @@ class ArticleEnhancementService {
 
         const basicArticleData = {
             articleId,
-            url: articleUrl,
+            url,
             title: article.title,
             content: article.content,
-            description: article.description,
             enhanced: false,
         };
 
@@ -565,14 +571,17 @@ class ArticleEnhancementService {
                     return {error: generateNotFoundCode('user')};
                 }
             }
+            // TODO: Probably need to remove the else, with fetchMultiSourceNewsEnhancementStatusController() 503, fetchArticleDetailsEnhancedController() 572
+            else {
+                console.log('No user email provided - no AI enhancements'.yellow.italic);
+                return {error: generateMissingCode('email')};
+            }
 
-            // Clean up any orphaned jobs first
             await this.cleanupOrphanedJobs();
 
-            // Check for pending jobs in database
             const pendingJobs = await ArticleEnhancementModel.find({
                 articleId: {$in: articleIds},
-                processingStatus: 'pending'
+                processingStatus: 'pending',
             });
             const hasActiveJobs = pendingJobs.length > 0;
 
