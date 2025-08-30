@@ -376,7 +376,7 @@ class NewsService {
             .trim();
     }
 
-    static async fetchNEWSORGTopHeadlines({country, category, sources, q, pageSize = 10, page = 1}: NEWSORGTopHeadlinesParams) {
+    static async fetchNewsAPIOrgTopHeadlines({country, category, sources, q, pageSize = 10, page = 1}: NEWSORGTopHeadlinesParams) {
         try {
             let processedQuery = q;
 
@@ -424,7 +424,7 @@ class NewsService {
         }
     }
 
-    static async fetchNEWSORGEverything({sources, from, to, sortBy, language, q, pageSize = 10, page = 1}: NEWSORGEverythingParams) {
+    static async fetchNewsAPIOrgEverything({sources, from, to, sortBy, language, q, pageSize = 10, page = 1}: NEWSORGEverythingParams) {
         try {
             let processedQuery = q;
 
@@ -833,7 +833,7 @@ class NewsService {
                 console.log(`Trying NewsAPIOrg with smart query variations (target: ${newsApiTargetCount} articles)...`.cyan.italic);
 
                 const newsApiResult = await this.smartFetchWithVariations(
-                    this.fetchNEWSORGEverything,
+                    this.fetchNewsAPIOrgEverything,
                     simplifiedQuery,
                     {language: 'en', sortBy: 'relevancy', pageSize: newsApiTargetCount * 3, page},
                     Math.max(2, Math.ceil(newsApiTargetCount / 2)),
@@ -850,7 +850,7 @@ class NewsService {
                 } else {
                     console.log('NewsAPIOrg smart fetch returned no quality articles'.yellow.italic);
 
-                    const fallbackResult = await this.fetchNEWSORGTopHeadlines({
+                    const fallbackResult = await this.fetchNewsAPIOrgTopHeadlines({
                         country: 'us',
                         category: topic !== 'general' ? topic : undefined,
                         sources: optimizedSources,
@@ -865,7 +865,7 @@ class NewsService {
                     }
                 }
             } else if (!simplifiedQuery) {
-                const headlinesResult = await this.fetchNEWSORGTopHeadlines({
+                const headlinesResult = await this.fetchNewsAPIOrgTopHeadlines({
                     country: 'us',
                     category: topic !== 'general' ? topic : undefined,
                     sources: optimizedSources,
@@ -1195,7 +1195,7 @@ class NewsService {
         if (newsApiRequestCount < Number.parseInt(NEWSAPI_QUOTA_REQUESTS!)) {
             if (simplifiedQuery) {
                 apiPromises.push(
-                    this.fetchNEWSORGEverything({
+                    this.fetchNewsAPIOrgEverything({
                         q: simplifiedQuery,
                         language: 'en',
                         sortBy: 'relevancy',
@@ -1206,7 +1206,7 @@ class NewsService {
                 );
             } else {
                 apiPromises.push(
-                    this.fetchNEWSORGTopHeadlines({
+                    this.fetchNewsAPIOrgTopHeadlines({
                         country: 'us',
                         category: topic !== 'general' ? topic : undefined,
                         sources: optimizedSources,

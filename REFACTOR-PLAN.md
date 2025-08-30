@@ -5,7 +5,7 @@
 **Status:** ✅ **COMPLETE - No changes needed**
 
 Your function names are already consistent and descriptive:
-- `fetchNEWSORGTopHeadlinesController` ✓
+- `fetchNewsAPIOrgTopHeadlinesController` ✓
 - `fetchGuardianNewsController` ✓  
 - `registerUserController` ✓
 
@@ -98,7 +98,7 @@ res.status(500).send(new ApiResponse({
 ```
 
 **Occurrences:** Found in 15+ controller methods like:
-- `fetchNEWSORGTopHeadlinesController`
+- `fetchNewsAPIOrgTopHeadlinesController`
 - `registerUserController`
 - `toggleBookmarkController`
 
@@ -128,7 +128,7 @@ res.status(500).send(new ApiResponse({
 ```typescript
 // ❌ Mixed naming patterns in services
 class NewsService {
-    static async fetchNEWSORGTopHeadlines() // ❌ Contains acronym
+    static async fetchNewsAPIOrgTopHeadlines() // ❌ Contains acronym
     static async fetchNYTimesNews()         // ❌ Contains acronym  
     static async fetchGuardianNews()        // ✅ Good
 }

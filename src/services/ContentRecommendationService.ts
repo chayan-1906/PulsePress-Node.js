@@ -108,7 +108,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
             const primaryCategory = preferences.preferredCategories[0];
 
             // NewsAPI
-            newsPromises.push(NewsService.fetchNEWSORGTopHeadlines({
+            newsPromises.push(NewsService.fetchNewsAPIOrgTopHeadlines({
                 category: primaryCategory,
                 pageSize: categoryFetchSize,
             }));
