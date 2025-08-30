@@ -1,9 +1,9 @@
 import "colors";
-import {genAI} from "./AIService";
+import AIService from "./AIService";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
-import {AI_KEY_POINTS_EXTRACTOR_MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
+import {AI_KEY_POINTS_EXTRACTOR_MODELS} from "../utils/constants";
 import {AIKeyPoints, KeyPointsExtractionParams, KeyPointsExtractionResponse} from "../types/ai";
 
 class KeyPointsExtractionService {
@@ -54,7 +54,7 @@ class KeyPointsExtractionService {
             return {error: generateMissingCode('gemini_api_key')};
         }
 
-        const model = genAI.getGenerativeModel({model: modelName});
+        const model = AIService.genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.KEY_POINTS_EXTRACTION(content);
 

@@ -1,5 +1,5 @@
 import "colors";
-import {genAI} from "./AIService";
+import AIService from "./AIService";
 import AuthService from "./AuthService";
 import {AI_PROMPTS} from "../utils/prompts";
 import StrikeService from "./StrikeService";
@@ -45,7 +45,7 @@ class ArticleEnhancementService {
             console.log(`Trying AI enhancement with model ${i + 1}/${AI_ENHANCEMENT_MODELS.length}:`.cyan, modelName);
 
             try {
-                const model = genAI.getGenerativeModel({model: modelName});
+                const model = AIService.genAI.getGenerativeModel({model: modelName});
 
                 // Build dynamic prompt based on requested tasks using the same prompt functions
                 let prompt = `Analyze this news article and provide the following information:\n\n`;

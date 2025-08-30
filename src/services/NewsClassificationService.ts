@@ -1,6 +1,6 @@
 import "colors";
 import axios from "axios";
-import {genAI} from "./AIService";
+import AIService from "./AIService";
 import {AI_PROMPTS} from "../utils/prompts";
 import {buildHeader} from "../utils/buildHeader";
 import {AI_SUMMARIZATION_MODELS} from "../utils/constants";
@@ -110,7 +110,7 @@ class NewsClassificationService {
         // Truncate text for Gemini
         const truncatedText = text.substring(0, 4000);
 
-        const model = genAI.getGenerativeModel({model: AI_SUMMARIZATION_MODELS[0]});
+        const model = AIService.genAI.getGenerativeModel({model: AI_SUMMARIZATION_MODELS[0]});
 
         const prompt = AI_PROMPTS.NEWS_CLASSIFICATION(truncatedText);
 

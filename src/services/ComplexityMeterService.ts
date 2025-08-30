@@ -1,5 +1,5 @@
 import "colors";
-import {genAI} from "./AIService";
+import AIService from "./AIService";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {AI_COMPLEXITY_METER__MODELS} from "../utils/constants";
@@ -54,7 +54,7 @@ class ComplexityMeterService {
             return {error: generateMissingCode('gemini_api_key')};
         }
 
-        const model = genAI.getGenerativeModel({model: modelName});
+        const model = AIService.genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.COMPLEXITY_METER(content);
 

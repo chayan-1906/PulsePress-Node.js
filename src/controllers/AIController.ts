@@ -2,11 +2,11 @@ import "colors";
 import {Request, Response} from "express";
 import {AuthRequest} from "../types/auth";
 import {isListEmpty} from "../utils/list";
+import AIService from "../services/AIService";
 import NewsService from "../services/NewsService";
 import {ApiResponse} from "../utils/ApiResponse";
 import AuthService from "../services/AuthService";
 import StrikeService from "../services/StrikeService";
-import {summarizeArticle} from "../services/AIService";
 import NewsInsightsService from "../services/NewsInsightsService";
 import TagGenerationService from "../services/TagGenerationService";
 import QuestionAnswerService from "../services/QuestionAnswerService";
@@ -212,7 +212,7 @@ const summarizeArticleController = async (req: Request, res: Response) => {
             console.log('News content verified, proceeding with summarization...'.green.italic);
         }
 
-        const {summary, powered_by, error} = await summarizeArticle({email, content: articleContent, language, style});
+        const {summary, powered_by, error} = await AIService.summarizeArticle({email, content: articleContent, language, style});
 
         if (error === generateMissingCode('email')) {
             console.error('Email is missing'.yellow.italic);

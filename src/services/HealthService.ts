@@ -3,14 +3,14 @@ import axios from "axios";
 import mongoose from "mongoose";
 import {Translate} from "@google-cloud/translate/build/src/v2";
 import {apis} from "../utils/apis";
+import AIService from "./AIService";
 import {parseRSS} from "../utils/parseRSS";
-import {AI_MODEL, genAI} from "./AIService";
-import {RSS_SOURCES} from "../utils/constants";
 import {getOAuth2Client} from "../utils/OAuth";
 import {buildHeader} from "../utils/buildHeader";
 import {HealthCheckResponse} from "../types/health-check";
 import {GOOGLE_TRANSLATE_API_KEY} from "../config/config";
 import {getDatabaseHealth} from "../utils/databaseHealth";
+import {AI_SUMMARIZATION_MODELS, RSS_SOURCES} from "../utils/constants";
 
 const checkNewsAPIHealth = async (): Promise<HealthCheckResponse> => {
     console.info('checkNewsAPIHealth called:'.bgMagenta.white.italic);
@@ -103,7 +103,7 @@ const checkGeminiAIHealth = async (): Promise<HealthCheckResponse> => {
 
     try {
         const start = Date.now();
-        const model = genAI.getGenerativeModel({model: AI_MODEL});
+        const model = AIService.genAI.getGenerativeModel({model: AI_SUMMARIZATION_MODELS[0]});
         await model.generateContent('test');
         return {status: 'healthy', responseTime: `${Date.now() - start}ms`};
     } catch (error: any) {

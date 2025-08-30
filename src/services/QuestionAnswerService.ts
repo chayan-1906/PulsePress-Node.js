@@ -1,6 +1,6 @@
 import "colors";
 import crypto from "crypto";
-import {genAI} from "./AIService";
+import AIService from "./AIService";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY, NODE_ENV} from "../config/config";
 import {QUESTION_ANSWER_MODELS} from "../utils/constants";
@@ -138,7 +138,7 @@ class QuestionAnswerService {
             return {error: generateMissingCode('gemini_api_key')};
         }
 
-        const model = genAI.getGenerativeModel({model: modelName});
+        const model = AIService.genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.QUESTION_GENERATION(content);
 
@@ -188,7 +188,7 @@ class QuestionAnswerService {
             return {error: generateMissingCode('gemini_api_key')};
         }
 
-        const model = genAI.getGenerativeModel({model: modelName});
+        const model = AIService.genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.QUESTION_ANSWERING(content, question);
 

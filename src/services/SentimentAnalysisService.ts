@@ -1,10 +1,10 @@
 import "colors";
-import {genAI} from "./AIService";
+import AIService from "./AIService";
 import {Article} from "../types/news";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
-import {AI_SENTIMENT_ANALYSIS_MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
+import {AI_SENTIMENT_ANALYSIS_MODELS} from "../utils/constants";
 import {AISentiment, EnrichedArticleWithSentiment, SENTIMENT_TYPES, SentimentAnalysisParams, SentimentAnalysisResponse, SentimentResult} from "../types/ai";
 
 class SentimentAnalysisService {
@@ -56,7 +56,7 @@ class SentimentAnalysisService {
             return {error: generateMissingCode('gemini_api_key')};
         }
 
-        const model = genAI.getGenerativeModel({model: modelName});
+        const model = AIService.genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.SENTIMENT_ANALYSIS(content);
 

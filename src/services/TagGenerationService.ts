@@ -1,5 +1,5 @@
 import "colors";
-import {genAI} from "./AIService";
+import AIService from "./AIService";
 import NewsService from "./NewsService";
 import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
@@ -72,7 +72,7 @@ class TagGenerationService {
      * Generate tags using Gemini AI
      */
     private static async generateWithGemini(modelName: string, content: string): Promise<TagGenerationResponse> {
-        const model = genAI.getGenerativeModel({model: modelName});
+        const model = AIService.genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.TAG_GENERATION(content);
 
