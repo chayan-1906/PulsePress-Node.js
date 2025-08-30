@@ -417,6 +417,19 @@ const COUNTRY_KEYWORDS = {
     japan: 'Japan Japanese Tokyo',
 } as const;
 
+export const API_CONFIG = {
+    NEWS_API: {
+        RESULT_MULTIPLIER: 3,
+        DEFAULT_PAGE_SIZE: 10,
+        MAX_CONTENT_LENGTH: 4000,
+    },
+    SEARCH: {
+        FUSE_THRESHOLD: 0.4,
+        MIN_QUERY_LENGTH: 3,
+        CACHE_TTL_MS: 300000,
+    },
+};
+
 export {
     RSS_SOURCES,
     USER_AGENTS,

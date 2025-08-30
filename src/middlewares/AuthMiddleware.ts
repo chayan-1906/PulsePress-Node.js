@@ -1,18 +1,28 @@
 import jwt, {JwtPayload} from 'jsonwebtoken';
 import {NextFunction, Request, Response} from "express";
 import {AuthRequest} from "../types/auth";
+import {ApiResponse} from "../utils/ApiResponse";
 import {ACCESS_TOKEN_SECRET} from "../config/config";
+import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
 
 const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) {
-        res.status(401).json({error: 'No token provided'});
+        res.status(401).send(new ApiResponse({
+            success: false,
+            errorCode: generateMissingCode('auth_token'),
+            errorMsg: 'No token provided',
+        }));
         return;
     }
 
     jwt.verify(token, ACCESS_TOKEN_SECRET!, (error, decoded) => {
         if (error) {
-            res.status(403).json({error: 'Invalid or expired token'});
+            res.status(401).send(new ApiResponse({
+                success: false,
+                errorCode: generateInvalidCode('auth_token'),
+                errorMsg: 'Invalid or expired token',
+            }));
             return;
         }
 
