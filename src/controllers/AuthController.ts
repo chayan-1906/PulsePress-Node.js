@@ -5,7 +5,7 @@ import {ApiResponse} from "../utils/ApiResponse";
 import AuthService from "../services/AuthService";
 import {verifyTokenErrorHTML} from "../templates/verifyTokenErrorHTML";
 import {verifyTokenSuccessHTML} from "../templates/verifyTokenSuccessHTML";
-import {checkAuthStatus, generateMagicLink, verifyMagicLink} from "../services/MagicLinkService";
+import MagicLinkService from "../services/MagicLinkService";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {
     AuthRequest,
@@ -397,7 +397,7 @@ const generateMagicLinkController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {success, message} = await generateMagicLink({email});
+        const {success, message} = await MagicLinkService.generateMagicLink({email});
         console.log('magic link:'.cyan.italic, message);
         res.status(200).send(new ApiResponse({
             success,
@@ -424,7 +424,7 @@ const verifyMagicLinkController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {user, accessToken, refreshToken, error} = await verifyMagicLink({token});
+        const {user, accessToken, refreshToken, error} = await MagicLinkService.verifyMagicLink({token});
         if (error === 'CREATE_USER_PREFERENCE_FAILED') {
             console.error('Failed to create user preference while creating user'.yellow.italic, error);
             res.status(400).send(new ApiResponse({
@@ -463,7 +463,7 @@ const checkAuthStatusController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {authenticated, user, accessToken, refreshToken, error} = await checkAuthStatus({email});
+        const {authenticated, user, accessToken, refreshToken, error} = await MagicLinkService.checkAuthStatus({email});
         if (error === generateNotFoundCode('user')) {
             console.error('User not found'.yellow.italic);
             res.status(404).send(new ApiResponse({
