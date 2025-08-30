@@ -11,6 +11,8 @@ import {NODE_ENV, RECOMMENDATION_CACHE_DURATION} from "../config/config";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {GetContentRecommendationsParams, GetContentRecommendationsResponse, RecommendedArticle} from "../types/content-recommendation";
 
+// TODO: Convert this to class-based
+
 const RECOMMENDATION_CACHE = new Map<string, { data: GetContentRecommendationsResponse, timestamp: number }>();
 
 const CATEGORY_MAPPING: { [key: string]: { guardian?: string, nytimes?: string } } = {

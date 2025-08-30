@@ -3,8 +3,8 @@ import {Request, Response} from "express";
 import {AuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
 import {GetUserStrikeHistoryParams} from "../types/ai";
+import UserStrikeService from "../services/UserStrikeService";
 import {generateNotFoundCode} from "../utils/generateErrorCodes";
-import {getUserStrikeHistory, getUserStrikeStatus} from "../services/UserStrikeService";
 
 const getUserStrikeStatusController = async (req: Request, res: Response) => {
     console.info('getUserStrikeStatusController called'.bgMagenta.white.italic);
@@ -12,7 +12,7 @@ const getUserStrikeStatusController = async (req: Request, res: Response) => {
     try {
         const email = (req as AuthRequest).email;
 
-        const {strikeStatus, error} = await getUserStrikeStatus({email});
+        const {strikeStatus, error} = await UserStrikeService.getUserStrikeStatus({email});
         if (error === 'USER_NOT_FOUND') {
             console.error('User not found'.yellow.italic);
             res.status(404).send(new ApiResponse({
@@ -44,7 +44,7 @@ const getUserStrikeStatusController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong while getting user strike status!',
         }));
     }
 }
@@ -61,7 +61,7 @@ const getUserStrikeHistoryController = async (req: Request, res: Response) => {
             limitNumber = Number(limit);
         }
 
-        const {strikeHistory, totalStrikes, error} = await getUserStrikeHistory({email, limit: limitNumber});
+        const {strikeHistory, totalStrikes, error} = await UserStrikeService.getUserStrikeHistory({email, limit: limitNumber});
         if (error === 'USER_NOT_FOUND') {
             console.error('User not found'.yellow.italic);
             res.status(404).send(new ApiResponse({
@@ -94,7 +94,7 @@ const getUserStrikeHistoryController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong while getting user strike history!',
         }));
     }
 }
