@@ -28,7 +28,7 @@ const getSourceAnalyticsController = async (req: Request, res: Response) => {
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Source analytics fetched successfully 🎉',
+            message: 'Source analytics has been fetched successfully 🎉',
             sourceAnalytics,
             totalSources,
         }));
@@ -69,7 +69,7 @@ const getTopPerformingSourcesController = async (req: Request, res: Response) =>
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Top performing sources fetched successfully 🎉',
+            message: 'Top performing sources have been fetched successfully 🎉',
             topSources,
             totalSources,
         }));

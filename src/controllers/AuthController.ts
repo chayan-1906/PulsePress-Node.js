@@ -90,7 +90,7 @@ const registerUserController = async (req: Request, res: Response) => {
             return;
         }
         if (error === 'CREATE_USER_PREFERENCE_FAILED') {
-            console.error('Failed to create user preference while creating user'.yellow.italic, error);
+            console.error('Failed to create user preference during user creation'.yellow.italic, error);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: 'CREATE_USER_PREFERENCE_FAILED',
@@ -290,7 +290,7 @@ const resetPasswordController = async (req: Request, res: Response) => {
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Password reset successful 🎉',
+            message: 'Password reset has been successful 🎉',
         }));
     } catch (error: any) {
         console.error('ERROR: inside catch of loginController:'.red.bold, error);
@@ -426,7 +426,7 @@ const verifyMagicLinkController = async (req: Request, res: Response) => {
 
         const {user, accessToken, refreshToken, error} = await MagicLinkService.verifyMagicLink({token});
         if (error === 'CREATE_USER_PREFERENCE_FAILED') {
-            console.error('Failed to create user preference while creating user'.yellow.italic, error);
+            console.error('Failed to create user preference during user creation'.yellow.italic, error);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: 'CREATE_USER_PREFERENCE_FAILED',
@@ -486,7 +486,7 @@ const checkAuthStatusController = async (req: Request, res: Response) => {
         console.log('Auth status checked:'.cyan.italic, {authenticated, user, accessToken, refreshToken});
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Auth status checked 🎉',
+            message: 'Auth status has been checked 🎉',
             authenticated,
             user,
             accessToken,

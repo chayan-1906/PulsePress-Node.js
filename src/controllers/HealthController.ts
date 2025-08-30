@@ -11,7 +11,7 @@ const checkNewsAPIOrgHealthController = async (req: Request, res: Response) => {
         if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
             res.status(200).send(new ApiResponse({
                 success: true,
-                message: healthCheck.status === 'healthy' ? 'News API health check passed 🎉' : 'News API partially healthy ⚠️',
+                message: healthCheck.status === 'healthy' ? 'News API Org health check has been passed 🎉' : 'News API is partially healthy ⚠️',
                 health: healthCheck,
             }));
         } else {
@@ -27,7 +27,7 @@ const checkNewsAPIOrgHealthController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: error.message || 'Something went wrong while checking news api org health!',
+            errorMsg: error.message || 'Something went wrong during news api org health check!',
         }));
     }
 }
@@ -43,7 +43,7 @@ const checkRSSFeedsHealthController = async (req: Request, res: Response) => {
             console.log('DEBUG - Condition passed, sending success');
             res.status(200).send(new ApiResponse({
                 success: true,
-                message: healthCheck.status === 'healthy' ? 'RSS Feeds health check passed 🎉' : 'RSS feeds partially healthy ⚠️',
+                message: healthCheck.status === 'healthy' ? 'RSS Feeds health check has been passed 🎉' : 'RSS feeds are partially healthy ⚠️',
                 health: healthCheck,
             }));
         } else {
@@ -61,7 +61,7 @@ const checkRSSFeedsHealthController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong while checking rss feeds health!',
+            errorMsg: 'Something went wrong during rss feeds health check!',
         }));
     }
 }
@@ -74,7 +74,7 @@ const checkGoogleServicesHealthController = async (req: Request, res: Response) 
         if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
             res.status(200).send(new ApiResponse({
                 success: true,
-                message: healthCheck.status === 'healthy' ? 'Google Services health check passed 🎉' : 'Google services partially healthy ⚠️',
+                message: healthCheck.status === 'healthy' ? 'Google Services health check has been passed 🎉' : 'Google services are partially healthy ⚠️',
                 health: healthCheck,
             }));
         } else {
@@ -90,7 +90,7 @@ const checkGoogleServicesHealthController = async (req: Request, res: Response) 
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong while checking google services health!',
+            errorMsg: 'Something went wrong during google services health check!',
         }));
     }
 }
@@ -103,7 +103,7 @@ const checkGeminiAIHealthController = async (req: Request, res: Response) => {
         if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
             res.status(200).send(new ApiResponse({
                 success: true,
-                message: healthCheck.status === 'healthy' ? 'Gemini AI health check passed 🎉' : 'Gemini AI partially healthy ⚠️',
+                message: healthCheck.status === 'healthy' ? 'Gemini AI health check has been passed 🎉' : 'Gemini AI is partially healthy ⚠️',
                 health: healthCheck,
             }));
         } else {
@@ -119,7 +119,7 @@ const checkGeminiAIHealthController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong while checking gemini ai\'s health!',
+            errorMsg: 'Something went wrong during gemini ai\'s health check!',
         }));
     }
 }
@@ -148,7 +148,7 @@ const checkDatabaseHealthController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong while checking database health!',
+            errorMsg: 'Something went wrong during database health check!',
         }));
     }
 }
@@ -161,7 +161,7 @@ const checkOverallSystemHealthController = async (req: Request, res: Response) =
         if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
             res.status(200).send(new ApiResponse({
                 success: true,
-                message: healthCheck.status === 'healthy' ? 'System health check passed 🎉' : 'System partially healthy ⚠️',
+                message: healthCheck.status === 'healthy' ? 'System health check has been passed 🎉' : 'System is partially healthy ⚠️',
                 health: healthCheck,
             }));
         } else {
@@ -177,7 +177,7 @@ const checkOverallSystemHealthController = async (req: Request, res: Response) =
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong while checking overall system health!',
+            errorMsg: 'Something went wrong during overall system health check!',
         }));
     }
 }

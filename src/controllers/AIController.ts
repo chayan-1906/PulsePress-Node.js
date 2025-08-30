@@ -3,9 +3,9 @@ import {Request, Response} from "express";
 import {AuthRequest} from "../types/auth";
 import {isListEmpty} from "../utils/list";
 import AIService from "../services/AIService";
-import NewsService from "../services/NewsService";
 import {ApiResponse} from "../utils/ApiResponse";
 import AuthService from "../services/AuthService";
+import NewsService from "../services/NewsService";
 import StrikeService from "../services/StrikeService";
 import NewsInsightsService from "../services/NewsInsightsService";
 import TagGenerationService from "../services/TagGenerationService";
@@ -30,11 +30,11 @@ import {
     SocialMediaCaptionParams,
     SUMMARIZATION_STYLES,
     SummarizeArticleParams,
-    TagGenerationParams
+    TagGenerationParams,
 } from "../types/ai";
 
 const classifyContentController = async (req: Request, res: Response) => {
-    console.info('classifyContentController called'.bgMagenta.white.italic);
+    console.info('Controller: classifyContentController started'.bgBlue.white.bold);
 
     try {
         const {text, url} = req.body;
@@ -60,7 +60,7 @@ const classifyContentController = async (req: Request, res: Response) => {
         let contentToClassify = text;
 
         if (url && !text) {
-            console.log('Scraping URL for classification:'.cyan.italic, url);
+            console.log('External API: Scraping URL for classification'.magenta, {url});
             const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
@@ -95,17 +95,17 @@ const classifyContentController = async (req: Request, res: Response) => {
             return;
         }
 
-        console.log('Content classified:'.cyan.italic, classification);
+        console.log('News classified successfully:'.bgGreen.bold, {classification, isNews: classification === 'news'});
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Content classified successfully 🎉',
+            message: 'Content has been classified successfully 🎉',
             classification,
             isNews: classification === 'news',
             contentPreview: contentToClassify.substring(0, 200) + '...',
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of classifyContentController:'.red.bold, error);
+        console.error('Controller Error: classifyContentController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
@@ -115,14 +115,14 @@ const classifyContentController = async (req: Request, res: Response) => {
 }
 
 const summarizeArticleController = async (req: Request, res: Response) => {
-    console.info('summarizeArticleController called'.bgMagenta.white.italic);
+    console.info('Controller: summarizeArticleController started'.bgBlue.white.bold);
 
     try {
         const email = (req as AuthRequest).email;
         const {content, url, language, style}: SummarizeArticleParams = req.body;
 
         if (!content && !url) {
-            console.error('Content and url both are missing'.yellow.italic);
+            console.warn('Client Error: Missing content and URL parameters'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: 'CONTENT_OR_URL_REQUIRED',
@@ -132,7 +132,7 @@ const summarizeArticleController = async (req: Request, res: Response) => {
         }
 
         if (content && url) {
-            console.error('Content and url both are present'.yellow.italic);
+            console.warn('Client Error: Both content and URL provided'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: 'CONTENT_AND_URL_CONFLICT',
@@ -142,7 +142,7 @@ const summarizeArticleController = async (req: Request, res: Response) => {
         }
 
         if (style && !SUMMARIZATION_STYLES.includes(style)) {
-            console.error('Invalid style:'.yellow.italic, style);
+            console.warn('Client Error: Invalid summarization style'.yellow, {style});
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateInvalidCode('style'),
@@ -153,11 +153,11 @@ const summarizeArticleController = async (req: Request, res: Response) => {
 
         let articleContent = content || '';
         if (!content && url) {
-            console.info('Scraping article content for classification check'.bgMagenta.white.italic);
+            console.log('External API: Scraping article for classification check'.magenta, {url});
             const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
-                console.error('Scraping failed:'.red.bold, scrapedArticles[0]?.error);
+                console.error('Controller Error: Article scraping failed'.red.bold, scrapedArticles[0]?.error);
                 res.status(400).send(new ApiResponse({
                     success: false,
                     errorCode: 'SCRAPING_FAILED',
@@ -190,14 +190,14 @@ const summarizeArticleController = async (req: Request, res: Response) => {
             return;
         }
 
-        console.log('Checking if content is news-related...'.cyan.italic);
+        console.log('External API: Validating news content classification'.magenta);
         const classification = await NewsClassificationService.classifyContent(articleContent);
 
         if (classification === 'error') {
-            console.error('Classification failed, allowing request to proceed'.yellow.italic);
+            console.warn('Fallback Behavior: Classification failed, proceeding anyway'.yellow);
             // If classification fails, let the request continue (fail gracefully)
         } else if (classification === 'non_news') {
-            console.log('Non-news content detected, applying strike...'.yellow.italic);
+            console.warn('Client Error: Non-news content detected, applying user strike'.yellow);
             const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike(email);
             res.status(400).send(new ApiResponse({
                 success: false,
@@ -209,13 +209,13 @@ const summarizeArticleController = async (req: Request, res: Response) => {
             }));
             return;
         } else {
-            console.log('News content verified, proceeding with summarization...'.green.italic);
+            console.log('News content verified, proceeding with summarization'.bgGreen.bold);
         }
 
         const {summary, powered_by, error} = await AIService.summarizeArticle({email, content: articleContent, language, style});
 
         if (error === generateMissingCode('email')) {
-            console.error('Email is missing'.yellow.italic);
+            console.warn('Client Error: Email parameter missing'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateMissingCode('email'),
@@ -224,7 +224,7 @@ const summarizeArticleController = async (req: Request, res: Response) => {
             return;
         }
         if (error === generateNotFoundCode('user')) {
-            console.error('User not found'.yellow.italic);
+            console.warn('Client Error: User not found in database'.yellow);
             res.status(404).send(new ApiResponse({
                 success: false,
                 errorCode: generateNotFoundCode('user'),
@@ -233,7 +233,7 @@ const summarizeArticleController = async (req: Request, res: Response) => {
             return;
         }
         if (error === 'GEMINI_DAILY_LIMIT_REACHED') {
-            console.error('gemini daily quota reached'.yellow.italic);
+            console.warn('Rate Limit: Gemini daily quota exceeded'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: 'GEMINI_DAILY_LIMIT_REACHED',
@@ -242,7 +242,7 @@ const summarizeArticleController = async (req: Request, res: Response) => {
             return;
         }
         if (error === generateMissingCode('content') || error === 'SCRAPING_FAILED') {
-            console.error('Failed to scrape:'.yellow.italic, error);
+            console.warn('Client Error: Content scraping failed'.yellow, {error});
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateMissingCode('content'),
@@ -251,7 +251,7 @@ const summarizeArticleController = async (req: Request, res: Response) => {
             return;
         }
         if (error === 'SUMMARIZATION_FAILED') {
-            console.error('summarization failed'.yellow.italic);
+            console.warn('Client Error: Article summarization failed'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: 'SUMMARIZATION_FAILED',
@@ -260,7 +260,7 @@ const summarizeArticleController = async (req: Request, res: Response) => {
             return;
         }
 
-        console.log('article summarized:'.cyan.italic, {summary, powered_by});
+        console.log('Article summarization completed'.bgGreen.bold, {powered_by});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -270,17 +270,17 @@ const summarizeArticleController = async (req: Request, res: Response) => {
             wasClassified: classification !== 'error' ? 'news' : 'classification_skipped',
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of summarizeArticleController:'.red.bold, error);
+        console.error('Controller Error: summarizeArticleController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during article summarization',
         }));
     }
 }
 
 const generateTagsController = async (req: Request, res: Response) => {
-    console.info('generateTagsController called'.bgMagenta.white.italic);
+    console.info('Controller: generateTagsController started'.bgBlue.white.bold);
 
     try {
         const email = (req as AuthRequest).email;
@@ -348,16 +348,16 @@ const generateTagsController = async (req: Request, res: Response) => {
             return;
         }
 
-        console.log('Tags generated successfully:'.cyan.italic, {tags, powered_by});
+        console.log('Tags generated successfully'.bgGreen.bold, {tagCount: tags?.length, powered_by});
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Tags generated successfully 🎉',
+            message: 'Tags have been generated successfully 🎉',
             tags,
             powered_by,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of generateTagsController:'.red.bold, error);
+        console.error('Controller Error: generateTagsController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
@@ -367,7 +367,7 @@ const generateTagsController = async (req: Request, res: Response) => {
 }
 
 const analyzeSentimentController = async (req: Request, res: Response) => {
-    console.info('analyzeSentimentController called'.bgMagenta.white.italic);
+    console.info('Controller: analyzeSentimentController started'.bgBlue.white.bold);
 
     try {
         const email = (req as AuthRequest).email;
@@ -394,7 +394,7 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
         let contentToAnalyze = content;
 
         if (!content && url) {
-            console.log('Scraping URL for sentiment analysis:'.cyan.italic, url);
+            console.log('External API: Scraping URL for sentiment analysis'.magenta, {url});
             const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
@@ -451,11 +451,11 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
         const sentimentEmoji = SentimentAnalysisService.getSentimentEmoji(sentiment!);
         const sentimentColor = SentimentAnalysisService.getSentimentColor(sentiment!);
 
-        console.log('sentiment analysis completed:'.cyan.italic, {sentiment, confidence, sentimentEmoji});
+        console.log('Sentiment analysis completed'.bgGreen.bold, {sentiment, confidence});
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Sentiment analysis completed successfully 🎉',
+            message: 'Sentiment analysis has been completed successfully 🎉',
             sentiment,
             confidence,
             sentimentEmoji,
@@ -463,17 +463,17 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
             contentPreview: contentToAnalyze.substring(0, 200) + '...',
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of analyzeSentimentController:'.red.bold, error);
+        console.error('Controller Error: analyzeSentimentController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during sentiment analysis',
         }));
     }
 }
 
 const extractKeyPointsController = async (req: Request, res: Response) => {
-    console.info('extractKeyPointsController called'.bgMagenta.white.italic);
+    console.info('Controller: extractKeyPointsController started'.bgBlue.white.bold);
 
     try {
         const email = (req as AuthRequest).email;
@@ -500,7 +500,7 @@ const extractKeyPointsController = async (req: Request, res: Response) => {
         let contentToAnalyze = content;
 
         if (!content && url) {
-            console.log('Scraping URL for key points extraction:'.cyan.italic, url);
+            console.log('External API: Scraping URL for key points extraction'.magenta, {url});
             const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
@@ -558,26 +558,26 @@ const extractKeyPointsController = async (req: Request, res: Response) => {
             return;
         }
 
-        console.log('Key points extraction completed:'.cyan.italic, keyPoints);
+        console.log('Key points extraction completed'.bgGreen.bold, {keyPointsCount: keyPoints?.length});
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Key points extracted successfully 🎉',
+            message: 'Key points have been extracted successfully 🎉',
             keyPoints,
             contentPreview: contentToAnalyze.substring(0, 200) + '...',
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of extractKeyPointsController:'.red.bold, error);
+        console.error('Controller Error: extractKeyPointsController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during key points extraction',
         }));
     }
 }
 
 const analyzeComplexityController = async (req: Request, res: Response) => {
-    console.info('analyzeComplexityController called'.bgMagenta.white.italic);
+    console.info('Controller: analyzeComplexityController started'.bgBlue.white.bold);
 
     try {
         const email = (req as AuthRequest).email;
@@ -604,7 +604,7 @@ const analyzeComplexityController = async (req: Request, res: Response) => {
         let contentToAnalyze = content;
 
         if (!content && url) {
-            console.log('Scraping URL for complexity analysis:'.cyan.italic, url);
+            console.log('External API: Scraping URL for complexity analysis'.magenta, {url});
             const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
@@ -662,26 +662,26 @@ const analyzeComplexityController = async (req: Request, res: Response) => {
             return;
         }
 
-        console.log('Complexity analysis completed:'.cyan.italic, complexityMeter);
+        console.log('Complexity analysis completed'.bgGreen.bold, {level: complexityMeter?.level});
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Complexity meter generated successfully 🎉',
+            message: 'Complexity meter has been generated successfully 🎉',
             complexityMeter,
             contentPreview: contentToAnalyze.substring(0, 200) + '...',
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of analyzeComplexityController:'.red.bold, error);
+        console.error('Controller Error: analyzeComplexityController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during complexity analysis',
         }));
     }
 }
 
 const generateQuestionsController = async (req: Request, res: Response) => {
-    console.info('generateQuestionsController called'.bgMagenta.white.italic);
+    console.info('Controller: generateQuestionsController started'.bgBlue.white.bold);
 
     try {
         const email = (req as AuthRequest).email;
@@ -734,26 +734,26 @@ const generateQuestionsController = async (req: Request, res: Response) => {
             return;
         }
 
-        console.log('Questions generated successfully:'.cyan.italic, questions);
+        console.log('Questions generated successfully'.bgGreen.bold, {questionCount: questions?.length});
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Questions generated successfully 🎉',
+            message: 'Questions haven been generated successfully 🎉',
             questions,
             contentPreview: content.substring(0, 200) + '...',
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of generateQuestionsController:'.red.bold, error);
+        console.error('Controller Error: generateQuestionsController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during questions generation',
         }));
     }
 }
 
 const answerQuestionController = async (req: Request, res: Response) => {
-    console.info('answerQuestionController called'.bgMagenta.white.italic);
+    console.info('Controller: answerQuestionController started'.bgBlue.white.bold);
 
     try {
         const email = (req as AuthRequest).email;
@@ -818,27 +818,27 @@ const answerQuestionController = async (req: Request, res: Response) => {
             return;
         }
 
-        console.log('Question answered successfully:'.cyan.italic, {question, answer: answer?.substring(0, 100) + '...'});
+        console.log('Question answered successfully'.bgGreen.bold, {question: question.substring(0, 50) + '...'});
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Question answered successfully 🎉',
+            message: 'Question has been answered successfully 🎉',
             question,
             answer,
             contentPreview: content.substring(0, 200) + '...',
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of answerQuestionController:'.red.bold, error);
+        console.error('Controller Error: answerQuestionController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during answering question',
         }));
     }
 }
 
 const extractLocationsController = async (req: Request, res: Response) => {
-    console.info('extractLocationsController called'.bgMagenta.white.italic);
+    console.info('Controller: extractLocationsController started'.bgBlue.white.bold);
 
     try {
         const email = (req as AuthRequest).email;
@@ -865,7 +865,7 @@ const extractLocationsController = async (req: Request, res: Response) => {
         let contentToAnalyze = content;
 
         if (!content && url) {
-            console.log('Scraping URL for location extraction:'.cyan.italic, url);
+            console.log('External API: Scraping URL for location extraction'.magenta, {url});
             const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
@@ -934,26 +934,26 @@ const extractLocationsController = async (req: Request, res: Response) => {
             return;
         }
 
-        console.log('Location extraction completed:'.cyan.italic, locations);
+        console.log('Geographic locations extracted'.bgGreen.bold, {locationCount: locations?.length});
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Geographic locations extracted successfully 🎉',
+            message: 'Geographic locations have been extracted successfully 🎉',
             locations,
             contentPreview: contentToAnalyze.substring(0, 200) + '...',
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of extractLocationsController:'.red.bold, error);
+        console.error('Controller Error: extractLocationsController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during location extraction',
         }));
     }
 }
 
 const generateSocialMediaCaptionController = async (req: Request, res: Response) => {
-    console.info('generateSocialMediaCaptionController called'.bgMagenta.white.italic);
+    console.info('Controller: generateSocialMediaCaptionController started'.bgBlue.white.bold);
 
     try {
         const email = (req as AuthRequest).email;
@@ -1036,11 +1036,11 @@ const generateSocialMediaCaptionController = async (req: Request, res: Response)
             return;
         }
 
-        console.log('Social media caption generated successfully:'.cyan.italic, {platform, style, characterCount, powered_by});
+        console.log('Social media caption generated'.bgGreen.bold, {platform, style, characterCount, powered_by});
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Social media caption generated successfully 🎉',
+            message: 'Social media caption has been  generated successfully 🎉',
             caption,
             hashtags,
             platform,
@@ -1049,7 +1049,7 @@ const generateSocialMediaCaptionController = async (req: Request, res: Response)
             powered_by,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of generateSocialMediaCaptionController:'.red.bold, error);
+        console.error('Controller Error: generateSocialMediaCaptionController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
@@ -1059,7 +1059,7 @@ const generateSocialMediaCaptionController = async (req: Request, res: Response)
 }
 
 const generateNewsInsightsController = async (req: Request, res: Response) => {
-    console.info('generateNewsInsightsController called'.bgMagenta.white.italic);
+    console.info('Controller: generateNewsInsightsController started'.bgBlue.white.bold);
 
     try {
         const email = (req as AuthRequest).email;
@@ -1086,7 +1086,7 @@ const generateNewsInsightsController = async (req: Request, res: Response) => {
         let contentToAnalyze = content;
 
         if (!content && url) {
-            console.log('Scraping URL for news insights analysis:'.cyan.italic, url);
+            console.log('External API: Scraping URL for news insights analysis'.magenta, {url});
             const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
@@ -1160,11 +1160,11 @@ const generateNewsInsightsController = async (req: Request, res: Response) => {
             return;
         }
 
-        console.log('News insights analysis completed:'.cyan.italic, {themesCount: keyThemes?.length || 0, impactLevel: impactAssessment?.level, powered_by});
+        console.log('News insights analysis completed'.bgGreen.bold, {themesCount: keyThemes?.length || 0, impactLevel: impactAssessment?.level, powered_by});
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'News insights analysis completed successfully 🎉',
+            message: 'News insights analysis has been completed successfully 🎉',
             keyThemes,
             impactAssessment,
             contextConnections,
@@ -1174,7 +1174,7 @@ const generateNewsInsightsController = async (req: Request, res: Response) => {
             contentPreview: contentToAnalyze.substring(0, 200) + '...',
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of generateNewsInsightsController:'.red.bold, error);
+        console.error('Controller Error: generateNewsInsightsController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,

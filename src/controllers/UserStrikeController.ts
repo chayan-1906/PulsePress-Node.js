@@ -44,7 +44,7 @@ const getUserStrikeStatusController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong while getting user strike status!',
+            errorMsg: error.message || 'Something went wrong during user strike status retrieval!',
         }));
     }
 }
@@ -94,7 +94,7 @@ const getUserStrikeHistoryController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong while getting user strike history!',
+            errorMsg: error.message || 'Something went wrong during user strike history retrieval!',
         }));
     }
 }

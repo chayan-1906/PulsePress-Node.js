@@ -110,7 +110,7 @@ const fetchGuardianNewsController = async (req: Request, res: Response) => {
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Guardian news articles found 🎉',
+            message: 'Guardian news articles have been found 🎉',
             searchResults: guardianResults,
         }));
     } catch (error: any) {
@@ -152,7 +152,7 @@ const fetchNYTimesNewsController = async (req: Request, res: Response) => {
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'NYTimes news articles found 🎉',
+            message: 'NYTimes news articles have been found 🎉',
             searchResults: nytResults,
         }));
     } catch (error: any) {
@@ -185,7 +185,7 @@ const fetchNYTimesTopStoriesController = async (req: Request, res: Response) => 
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'NYTimes top stories found 🎉',
+            message: 'NYTimes top stories have been found 🎉',
             searchResults: nytTopStories,
         }));
     } catch (error: any) {
@@ -239,7 +239,7 @@ const fetchAllRSSFeedsController = async (req: Request, res: Response) => {
         console.log('rss feeds:'.green.bold, rssFeeds.length);
 
         const message = q
-            ? `RSS search completed for "${q}" 🔍`
+            ? `RSS search has been completed for "${q}" 🔍`
             : 'RSS Feeds have been found 🎉';
 
         res.status(200).send(new ApiResponse({
@@ -295,7 +295,7 @@ const fetchMultiSourceNewsController = async (req: Request, res: Response) => {
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Multisource news search completed 🎉',
+            message: 'Multisource news search has been completed 🎉',
             searchResults: multisourceResults,
         }));
     } catch (error: any) {
@@ -395,7 +395,7 @@ const exploreTopicController = async (req: Request, res: Response) => {
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: `${TOPIC_METADATA[topic].name} news found 🎉`,
+            message: `${TOPIC_METADATA[topic].name} news have been found 🎉`,
             topic: TOPIC_METADATA[topic],
             searchResults: topicResults,
         }));
@@ -445,7 +445,7 @@ const fetchMultiSourceNewsEnhancedController = async (req: Request, res: Respons
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: `Enhanced multisource news completed! ${enhancedResults.metadata.enhancedCount}/${enhancedResults.metadata.totalArticles} articles have AI insights ✨`,
+            message: `Enhanced multisource news have been completed! ${enhancedResults.metadata.enhancedCount}/${enhancedResults.metadata.totalArticles} articles have AI insights ✨`,
             searchResults: enhancedResults,
         }));
     } catch (error: any) {
@@ -509,8 +509,8 @@ const fetchEnhancementStatusController = async (req: Request, res: Response) => 
         console.timeEnd('ENHANCEMENT_STATUS_CHECK_TIME'.bgGreen.white.italic);
 
         const message = status === 'complete'
-            ? `All enhancements completed! ${articles?.length}/${articleIdArray.length} articles enhanced ✨`
-            : `Enhancement in progress: ${progress}% complete (${articles?.length}/${articleIdArray.length} articles)`;
+            ? `All enhancements have been completed! ${articles?.length}/${articleIdArray.length} articles enhanced ✨`
+            : `Enhancement is in progress: ${progress}% complete (${articles?.length}/${articleIdArray.length} articles)`;
 
         res.status(200).send(new ApiResponse({
             success: true,
