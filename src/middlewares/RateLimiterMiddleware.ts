@@ -1,3 +1,4 @@
+import 'colors';
 import {Request} from 'express';
 import rateLimit from 'express-rate-limit';
 import {AuthRequest} from '../types/auth';
@@ -22,6 +23,7 @@ const aiRateLimiter = rateLimit({
     limit: Number(AI_MAX_REQUESTS) || 30,             // 30 requests per minute per user
     keyGenerator: (req: Request) => {
         const authReq = req as AuthRequest;
+        console.warn('Rate Limit: AI request detected'.yellow, {userId: authReq.userExternalId});
         return authReq.userExternalId;
     },
 
@@ -50,6 +52,11 @@ const aiRateLimiter = rateLimit({
 const newsScrapingRateLimiter = rateLimit({
     windowMs: Number(NEWS_SCRAPING_WINDOW_MS) || 15 * 60 * 1000,  // Default 15 minutes
     limit: Number(NEWS_SCRAPING_MAX_REQUESTS) || 50,              // Default 50 requests per window
+    
+    skip: (req: Request) => {
+        console.warn('Rate Limit: News scraping request detected'.yellow, {ip: req.ip});
+        return false;
+    },
 
     // Custom error message
     message: {
@@ -75,6 +82,11 @@ const newsScrapingRateLimiter = rateLimit({
 const authRateLimiter = rateLimit({
     windowMs: Number(AUTH_WINDOW_MS) || 15 * 60 * 1000,  // Default 15 minutes
     limit: Number(AUTH_MAX_REQUESTS) || 5,               // Default 5 attempts per window
+    
+    skip: (req: Request) => {
+        console.warn('Rate Limit: Auth attempt detected'.yellow, {ip: req.ip});
+        return false;
+    },
 
     message: {
         success: false,
