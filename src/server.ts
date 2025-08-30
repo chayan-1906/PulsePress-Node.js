@@ -55,17 +55,17 @@ const start = async () => {
         await connectDB();
         app.listen(port, '0.0.0.0', (error?: Error, address?: string) => {
             if (error) {
-                console.log('Error in starting server'.red.bold, error.message);
+                console.error('Service Error: Failed to start server'.red.bold, error);
                 process.exit(1);
             } else {
                 console.log(`Server started on ${PORT}`.blue.italic.bold);
-                console.log(`\t- Local:        http://localhost:${PORT}`.blue.bold);
-                console.log(`\t- Network:      http://${getLocalIP()}:${PORT}`.blue.bold);
+                console.log(`\t- Local:        http://localhost:${PORT}`.green.bold);
+                console.log(`\t- Network:      http://${getLocalIP()}:${PORT}`.green.bold);
             }
         });
     } catch (error: any) {
-        console.log(`Error during server setup:`.red.bold, error.message || error);
-        console.log('Failed to connect to database. Exiting...'.red.bold);
+        console.error('Service Error: Server setup failed'.red.bold, error);
+        console.error('Service Error: Database connection failed during startup'.red.bold);
         process.exit(1);
     }
 }

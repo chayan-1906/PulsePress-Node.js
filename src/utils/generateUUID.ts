@@ -8,7 +8,7 @@ const generateNanoIdWithAlphabet = (length: number = 24, customAlphabetString: s
         const nanoId = customAlphabet(customAlphabetString, length);
         return nanoId();
     } catch (error: any) {
-        console.error('Failed to generate NanoID:'.red.bold, error);
+        console.error('Service Error: Failed to generate NanoID'.red.bold, error);
         throw new Error('Failed to generate NanoID');
     }
 }
