@@ -11,15 +11,16 @@ class ComplexityMeterService {
      * Analyzes content complexity using Gemini AI
      */
     static async analyzeComplexity({content}: ComplexityMeterParams): Promise<ComplexityMeterResponse> {
-        console.log('Analyzing complexity for content...'.cyan.italic);
+        console.log('Service: ComplexityMeterService.analyzeComplexity called'.cyan.italic);
 
         if (!content || content.trim().length === 0) {
-            console.log('Empty content provided for complexity analysis'.yellow.italic);
+            console.warn('Client Error: Empty content provided for complexity analysis'.yellow);
             return {error: generateMissingCode('content')};
         }
 
         // Truncate content to avoid token limits
         const truncatedContent = content.substring(0, 4000);
+        console.log('Content truncated for analysis'.cyan, {originalLength: content.length, truncatedLength: truncatedContent.length});
 
         for (let i = 0; i < AI_COMPLEXITY_METER__MODELS.length; i++) {
             const model = AI_COMPLEXITY_METER__MODELS[i];
@@ -30,18 +31,19 @@ class ComplexityMeterService {
                 result = await this.analyzeWithGemini(model, truncatedContent);
 
                 if (result.complexityMeter) {
-                    console.log(`✅ Complexity analysis successful with model:`.green, model);
-                    console.log('Complexity analysis result:'.green, result.complexityMeter);
+                    console.log(`✅ Complexity analysis successful with model:`.cyan, model);
+                    console.log('Complexity analysis result:'.cyan, result.complexityMeter);
+                    console.log('Complexity analysis completed successfully'.green.bold);
                     return result;
                 }
 
-                console.error(`❌ Model failed:`.red.bold, model, 'Error:'.red.bold, result.error);
+                console.error('Service Error: Complexity analysis model failed'.red.bold, {model, error: result.error});
             } catch (error: any) {
-                console.error(`❌ Model failed:`.red.bold, model, 'Error:'.red.bold, error.message);
+                console.error('Service Error: Complexity analysis model failed'.red.bold, {model, error: error.message});
             }
         }
 
-        console.error('🚨 All complexity analysis models failed'.red.bold);
+        console.error('Service Error: All complexity analysis models failed'.red.bold);
         return {error: 'COMPLEXITY_METER_GENERATION_FAILED'};
     }
 
@@ -50,10 +52,11 @@ class ComplexityMeterService {
      */
     private static async analyzeWithGemini(modelName: string, content: string): Promise<ComplexityMeterResponse> {
         if (!GEMINI_API_KEY) {
-            console.error('Gemini API key not configured'.red.bold);
+            console.error('Service Error: Gemini API key not configured'.red.bold);
             return {error: generateMissingCode('gemini_api_key')};
         }
 
+        console.log('External API: Generating complexity analysis with Gemini'.magenta, {model: modelName});
         const model = AIService.genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.COMPLEXITY_METER(content);
@@ -61,7 +64,7 @@ class ComplexityMeterService {
         const result = await model.generateContent(prompt);
         let responseText = result.response.text().trim();
 
-        console.log('Gemini complexity analysis response:'.cyan.italic, responseText);
+        console.log('External API: Gemini response received'.magenta, responseText);
 
         if (responseText.startsWith('```json')) {
             responseText = responseText.substring(7);
@@ -75,21 +78,22 @@ class ComplexityMeterService {
         responseText = responseText.trim();
 
         if (responseText !== result.response.text().trim()) {
-            console.log('Stripped markdown, clean JSON:'.yellow, responseText);
+            console.log('JSON markdown stripped'.cyan, responseText);
         }
 
         const parsed: AIComplexityMeter = JSON.parse(responseText);
 
         if (!parsed.complexityMeter || !parsed.complexityMeter.level) {
-            console.error('Invalid complexity meter in response:'.red, parsed.complexityMeter);
+            console.error('Service Error: Invalid complexity meter in response'.red.bold, parsed.complexityMeter);
             return {error: 'COMPLEXITY_PARSE_ERROR'};
         }
 
         if (!COMPLEXITY_LEVELS.includes(parsed.complexityMeter.level)) {
-            console.error('Invalid complexity level:'.red, parsed.complexityMeter.level);
+            console.error('Service Error: Invalid complexity level'.red.bold, parsed.complexityMeter.level);
             return {error: 'INVALID_COMPLEXITY_LEVEL'};
         }
 
+        console.log('Complexity analysis parsed successfully'.cyan, parsed.complexityMeter);
         return {
             complexityMeter: {
                 level: parsed.complexityMeter.level,
