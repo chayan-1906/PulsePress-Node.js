@@ -52,11 +52,13 @@ setInterval(() => {
     newsApiRequestCount = 0;
     guardianApiRequestCount = 0;
     nytimesApiRequestCount = 0;
-    console.log('Daily API counters reset'.cyan.italic);
+    console.log('Daily API counters reset'.blue);
 }, Number.parseInt(NEWSAPIORG_QUOTA_MS!));
 
 class NewsService {
     private static convertGuardianToArticle(guardianArticle: GuardianArticle): Article {
+        console.log('Service: NewsService.convertGuardianToArticle called'.cyan.italic, {guardianArticle});
+
         const title = guardianArticle.fields?.headline || guardianArticle.webTitle;
         const url = guardianArticle.webUrl;
         const article: Article = {
@@ -73,11 +75,13 @@ class NewsService {
             publishedAt: guardianArticle.webPublicationDate,
             content: guardianArticle.fields?.bodyText?.substring(0, 100) + '...' || null,
         };
-        console.log('convertGuardianToArticle:', article);
+        console.log('convertGuardianToArticle:'.cyan, article);
         return article;
     }
 
     private static convertNYTimesToArticle(nytArticle: NYTimesArticle): Article {
+        console.log('Service: NewsService.convertNYTimesToArticle called'.cyan.italic, {nytArticle});
+
         const title = nytArticle.headline?.main;
         const url = nytArticle.web_url;
         const article: Article = {
@@ -94,11 +98,13 @@ class NewsService {
             publishedAt: nytArticle.pub_date,
             content: nytArticle.lead_paragraph?.substring(0, 100) + '...' || null,
         };
-        console.log('convertNYTimesToArticle:', article);
+        console.log('convertNYTimesToArticle:'.cyan, article);
         return article;
     }
 
     private static convertNYTimesTopStoryToArticle(story: NYTimesTopStoriesResponse['results'][0]): Article {
+        console.log('Service: NewsService.convertNYTimesTopStoryToArticle called'.cyan.italic, {story});
+
         const title = story.title;
         const url = story.url;
         const article: Article = {
@@ -115,11 +121,13 @@ class NewsService {
             publishedAt: story.published_date,
             content: story.abstract?.substring(0, 100) + '...' || null,
         };
-        console.log('convertNYTimesTopStoryToArticle:', article);
+        console.log('convertNYTimesTopStoryToArticle:'.cyan, article);
         return article;
     }
 
     private static convertRSSFeedToArticle(rss: RSSFeed): Article {
+        console.log('Service: NewsService.convertRSSFeedToArticle called'.cyan.italic, {rss});
+
         const title = rss.title || '';
         const url = rss.url || '';
         const article: Article = {
@@ -136,7 +144,7 @@ class NewsService {
             publishedAt: rss.publishedAt || null,
             content: rss.content?.substring(0, 100) + '...' || null,
         };
-        console.log('convertRSSFeedToArticle:', article);
+        console.log('convertRSSFeedToArticle:'.cyan, article);
         return article;
     }
 
@@ -154,6 +162,8 @@ class NewsService {
       ]
     */
     private static generateQueryVariations(query: string): string[] {
+        console.log('Service: NewsService.generateQueryVariations called'.cyan.italic, {query});
+
         if (!query) return [query];
 
         const noiseWords = [
@@ -185,11 +195,16 @@ class NewsService {
     }
 
     private static simplifySearchQuery(query: string): string {
+        console.log('Service: NewsService.simplifySearchQuery called'.cyan.italic, {query});
+
         return this.generateQueryVariations(query)[0];
     }
 
     private static determineTopicFromQuery(query?: string, category?: string): string {
+        console.log('Service: NewsService.determineTopicFromQuery called'.cyan.italic, {query, category});
+
         if (category) return category;
+
         if (!query) return 'general';
 
         const lowerQuery = query.toLowerCase();
@@ -212,6 +227,8 @@ class NewsService {
     }
 
     private static convertDomainToNewsAPIFormat(sources: string): string {
+        console.log('Service: NewsService.convertDomainToNewsAPIFormat called'.cyan.italic, {sources});
+
         const sourceMap: Record<string, string> = {
             // Business
             'bloomberg': 'bloomberg.com',
@@ -265,6 +282,8 @@ class NewsService {
     }
 
     private static getOptimizedSourcesForTopic(topic: string, userSources?: string): string | undefined {
+        console.log('Service: NewsService.getOptimizedSourcesForTopic called'.cyan.italic, {topic, userSources});
+
         if (userSources) return this.convertDomainToNewsAPIFormat(userSources);
 
         const topicSources = TOPIC_SPECIFIC_SOURCES[topic as keyof typeof TOPIC_SPECIFIC_SOURCES];
@@ -272,6 +291,8 @@ class NewsService {
     }
 
     private static mapToNYTimesSection(topic: string): string {
+        console.log('Service: NewsService.mapToNYTimesSection called'.cyan.italic, {topic});
+
         const sectionMap: Record<string, string> = {
             sports: 'sports',
             business: 'business',
@@ -286,6 +307,8 @@ class NewsService {
     }
 
     private static assessContentQuality(article: Article, query?: string): QualityScore {
+        console.log('Service: NewsService.assessContentQuality called'.cyan.italic, {article, query});
+
         let score = 0.5;
         const reasons: string[] = [];
         let isRelevant = true;
@@ -361,10 +384,14 @@ class NewsService {
     }
 
     private static isDuplicateArticle(article: Article, existing: Article[]): boolean {
+        console.log('Service: NewsService.isDuplicateArticle called'.cyan.italic, {article, existing});
+
         return existing.some(existingArticle => !!(article.url && existingArticle.url && article.url === existingArticle.url));
     }
 
     private static cleanScrapedText(text: string): string {
+        console.log('Service: NewsService.cleanScrapedText called'.cyan.italic, {text});
+
         if (!text) return '';
 
         return text
@@ -377,24 +404,26 @@ class NewsService {
     }
 
     static async fetchNewsAPIOrgTopHeadlines({country, category, sources, q, pageSize = 10, page = 1}: NEWSORGTopHeadlinesParams) {
+        console.log('Service: NewsService.fetchNewsAPIOrgTopHeadlines called'.cyan.italic, {country, category, sources, q, pageSize, page});
+
         try {
             let processedQuery = q;
 
             if (q && q.trim()) {
-                console.log(`Processing NewsAPI Top Headlines query: "${q}"`.cyan.italic);
+                console.log(`Service: fetchNewsAPIOrgTopHeadlines processing query: "${q}"`.cyan);
                 processedQuery = this.simplifySearchQuery(q.trim());
-                console.log(`Query processed: "${q}" → "${processedQuery}"`.green);
+                console.log(`Query processed: "${q}" → "${processedQuery}"`.cyan);
             }
 
             const cacheKey = `${country}-${category}-${sources}-${processedQuery}-${pageSize}-${page}`;
             const cached = TOPHEADLINES_CACHE.get(cacheKey);
             if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
-                console.log('returning cached data:'.cyan.italic, cached.data);
+                console.log('Cache: returning cached data'.cyan, cached.data);
                 return cached.data;
             }
 
             if (newsApiRequestCount >= Number.parseInt(NEWSAPI_QUOTA_REQUESTS!)) {
-                console.log('NewsAPIOrg limit reached'.yellow.italic);
+                console.warn('Rate Limit: NewsAPIOrg daily limit reached'.yellow);
                 return {status: 'error', message: 'NewsAPIOrg daily limit reached', articles: [], totalResults: 0};
             }
 
@@ -403,7 +432,7 @@ class NewsService {
                 {headers: buildHeader('newsapi')},
             );
             newsApiRequestCount++;
-            console.log('topHeadlines from NewsAPIOrg:'.cyan.italic, topHeadlinesResponse);
+            console.log('External API: NewsAPIOrg TopHeadlines response'.magenta, topHeadlinesResponse);
 
             // Add articleId to each article
             if (topHeadlinesResponse.articles) {
@@ -419,32 +448,34 @@ class NewsService {
 
             return topHeadlinesResponse;
         } catch (error: any) {
-            console.error('ERROR: inside catch of fetchTopHeadlines:'.red.bold, error);
+            console.error('Service Error: NewsService.fetchNewsAPIOrgTopHeadlines failed:'.red.bold, error);
             throw error;
         }
     }
 
     static async fetchNewsAPIOrgEverything({sources, from, to, sortBy, language, q, pageSize = 10, page = 1}: NEWSORGEverythingParams) {
+        console.log('Service: NewsService.fetchNewsAPIOrgTopHeadlines called'.cyan.italic, {sources, from, to, sortBy, language, q, pageSize, page});
+
         try {
             let processedQuery = q;
 
             if (q && q.trim()) {
-                console.log(`Processing NewsAPI Everything query: "${q}"`.cyan.italic);
+                console.log(`Service: fetchNewsAPIOrgEverything processing query: "${q}"`.cyan);
 
                 processedQuery = q.trim();
 
-                console.log(`Query processed: "${q}" → "${processedQuery}"`.green);
+                console.log(`Query processed: "${q}" → "${processedQuery}"`.cyan);
             }
 
             const cacheKey = `${sources}-${from}-${to}-${sortBy}-${language}-${processedQuery}-${pageSize}-${page}`;
             const cached = EVERYTHING_NEWS_CACHE.get(cacheKey);
             if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
-                console.log('returning cached data:'.cyan.italic, cached.data);
+                console.log('Cache: returning cached data'.cyan, cached.data);
                 return cached.data;
             }
 
             if (newsApiRequestCount >= Number.parseInt(NEWSAPI_QUOTA_REQUESTS!)) {
-                console.log('NewsAPIOrg limit reached'.yellow.italic);
+                console.log('NewsAPIOrg limit reached'.yellow);
                 return {status: 'error', message: 'NewsAPIOrg daily limit reached', articles: [], totalResults: 0};
             }
 
@@ -453,7 +484,7 @@ class NewsService {
                 {headers: buildHeader('newsapi')},
             );
             newsApiRequestCount++;
-            console.log('everything from NewsAPIOrg:'.cyan.italic, everything);
+            console.log('External API: NewsAPIOrg Everything response'.magenta, everything);
 
             if (everything.articles) {
                 everything.articles = everything.articles.map((article: Article) => ({
@@ -468,37 +499,39 @@ class NewsService {
 
             return everything;
         } catch (error: any) {
-            console.error('ERROR: inside catch of fetchEverything:'.red.bold, error);
+            console.error('Service Error: NewsService.fetchNewsAPIOrgEverything failed:'.red.bold, error);
             throw error;
         }
     }
 
     static async fetchGuardianNews({q, section, fromDate, toDate, orderBy = 'newest', pageSize = 10, page = 1}: GuardianSearchParams) {
+        console.log('Service: NewsService.fetchGuardianNews called'.cyan.italic, {q, section, fromDate, toDate, orderBy, pageSize, page});
+
         try {
             if (!GUARDIAN_API_KEY) {
-                console.warn('Guardian API key not configured'.yellow.italic);
+                console.warn('Config Warning: Guardian API key not configured'.yellow.italic);
                 return {articles: [], totalResults: 0};
             }
 
             if (guardianApiRequestCount >= Number.parseInt(GUARDIAN_QUOTA_REQUESTS!)) {
-                console.warn('Guardian API daily limit reached'.yellow.italic);
+                console.warn('Rate Limit: Guardian API daily limit reached'.yellow);
                 return {status: 'error', message: 'Guardian API daily limit reached', articles: [], totalResults: 0};
             }
 
             let processedQuery = q;
 
             if (q && q.trim()) {
-                console.log(`Processing Guardian query: "${q}"`.cyan.italic);
+                console.log(`Service: fetchGuardianNews processing query: "${q}"`.cyan);
 
                 processedQuery = this.simplifySearchQuery(q.trim());
 
-                console.log(`Query processed: "${q}" → "${processedQuery}"`.green);
+                console.log(`Query processed: "${q}" → "${processedQuery}"`.cyan);
             }
 
             const cacheKey = `guardian-${processedQuery}-${section}-${fromDate}-${toDate}-${orderBy}-${pageSize}-${page}`;
             const cached = GUARDIAN_CACHE.get(cacheKey);
             if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
-                console.log('returning cached Guardian data:'.cyan.italic);
+                console.log('Cache: returning cached Guardian data'.cyan);
                 return cached.data;
             }
 
@@ -506,14 +539,14 @@ class NewsService {
             const {data: guardianResponse} = await axios.get<GuardianResponse>(url, {headers: buildHeader('guardian')});
 
             guardianApiRequestCount++;
-            console.log(`Guardian API request ${guardianApiRequestCount}/${GUARDIAN_QUOTA_REQUESTS}:`.cyan.italic, guardianResponse.response.total, 'results');
+            console.log(`External API: Guardian request ${guardianApiRequestCount}/${GUARDIAN_QUOTA_REQUESTS}:`.magenta, guardianResponse.response.total, 'results');
 
             const articles = guardianResponse.response.results.map(this.convertGuardianToArticle);
             const result = {
                 articles,
                 totalResults: guardianResponse.response.total,
                 currentPage: guardianResponse.response.currentPage,
-                pages: guardianResponse.response.pages
+                pages: guardianResponse.response.pages,
             };
 
             if (NODE_ENV === 'production') {
@@ -522,47 +555,50 @@ class NewsService {
 
             return result;
         } catch (error: any) {
-            console.error('ERROR: inside catch of fetchGuardianNews:'.red.bold, error.message);
+            console.error('Service Error: NewsService.fetchGuardianNews failed:'.red.bold, error.message);
             return {articles: [], totalResults: 0};
         }
     }
 
     static async fetchNYTimesNews({q, section, sort = 'newest', fromDate, toDate, pageSize = 10, page = 1}: NYTimesSearchParams) {
+        console.log('Service: NewsService.fetchNYTimesNews called'.cyan.italic, {q, section, sort, fromDate, toDate, pageSize, page});
+
         try {
             if (!NYTIMES_API_KEY) {
-                console.warn('NYTimes API key not configured'.yellow.italic);
+                console.warn('Config Warning: NYTimes API key not configured'.yellow.italic);
                 return {articles: [], totalResults: 0};
             }
+
             if (section && !VALID_NYTIMES_SECTIONS.includes(section)) {
-                console.error('Invalid nytimes section:'.yellow.italic, section);
+                console.warn('Client Error: Invalid nytimes section'.yellow, section);
                 return {error: generateInvalidCode('nytimes_section')};
             }
 
             if (nytimesApiRequestCount >= Number.parseInt(NYTIMES_QUOTA_REQUESTS!)) {
-                console.warn('NYTimes API daily limit reached'.yellow.italic);
+                console.warn('Rate Limit: NYTimes API daily limit reached'.yellow);
                 return {status: 'error', message: 'NYTimes API daily limit reached', articles: [], totalResults: 0};
             }
 
             let processedQuery = q;
 
             if (q && q.trim()) {
-                console.log(`Processing NYTimes query: "${q}"`.cyan.italic);
+                console.log(`Service: fetchNYTimesNews processing query: "${q}"`.cyan);
 
                 processedQuery = this.simplifySearchQuery(q.trim());
 
-                console.log(`Query processed: "${q}" → "${processedQuery}"`.green);
+                console.log(`Query processed: "${q}" → "${processedQuery}"`.cyan);
             }
 
             const cacheKey = `nytimes-${processedQuery}-${section}-${sort}-${fromDate}-${toDate}-${pageSize}-${page}`;
             const cached = NYTIMES_CACHE.get(cacheKey);
             if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
-                console.log('returning cached NYTimes data:'.cyan.italic);
+                console.log('Cache: returning cached NYTimes data'.cyan);
                 return cached.data;
             }
 
             const url = apis.nytimesSearchApi({q: processedQuery, section, sort, fromDate, toDate, pageSize, page}) + `&api-key=${NYTIMES_API_KEY}`;
             const {data: nytResponse} = await axios.get<NYTimesSearchResponse>(url, {headers: buildHeader('nytimes')});
-            console.log('Raw NYT search response:', {
+            console.log('Raw NYT search response:'.cyan, {
                 status: nytResponse.status,
                 hasResponse: !!nytResponse.response,
                 hasDocs: !!nytResponse.response?.docs,
@@ -571,10 +607,10 @@ class NewsService {
             });
 
             nytimesApiRequestCount++;
-            console.log(`NYTimes API request ${nytimesApiRequestCount}/${NYTIMES_QUOTA_REQUESTS}:`.cyan.italic, nytResponse?.response?.metadata?.hits || 0, 'results');
+            console.log(`External API: NYTimes request ${nytimesApiRequestCount}/${NYTIMES_QUOTA_REQUESTS}:`.magenta, nytResponse?.response?.metadata?.hits || 0, 'results');
 
             if (!nytResponse.response || !nytResponse.response.docs) {
-                console.warn('NYT API returned invalid response structure'.yellow.italic);
+                console.warn('Service Error: NYT API returned invalid response structure'.red.bold);
                 return {articles: [], totalResults: 0};
             }
 
@@ -595,31 +631,33 @@ class NewsService {
 
             return result;
         } catch (error: any) {
-            console.error('ERROR: inside catch of fetchNYTimesNews:'.red.bold, error.message);
+            console.error('Service Error: NewsService.fetchNYTimesNews failed:'.red.bold, error.message);
             return {articles: [], totalResults: 0};
         }
     }
 
     static async fetchNYTimesTopStories({section = 'home'}: NYTimesTopStoriesParams) {
+        console.log('Service: NewsService.fetchNYTimesTopStories called'.cyan.italic, {section});
+
         try {
             if (!NYTIMES_API_KEY) {
-                console.warn('NYTimes API key not configured'.yellow.italic);
+                console.warn('Config Warning: NYTimes API key not configured'.yellow.italic);
                 return {articles: [], totalResults: 0};
             }
             if (section && !VALID_NYTIMES_SECTIONS.includes(section)) {
-                console.error('Invalid nytimes section:'.yellow.italic, section);
+                console.warn('Client Error: Invalid nytimes section'.yellow, section);
                 return {error: generateInvalidCode('nytimes_section')};
             }
 
             if (nytimesApiRequestCount >= Number.parseInt(NYTIMES_QUOTA_REQUESTS!)) {
-                console.warn('NYTimes API daily limit reached'.yellow.italic);
+                console.warn('Rate Limit: NYTimes API daily limit reached'.yellow);
                 return {status: 'error', message: 'NYTimes API daily limit reached', articles: [], totalResults: 0};
             }
 
             const cacheKey = `nytimes-top-${section}`;
             const cached = NYTIMES_CACHE.get(cacheKey);
             if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
-                console.log('returning cached NYTimes top stories:'.cyan.italic);
+                console.log('Cache: returning cached NYTimes top stories'.cyan);
                 return cached.data;
             }
 
@@ -627,7 +665,7 @@ class NewsService {
             const {data: nytResponse} = await axios.get<NYTimesTopStoriesResponse>(url, {headers: buildHeader('nytimes')});
 
             nytimesApiRequestCount++;
-            console.log(`NYTimes Top Stories API request ${nytimesApiRequestCount}/${NYTIMES_QUOTA_REQUESTS}:`.cyan.italic, nytResponse.num_results, 'results');
+            console.log(`External API: NYTimes Top Stories request ${nytimesApiRequestCount}/${NYTIMES_QUOTA_REQUESTS}:`.magenta, nytResponse.num_results, 'results');
 
             const articles: Article[] = nytResponse.results?.map(this.convertNYTimesTopStoryToArticle);
 
@@ -644,12 +682,14 @@ class NewsService {
 
             return result;
         } catch (error: any) {
-            console.error('ERROR: inside catch of fetchNYTimesTopStories:'.red.bold, error.message);
+            console.error('Service Error: NewsService.fetchNYTimesTopStories failed:'.red.bold, error.message);
             return {articles: [], totalResults: 0};
         }
     }
 
     static async fetchAllRSSFeeds({q, sources, languages = 'english', pageSize = 10, page = 1}: RSSFeedParams) {
+        console.log('Service: NewsService.fetchAllRSSFeeds called'.cyan.italic, {q, sources, languages, pageSize, page});
+
         try {
             const cacheKey = `${q}-${sources}-${languages}-${pageSize}-${page}`;
             const cached = RSS_CACHE.get(cacheKey);
@@ -698,7 +738,7 @@ class NewsService {
                 .sort((a: RSSFeed, b: RSSFeed) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
 
             if (q && q.trim()) {
-                console.log(`Searching RSS feeds for: "${q}"`.cyan.italic);
+                console.log(`Service: fetchAllRSSFeeds searching for: "${q}"`.cyan);
 
                 const simplifiedQuery = this.simplifySearchQuery(q.trim());
                 const expandedTerms = simplifiedQuery.split(' ').filter(term => term.length > 2);
@@ -746,7 +786,7 @@ class NewsService {
                 const paginatedResults = searchResults.slice(startIndex, startIndex + pageSize);
                 const finalResults = paginatedResults.map(r => r.item);
 
-                console.log(`Expanded search found ${searchResults.length} results for "${q}"`.green);
+                console.log(`RSS search completed: found ${searchResults.length} results for "${q}"`.green.bold);
 
                 if (NODE_ENV === 'production') {
                     RSS_CACHE.set(cacheKey, {data: finalResults, timestamp: Date.now()});
@@ -764,18 +804,20 @@ class NewsService {
 
             return paginatedResults;
         } catch (error: any) {
-            console.error('ERROR: inside catch of fetchRSSFeed:'.red.bold, error);
+            console.error('Service Error: NewsService.fetchAllRSSFeeds failed:'.red.bold, error);
             throw error;
         }
     }
 
     private static async smartFetchWithVariations(apiFunction: Function, query: string, params: any, minQualityResults: number = 3): Promise<any> {
+        console.log('Service: NewsService.smartFetchWithVariations called'.cyan.italic, {query, params, minQualityResults});
+
         const queryVariations = this.generateQueryVariations(query);
-        console.log(`Trying ${queryVariations.length} query variations:`.cyan.italic, queryVariations);
+        console.log(`Service: smartFetchWithVariations trying ${queryVariations.length} query variations:`, queryVariations);
 
         for (let i = 0; i < queryVariations.length; i++) {
             const variation = queryVariations[i];
-            console.log(`Attempt ${i + 1}: "${variation}"`.yellow);
+            console.log(`Attempt ${i + 1}: "${variation}"`.cyan);
 
             try {
                 const result = await apiFunction({...params, q: variation});
@@ -789,7 +831,7 @@ class NewsService {
                         })
                         .filter((article: Article) => article.qualityScore!.isProfessional && article.qualityScore!.isRelevant && article.qualityScore!.score > 0.4);
 
-                    console.log(`Variation "${variation}" yielded ${qualityArticles.length} quality articles (from ${result.articles.length} total)`.green);
+                    console.log(`Query variation "${variation}" yielded ${qualityArticles.length} quality articles (from ${result.articles.length} total)`.cyan);
 
                     if (qualityArticles.length >= minQualityResults) {
                         return {
@@ -801,16 +843,16 @@ class NewsService {
                     }
                 }
             } catch (error: any) {
-                console.log(`ERROR: Variation "${variation}" failed:`.red, error.message);
+                console.log(`Service Error: Query variation "${variation}" failed:`.red.bold, error.message);
             }
         }
 
-        console.log(`All query variations failed to produce ${minQualityResults}+ quality results`.yellow.italic);
+        console.warn(`Service Warning: All query variations failed to produce ${minQualityResults}+ quality results`.yellow);
         return null;
     }
 
     static async fetchMultiSourceNews({email, q, category, sources, pageSize = 10, page = 1}: MultisourceFetchNewsParams) {
-        console.log('Professional multisource news fetch:'.bgBlue.white.bold, {q, category, sources, pageSize, page});
+        console.log('Service: fetchMultiSourceNews called'.cyan.italic, {q, category, sources, pageSize, page});
 
         const topic = this.determineTopicFromQuery(q, category);
         const simplifiedQuery = q ? this.simplifySearchQuery(q) : q;
@@ -830,7 +872,7 @@ class NewsService {
         const newsApiTargetCount = Math.ceil(pageSize * 0.4);
         try {
             if (newsApiRequestCount < Number.parseInt(NEWSAPI_QUOTA_REQUESTS!) && simplifiedQuery) {
-                console.log(`Trying NewsAPIOrg with smart query variations (target: ${newsApiTargetCount} articles)...`.cyan.italic);
+                console.log(`Service: Trying NewsAPIOrg with smart query variations (target: ${newsApiTargetCount} articles)...`.cyan);
 
                 const newsApiResult = await this.smartFetchWithVariations(
                     this.fetchNewsAPIOrgEverything,
@@ -846,9 +888,9 @@ class NewsService {
 
                     results.push(...topArticles);
                     usedSources.push(`NewsAPI (${newsApiResult.usedQuery})`);
-                    console.log(`NewsAPI contributed ${topArticles.length} quality articles using query: "${newsApiResult.usedQuery}"`.green);
+                    console.log(`NewsAPI contributed ${topArticles.length} quality articles using query: "${newsApiResult.usedQuery}"`.cyan);
                 } else {
-                    console.log('NewsAPIOrg smart fetch returned no quality articles'.yellow.italic);
+                    console.warn('Service Warning: NewsAPIOrg smart fetch returned no quality articles'.yellow);
 
                     const fallbackResult = await this.fetchNewsAPIOrgTopHeadlines({
                         country: 'us',
@@ -861,7 +903,7 @@ class NewsService {
                     if (fallbackResult && fallbackResult.articles && fallbackResult.articles.length > 0) {
                         results.push(...fallbackResult.articles.slice(0, newsApiTargetCount));
                         usedSources.push('NewsAPI (fallback)');
-                        console.log(`NewsAPI fallback contributed ${Math.min(fallbackResult.articles.length, newsApiTargetCount)} articles`.yellow);
+                        console.log(`NewsAPI fallback contributed ${Math.min(fallbackResult.articles.length, newsApiTargetCount)} articles`.cyan);
                     }
                 }
             } else if (!simplifiedQuery) {
@@ -876,15 +918,15 @@ class NewsService {
                 if (headlinesResult && headlinesResult.articles && headlinesResult.articles.length > 0) {
                     results.push(...headlinesResult.articles.slice(0, newsApiTargetCount));
                     usedSources.push('NewsAPI (headlines)');
-                    console.log(`NewsAPI headlines contributed ${Math.min(headlinesResult.articles.length, newsApiTargetCount)} articles`.green);
+                    console.log(`NewsAPI headlines contributed ${Math.min(headlinesResult.articles.length, newsApiTargetCount)} articles`.cyan);
                 }
             } else {
                 errors.push('NewsAPIOrg limit reached');
-                console.log('NewsAPI limit reached, skipping...'.yellow.italic);
+                console.warn('Rate Limit: NewsAPI limit reached, skipping...'.yellow);
             }
         } catch (error: any) {
             errors.push(`NewsAPIOrg failed: ${error.message}`);
-            console.log('NewsAPIOrg failed, continuing...'.yellow.italic, error.message);
+            console.warn('Service Warning: NewsAPIOrg failed, continuing...'.yellow, error.message);
         }
 
         // Guardian API (40% of remaining slots)
@@ -894,7 +936,7 @@ class NewsService {
         if (remainingSlots > 0) {
             try {
                 if (guardianApiRequestCount < Number.parseInt(GUARDIAN_QUOTA_REQUESTS!) && simplifiedQuery) {
-                    console.log(`Trying Guardian API with smart variations (target: ${guardianTargetCount} articles)...`.cyan.italic);
+                    console.log(`Service: Trying Guardian API with smart variations (target: ${guardianTargetCount} articles)...`.cyan);
 
                     const guardianResult = await this.smartFetchWithVariations(
                         this.fetchGuardianNews,
@@ -911,7 +953,7 @@ class NewsService {
 
                         results.push(...qualityArticles);
                         usedSources.push(`Guardian (${guardianResult.usedQuery})`);
-                        console.log(`Guardian contributed ${qualityArticles.length} quality articles using query: "${guardianResult.usedQuery}"`.green);
+                        console.log(`Guardian contributed ${qualityArticles.length} quality articles using query: "${guardianResult.usedQuery}"`.cyan);
                     }
                 } else if (!simplifiedQuery) {
                     const guardianResult = await this.fetchGuardianNews({
@@ -927,15 +969,15 @@ class NewsService {
                             .slice(0, guardianTargetCount);
                         results.push(...articles);
                         usedSources.push('Guardian (section)');
-                        console.log(`Guardian section contributed ${articles.length} articles`.green);
+                        console.log(`Guardian section contributed ${articles.length} articles`.cyan);
                     }
                 } else {
                     errors.push('Guardian API limit reached');
-                    console.log('Guardian API limit reached, skipping...'.yellow.italic);
+                    console.warn('Rate Limit: Guardian API limit reached, skipping...'.yellow);
                 }
             } catch (error: any) {
                 errors.push(`Guardian failed: ${error.message}`);
-                console.log('Guardian API failed, continuing...'.yellow.italic);
+                console.warn('Service Warning: Guardian API failed, continuing...'.yellow);
             }
         }
 
@@ -946,7 +988,7 @@ class NewsService {
         if (remainingSlots2 > 0) {
             try {
                 if (nytimesApiRequestCount < Number.parseInt(NYTIMES_QUOTA_REQUESTS!)) {
-                    console.log(`Trying NYTimes API (target: ${nytimesTargetCount} articles)...`.cyan.italic);
+                    console.log(`Service: Trying NYTimes API (target: ${nytimesTargetCount} articles)...`.cyan);
 
                     if (simplifiedQuery) {
                         const nytResult = await this.smartFetchWithVariations(
@@ -964,7 +1006,7 @@ class NewsService {
 
                             results.push(...qualityArticles);
                             usedSources.push(`NYTimes (${nytResult.usedQuery})`);
-                            console.log(`NYTimes contributed ${qualityArticles.length} quality articles using query: "${nytResult.usedQuery}"`.green);
+                            console.log(`NYTimes contributed ${qualityArticles.length} quality articles using query: "${nytResult.usedQuery}"`.cyan);
                         }
                     } else {
                         const nytResult = await this.fetchNYTimesTopStories({section: nytSection});
@@ -975,16 +1017,16 @@ class NewsService {
                                 .slice(0, nytimesTargetCount);
                             results.push(...articles);
                             usedSources.push('NYTimes (top stories)');
-                            console.log(`NYTimes top stories contributed ${articles.length} articles`.green);
+                            console.log(`NYTimes top stories contributed ${articles.length} articles`.cyan);
                         }
                     }
                 } else {
                     errors.push('NYTimes API limit reached');
-                    console.log('NYTimes API limit reached, skipping...'.yellow.italic);
+                    console.warn('Rate Limit: NYTimes API limit reached, skipping...'.yellow);
                 }
             } catch (error: any) {
                 errors.push(`NYTimes failed: ${error.message}`);
-                console.log('NYTimes API failed, continuing...'.yellow.italic);
+                console.warn('Service Warning: NYTimes API failed, continuing...'.yellow);
             }
         }
 
@@ -993,7 +1035,7 @@ class NewsService {
 
         if (remainingSlots3 > 0) {
             try {
-                console.log(`Trying RSS feeds (target: ${remainingSlots3} articles)...`.cyan.italic);
+                console.log(`Service: Trying RSS feeds (target: ${remainingSlots3} articles)...`.cyan);
 
                 const rssResults = await this.fetchAllRSSFeeds({q: simplifiedQuery, sources: optimizedSources, pageSize: remainingSlots3 * 2, page});
 
@@ -1011,11 +1053,11 @@ class NewsService {
 
                     results.push(...qualityArticles);
                     usedSources.push('RSS');
-                    console.log(`RSS contributed ${qualityArticles.length} quality articles (filtered from ${rssArticles.length})`.green);
+                    console.log(`RSS contributed ${qualityArticles.length} quality articles (filtered from ${rssArticles.length})`.cyan);
                 }
             } catch (error: any) {
                 errors.push(`RSS failed: ${error.message}`);
-                console.log('RSS fallback failed, continuing...'.yellow.italic);
+                console.warn('Service Warning: RSS fallback failed, continuing...'.yellow);
             }
         }
 
@@ -1030,7 +1072,7 @@ class NewsService {
             return dateB - dateA;
         }).slice(0, pageSize);
 
-        console.log(`Multisource search completed: ${finalResults.length}/${pageSize} quality articles from [${usedSources.join(', ')}]`.bgGreen.bold);
+        console.log(`Multisource search completed successfully: ${finalResults.length}/${pageSize} quality articles from [${usedSources.join(', ')}]`.green.bold);
 
         // Enrich articles with sentiment analysis for logged-in users
         let enrichedArticles = finalResults;
@@ -1041,13 +1083,13 @@ class NewsService {
                 // Verify user exists
                 const {user} = await AuthService.getUserByEmail({email});
                 if (user) {
-                    console.log('User verified, enriching articles with sentiment analysis...'.cyan.italic);
-                    console.time('MULTISOURCE_SENTIMENT_ENRICHMENT_TIME'.bgCyan.white.italic);
+                    console.log('User verified, enriching articles with sentiment analysis...'.cyan);
+                    console.time('Performance: MULTISOURCE_SENTIMENT_ENRICHMENT_TIME'.cyan);
                     enrichedArticles = await SentimentAnalysisService.enrichArticlesWithSentiment(finalResults, true);
-                    console.timeEnd('MULTISOURCE_SENTIMENT_ENRICHMENT_TIME'.bgCyan.white.italic);
+                    console.timeEnd('Performance: MULTISOURCE_SENTIMENT_ENRICHMENT_TIME'.cyan);
                     sentimentAnalysisEnabled = true;
                 } else {
-                    console.log('User not found, skipping sentiment analysis'.yellow.italic);
+                    console.warn('Service Warning: User not found, skipping sentiment analysis'.yellow);
                 }
             } catch (error: any) {
                 console.error('ERROR: during user verification or sentiment analysis:'.red.bold, error.message);
@@ -1073,7 +1115,8 @@ class NewsService {
     }
 
     private static async scrapeArticle({url}: ScrapeWebsiteParams) {
-        console.info('scrapeArticle called:'.bgMagenta.white.italic, url);
+        console.log('Service: scrapeArticle called'.cyan.italic, url);
+
         try {
             if (!url) {
                 return {error: generateMissingCode('url')};
@@ -1110,7 +1153,7 @@ class NewsService {
 
             const reader = new Readability(dom.window.document);
             const article = reader.parse();
-            console.log('article:', article);
+            console.log('Article parsed successfully:'.cyan, article);
 
             if (!article) {
                 throw new Error('Failed to parse article content');
@@ -1131,12 +1174,14 @@ class NewsService {
                 status: 200,
             };
         } catch (error: any) {
-            console.error('ERROR: inside catch of scrapeArticle:'.red.bold, error);
+            console.error('Service Error: NewsService.scrapeArticle failed:'.red.bold, error);
             throw error;
         }
     }
 
     static async scrapeMultipleArticles({urls}: ScrapeMultipleWebsitesParams) {
+        console.log('Service: NewsService.scrapeMultipleArticles called'.cyan.italic, {urls});
+
         const results = [];
 
         if (isListEmpty(urls)) {
@@ -1173,15 +1218,15 @@ class NewsService {
     }
 
     private static async fetchMultiSourceNewsFast({email, q, category, sources, pageSize = 10, page = 1}: MultisourceFetchNewsParams) {
-        console.log('Fast multisource news fetch:'.bgBlue.white.bold, {q, category, sources, pageSize, page});
+        console.log('Service: fetchMultiSourceNewsFast called'.cyan.italic, {q, category, sources, pageSize, page});
 
         const startTime = Date.now();
         const topic = this.determineTopicFromQuery(q, category);
         const simplifiedQuery = q ? this.simplifySearchQuery(q) : q;
         const optimizedSources = this.getOptimizedSourcesForTopic(topic, sources);
 
-        console.log('Fast fetch - Topic:'.cyan, topic);
-        console.log('Fast fetch - Query:'.cyan, simplifiedQuery);
+        console.log('Topic:'.cyan, topic);
+        console.log('Simplified query:'.cyan, simplifiedQuery);
 
         const results: Article[] = [];
         const usedSources: string[] = [];
@@ -1284,7 +1329,7 @@ class NewsService {
 
                 if ('error' in apiResult) {
                     errors.push(`${apiResult.source}: ${apiResult.error}`);
-                    console.log(`${apiResult.source} failed:`.yellow, apiResult.error);
+                    console.warn(`Service Warning: ${apiResult.source} failed:`.yellow, apiResult.error);
                 } else if (apiResult.result && apiResult.result.articles && apiResult.result.articles.length > 0) {
                     // Simple deduplication by URL and tag with source API
                     const newArticles = apiResult.result.articles
@@ -1298,7 +1343,7 @@ class NewsService {
 
                     results.push(...newArticles);
                     usedSources.push(apiResult.source);
-                    console.log(`${apiResult.source} contributed ${newArticles.length} articles`.green);
+                    console.log(`${apiResult.source} contributed ${newArticles.length} articles`.cyan);
                 }
             }
         });
@@ -1334,9 +1379,9 @@ class NewsService {
         const newsApiTotal = distribution['NewsAPI-Search'] + distribution['NewsAPI-Headlines'];
         const nytimesTotal = distribution['NYTimes-Search'] + distribution['NYTimes-TopStories'];
 
-        console.log(`Fast multisource completed: ${sortedResults.length} articles in ${loadTime}ms from [${usedSources.join(', ')}]`.bgGreen.bold);
-        console.log(`Actual distribution: NewsAPI(${newsApiTotal}), Guardian(${distribution.Guardian}), NYTimes(${nytimesTotal}), RSS(${distribution.RSS})`.cyan.italic);
-        console.log(`Target ratios: NewsAPI(10%), Guardian(30%), NYTimes(20%), RSS(40%)`.cyan.italic);
+        console.log(`Fast multisource news fetch completed successfully: ${sortedResults.length} articles in ${loadTime}ms from [${usedSources.join(', ')}]`.green.bold);
+        console.log(`Actual distribution: NewsAPI(${newsApiTotal}), Guardian(${distribution.Guardian}), NYTimes(${nytimesTotal}), RSS(${distribution.RSS})`.green.bold);
+        console.log(`Target ratios: NewsAPI(10%), Guardian(30%), NYTimes(20%), RSS(40%)`.green.bold);
 
         // Start background enhancement (fire and forget)
         if (sortedResults.length > 0) {
@@ -1376,22 +1421,22 @@ class NewsService {
     }
 
     static async fetchMultiSourceNewsEnhanced({email, q, category, sources, pageSize = 10, page = 1}: MultisourceFetchNewsParams) {
-        console.log('Enhanced multisource news fetch (Progressive):'.bgBlue.white.bold, {q, category, sources, pageSize, page});
+        console.log('Service: fetchMultiSourceNewsEnhanced called'.cyan.italic, {q, category, sources, pageSize, page});
 
         const startTime = Date.now();
 
         const fastResults = await this.fetchMultiSourceNewsFast({email, q, category, sources, pageSize, page});
 
-        console.time('ENHANCEMENT_CHECK_TIME'.bgCyan.white.italic);
+        console.time('Performance: ENHANCEMENT_CHECK_TIME'.cyan);
         const existingEnhancements = await ArticleEnhancementService.getEnhancementsForArticles({articles: fastResults.articles});
-        console.timeEnd('ENHANCEMENT_CHECK_TIME'.bgCyan.white.italic);
+        console.timeEnd('Performance: ENHANCEMENT_CHECK_TIME'.cyan);
 
         const enhancedArticles = ArticleEnhancementService.mergeEnhancementsWithArticles({articles: fastResults.articles, enhancements: existingEnhancements});
 
         const enhancedCount = enhancedArticles.filter(article => article.enhanced).length;
         const totalTime = Date.now() - startTime;
 
-        console.log(`Progressive enhanced multisource: ${enhancedCount}/${enhancedArticles.length} articles have AI enhancements (${totalTime}ms)`.green);
+        console.log(`Enhanced multisource news fetch completed successfully: ${enhancedCount}/${enhancedArticles.length} articles have AI enhancements (${totalTime}ms)`.green.bold);
 
         const processingStatus = await ArticleEnhancementService.getProcessingStatus({articles: enhancedArticles});
 
