@@ -18,6 +18,8 @@ import {
 
 class BookmarkService {
     static async toggleBookmark({email, articleUrl, title, source, description, imageUrl, publishedAt}: ToggleBookmarkParams): Promise<ToggleBookmarkResponse> {
+        console.log('Service: BookmarkService.toggleBookmark called'.cyan.italic, {email, articleUrl, title, source});
+
         try {
             const {user, error} = await AuthService.getUserByEmail({email});
             if (!user) {
@@ -45,14 +47,14 @@ class BookmarkService {
                     // already bookmarked → remove it
                     const {deletedCount} = await BookmarkModel.deleteOne({userExternalId: user.userExternalId, articleUrl});
                     const isDeleted = deletedCount === 1;
-                    console.log('Bookmark deleted:'.cyan.italic, isDeleted);
+                    console.log('Database: Bookmark deleted'.cyan, {isDeleted, deletedCount});
 
-                    // Track unbookmark analytics
                     if (isDeleted) {
                         await AnalyticsService.updateSourceAnalytics({source, action: 'unbookmark'})
-                            .catch((error: any) => console.error('Analytics update failed:'.red.bold, error));
+                            .catch((error: any) => console.error('Service Error: Analytics update failed'.red.bold, error));
                     }
 
+                    console.log('Bookmark removal completed successfully'.green.bold);
                     return {deleted: isDeleted};
                 } else {
                     // not bookmarked → add it
@@ -60,26 +62,28 @@ class BookmarkService {
                         userExternalId: user.userExternalId,
                         articleUrl, title, source, description, imageUrl, publishedAt,
                     });
-                    console.log('savedBookmark:'.cyan.italic, savedBookmark);
+                    console.log('Database: Bookmark created'.cyan, savedBookmark);
 
-                    // Track bookmark analytics
                     if (savedBookmark) {
                         await AnalyticsService.updateSourceAnalytics({source, action: 'bookmark'})
-                            .catch((error: any) => console.error('Analytics update failed:'.red.bold, error));
+                            .catch((error: any) => console.error('Service Error: Analytics update failed'.red.bold, error));
                     }
 
+                    console.log('Bookmark addition completed successfully'.green.bold);
                     return {added: true, bookmark: savedBookmark};
                 }
             }
 
             return {error: isBookedMarkedError};
         } catch (error: any) {
-            console.error('ERROR: inside catch of toggleBookmark:'.red.bold, error);
+            console.error('Service Error: BookmarkService.toggleBookmark failed'.red.bold, error);
             throw error;
         }
     }
 
     static async getBookmarkStatus({email, articleUrl}: IsBookmarkedParams): Promise<IsBookmarkedResponse> {
+        console.log('Service: BookmarkService.getBookmarkStatus called'.cyan.italic, {email, articleUrl});
+        
         try {
             const {user, error} = await AuthService.getUserByEmail({email});
             if (!user) {
@@ -92,18 +96,23 @@ class BookmarkService {
 
             const bookmarkedArticle: IBookmark | null = await BookmarkModel.findOne({userExternalId: user.userExternalId, articleUrl});
             if (!bookmarkedArticle) {
+                console.log('Database: Article not bookmarked'.cyan);
+                console.log('Bookmark status check completed successfully'.green.bold);
                 return {isBookmarked: false};
             }
-            console.log('bookmarkedArticle:'.cyan.italic, bookmarkedArticle);
+            console.log('Database: Article found in bookmarks'.cyan, bookmarkedArticle);
 
+            console.log('Bookmark status check completed successfully'.green.bold);
             return {isBookmarked: true};
         } catch (error: any) {
-            console.error('ERROR: inside catch of getBookmarkStatus:'.red.bold, error);
+            console.error('Service Error: BookmarkService.getBookmarkStatus failed'.red.bold, error);
             throw error;
         }
     }
 
     static async getAllBookmarks({email, pageSize = 10, page = 1}: GetAllBookmarksParams): Promise<GetAllBookmarksResponse> {
+        console.log('Service: BookmarkService.getAllBookmarks called'.cyan.italic, {email, pageSize, page});
+        
         try {
             const {user, error} = await AuthService.getUserByEmail({email});
             if (!user) {
@@ -111,23 +120,28 @@ class BookmarkService {
             }
 
             const skip = (page - 1) * pageSize;
+            console.log('Database: Querying bookmarks'.cyan, {skip, pageSize});
             const bookmarkedArticles: IBookmark[] | null = await BookmarkModel
                 .find({userExternalId: user.userExternalId})
                 .sort({createdAt: -1})  // descending order
                 .skip(skip)
                 .limit(pageSize);
-            console.log('bookmarkedArticles:'.cyan.italic, bookmarkedArticles);
+            console.log('Database: Bookmarks retrieved'.cyan, {count: bookmarkedArticles?.length});
 
             const totalCount = await BookmarkModel.countDocuments({userExternalId: user.userExternalId});
+            console.log('Database: Total bookmark count retrieved'.cyan, {totalCount});
 
+            console.log('Get all bookmarks completed successfully'.green.bold);
             return {bookmarkedArticles, totalCount, currentPage: page, totalPages: Math.ceil(totalCount / pageSize)};
         } catch (error: any) {
-            console.error('ERROR: inside catch of getAllBookmarks:'.red.bold, error);
+            console.error('Service Error: BookmarkService.getAllBookmarks failed'.red.bold, error);
             throw error;
         }
     }
 
     static async getBookmarkCount({email}: GetAllBookmarksParams): Promise<GetBookmarkCountResponse> {
+        console.log('Service: BookmarkService.getBookmarkCount called'.cyan.italic, {email});
+        
         try {
             const {user, error} = await AuthService.getUserByEmail({email});
             if (!user) {
@@ -135,16 +149,19 @@ class BookmarkService {
             }
 
             const count = await BookmarkModel.countDocuments({userExternalId: user.userExternalId});
-            console.log('count:'.cyan.italic, count);
+            console.log('Database: Bookmark count retrieved'.cyan, {count});
 
+            console.log('Get bookmark count completed successfully'.green.bold);
             return {count};
         } catch (error: any) {
-            console.error('ERROR: inside catch of getBookmarkCount:'.red.bold, error);
+            console.error('Service Error: BookmarkService.getBookmarkCount failed'.red.bold, error);
             throw error;
         }
     }
 
     static async searchBookmarks({email, q, sources, sortBy = 'createdAt', sortOrder = 'desc', pageSize = 10, page = 1}: SearchBookmarksParams): Promise<SearchBookmarksResponse> {
+        console.log('Service: BookmarkService.searchBookmarks called'.cyan.italic, {email, q, sources, sortBy, sortOrder, pageSize, page});
+        
         try {
             const {user, error} = await AuthService.getUserByEmail({email});
             if (!user) {
@@ -154,7 +171,6 @@ class BookmarkService {
             const skip = (page - 1) * pageSize;
             const filter: any = {userExternalId: user.userExternalId};
 
-            // Full-text search
             if (typeof q === 'string' && q.trim()) {
                 const regex = {$regex: q.trim(), $options: 'i'};
                 filter.$or = [
@@ -165,7 +181,6 @@ class BookmarkService {
                 ];
             }
 
-            // Filter by source(s)
             const sourceArray = sources?.split(',').map(s => s.trim()).filter(Boolean);
             if (sourceArray?.length) {
                 filter.source = {$in: sourceArray};
@@ -174,7 +189,7 @@ class BookmarkService {
             const sortField = SUPPORTED_BOOKMARK_SORTINGS.includes(sortBy) ? sortBy : 'createdAt';
             const sortDirection = sortOrder === 'asc' ? 1 : -1;
 
-            console.info('Filter used in searchBookmarks:'.bgMagenta.white.italic, filter);
+            console.log('Database: Search filter constructed'.cyan, filter);
 
             const searchedArticles = await BookmarkModel.find(filter)
                 .sort({[sortField]: sortDirection})
@@ -182,11 +197,12 @@ class BookmarkService {
                 .limit(pageSize);
 
             const totalCount = await BookmarkModel.countDocuments(filter);
-            console.log('searched bookmarked articles:'.cyan.italic, searchedArticles);
+            console.log('Database: Search results retrieved'.cyan, {resultCount: searchedArticles.length, totalCount});
 
+            console.log('Bookmark search completed successfully'.green.bold);
             return {bookmarks: searchedArticles, totalCount, currentPage: page, totalPages: Math.ceil(totalCount / pageSize)};
         } catch (error: any) {
-            console.error('ERROR: inside catch of searchBookmarks:'.red.bold, error);
+            console.error('Service Error: BookmarkService.searchBookmarks failed'.red.bold, error);
             throw error;
         }
     }

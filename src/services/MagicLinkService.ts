@@ -1,3 +1,4 @@
+import "colors";
 import mongoose from "mongoose";
 import AuthService from './AuthService';
 import EmailService from './EmailService';
@@ -11,7 +12,10 @@ import {CheckAuthStatusParams, CheckAuthStatusResponse, GenerateMagicLinkParams,
 
 class MagicLinkService {
     static async generateMagicLink({email}: GenerateMagicLinkParams): Promise<GenerateMagicLinkResponse> {
+        console.log('Service: MagicLinkService.generateMagicLink called'.cyan.italic, {email});
+        
         try {
+            console.log('Database: Cleaning expired magic links'.cyan);
             await MagicLinkModel.deleteMany({
                 email,
                 $or: [
@@ -27,114 +31,139 @@ class MagicLinkService {
             });
 
             const token = generateNanoIdWithAlphabet();
-            console.log('random token in generateMagicLink:'.cyan.italic, token);
+            console.log('Magic link token generated'.cyan, {token: token.substring(0, 10) + '...'});
             const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
+            console.log('Database: Creating magic link record'.cyan);
             await MagicLinkModel.create({email, token, expiresAt});
             await EmailService.sendMagicLink(email, token);
 
+            console.log('Magic link generation completed successfully'.green.bold);
             return {success: true, message: 'Magic link sent to your email'};
         } catch (error: any) {
-            console.error('ERROR: inside catch of generateMagicLink:'.red.bold, error);
+            console.error('Service Error: MagicLinkService.generateMagicLink failed'.red.bold, error);
             throw error;
         }
     }
 
     static async verifyMagicLink({token}: VerifyMagicLinkParams): Promise<VerifyMagicLinkResponse> {
-        const magicLink = await MagicLinkModel.findOne({
-            token,
-            isUsed: false,
-            expiresAt: {$gt: new Date()},
-        });
+        console.log('Service: MagicLinkService.verifyMagicLink called'.cyan.italic, {token: token.substring(0, 10) + '...'});
+        
+        try {
+            console.log('Database: Looking up magic link'.cyan);
+            const magicLink = await MagicLinkModel.findOne({
+                token,
+                isUsed: false,
+                expiresAt: {$gt: new Date()},
+            });
 
-        if (!magicLink) {
-            return {error: generateInvalidCode('magic_link')};
-        }
-
-        const {user} = await AuthService.getUserByEmail({email: magicLink.email});
-        let finalUser: IUser;
-        if (!user) {
-            const session = await mongoose.startSession();
-            session.startTransaction();
-            try {
-                const [newUser] = await UserModel.create([
-                    {
-                        name: magicLink.email.split('@')[0],
-                        email: magicLink.email,
-                        isVerified: true,
-                        authProvider: 'magic-link',
-                    },
-                ], {session});
-                console.log('user created:'.cyan.italic, newUser);
-
-                const {userPreference, error} = await UserPreferenceService.modifyUserPreference({
-                    email: magicLink.email,
-                    user: newUser,
-                    preferredLanguage: 'en',
-                    preferredCategories: [],
-                    preferredSources: [],
-                    summaryStyle: 'standard',
-                    newsLanguages: ['english'],
-                    session,
-                });
-                if (error) {
-                    console.log('ERROR: creating user preference failed:'.yellow.italic, error);
-                    await session.abortTransaction();
-                    return {error: 'CREATE_USER_PREFERENCE_FAILED'};
-                }
-                console.log('user preference created:'.cyan.italic, userPreference);
-
-                await session.commitTransaction();
-
-                finalUser = newUser;
-            } catch (error: any) {
-                console.error('ERROR: inside catch of verifyMagicLink > userPreference:'.red.bold, error);
-                await session.abortTransaction();
-                throw error;
-            } finally {
-                await session.endSession();
+            if (!magicLink) {
+                console.warn('Client Error: Invalid or expired magic link'.yellow);
+                return {error: generateInvalidCode('magic_link')};
             }
-        } else {
-            user.authProvider = 'magic-link';
-            user.isVerified = true;
-            await user.save();
-            finalUser = user;
-        }
 
-        const {accessToken, refreshToken} = await AuthService.generateJWT(finalUser);
+            console.log('Database: Magic link found and valid'.cyan, {email: magicLink.email});
+            const {user} = await AuthService.getUserByEmail({email: magicLink.email});
+            let finalUser: IUser;
+            
+            if (!user) {
+                console.log('Database: Creating new user from magic link'.cyan);
+                const session = await mongoose.startSession();
+                session.startTransaction();
+                try {
+                    const [newUser] = await UserModel.create([
+                        {
+                            name: magicLink.email.split('@')[0],
+                            email: magicLink.email,
+                            isVerified: true,
+                            authProvider: 'magic-link',
+                        },
+                    ], {session});
+                    console.log('Database: New user created'.cyan, newUser);
 
-        await Promise.all([
-            magicLink.deleteOne(),
-            AuthSessionModel.findOneAndUpdate(
-                {userExternalId: finalUser.userExternalId},
-                {
-                    $set: {
-                        userExternalId: finalUser.userExternalId,
-                        email: finalUser.email,
-                        accessToken, refreshToken,
-                        user: finalUser,
+                    const {userPreference, error} = await UserPreferenceService.modifyUserPreference({
+                        email: magicLink.email,
+                        user: newUser,
+                        preferredLanguage: 'en',
+                        preferredCategories: [],
+                        preferredSources: [],
+                        summaryStyle: 'standard',
+                        newsLanguages: ['english'],
+                        session,
+                    });
+                    if (error) {
+                        console.error('Service Error: User preference creation failed'.red.bold, error);
+                        await session.abortTransaction();
+                        return {error: 'CREATE_USER_PREFERENCE_FAILED'};
+                    }
+                    console.log('Database: User preference created'.cyan, userPreference);
+
+                    await session.commitTransaction();
+
+                    finalUser = newUser;
+                } catch (error: any) {
+                    console.error('Service Error: MagicLinkService.verifyMagicLink transaction failed'.red.bold, error);
+                    await session.abortTransaction();
+                    throw error;
+                } finally {
+                    await session.endSession();
+                }
+            } else {
+                console.log('Database: Updating existing user for magic link auth'.cyan);
+                user.authProvider = 'magic-link';
+                user.isVerified = true;
+                await user.save();
+                finalUser = user;
+            }
+
+            console.log('Database: Generating JWT tokens'.cyan);
+            const {accessToken, refreshToken} = await AuthService.generateJWT(finalUser);
+
+            console.log('Database: Cleaning up magic link and creating auth session'.cyan);
+            await Promise.all([
+                magicLink.deleteOne(),
+                AuthSessionModel.findOneAndUpdate(
+                    {userExternalId: finalUser.userExternalId},
+                    {
+                        $set: {
+                            userExternalId: finalUser.userExternalId,
+                            email: finalUser.email,
+                            accessToken, refreshToken,
+                            user: finalUser,
+                        },
                     },
-                },
-                {upsert: true, new: true},
-            ),
-        ]);
+                    {upsert: true, new: true},
+                ),
+            ]);
 
-        return {user: finalUser, accessToken, refreshToken};
+            console.log('Magic link verification completed successfully'.green.bold);
+            return {user: finalUser, accessToken, refreshToken};
+        } catch (error: any) {
+            console.error('Service Error: MagicLinkService.verifyMagicLink failed'.red.bold, error);
+            throw error;
+        }
     }
 
     // only for magicLink users -- not designed for google oauth and email/pass users
     static async checkAuthStatus({email}: CheckAuthStatusParams): Promise<CheckAuthStatusResponse> {
+        console.log('Service: MagicLinkService.checkAuthStatus called'.cyan.italic, {email});
+        
         try {
             const {user} = await AuthService.getUserByEmail({email});
             if (!user) {
+                console.warn('Client Error: User not found for auth status check'.yellow);
                 return {error: generateNotFoundCode('user')};
             }
 
+            console.log('Database: Looking up auth session'.cyan);
             const session: IAuthSession | null = await AuthSessionModel.findOne({userExternalId: user.userExternalId});
-            console.log('session from checkAuthStatus:'.cyan.italic, {session});
+            console.log('Database: Auth session lookup result'.cyan, {found: !!session});
+            
             if (session) {
+                console.log('Database: Removing auth session after retrieval'.cyan);
                 await AuthSessionModel.deleteOne({userExternalId: user.userExternalId});
 
+                console.log('Auth status check completed successfully'.green.bold);
                 return {
                     authenticated: true,
                     user: session.user,
@@ -143,9 +172,10 @@ class MagicLinkService {
                 };
             }
 
+            console.log('Auth status check completed successfully'.green.bold);
             return {authenticated: false};
         } catch (error: any) {
-            console.error('ERROR: inside catch of checkAuthStatus:'.red.bold, error);
+            console.error('Service Error: MagicLinkService.checkAuthStatus failed'.red.bold, error);
             throw error;
         }
     }

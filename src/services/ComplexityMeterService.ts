@@ -52,7 +52,7 @@ class ComplexityMeterService {
      */
     private static async analyzeWithGemini(modelName: string, content: string): Promise<ComplexityMeterResponse> {
         if (!GEMINI_API_KEY) {
-            console.error('Service Error: Gemini API key not configured'.red.bold);
+            console.warn('Config Warning: Gemini API key not configured'.yellow.italic);
             return {error: generateMissingCode('gemini_api_key')};
         }
 

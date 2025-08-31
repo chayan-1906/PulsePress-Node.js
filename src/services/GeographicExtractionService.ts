@@ -13,25 +13,25 @@ class GeographicExtractionService {
      * Extract geographic locations from news article content using Gemini AI
      */
     static async extractLocations({content, url}: GeographicExtractionParams): Promise<GeographicExtractionResponse> {
-        console.log('Extracting geographic locations from content...'.cyan.italic);
+        console.log('Service: GeographicExtractionService.extractLocations called'.cyan.italic, {contentLength: content?.length, url});
 
         if (!content && !url) {
-            console.error('Content and url both invalid:'.yellow.italic, {content, url});
+            console.warn('Client Error: Both content and URL missing'.yellow, {content, url});
             return {error: 'CONTENT_OR_URL_REQUIRED'};
         }
 
         if (content && url) {
-            console.error('Content and url both valid:'.yellow.italic, {content, url});
+            console.warn('Client Error: Both content and URL provided'.yellow, {contentLength: content.length, url});
             return {error: 'CONTENT_AND_URL_CONFLICT'};
         }
 
         let articleContent = content || '';
         if (!content && url) {
-            console.info('Scraping URL for geographic extraction:'.cyan.italic, url);
+            console.log('Content scraping required for URL'.cyan, url);
             const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
-                console.error('Scraping failed:'.red.bold, scrapedArticles[0]?.error);
+                console.error('Service Error: Article scraping failed'.red.bold, scrapedArticles[0]?.error);
                 return {error: 'SCRAPING_FAILED'};
             }
 
@@ -39,12 +39,13 @@ class GeographicExtractionService {
         }
 
         if (!articleContent || articleContent.trim().length === 0) {
-            console.log('Empty content provided for geographic extraction'.yellow.italic);
+            console.warn('Client Error: Empty content provided for geographic extraction'.yellow);
             return {error: generateMissingCode('content')};
         }
 
         // Truncate content to avoid token limits
         const truncatedContent = articleContent.substring(0, 4000);
+        console.log('Content prepared for geographic extraction'.cyan, {originalLength: articleContent.length, truncatedLength: truncatedContent.length});
 
         for (let i = 0; i < AI_GEOGRAPHIC_EXTRACTION_MODELS.length; i++) {
             const model = AI_GEOGRAPHIC_EXTRACTION_MODELS[i];
@@ -54,18 +55,19 @@ class GeographicExtractionService {
                 const result = await this.extractWithGemini(model, truncatedContent);
 
                 if (result.locations && result.locations.length > 0) {
-                    console.log(`✅ Geographic extraction successful with model:`.green, model);
-                    console.log('Extracted locations:'.green, result.locations);
+                    console.log(`✅ Geographic extraction successful with model:`.cyan, model);
+                    console.log('Extracted locations:'.cyan, result.locations);
+                    console.log('Geographic extraction completed successfully'.green.bold);
                     return result;
                 }
 
-                console.log(`❌ Model failed:`.yellow.bold, model, 'Error:'.yellow.italic, result.error);
+                console.error('Service Error: Geographic extraction model failed'.red.bold, {model, error: result.error});
             } catch (error: any) {
-                console.log(`❌ Model failed:`.yellow.bold, model, 'Error:'.yellow.italic, error.message);
+                console.error('Service Error: Geographic extraction model failed'.red.bold, {model, error: error.message});
             }
         }
 
-        console.error('🚨 All geographic extraction models failed'.red.bold);
+        console.error('Service Error: All geographic extraction models failed'.red.bold);
         return {error: 'GEOGRAPHIC_EXTRACTION_FAILED'};
     }
 
@@ -74,10 +76,11 @@ class GeographicExtractionService {
      */
     private static async extractWithGemini(modelName: string, content: string): Promise<GeographicExtractionResponse> {
         if (!GEMINI_API_KEY) {
-            console.error('Gemini API key not configured'.red.bold);
+            console.warn('Config Warning: Gemini API key not configured'.yellow.italic);
             return {error: generateMissingCode('gemini_api_key')};
         }
 
+        console.log('External API: Generating geographic extraction with Gemini'.magenta, {model: modelName});
         const model = AIService.genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.GEOGRAPHIC_EXTRACTION(content);
@@ -85,7 +88,7 @@ class GeographicExtractionService {
         const result = await model.generateContent(prompt);
         let responseText = result.response.text().trim();
 
-        console.log('Gemini geographic extraction response:'.cyan, responseText);
+        console.log('External API: Gemini response received'.magenta, responseText);
 
         if (responseText.startsWith('```json')) {
             responseText = responseText.substring(7);
@@ -99,23 +102,24 @@ class GeographicExtractionService {
         responseText = responseText.trim();
 
         if (responseText !== result.response.text().trim()) {
-            console.log('Stripped markdown, clean JSON:'.yellow, responseText);
+            console.log('JSON markdown stripped'.cyan, responseText);
         }
 
         const parsed: AIGeographicExtraction = JSON.parse(responseText);
 
         if (!parsed.locations || !Array.isArray(parsed.locations)) {
-            console.error('Invalid locations array in response:'.red, parsed.locations);
+            console.error('Service Error: Invalid locations array in response'.red.bold, parsed.locations);
             return {error: 'GEOGRAPHIC_PARSE_ERROR'};
         }
 
         const validLocations = parsed.locations.filter(location => location && location.trim().length > 0);
 
         if (validLocations.length === 0) {
-            console.error('No valid locations found in response'.red);
+            console.error('Service Error: No valid locations found in response'.red.bold);
             return {error: 'NO_VALID_LOCATIONS'};
         }
 
+        console.log('Geographic locations parsed successfully'.cyan, validLocations);
         return {locations: validLocations};
     }
 }

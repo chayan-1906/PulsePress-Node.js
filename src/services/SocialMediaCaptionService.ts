@@ -92,7 +92,7 @@ class SocialMediaCaptionService {
      */
     private static async generateWithGemini(modelName: string, content: string, platform?: SocialMediaPlatform, style?: SocialMediaCaptionStyle): Promise<SocialMediaCaptionResponse> {
         if (!GEMINI_API_KEY) {
-            console.error('Gemini API key not configured'.red.bold);
+            console.warn('Config Warning: Gemini API key not configured'.yellow.italic);
             return {error: generateMissingCode('gemini_api_key')};
         }
 

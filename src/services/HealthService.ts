@@ -14,24 +14,27 @@ import {AI_SUMMARIZATION_MODELS, RSS_SOURCES} from "../utils/constants";
 
 class HealthService {
     static async checkNewsAPIOrgHealth(): Promise<HealthCheckResponse> {
-        console.info('checkNewsAPIOrgHealth called:'.bgMagenta.white.italic);
+        console.log('Service: HealthService.checkNewsAPIOrgHealth called'.cyan.italic);
 
         try {
             const start = Date.now();
+            console.log('External API: Testing NewsAPI health'.magenta);
             const {data: topHeadlines} = await axios.get(apis.topHeadlinesApi({country: 'us', pageSize: 1}), {
                 headers: buildHeader(),
                 timeout: 5000,
             });
             const responseTime = Date.now() - start;
+            console.log('External API: NewsAPI health check successful'.magenta, {responseTime});
+            console.log('NewsAPI health check completed successfully'.green.bold);
             return {status: 'healthy', responseTime: `${responseTime}ms`, data: topHeadlines};
         } catch (error: any) {
-            console.error('ERROR: inside catch of checkNewsAPIOrgHealth:'.red.bold, error);
+            console.error('Service Error: HealthService.checkNewsAPIOrgHealth failed'.red.bold, error);
             return {status: 'unhealthy', error: {message: error.message}};
         }
     }
 
     static async checkRSSFeedsHealth(): Promise<HealthCheckResponse> {
-        console.info('checkRSSFeedsHealth called:'.bgMagenta.white.italic);
+        console.log('Service: HealthService.checkRSSFeedsHealth called'.cyan.italic);
 
         try {
             const start = Date.now();
@@ -39,30 +42,31 @@ class HealthService {
             const testFeeds = Object.values(RSS_SOURCES)
                 .flatMap(languageSources => Object.values(languageSources));
 
-            console.log('DEBUG - Total feeds to test:'.cyan.italic, testFeeds.length);
+            console.debug('Debug: Total RSS feeds to test'.gray, testFeeds.length);
 
             const results = await Promise.allSettled(
                 testFeeds.map(url => parseRSS(url)),
             );
 
-            console.log('DEBUG - Results breakdown:'.cyan.italic);
+            console.debug('Debug: RSS feed test results breakdown'.gray);
             results.forEach((result, index) => {
                 const feedUrl = testFeeds[index];
                 if (result.status === 'fulfilled') {
-                    console.log(`✅ SUCCESS: ${feedUrl}`.green.bold);
+                    console.log(`External API: RSS feed healthy - ${feedUrl}`.magenta);
                 } else {
-                    console.error(`❌ FAILED: ${feedUrl} - Error:`.red.bold, result.reason?.message || result.reason);
+                    console.error(`External API: RSS feed failed - ${feedUrl}`.red.bold, result.reason?.message || result.reason);
                 }
             });
 
             const successful = results.filter(r => r.status === 'fulfilled').length;
             const total = testFeeds.length;
 
-            console.log(`DEBUG - Summary: ${successful}/${total} feeds successful`.green.bold);
+            console.log(`RSS feed health summary: ${successful}/${total} feeds successful`.cyan);
 
             if (successful === 0) {
                 return {status: 'unhealthy', error: {message: 'All RSS feeds failed'}};
             } else if (successful < total) {
+                console.log('RSS feeds health check completed with degraded status'.green.bold);
                 return {
                     status: 'degraded',
                     responseTime: `${Date.now() - start}ms`,
@@ -70,18 +74,20 @@ class HealthService {
                 };
             }
 
+            console.log('RSS feeds health check completed successfully'.green.bold);
             return {status: 'healthy', responseTime: `${Date.now() - start}ms`};
         } catch (error: any) {
-            console.log('DEBUG - Exception in checkRSSFeedsHealth:'.red.bold, error);
+            console.error('Service Error: HealthService.checkRSSFeedsHealth failed'.red.bold, error);
             return {status: 'unhealthy', error: {message: error.message}};
         }
     }
 
     static async checkGoogleServicesHealth(): Promise<HealthCheckResponse> {
-        console.info('checkGoogleServicesHealth called:'.bgMagenta.white.italic);
+        console.log('Service: HealthService.checkGoogleServicesHealth called'.cyan.italic);
 
         try {
             const start = Date.now();
+            console.log('External API: Testing Google services health'.magenta);
             const translate = new Translate({key: GOOGLE_TRANSLATE_API_KEY});
             const results = await Promise.allSettled([
                 getOAuth2Client(),  // Test OAuth
@@ -90,38 +96,46 @@ class HealthService {
 
             const failures = results.filter(r => r.status === 'rejected');
             if (failures.length > 0) {
+                console.error('External API: Google services health check failed'.red.bold, {failures: failures.length});
                 return {status: 'unhealthy', error: {message: `${failures.length} Google service(s) failed`, details: failures}};
             }
 
+            console.log('External API: Google services health check successful'.magenta);
+            console.log('Google services health check completed successfully'.green.bold);
             return {status: 'healthy', responseTime: `${Date.now() - start}ms`};
         } catch (error: any) {
+            console.error('Service Error: HealthService.checkGoogleServicesHealth failed'.red.bold, error);
             return {status: 'unhealthy', error: {message: error.message}};
         }
     }
 
     static async checkGeminiAIHealth(): Promise<HealthCheckResponse> {
-        console.info('checkGeminiAIHealth called:'.bgMagenta.white.italic);
+        console.log('Service: HealthService.checkGeminiAIHealth called'.cyan.italic);
 
         try {
             const start = Date.now();
+            console.log('External API: Testing Gemini AI health'.magenta, {model: AI_SUMMARIZATION_MODELS[0]});
             const model = AIService.genAI.getGenerativeModel({model: AI_SUMMARIZATION_MODELS[0]});
             await model.generateContent('test');
+            console.log('External API: Gemini AI health check successful'.magenta);
+            console.log('Gemini AI health check completed successfully'.green.bold);
             return {status: 'healthy', responseTime: `${Date.now() - start}ms`};
         } catch (error: any) {
-            console.error('ERROR: inside catch of checkGeminiAIHealth:'.red.bold, error);
+            console.error('Service Error: HealthService.checkGeminiAIHealth failed'.red.bold, error);
             return {status: 'unhealthy', error: {message: error.message}};
         }
     }
 
     static async checkDatabaseHealth(): Promise<HealthCheckResponse> {
-        console.info('checkDatabaseHealth called:'.bgMagenta.white.italic);
+        console.log('Service: HealthService.checkDatabaseHealth called'.cyan.italic);
 
         try {
             const start = Date.now();
-
+            console.log('Database: Checking MongoDB connection health'.cyan);
             const dbHealth = getDatabaseHealth();
 
             if (!dbHealth.connected) {
+                console.error('Database: MongoDB not connected'.red.bold, {readyState: dbHealth.readyState});
                 return {
                     status: 'unhealthy',
                     error: {message: `Database not connected. State: ${dbHealth.readyState}`},
@@ -130,8 +144,10 @@ class HealthService {
             }
 
             await mongoose.connection.db!.admin().ping();
+            console.log('Database: MongoDB ping successful'.cyan);
 
             const responseTime = Date.now() - start;
+            console.log('Database health check completed successfully'.green.bold);
             return {
                 status: 'healthy',
                 responseTime: `${responseTime}ms`,
@@ -144,7 +160,7 @@ class HealthService {
                 },
             };
         } catch (error: any) {
-            console.error('ERROR: inside catch of checkDatabaseHealth:'.red.bold, error);
+            console.error('Service Error: HealthService.checkDatabaseHealth failed'.red.bold, error);
             return {
                 status: 'unhealthy',
                 error: {message: error.message},
@@ -154,10 +170,11 @@ class HealthService {
     }
 
     static async checkOverallSystemHealth(): Promise<HealthCheckResponse> {
-        console.info('checkOverallSystemHealth called:'.bgMagenta.white.italic);
+        console.log('Service: HealthService.checkOverallSystemHealth called'.cyan.italic);
 
         try {
             const start = Date.now();
+            console.log('Running comprehensive system health checks'.cyan);
 
             const [newsHealth, rssHealth, googleHealth, aiHealth, dbHealth] = await Promise.allSettled([
                 this.checkNewsAPIOrgHealth(),
@@ -183,6 +200,8 @@ class HealthService {
             if (healthyServices === 0) overallStatus = 'unhealthy';
             else if (healthyServices < totalServices) overallStatus = 'degraded';
 
+            console.log(`System health summary: ${healthyServices}/${totalServices} services healthy`.cyan, {status: overallStatus});
+            console.log('Overall system health check completed successfully'.green.bold);
             return {
                 status: overallStatus,
                 responseTime: `${Date.now() - start}ms`,
@@ -190,6 +209,7 @@ class HealthService {
                 message: `${healthyServices}/${totalServices} services healthy`,
             };
         } catch (error: any) {
+            console.error('Service Error: HealthService.checkOverallSystemHealth failed'.red.bold, error);
             return {status: 'unhealthy', error: {message: error.message}};
         }
     }
