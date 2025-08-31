@@ -19,7 +19,7 @@ import {
     SUMMARIZATION_STYLES,
     SummarizeArticleParams,
     SummarizeArticleResponse,
-    TranslateTextParams
+    TranslateTextParams,
 } from "../types/ai";
 
 class AIService {
@@ -30,7 +30,7 @@ class AIService {
 
     private static resetInterval = setInterval(() => {
         AIService.geminiRequestCount = 0;
-        console.log('Daily Gemini API counter reset'.cyan.italic);
+        console.log('Daily Gemini API counter reset'.blue);
     }, Number.parseInt(GEMINI_QUOTA_MS!));
 
     static cleanup(): void {
@@ -40,24 +40,28 @@ class AIService {
     }
 
     static async summarizeArticle({email, content, url, language = 'en', style = 'standard'}: SummarizeArticleParams): Promise<SummarizeArticleResponse> {
-        console.info('summarizeArticle called'.bgMagenta.white.italic, {content, url});
+        console.log('Service: AIService.summarizeArticle called'.cyan.italic, {content, url});
+
         try {
             if (!content && !url) {
-                console.error('content and url both invalid:'.yellow.italic, {content, url});
+                console.warn('Service Warning: Both content and URL are invalid'.yellow, {content, url});
                 return {error: 'CONTENT_OR_URL_REQUIRED'};
             }
+
             if (content && url) {
-                console.error('content and url both valid:'.yellow.italic, {content, url});
+                console.warn('Service Warning: Both content and URL provided'.yellow, {content, url});
                 return {error: 'CONTENT_AND_URL_CONFLICT'};
             }
+
             if (style && !SUMMARIZATION_STYLES.includes(style)) {
-                console.error('Invalid style:'.yellow.italic, style);
+                console.warn('Service Warning: Invalid summarization style'.yellow, style);
                 return {error: generateInvalidCode('style')};
             }
 
             const {isBlocked, message, blockedUntil, blockType} = await StrikeService.checkUserBlock(email);
+
             if (isBlocked) {
-                console.log('User blocked from AI summarization:'.yellow.italic, {message, blockedUntil, blockType});
+                console.warn('Service Warning: User blocked from AI summarization'.yellow, {message, blockedUntil, blockType});
                 return {
                     error: 'USER_BLOCKED_FROM_AI_FEATURES',
                     errorMsg: message || 'You are temporarily blocked from using AI features due to non-news queries',
@@ -65,27 +69,27 @@ class AIService {
             }
 
             if (this.geminiRequestCount >= Number.parseInt(GEMINI_QUOTA_REQUESTS!)) {
-                console.log('Gemini API daily limit reached'.yellow.italic);
+                console.warn('Rate Limit: Gemini API daily quota reached'.yellow);
                 return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
             }
 
             let articleContent = content || '';
             if (!content && url) {
-                console.info('inside !content && url'.bgMagenta.white.italic);
+                console.log('Service: Processing URL for content scraping'.cyan);
                 const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
                 if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
-                    console.error('Scraping failed:'.red.bold, {count: scrapedArticles.length}, {error: scrapedArticles[0].error})
+                    console.error('Service Error: Article scraping failed'.red.bold, {count: scrapedArticles.length}, {error: scrapedArticles[0].error})
                     return {error: 'SCRAPING_FAILED'};
                 }
 
-                console.log('content:', scrapedArticles);
+                console.log('Service: Scraped article content'.cyan, scrapedArticles);
                 articleContent = scrapedArticles[0]?.content || '';
             }
 
             if (!articleContent) {
                 return {error: generateMissingCode('content')};
             }
-            console.info('articleContent'.bgMagenta.white.italic, articleContent);
+            console.log('Service: Article content processed'.cyan, articleContent);
 
             const {user} = await AuthService.getUserByEmail({email});
             if (!user) {
@@ -97,6 +101,7 @@ class AIService {
             if (!hash) {
                 return {error: 'HASH_FAILED'};
             }
+
             const cached = await this.getCachedSummary({contentHash: hash});
 
             if (NODE_ENV === 'production' && cached) {
@@ -123,7 +128,7 @@ class AIService {
                     summarizedArticleResponse = await model.generateContent(prompt);
                     usedModel = modelName;
                     this.geminiRequestCount++;
-                    console.log(`Gemini API request ${this.geminiRequestCount}/1500:`.cyan.italic, 'summarization');
+                    console.log(`Gemini API request ${this.geminiRequestCount}/1500:`.cyan, 'summarization');
                     break; // Success - exit loop
                 } catch (error) {
                     if (modelName === AI_SUMMARIZATION_MODELS[AI_SUMMARIZATION_MODELS.length - 1]) {
@@ -143,21 +148,24 @@ class AIService {
             }
 
             // After AI generates summary, save to cache:
-            // if (NODE_ENV === 'production') {
-            await this.saveSummaryToCache({contentHash: hash, summary: finalSummary, language, style});
-            // }
+            if (NODE_ENV === 'production') {
+                await this.saveSummaryToCache({contentHash: hash, summary: finalSummary, language, style});
+            }
 
+            console.log('Article summarized'.green.bold, {summary: finalSummary.substring(0, 50) + '...'});
             return {
                 summary: finalSummary,
                 powered_by: usedModel + (language !== 'en' ? ' + Translate' : ''),
             };
         } catch (error: any) {
-            console.error('ERROR: inside catch of summarizeArticle:'.red.bold, error);
+            console.error('Service Error: AIService.summarizeArticle failed'.red.bold, error);
             throw error;
         }
     }
 
     private static async generateContentHash({articleContent, language = 'en', style = 'standard'}: GenerateContentHashParams): Promise<GenerateContentHashResponse> {
+        console.log('Service: AIService.generateContentHash called'.cyan.italic, {articleContent: articleContent.substring(0, 50) + '...', language, style});
+
         try {
             if (!articleContent) {
                 return {error: generateMissingCode('content')};
@@ -165,42 +173,47 @@ class AIService {
 
             const data = `${articleContent}::${language}::${style}`;
             const contentHash = createHash('sha256').update(data).digest('hex');
-            console.log('content hash generated:'.cyan.italic, contentHash);
+            console.log('content hash generated:'.cyan, contentHash);
 
             return {hash: contentHash};
         } catch (error: any) {
-            console.error('ERROR: inside catch of generateContentHash:'.red.bold, error);
+            console.error('Service Error: AIService.generateContentHash failed'.red.bold, error);
             throw error;
         }
     }
 
     private static async saveSummaryToCache({contentHash, summary, language, style}: SaveSummaryToCacheParams): Promise<ICachedSummary | null> {
+        console.log('Service: AIService.saveSummaryToCache called'.cyan.italic, {contentHash, summary: summary.substring(0, 50) + '...', language, style});
+
         try {
             const savedContentHash: ICachedSummary | null = await CachedSummaryModel.create({contentHash, summary, language, style});
-            console.log('saved content hash'.cyan.italic, savedContentHash);
+            console.log('saved content hash'.cyan, savedContentHash);
             return savedContentHash;
         } catch (error: any) {
-            console.error('ERROR: inside catch of saveSummaryToCache:'.red.bold, error);
+            console.error('Service Error: AIService.saveSummaryToCache failed'.red.bold, error);
             throw error;
         }
     }
 
     private static async getCachedSummary({contentHash}: GetCachedSummaryParams): Promise<ICachedSummary | null> {
+        console.log('Service: AIService.getCachedSummary called'.cyan.italic, {contentHash});
+
         const cachedSummary: ICachedSummary | null = await CachedSummaryModel.findOne({contentHash});
-        console.log('cachedSummary'.cyan.italic, cachedSummary);
+        console.log('cachedSummary'.cyan, cachedSummary);
         return cachedSummary;
     }
 
     private static async translateText({text, targetLanguage}: TranslateTextParams): Promise<string> {
-        console.log('translateText:', {text, targetLanguage});
+        console.log('Service: AIService.translateText called'.cyan.italic, {text, targetLanguage});
+
         try {
             const [translation] = await this.translate.translate(text, {
                 to: targetLanguage, // 'bn' for Bengali, 'hi' for Hindi, etc.
             });
-            console.log('translation:'.cyan.italic, translation);
+            console.log('translation:'.cyan, translation);
             return translation;
         } catch (error: any) {
-            console.error('ERROR: inside catch of translateText:'.red.bold, error);
+            console.error('Service Error: AIService.translateText failed'.red.bold, error);
             return text; // fallback to original text
         }
     }

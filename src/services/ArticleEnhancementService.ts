@@ -30,10 +30,10 @@ class ArticleEnhancementService {
      * Combined AI enhancement method - smart tags, sentiment analysis, key points extractor, complexity meter, geographic entity locations
      */
     private static async aiEnhanceArticle({content, tasks}: CombinedAIParams): Promise<CombinedAIResponse> {
-        console.log('Running combined AI enhancement:'.cyan.italic, tasks);
+        console.log('Service: ArticleEnhancementService.aiEnhanceArticle called'.cyan.italic, {tasks});
 
         if (!content || content.trim().length === 0) {
-            console.log('Empty content provided for AI enhancement'.yellow.italic);
+            console.warn('Service Warning: Empty content provided for AI enhancement'.yellow);
             return {error: generateMissingCode('content')};
         }
 
@@ -109,11 +109,11 @@ class ArticleEnhancementService {
                 responseText = responseText.trim();
 
                 if (responseText !== result.response.text().trim()) {
-                    console.log('Stripped markdown, clean JSON:'.yellow, responseText);
+                    console.log('Service: JSON markdown stripped'.cyan, responseText);
                 }
 
                 const parsed: CombinedAIResponse = JSON.parse(responseText);
-                console.log('parsed response:'.cyan.italic, parsed);
+                console.log('parsed response:'.cyan, parsed);
 
                 const response: CombinedAIResponse = {};
 
@@ -152,11 +152,11 @@ class ArticleEnhancementService {
                     }
                 }
 
-                console.log(`✅ AI enhancement successful with model:`.green, modelName);
-                console.log('Combined AI enhancement result:'.green, response);
+                console.log(`✅ AI enhancement successful with model:`.green.bold, modelName);
+                console.log('Combined AI enhancement result:'.green.bold, response);
                 return response;
             } catch (error: any) {
-                console.log(`❌ Model failed:`.yellow.bold, modelName, 'Error:'.yellow.italic, error.message);
+                console.warn('Service Warning: AI model failed'.yellow, {model: modelName, error: error.message});
                 if (i === AI_ENHANCEMENT_MODELS.length - 1) {
                     console.error('🚨 All AI enhancement models failed'.red.bold);
                     return {error: 'AI_ENHANCEMENT_FAILED'};
@@ -164,16 +164,13 @@ class ArticleEnhancementService {
             }
         }
 
-        console.error('🚨 All AI enhancement models failed'.red.bold);
+        console.error('🚨Service Error: All AI enhancement models failed'.red.bold);
         return {error: 'AI_ENHANCEMENT_FAILED'};
     }
 
-    /*static isBackgroundProcessingActive(articles: Article[]): boolean {
-        const articleIds = articles.map(article => generateArticleId(article));
-        return articleIds.some(id => this.activeJobs.has(id));
-    }*/
-
     static async getProcessingStatus({articles}: GetProcessingStatusParams): Promise<GetProcessingStatusResponse> {
+        console.log('Service: ArticleEnhancementService.getProcessingStatus called'.cyan.italic, {articleCount: articles.length});
+
         const articleIds = articles.map((article: Article) => generateArticleId({article}));
 
         const hasActiveJobs = articleIds.some((id: string) => this.activeJobs.has(id));
@@ -196,22 +193,22 @@ class ArticleEnhancementService {
     }
 
     static async enhanceArticlesInBackground({email, articles}: EnhanceArticlesInBackgroundParams): Promise<void> {
-        console.log(`Starting background enhancement for ${articles.length} articles`.cyan.italic);
+        console.log('Service: ArticleEnhancementService.enhanceArticlesInBackground called'.cyan.italic, {email, articleCount: articles.length});
 
         if (email) {
             try {
                 const {user} = await AuthService.getUserByEmail({email});
                 const {isBlocked} = await StrikeService.checkUserBlock(email);
                 if (!user || isBlocked) {
-                    console.error('User not found - no AI enhancements'.yellow.italic);
+                    console.warn('Service Warning: User not found - no AI enhancements'.yellow);
                     return;
                 }
             } catch (error: any) {
-                console.error('User verification failed, skipping enhancements'.red.bold);
+                console.error('Service Error: User verification failed'.red.bold, error);
                 return;
             }
         } else {
-            console.log('No user email provided - no AI enhancements'.yellow.italic);
+            console.warn('Service Warning: No user email provided - no AI enhancements'.yellow);
             return;
         }
 
@@ -222,7 +219,7 @@ class ArticleEnhancementService {
             for (const article of articles) {
                 try {
                     if (!article.url || !article.title) {
-                        console.log('Skipping article with missing URL or title'.yellow);
+                        console.warn('Service Warning: Skipping article with missing URL or title'.yellow);
                         continue;
                     }
 
@@ -230,7 +227,7 @@ class ArticleEnhancementService {
 
                     const existingEnhancedArticle: IArticleEnhancement | null = await ArticleEnhancementModel.findOne({articleId});
                     if (existingEnhancedArticle && existingEnhancedArticle.processingStatus === 'completed') {
-                        console.log(`Article ${articleId} already enhanced`.green);
+                        console.log(`Article ${articleId} already enhanced`.cyan);
                         continue;
                     }
 
@@ -284,7 +281,7 @@ class ArticleEnhancementService {
                             locations = aiResult.locations;
                         }
                     }
-                    console.log('aiResult:'.cyan.italic, aiResult);
+                    console.log('aiResult:'.cyan, aiResult);
 
                     const updatedEnhancedArticle = await ArticleEnhancementModel.findOneAndUpdate(
                         {articleId},
@@ -298,16 +295,16 @@ class ArticleEnhancementService {
                             processingStatus: 'completed',
                         },
                     );
-                    console.log(`Successfully enhanced article: ${articleId}`.green, updatedEnhancedArticle);
+                    console.log(`Successfully enhanced article: ${articleId}`.cyan, updatedEnhancedArticle);
                 } catch (error: any) {
                     const articleId = generateArticleId({article});
-                    console.error(`Enhancement failed for article ${articleId}:`.red.bold, error.message);
+                    console.error('Service Error: Article enhancement failed'.red.bold, {articleId, error: error.message});
 
                     await ArticleEnhancementModel.findOneAndUpdate(
                         {articleId},
                         {processingStatus: 'failed'},
                     ).catch((error: any) => {
-                        console.error('ERROR: couldn\'t update article enhancement in DB:'.red.bold, error);
+                        console.error('Service Error: ArticleEnhancementService database update failed'.red.bold, error);
                         // Silent fail for cleanup
                     });
                 }
@@ -319,6 +316,8 @@ class ArticleEnhancementService {
     }
 
     static async getEnhancementsForArticles({articles}: GetEnhancementForArticlesParams): Promise<{ [articleId: string]: IArticleEnhancement }> {
+        console.log('Service: ArticleEnhancementService.getEnhancementsForArticles called'.cyan.italic, {articleCount: articles.length});
+
         try {
             const articleIds = articles.map((article: Article) => generateArticleId({article}));
 
@@ -332,12 +331,14 @@ class ArticleEnhancementService {
 
             return enhancementMap;
         } catch (error: any) {
-            console.error('Error fetching enhancements:'.red.bold, error.message);
+            console.error('Service Error: ArticleEnhancementService.getEnhancementsForArticles failed'.red.bold, error);
             return {};
         }
     }
 
     static async getEnhancementStatusByIds({email, articleIds}: GetEnhancementStatusByIdsParams): Promise<GetEnhancementStatusByIdsResponse> {
+        console.log('Service: ArticleEnhancementService.getEnhancementStatusByIds called'.cyan.italic, {email, articleCount: articleIds.length});
+
         try {
             if (email) {
                 const {user} = await AuthService.getUserByEmail({email});
@@ -379,7 +380,7 @@ class ArticleEnhancementService {
 
             return {status, progress, articles};
         } catch (error: any) {
-            console.error('ERROR: getting enhancement status by IDs:'.red.bold, error.message);
+            console.error('Service Error: ArticleEnhancementService.getEnhancementStatusByIds failed'.red.bold, error);
             return {status: 'failed', progress: 0, articles: []};
         }
     }

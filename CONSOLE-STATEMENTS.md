@@ -30,6 +30,11 @@ console.error('Service Error: Database connection failed:'.red.bold, error);
 
 // ✅ External API Calls - Use console.log with magenta
 console.log('External API: Calling NewsAPI endpoint'.magenta, url);
+
+1. all functions start with .cyan.italic
+2. non-private service function’s last successful log is **.green.bold**, all other logs (including private functions) are .cyan
+3. client error -> .yellow
+4. service/server error -> .red.bold
 ```
 
 **🐛 DEBUG LOGGING (Development Details):**
@@ -77,14 +82,15 @@ console.log('Background: Daily API counter reset'.blue);
 | --- | --- | --- | --- |
 | **Controller start** | console.info | bgBlue.white.bold | 'Controller: loginController started’ |
 | **Service start** | console.log | cyan.italic | 'Service: NewsService.fetchNews called’ |
-| **Success operations** | console.log | bgGreen.bold | 'Database: User created successfully’ |
-| **Client errors (400s)** | console.warn | yellow | Client Error: Invalid email format’ |
+| **Success operations in Controller** | console.log | bgGreen.bold | 'Controller: User created successfully’ |
+| **Success operations in Service** | console.log | green.bold | ‘Service: Successfully enhanced article’ |
+| **Client errors (400s)** | console.warn | yellow | ‘Client Error: Invalid email format’, ‘Quota Reached’ |
 | **Server errors (500s)** | console.error | red.bold | 'Service Error: Database timeout’ |
 | **Config issues** | console.warn | yellow.italic | 'Config Warning: API key missing’ |
 | **Debug details** | console.debug | gray | 'Debug: Processing 50 articles’ |
 | **Performance** | console.time | cyan | 'Performance: API_CALL_TIME’ |
 | **External APIs** | console.log | magenta | 'External API: Calling Guardian endpoint’ |
-| Background tasks | console.log | blue |  |
+| **Background tasks** | console.log | blue |  |
 
 **When to Use console.debug():**
 
@@ -92,7 +98,7 @@ console.log('Background: Daily API counter reset'.blue);
 Essential Debug Cases:
 
 // ✅ 1. Loop/Batch Processing Details
-console.debug('Debug: Processing article 25/100:'.gray, article.title);
+    console.debug('Debug: Processing article 25/100:'.gray, article.title);
 
 // ✅ 2. Data Transformation Steps  
 console.debug('Debug: Converting Guardian format to internal format'.gray);

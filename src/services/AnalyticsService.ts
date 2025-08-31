@@ -12,6 +12,8 @@ import {
 
 class AnalyticsService {
     static async updateSourceAnalytics({source, action, readingTime = 0}: UpdateSourceAnalyticsParams): Promise<UpdateSourceAnalyticsResponse> {
+        console.log('Service: AnalyticsService.updateSourceAnalytics called'.cyan.italic, {source, action, readingTime});
+        
         try {
             if (!source) {
                 return {error: 'SOURCE_MISSING'};
@@ -27,12 +29,14 @@ class AnalyticsService {
             const updatedAnalytics = await this.updateExistingAnalytics(existingAnalytics, action, readingTime);
             return {sourceAnalytics: updatedAnalytics, isUpdated: true};
         } catch (error: any) {
-            console.error('ERROR: updateSourceAnalytics:'.red.bold, error);
+            console.error('Service Error: AnalyticsService.updateSourceAnalytics failed'.red.bold, error);
             throw error;
         }
     }
 
     private static async createInitialAnalytics(source: string, action: string, readingTime: number): Promise<ISourceAnalytics> {
+        console.log('Service: AnalyticsService.createInitialAnalytics called'.cyan.italic, {source, action, readingTime});
+
         const initialData = {
             source,
             totalViews: action === 'view' ? 1 : 0,
@@ -50,6 +54,8 @@ class AnalyticsService {
     }
 
     private static async updateExistingAnalytics(analytics: ISourceAnalytics, action: string, readingTime: number): Promise<ISourceAnalytics> {
+        console.log('Service: AnalyticsService.updateExistingAnalytics called'.cyan.italic, {analytics, action, readingTime});
+
         const updates: any = {};
 
         switch (action) {
@@ -96,6 +102,8 @@ class AnalyticsService {
     }
 
     private static calculateEngagementScore(metrics: any): number {
+        console.log('Service: AnalyticsService.calculateEngagementScore called'.cyan.italic, {metrics});
+
         const {viewWeight, bookmarkWeight, completionWeight, readingTimeWeight} = DEFAULT_ENGAGEMENT_WEIGHTS;
 
         const viewScore = metrics.totalViews * viewWeight;
@@ -107,6 +115,8 @@ class AnalyticsService {
     }
 
     static async getSourceAnalytics({limit = 20, sortBy = 'engagementScore', sortOrder = 'desc'}: GetSourceAnalyticsParams): Promise<GetSourceAnalyticsResponse> {
+        console.log('Service: AnalyticsService.getSourceAnalytics called'.cyan.italic, {limit, sortBy, sortOrder});
+
         try {
             const sortDirection = sortOrder === 'asc' ? 1 : -1;
             const sourceAnalytics = await SourceAnalyticsModel
@@ -118,12 +128,14 @@ class AnalyticsService {
 
             return {sourceAnalytics, totalSources};
         } catch (error: any) {
-            console.error('ERROR: getSourceAnalytics:'.red.bold, error);
+            console.error('Service Error: AnalyticsService.getSourceAnalytics failed'.red.bold, error);
             throw error;
         }
     }
 
     static async getTopPerformingSources({limit = 10, minViews = 10}: GetTopPerformingSourcesParams): Promise<GetTopPerformingSourcesResponse> {
+        console.log('Service: AnalyticsService.getTopPerformingSources called'.cyan.italic, {limit, minViews});
+
         try {
             const topSources = await SourceAnalyticsModel
                 .find({totalViews: {$gte: minViews}})
@@ -134,7 +146,7 @@ class AnalyticsService {
 
             return {topSources, totalSources};
         } catch (error: any) {
-            console.error('ERROR: getTopPerformingSources:'.red.bold, error);
+            console.error('Service Error: AnalyticsService.getTopPerformingSources failed'.red.bold, error);
             throw error;
         }
     }

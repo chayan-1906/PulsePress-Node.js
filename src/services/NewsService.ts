@@ -1030,7 +1030,7 @@ class NewsService {
             return dateB - dateA;
         }).slice(0, pageSize);
 
-        console.log(`Multisource search completed: ${finalResults.length}/${pageSize} quality articles from [${usedSources.join(', ')}]`.bgGreen.white.bold);
+        console.log(`Multisource search completed: ${finalResults.length}/${pageSize} quality articles from [${usedSources.join(', ')}]`.bgGreen.bold);
 
         // Enrich articles with sentiment analysis for logged-in users
         let enrichedArticles = finalResults;
@@ -1334,7 +1334,7 @@ class NewsService {
         const newsApiTotal = distribution['NewsAPI-Search'] + distribution['NewsAPI-Headlines'];
         const nytimesTotal = distribution['NYTimes-Search'] + distribution['NYTimes-TopStories'];
 
-        console.log(`Fast multisource completed: ${sortedResults.length} articles in ${loadTime}ms from [${usedSources.join(', ')}]`.bgGreen.white.bold);
+        console.log(`Fast multisource completed: ${sortedResults.length} articles in ${loadTime}ms from [${usedSources.join(', ')}]`.bgGreen.bold);
         console.log(`Actual distribution: NewsAPI(${newsApiTotal}), Guardian(${distribution.Guardian}), NYTimes(${nytimesTotal}), RSS(${distribution.RSS})`.cyan.italic);
         console.log(`Target ratios: NewsAPI(10%), Guardian(30%), NYTimes(20%), RSS(40%)`.cyan.italic);
 
