@@ -34,16 +34,21 @@ import {
 
 class AuthService {
     static async registerUser({name, email, password, confirmPassword}: RegisterParams): Promise<RegisterResponse> {
+        console.log('Service: AuthService.registerUser called'.cyan.italic, {name, email});
+
         try {
             if (!name) {
                 return {error: generateMissingCode('name')};
             }
+
             if (!password) {
                 return {error: generateMissingCode('password')};
             }
+
             if (!confirmPassword) {
                 return {error: generateMissingCode('confirm_password')};
             }
+
             if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*])(?=.{6,})/.test(password)) {
                 return {error: generateInvalidCode('password')};
             }
@@ -56,7 +61,7 @@ class AuthService {
 
             const {user} = await this.getUserByEmail({email});
             if (user) {
-                console.info('user exists'.bgMagenta.white.italic);
+                console.warn('Client Error: User already exists'.yellow);
                 return {error: 'ALREADY_REGISTERED'};
             }
 
@@ -65,7 +70,7 @@ class AuthService {
 
             try {
                 const [newUser] = await UserModel.create([{name, email, password: hashedPassword, authProvider: 'email'}], {session});
-                console.log('user created:'.cyan.italic, newUser);
+                console.log('Database: User created'.cyan, newUser);
 
                 const {userPreference, error} = await UserPreferenceService.modifyUserPreference({
                     email,
@@ -78,40 +83,45 @@ class AuthService {
                     session,
                 });
                 if (error) {
-                    console.log('ERROR: creating user preference failed:'.yellow.italic, error);
+                    console.error('Service Error: User preference creation failed'.red.bold, error);
                     await session.abortTransaction();
                     return {error: 'CREATE_USER_PREFERENCE_FAILED'};
                 }
-                console.log('user preference created:'.cyan.italic, userPreference);
+                console.log('Database: User preference created'.cyan, userPreference);
 
                 await session.commitTransaction();
 
                 await MagicLinkService.generateMagicLink({email});
-                console.log('verification magic link sent:'.cyan.italic, {email});
+                console.log('External API: Magic link sent'.magenta, {email});
+                console.log('User registration completed successfully'.green.bold);
                 return {user: newUser};
             } catch (error: any) {
-                console.error('ERROR: inside catch of registerUser > userPreference:'.red.bold, error);
+                console.error('Service Error: AuthService.registerUser transaction failed'.red.bold, error);
                 await session.abortTransaction();
                 throw error;
             } finally {
                 await session.endSession();
             }
         } catch (error: any) {
-            console.error('ERROR: inside catch of registerUser:'.red.bold, error);
+            console.error('Service Error: AuthService.registerUser failed'.red.bold, error);
             throw error;
         }
     }
 
     static async loginUser({email, password}: LoginParams): Promise<LoginResponse> {
+        console.log('Service: AuthService.loginUser called'.cyan.italic, {email});
+
         try {
             if (!password) {
                 return {error: generateMissingCode('password')};
             }
 
             const {user} = await this.getUserByEmail({email});
+
             if (!user) {
                 return {error: generateNotFoundCode('user')};
             }
+
             if (!user.isVerified) {
                 return {error: 'USER_NOT_VERIFIED'};
             }
@@ -132,39 +142,23 @@ class AuthService {
 
             const {accessToken, refreshToken} = await this.generateJWT(user);
 
+            console.log('User login completed successfully'.green.bold);
             return {user, accessToken, refreshToken};
         } catch (error: any) {
-            console.error('ERROR: inside catch of loginUser:'.red.bold, error);
+            console.error('Service Error: AuthService.loginUser failed'.red.bold, error);
             throw error;
         }
     }
 
     static async resetPassword({email, currentPassword, newPassword}: ResetPasswordParams): Promise<ResetPasswordResponse> {
+        console.log('Service: AuthService.resetPassword called'.cyan.italic, {email});
+
         try {
             const {user} = await this.getUserByEmail({email});
             if (!user) {
                 return {error: generateNotFoundCode('user')};
             }
 
-            /**
-             * {
-             *   success: false,
-             *   errorCode: 'NO_PASSWORD_SET',
-             *   errorMsg: 'You don\'t have a password yet. Choose how you\'d like to continue:',
-             *   options: [
-             *     {
-             *       action: 'SET_PASSWORD',
-             *       text: 'Create a password for your account',
-             *       description: 'We\'ll send you a secure link to set up a password'
-             *     },
-             *     {
-             *       action: 'USE_EXISTING_METHOD',
-             *       text: 'Continue with your usual login method',
-             *       description: 'Use Google sign-in or email link like before'
-             *     }
-             *   ]
-             * }
-             * */
             if (!user.password) {
                 return {error: 'NO_PASSWORD_SET'};
             }
@@ -172,6 +166,7 @@ class AuthService {
             if (!currentPassword) {
                 return {error: generateMissingCode('current_password')};
             }
+
             if (!newPassword) {
                 return {error: generateMissingCode('new_password')};
             }
@@ -190,16 +185,19 @@ class AuthService {
             }
             user.password = await this.hashPassword(newPassword);
             await user.save();
-            console.log('password reset:'.cyan.italic);
+            console.log('Database: Password updated'.cyan);
 
+            console.log('Password reset completed successfully'.green.bold);
             return {user};
         } catch (error: any) {
-            console.error('ERROR: inside catch of loginUser:'.red.bold, error);
+            console.error('Service Error: AuthService.resetPassword failed'.red.bold, error);
             throw error;
         }
     }
 
     static async refreshToken({refreshToken: rawRefreshToken}: RefreshTokenParams): Promise<RefreshTokenResponse> {
+        console.log('Service: AuthService.refreshToken called'.cyan.italic);
+
         try {
             if (!rawRefreshToken) {
                 return {error: generateMissingCode('refreshToken')};
@@ -217,38 +215,45 @@ class AuthService {
                 {expiresIn: ACCESS_TOKEN_EXPIRY as SignOptions['expiresIn']},
             );
 
+            console.log('Token refresh completed successfully'.green.bold);
             return {accessToken: newAccessToken};
         } catch (error: any) {
-            console.error('ERROR: inside catch of refreshToken:'.red.bold, error);
+            console.error('Service Error: AuthService.refreshToken failed'.red.bold, error);
             throw error;
         }
     }
 
     static async loginWithGoogle({code}: LoginWithGoogleParams): Promise<LoginResponse> {
+        console.log('Service: AuthService.loginWithGoogle called'.cyan.italic);
+
         try {
             if (!code) {
                 return {error: generateInvalidCode('code')};
             }
 
+            console.log('External API: Getting OAuth2 client'.magenta);
             const oauth2Client = await getOAuth2Client();
 
+            console.log('External API: Exchanging code for tokens'.magenta);
             const {tokens} = await oauth2Client.getToken(code);
             oauth2Client.setCredentials(tokens);
 
             const {google} = await import('googleapis');
             const oauth2 = google.oauth2({version: 'v2', auth: oauth2Client});
+            console.log('External API: Getting user info from Google'.magenta);
             const userInfoResponse = await oauth2.userinfo.get();
 
             const {id: googleId, name, email, picture: profilePicture} = userInfoResponse.data;
 
             const {user} = await this.getUserByEmail({email});
             if (user) {
-                console.info('user exists'.bgMagenta.white.italic);
+                console.log('Database: Existing user found'.cyan);
                 user.authProvider = 'google';
                 user.isVerified = true;
                 user.googleId = googleId || '';
                 await user.save();
                 const {accessToken, refreshToken} = await this.generateJWT(user);
+                console.log('Google login completed successfully'.green.bold);
                 return {user, accessToken, refreshToken};
             }
 
@@ -264,7 +269,7 @@ class AuthService {
                 const [newUser] = await UserModel.create([{googleId, name, email, profilePicture, isVerified: true, authProvider: 'google'}], {session});
 
                 const {accessToken, refreshToken} = await this.generateJWT(newUser);
-                console.log('user created:'.cyan.italic, newUser);
+                console.log('Database: New user created'.cyan, newUser);
 
                 const {userPreference, error} = await UserPreferenceService.modifyUserPreference({
                     email: email || '',
@@ -277,28 +282,31 @@ class AuthService {
                     session,
                 });
                 if (error) {
-                    console.log('ERROR: creating user preference failed:'.yellow.italic, error);
+                    console.error('Service Error: User preference creation failed'.red.bold, error);
                     await session.abortTransaction();
                     return {error: 'CREATE_USER_PREFERENCE_FAILED'};
                 }
-                console.log('user preference created:'.cyan.italic, userPreference);
+                console.log('Database: User preference created'.cyan, userPreference);
 
                 await session.commitTransaction();
+                console.log('Google registration completed successfully'.green.bold);
                 return {user: newUser, accessToken, refreshToken};
             } catch (error: any) {
-                console.error('ERROR: inside catch of loginWithGoogle > userPreference:'.red.bold, error);
+                console.error('Service Error: AuthService.loginWithGoogle transaction failed'.red.bold, error);
                 await session.abortTransaction();
                 throw error;
             } finally {
                 await session.endSession();
             }
         } catch (error: any) {
-            console.error('ERROR: inside catch of loginWithGoogle:'.red.bold, error);
+            console.error('Service Error: AuthService.loginWithGoogle failed'.red.bold, error);
             throw error;
         }
     }
 
     static async updateUser({email, name, password, profilePicture}: UpdateUserParams): Promise<UpdateUserResponse> {
+        console.log('Service: AuthService.updateUser called'.cyan.italic, {email, name});
+
         try {
             const {user} = await this.getUserByEmail({email});
             if (!user) {
@@ -308,37 +316,44 @@ class AuthService {
             if (name) {
                 user.name = name;
             }
+
             if (password) {
                 if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*])(?=.{6,})/.test(password)) {
                     return {error: generateInvalidCode('password')};
                 }
                 user.password = await this.hashPassword(password);
             }
+
             user.profilePicture = profilePicture;   // user can remove profile picture
             const updatedUser: IUser | null = await user.save();
             if (!user) {
                 return {error: 'UPDATE_USER_FAILED'};
             }
-            console.log('user updated:', {user: updatedUser});
+            console.log('Database: User updated'.cyan, {user: updatedUser});
+            console.log('User update completed successfully'.green.bold);
             return {user: updatedUser};
         } catch (error: any) {
-            console.error('ERROR: inside catch of updateUser:'.red.bold, error);
+            console.error('Service Error: AuthService.updateUser failed'.red.bold, error);
             throw error;
         }
     }
 
     private static async hashPassword(password: string): Promise<string> {
+        console.log('Service: AuthService.hashPassword called'.cyan.italic, password);
+
         try {
             const hashedPassword = await bcryptjs.hash(password, 10);
-            console.info('hashPassword:'.bgMagenta.white.italic, hashedPassword);
+            console.log('Password hashed'.cyan, hashedPassword);
             return hashedPassword;
         } catch (error: any) {
-            console.error('ERROR: inside catch of hashPassword:'.red.bold, error);
+            console.error('Service Error: AuthService.hashPassword failed'.red.bold, error);
             throw error;
         }
     }
 
     private static comparePassword(password1: string, password2: string): boolean {
+        console.log('Service: AuthService.comparePassword called'.cyan.italic, {password1, password2});
+
         try {
             const isMatched = password1 === password2;
             if (!isMatched) {
@@ -348,12 +363,14 @@ class AuthService {
 
             return isMatched;
         } catch (error: any) {
-            console.error('ERROR: inside catch of comparePassword:'.red.bold, error);
+            console.error('Service Error: AuthService.comparePassword failed'.red.bold, error);
             throw error;
         }
     }
 
     private static async verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
+        console.log('Service: AuthService.verifyPassword called'.cyan.italic, {password, hashedPassword});
+
         try {
             const isMatched = await bcryptjs.compare(password, hashedPassword);
             if (!isMatched) {
@@ -363,12 +380,14 @@ class AuthService {
 
             return isMatched;
         } catch (error: any) {
-            console.error('ERROR: inside catch of verifyPassword:'.red.bold, error);
+            console.error('Service Error: AuthService.verifyPassword failed'.red.bold, error);
             throw error;
         }
     }
 
     static async generateJWT(user: IUser): Promise<GenerateJWTResponse> {
+        console.log('Service: AuthService.generateJWT called'.cyan.italic, {user});
+
         try {
             const accessToken = jwt.sign(
                 {userExternalId: user.userExternalId, email: user.email},
@@ -387,34 +406,39 @@ class AuthService {
                 {refreshToken},
             );
 
-            console.log('generateJWT:'.cyan.italic, {accessToken, refreshToken})
+            console.log('JWT tokens generated'.cyan, {accessToken, refreshToken})
             return {accessToken, refreshToken};
         } catch (error: any) {
-            console.error('ERROR: inside catch of generateJWT:'.red.bold, error);
+            console.error('Service Error: AuthService.generateJWT failed'.red.bold, error);
             throw error;
         }
     }
 
     static async getUserByEmail({email}: GetUserByEmailParams): Promise<GetUserByEmailResponse> {
+        console.log('Service: AuthService.getUserByEmail called'.cyan.italic, {email});
+
         try {
             if (!email) {
                 return {error: generateMissingCode('email')};
             }
+
             const user: IUser | null = await UserModel.findOne({email});
             if (!user) {
                 return {error: generateNotFoundCode('user')};
             }
 
-            // console.log('userByEmail:'.cyan.italic, {user});
-            console.log('userByEmail -- user found'.cyan.italic);
+            console.log('Database: User found'.cyan);
+            console.log('User retrieval completed successfully'.green.bold);
             return {user};
         } catch (error: any) {
-            console.error('ERROR: inside catch of getUserByEmail:'.red.bold, error);
+            console.error('Service Error: AuthService.getUserByEmail failed'.red.bold, error);
             throw error;
         }
     }
 
     static async deleteAccount({email}: DeleteAccountByEmailParams): Promise<DeleteAccountByEmailResponse> {
+        console.log('Service: AuthService.deleteAccount called'.cyan.italic, {email});
+
         const session = await mongoose.startSession();
         session.startTransaction();
 
@@ -422,12 +446,14 @@ class AuthService {
             if (!email) {
                 return {error: generateMissingCode('email')};
             }
+
             const user: IUser | null = await UserModel.findOne({email});
             if (!user) {
                 return {error: generateNotFoundCode('user')};
             }
 
             // Delete in dependency order
+            console.log('Database: Deleting user related data'.cyan);
             await MagicLinkModel.deleteMany({email}, {session});
             await ReadingHistoryModel.deleteMany({userExternalId: user.userExternalId}, {session});
             await BookmarkModel.deleteMany({userExternalId: user.userExternalId}, {session});
@@ -440,13 +466,14 @@ class AuthService {
             }
 
             await session.commitTransaction();  // ✅ ALL operations succeeded - save changes
+            console.log('Account deletion completed successfully'.green.bold);
             return {isDeleted: true};
         } catch (error: any) {
-            console.error('ERROR: inside catch of getUserByEmail:'.red.bold, error);
+            console.error('Service Error: AuthService.deleteAccount failed'.red.bold, error);
             await session.abortTransaction();   // ❌ Something failed - UNDO everything
             throw error;
         } finally {
-            await session.endSession();               // Clean up the session
+            await session.endSession();         // Clean up the session
         }
     }
 }

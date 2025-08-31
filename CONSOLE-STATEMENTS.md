@@ -22,19 +22,32 @@ console.error('Controller Error: registerUserController failed:'.red.bold, error
 // ✅ Function Start - Use console.log with cyan.italic
 console.log('Service: AuthService.getUserByEmail called'.cyan.italic);
 
-// ✅ Important Operations - Use console.log with cyan
+// ✅ Intermediate Operations - Use console.log with cyan
 console.log('Database: User found in cache'.cyan, {email});
+console.log('Database: User created'.cyan, newUser);
+console.log('Password hashed'.cyan);
+
+// ✅ Final Success (Non-Private Functions Only) - Use console.log with green.bold
+console.log('User registration completed successfully'.green.bold);
+
+// ✅ Client Errors (User Input Issues) - Use console.warn with yellow
+console.warn('Client Error: Wrong password provided'.yellow, {password, hashedPassword});
+console.warn('Client Error: Password mismatch'.yellow, {password1, password2});
 
 // ✅ Service Errors - Use console.error with red.bold
 console.error('Service Error: Database connection failed:'.red.bold, error);
 
-// ✅ External API Calls - Use console.log with magenta
+// ✅ External API Calls - ALL operations use magenta (successful or not)
 console.log('External API: Calling NewsAPI endpoint'.magenta, url);
+console.log('External API: Magic link sent successfully'.magenta, {email});
 
-1. all functions start with .cyan.italic
-2. non-private service function’s last successful log is **.green.bold**, all other logs (including private functions) are .cyan
-3. client error -> .yellow
-4. service/server error -> .red.bold
+**CLARIFIED RULES:**
+1. All functions start with .cyan.italic
+2. Non-private service function's FINAL successful log is .green.bold
+3. All intermediate successful operations (including private functions) use .cyan
+4. Client errors (wrong user input) -> .yellow
+5. Service/server errors -> .red.bold
+6. External API operations (all) -> .magenta
 ```
 
 **🐛 DEBUG LOGGING (Development Details):**
@@ -78,19 +91,20 @@ console.log('Background: Daily API counter reset'.blue);
 
 **📋 QUICK REFERENCE CHEAT SHEET:**
 
-| **Scenario** | **Method** | **Color** | **Example** |
-| --- | --- | --- | --- |
-| **Controller start** | console.info | bgBlue.white.bold | 'Controller: loginController started’ |
-| **Service start** | console.log | cyan.italic | 'Service: NewsService.fetchNews called’ |
-| **Success operations in Controller** | console.log | bgGreen.bold | 'Controller: User created successfully’ |
-| **Success operations in Service** | console.log | green.bold | ‘Service: Successfully enhanced article’ |
-| **Client errors (400s)** | console.warn | yellow | ‘Client Error: Invalid email format’, ‘Quota Reached’ |
-| **Server errors (500s)** | console.error | red.bold | 'Service Error: Database timeout’ |
-| **Config issues** | console.warn | yellow.italic | 'Config Warning: API key missing’ |
-| **Debug details** | console.debug | gray | 'Debug: Processing 50 articles’ |
-| **Performance** | console.time | cyan | 'Performance: API_CALL_TIME’ |
-| **External APIs** | console.log | magenta | 'External API: Calling Guardian endpoint’ |
-| **Background tasks** | console.log | blue |  |
+| **Scenario**                            | **Method**    | **Color**         | **Example**                                         |
+|-----------------------------------------|---------------|-------------------|-----------------------------------------------------|
+| **Controller start**                    | console.info  | bgBlue.white.bold | 'Controller: loginController started'               |
+| **Service start**                       | console.log   | cyan.italic       | 'Service: NewsService.fetchNews called'             |
+| **Success operations in Controller**    | console.log   | bgGreen.bold      | 'Controller: User created successfully'             |
+| **Intermediate operations (Service)**   | console.log   | cyan              | 'Database: User created', 'Password hashed'         |
+| **Final success (Non-private Service)** | console.log   | green.bold        | 'User registration completed successfully'          |
+| **Client errors (User input issues)**   | console.warn  | yellow            | 'Client Error: Wrong password', 'Password mismatch' |
+| **Server errors (500s)**                | console.error | red.bold          | 'Service Error: Database timeout'                   |
+| **Config issues**                       | console.warn  | yellow.italic     | 'Config Warning: API key missing'                   |
+| **Debug details**                       | console.debug | gray              | 'Debug: Processing 50 articles'                     |
+| **Performance**                         | console.time  | cyan              | 'Performance: API_CALL_TIME'                        |
+| **External APIs (ALL operations)**      | console.log   | magenta           | 'External API: Calling Guardian', 'Magic link sent' |
+| **Background tasks**                    | console.log   | blue              | 'Daily API counter reset'                           |
 
 **When to Use console.debug():**
 
