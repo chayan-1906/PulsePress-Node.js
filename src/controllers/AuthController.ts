@@ -25,7 +25,7 @@ const registerUserController = async (req: Request, res: Response) => {
     try {
         const {name, email, password, confirmPassword}: RegisterParams = req.body;
         if (!name) {
-            console.error('Name is missing'.yellow.italic);
+            console.warn('Client Error: Missing name parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateMissingCode('name'),
@@ -52,7 +52,7 @@ const registerUserController = async (req: Request, res: Response) => {
             return;
         }
         if (!confirmPassword) {
-            console.error('Confirm password is missing'.yellow.italic);
+            console.warn('Client Error: Missing confirm password parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateMissingCode('confirm_password'),
@@ -63,7 +63,7 @@ const registerUserController = async (req: Request, res: Response) => {
 
         const {user, error} = await AuthService.registerUser({name, email, password, confirmPassword});
         if (error === generateInvalidCode('password')) {
-            console.error('Password does not follow regex'.yellow.italic);
+            console.warn('Client Error: Invalid password format'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateInvalidCode('password'),
@@ -81,7 +81,7 @@ const registerUserController = async (req: Request, res: Response) => {
             return;
         }
         if (error === 'ALREADY_REGISTERED') {
-            console.error('User already exists'.yellow.italic);
+            console.warn('Client Error: User already exists'.yellow, {user});
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: 'ALREADY_REGISTERED',
@@ -196,7 +196,7 @@ const loginController = async (req: Request, res: Response) => {
             refreshToken,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of loginController:'.red.bold, error);
+        console.error('Controller Error: loginController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
@@ -443,7 +443,7 @@ const verifyMagicLinkController = async (req: Request, res: Response) => {
         console.log('SUCCESS: Magic link verification completed'.bgGreen.bold, {user});
         res.send(verifyTokenSuccessHTML);
     } catch (error: any) {
-        console.error('ERROR: inside catch of verifyMagicLinkController:', error);
+        console.error('Controller Error: verifyMagicLinkController failed'.red.bold, error);
         res.send(verifyTokenErrorHTML);
     }
 }

@@ -117,7 +117,7 @@ const fetchGuardianNewsController = async (req: Request, res: Response) => {
             searchResults: guardianResults,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of fetchGuardianNewsController:'.red.bold, error);
+        console.error('Controller Error: fetchGuardianNewsController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,

@@ -738,7 +738,7 @@ const generateQuestionsController = async (req: Request, res: Response) => {
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Questions haven been generated successfully 🎉',
+            message: 'Questions have been generated successfully 🎉',
             questions,
             contentPreview: content.substring(0, 200) + '...',
         }));
@@ -1040,7 +1040,7 @@ const generateSocialMediaCaptionController = async (req: Request, res: Response)
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Social media caption has been  generated successfully 🎉',
+            message: 'Social media caption has been generated successfully 🎉',
             caption,
             hashtags,
             platform,
