@@ -18,6 +18,17 @@ import {
 class UserPreferenceService {
     static async modifyUserPreference(
         {email, user, preferredLanguage, preferredCategories, preferredSources, summaryStyle, newsLanguages, session}: ModifyUserPreferenceParams): Promise<ModifyUserPreferenceResponse> {
+        console.log('Service: UserPreferenceService.modifyUserPreference called'.cyan.italic, {
+            email,
+            user,
+            preferredLanguage,
+            preferredCategories,
+            preferredSources,
+            summaryStyle,
+            newsLanguages,
+            session,
+        });
+
         try {
             const targetUser = user || (await AuthService.getUserByEmail({email})).user;
             if (!targetUser) {
@@ -25,23 +36,29 @@ class UserPreferenceService {
             }
 
             if (preferredCategories && !Array.isArray(preferredCategories)) {
+                console.warn('Client Error: Invalid preferred categories - not an array'.yellow, {preferredCategories});
                 return {error: generateInvalidCode('preferred_categories')};
             }
             if (preferredCategories && hasInvalidItems(preferredCategories, SUPPORTED_CATEGORIES)) {
+                console.warn('Client Error: Invalid preferred categories - unsupported values'.yellow, {preferredCategories});
                 return {error: generateInvalidCode('preferred_categories')};
             }
 
             if (preferredSources && !Array.isArray(preferredSources)) {
+                console.warn('Client Error: Invalid preferred sources - not an array'.yellow, {preferredSources});
                 return {error: generateInvalidCode('preferred_sources')};
             }
             if (preferredSources && hasInvalidItems(preferredSources, SUPPORTED_SOURCES)) {
+                console.warn('Client Error: Invalid preferred sources - unsupported values'.yellow, {preferredSources});
                 return {error: generateInvalidCode('preferred_sources')};
             }
 
             if (newsLanguages && !Array.isArray(newsLanguages)) {
+                console.warn('Client Error: Invalid news languages - not an array'.yellow, {newsLanguages});
                 return {error: generateInvalidCode('news_languages')};
             }
             if (newsLanguages && hasInvalidItems(newsLanguages, SUPPORTED_NEWS_LANGUAGES)) {
+                console.warn('Client Error: Invalid news languages - unsupported values'.yellow, {newsLanguages});
                 return {error: generateInvalidCode('news_languages')};
             }
 
@@ -68,16 +85,20 @@ class UserPreferenceService {
 
             clearRecommendationCache(targetUser.userExternalId);
 
+            console.log('User preference modification completed successfully'.green.bold, {userPreference: modifiedUserPreference});
             return {userPreference: modifiedUserPreference};
         } catch (error: any) {
-            console.error('ERROR: inside catch of modifyUserPreference:'.red.bold, error);
+            console.error('Service Error: UserPreferenceService.modifyUserPreference failed:'.red.bold, error);
             throw error;
         }
     }
 
     static async getUserPreference({email}: GetUserPreferenceParams): Promise<GetUserPreferenceResponse> {
+        console.log('Service: UserPreferenceService.getUserPreference called'.cyan.italic, {email});
+
         try {
             if (!email) {
+                console.warn('Client Error: Missing email parameter'.yellow);
                 return {error: generateMissingCode('email')};
             }
 
@@ -91,16 +112,20 @@ class UserPreferenceService {
                 return {error: 'GET_USER_PREFERENCE_FAILED'};
             }
 
+            console.log('User preference retrieval completed successfully'.green.bold, {userPreference});
             return {userPreference};
         } catch (error: any) {
-            console.error('ERROR: inside catch of getUserPreference:'.red.bold, error);
+            console.error('Service Error: UserPreferenceService.getUserPreference failed:'.red.bold, error);
             throw error;
         }
     }
 
     static async resetUserPreference({email}: ResetUserPreferenceParams): Promise<ResetUserPreferenceResponse> {
+        console.log('Service: UserPreferenceService.resetUserPreference called'.cyan.italic, {email});
+
         try {
             if (!email) {
+                console.warn('Client Error: Missing email parameter'.yellow);
                 return {error: generateMissingCode('email')};
             }
 
@@ -121,9 +146,11 @@ class UserPreferenceService {
                 return {error: generateNotFoundCode('user_preference')};
             }
 
-            return {isReset: modifiedCount === 1};
+            const isReset = modifiedCount === 1;
+            console.log('User preference reset completed successfully'.green.bold, {isReset});
+            return {isReset};
         } catch (error: any) {
-            console.error('ERROR: inside catch of resetUserPreference:'.red.bold, error);
+            console.error('Service Error: UserPreferenceService.resetUserPreference failed:'.red.bold, error);
             throw error;
         }
     }

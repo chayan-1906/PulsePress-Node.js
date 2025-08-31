@@ -7,9 +7,12 @@ import {generateNotFoundCode} from "../utils/generateErrorCodes";
 
 class UserStrikeService {
     static async getUserStrikeStatus({email}: GetUserStrikeStatusParams): Promise<GetUserStrikeStatusResponse> {
+        console.log('Service: UserStrikeService.getUserStrikeStatus called'.cyan.italic, {email});
+
         try {
             const {user} = await AuthService.getUserByEmail({email});
             if (!user) {
+                console.warn('Client Error: User not found'.yellow, {email});
                 return {error: generateNotFoundCode('user')};
             }
 
@@ -68,17 +71,21 @@ class UserStrikeService {
                 nextStrikePenalty,
             };
 
+            console.log('User strike status retrieval completed successfully'.green.bold, {strikeStatus});
             return {strikeStatus};
         } catch (error: any) {
-            console.error('ERROR: getUserStrikeStatus:'.red.bold, error);
+            console.error('Service Error: UserStrikeService.getUserStrikeStatus failed:'.red.bold, error);
             throw error;
         }
     }
 
     static async getUserStrikeHistory({email, limit = 10}: GetUserStrikeHistoryParams): Promise<GetUserStrikeHistoryResponse> {
+        console.log('Service: UserStrikeService.getUserStrikeHistory called'.cyan.italic, {email, limit});
+
         try {
             const {user} = await AuthService.getUserByEmail({email});
             if (!user) {
+                console.warn('Client Error: User not found'.yellow, {email});
                 return {error: generateNotFoundCode('user')};
             }
 
@@ -107,15 +114,19 @@ class UserStrikeService {
                 }
             }
 
-            return {strikeHistory, totalStrikes: strikeData.count};
+            const result = {strikeHistory, totalStrikes: strikeData.count};
+            console.log('User strike history retrieval completed successfully'.green.bold, result);
+            return result;
         } catch (error: any) {
-            console.error('ERROR: getUserStrikeHistory:'.red.bold, error);
+            console.error('Service Error: UserStrikeService.getUserStrikeHistory failed:'.red.bold, error);
             throw error;
         }
     }
 
     // Helper functions
     private static async getNextStrikePenalty(currentCount: number) {
+        console.log('Service: UserStrikeService.getNextStrikePenalty called'.cyan.italic, {currentCount});
+
         const cooldownCount = Number.parseInt(STRIKE_COOLDOWN_COUNT!) || 2;
         const tempBlockCount = Number.parseInt(STRIKE_TEMPORARY_BLOCK_COUNT!) || 3;
 
