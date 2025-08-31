@@ -3,6 +3,7 @@ import AIService from "./AIService";
 import NewsService from "./NewsService";
 import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
+import {GEMINI_API_KEY} from "../config/config";
 import {AI_TAG_GENERATION_MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
 import {TagGenerationParams, TagGenerationResponse} from "../types/ai";
@@ -12,25 +13,25 @@ class TagGenerationService {
      * Generate relevant tags for news article content using Gemini AI
      */
     static async generateTags({content, url}: TagGenerationParams): Promise<TagGenerationResponse> {
-        console.log('Generating tags for content...'.cyan.italic);
+        console.log('Service: TagGenerationService.generateTags called'.cyan.italic, {content, url});
 
         if (!content && !url) {
-            console.error('Content and url both invalid:'.yellow.italic, {content, url});
+            console.warn('Client Error: Content and url both invalid'.yellow, {content, url});
             return {error: 'CONTENT_OR_URL_REQUIRED'};
         }
 
         if (content && url) {
-            console.error('Content and url both valid:'.yellow.italic, {content, url});
+            console.warn('Client Error: Content and url both valid'.yellow, {content, url});
             return {error: 'CONTENT_AND_URL_CONFLICT'};
         }
 
         let articleContent = content || '';
         if (!content && url) {
-            console.info('Scraping URL for tag generation:'.cyan.italic, url);
+            console.log('Scraping URL for tag generation:'.cyan, url);
             const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
-                console.error('Scraping failed:'.red.bold, scrapedArticles[0]?.error);
+                console.error('Service Error: Scraping failed:'.red.bold, scrapedArticles[0]?.error);
                 return {error: 'SCRAPING_FAILED'};
             }
 
@@ -38,7 +39,7 @@ class TagGenerationService {
         }
 
         if (!articleContent || articleContent.trim().length === 0) {
-            console.log('Empty content provided for tag generation'.yellow.italic);
+            console.warn('Client Error: Empty content provided for caption generation'.yellow);
             return {error: generateMissingCode('content')};
         }
 
@@ -53,18 +54,18 @@ class TagGenerationService {
                 const result = await this.generateWithGemini(model, truncatedContent);
 
                 if (result.tags && result.tags.length > 0) {
-                    console.log(`✅ Tag generation successful with model:`.green, model);
-                    console.log('Generated tags:'.green, result.tags);
+                    console.log(`Tag generation successful with model:`.cyan, model);
+                    console.log('Tag generation completed successfully'.green.bold, {caption: result.tags, model});
                     return result;
                 }
 
-                console.log(`❌ Model failed:`.yellow.bold, model, 'Error:'.yellow.italic, result.error);
+                console.error(`Service Error: Model failed:`.red.bold, model, 'Error:', result.error);
             } catch (error: any) {
-                console.log(`❌ Model failed:`.yellow.bold, model, 'Error:'.yellow.italic, error.message);
+                console.error(`Service Error: Model failed:`.red.bold, model, 'Error:', error.message);
             }
         }
 
-        console.error('🚨 All tag generation models failed'.red.bold);
+        console.error('Service Error: All tag generation models failed'.red.bold);
         return {error: 'TAG_GENERATION_FAILED'};
     }
 
@@ -72,6 +73,13 @@ class TagGenerationService {
      * Generate tags using Gemini AI
      */
     private static async generateWithGemini(modelName: string, content: string): Promise<TagGenerationResponse> {
+        console.log('Service: TagGenerationService.generateWithGemini called'.cyan.italic, {modelName, content});
+
+        if (!GEMINI_API_KEY) {
+            console.warn('Config Warning: Gemini API key not configured'.yellow.italic);
+            return {error: generateMissingCode('gemini_api_key')};
+        }
+
         const model = AIService.genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.TAG_GENERATION(content);
@@ -93,21 +101,21 @@ class TagGenerationService {
         responseText = responseText.trim();
 
         if (responseText !== result.response.text().trim()) {
-            console.log('Stripped markdown, clean JSON:'.yellow, responseText);
+            console.log('Stripped markdown, clean JSON:'.cyan, responseText);
         }
 
         try {
             const parsed: string[] = JSON.parse(responseText);
 
             if (!Array.isArray(parsed)) {
-                console.error('Response is not an array:'.red, parsed);
+                console.error('Service Error: Response is not an array:'.red.bold, parsed);
                 return {error: 'TAG_PARSE_ERROR'};
             }
 
             const validTags: string[] = parsed.filter((tag: string) => tag.trim().length > 0 && tag.trim().length <= 20).map(tag => tag.trim());
 
             if (validTags.length === 0) {
-                console.error('No valid tags found in response:'.red, parsed);
+                console.error('Service Error: No valid tags found in response:'.red.bold, parsed);
                 return {error: 'NO_VALID_TAGS'};
             }
 
@@ -116,7 +124,7 @@ class TagGenerationService {
                 powered_by: modelName,
             };
         } catch (error: any) {
-            console.error('Failed to parse tag generation response:'.red, error.message);
+            console.error('Service Error: Tag generation parsing failed:'.red.bold, error.message);
             return {error: 'TAG_PARSE_ERROR'};
         }
     }

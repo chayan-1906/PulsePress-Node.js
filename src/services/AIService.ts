@@ -44,12 +44,12 @@ class AIService {
 
         try {
             if (!content && !url) {
-                console.warn('Service Warning: Both content and URL are invalid'.yellow, {content, url});
+                console.warn('Client Error: Both content and URL are invalid'.yellow, {content, url});
                 return {error: 'CONTENT_OR_URL_REQUIRED'};
             }
 
             if (content && url) {
-                console.warn('Service Warning: Both content and URL provided'.yellow, {content, url});
+                console.warn('Client Error: Both content and URL provided'.yellow, {content, url});
                 return {error: 'CONTENT_AND_URL_CONFLICT'};
             }
 
