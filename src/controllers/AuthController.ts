@@ -497,7 +497,7 @@ const checkAuthStatusController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong during auth status checking',
+            errorMsg: error.message || 'Something went wrong while checking authentication status',
         }));
     }
 }
@@ -600,7 +600,7 @@ const updateUserController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong during user updatation',
+            errorMsg: error.message || 'Something went wrong while updating user profile',
         }));
     }
 }

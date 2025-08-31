@@ -17,7 +17,7 @@ const checkNewsAPIOrgHealthController = async (req: Request, res: Response) => {
                 health: healthCheck,
             }));
         } else {
-            console.warn('Health Warning: News API health check failed'.yellow, {status: healthCheck.status});
+            console.warn('Health Warning: News API Org health check failed'.yellow, {status: healthCheck.status});
             res.status(503).send(new ApiResponse({
                 success: false,
                 errorCode: 'NEWS_API_UNHEALTHY',
@@ -30,7 +30,7 @@ const checkNewsAPIOrgHealthController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: error.message || 'Something went wrong during news api org health check!',
+            errorMsg: error.message || 'Something went wrong while checking news api org service status',
         }));
     }
 }

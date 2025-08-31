@@ -233,7 +233,7 @@ const resetUserPreferenceController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: error.message || 'Something went wrong during reset user preference',
+            errorMsg: error.message || 'Something went wrong during user preference reset',
         }));
     }
 }

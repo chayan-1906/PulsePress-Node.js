@@ -49,7 +49,7 @@ const fetchNewsAPIOrgTopHeadlinesController = async (req: Request, res: Response
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: error.message || 'Something went wrong during fetch of top headlines from News API Org',
+            errorMsg: error.message || 'Something went wrong while loading News API Org top headlines',
         }));
     }
 }
@@ -90,7 +90,7 @@ const fetchNewsAPIOrgEverythingController = async (req: Request, res: Response) 
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: error.message || 'Something went wrong during fetch of everything from News API Org',
+            errorMsg: error.message || 'Something went wrong while loading News API Org news articles',
         }));
     }
 }
@@ -121,7 +121,7 @@ const fetchGuardianNewsController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: error.message || 'Something went wrong during fetch of Guardian news',
+            errorMsg: error.message || 'Something went wrong while loading Guardian news',
         }));
     }
 }
@@ -164,7 +164,7 @@ const fetchNYTimesNewsController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: error.message || 'Something went wrong during fetch of NYTimes news',
+            errorMsg: error.message || 'Something went wrong while loading New York Times news',
         }));
     }
 }
@@ -198,7 +198,7 @@ const fetchNYTimesTopStoriesController = async (req: Request, res: Response) => 
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: error.message || 'Something went wrong during fetch of top stories from NYTimes',
+            errorMsg: error.message || 'Something went wrong while loading NYTimes top stories',
         }));
     }
 }
@@ -260,7 +260,7 @@ const fetchAllRSSFeedsController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: error.message || 'Something went wrong during fetch of RSS Feeds',
+            errorMsg: error.message || 'Something went wrong while loading RSS feeds',
         }));
     }
 }
@@ -310,7 +310,7 @@ const fetchMultiSourceNewsController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: error.message || 'Something went wrong during fetch of multisource news',
+            errorMsg: error.message || 'Something went wrong while loading news from multiple sources',
         }));
     }
 }
@@ -351,7 +351,7 @@ const scrapeWebsiteController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: error.message || 'Something went wrong during website scraping',
+            errorMsg: error.message || 'Something went wrong while scraping website',
         }));
     }
 }
@@ -463,7 +463,7 @@ const fetchMultiSourceNewsEnhancedController = async (req: Request, res: Respons
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: error.message || 'Something went wrong during fetch of multisource news with AI Enhancements',
+            errorMsg: error.message || 'Something went wrong while loading enhanced news articles',
         }));
     }
 }
@@ -533,7 +533,7 @@ const fetchEnhancementStatusController = async (req: Request, res: Response) => 
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: error.message || 'Something went wrong during fetch of multisource news AI enhancement status',
+            errorMsg: error.message || 'Something went wrong while checking AI enhancement status',
         }));
     }
 }

@@ -832,7 +832,7 @@ const answerQuestionController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong during answering question',
+            errorMsg: error.message || 'Something went wrong while answering question',
         }));
     }
 }

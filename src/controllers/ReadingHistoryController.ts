@@ -162,7 +162,7 @@ const getReadingHistoriesController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: error.message || 'Something went wrong during reading histories retrieval',
+            errorMsg: error.message || 'Something went wrong while retrieving reading history',
         }));
     }
 }
@@ -395,7 +395,7 @@ const searchReadingHistoriesController = async (req: Request, res: Response) => 
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: error.message || 'Something went wrong during the reading history search',
+            errorMsg: error.message || 'Something went wrong during reading history search',
         }));
     }
 }
