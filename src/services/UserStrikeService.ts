@@ -3,13 +3,14 @@ import AuthService from "./AuthService";
 import StrikeService from "./StrikeService";
 import {STRIKE_COOLDOWN_COUNT, STRIKE_LONG_BLOCK_DURATION, STRIKE_TEMPORARY_BLOCK_COUNT, STRIKE_TEMPORARY_BLOCK_DURATION} from "../config/config";
 import {GetUserStrikeHistoryParams, GetUserStrikeHistoryResponse, GetUserStrikeStatusParams, GetUserStrikeStatusResponse, UserStrikeHistory, UserStrikeStatus} from "../types/ai";
+import {generateNotFoundCode} from "../utils/generateErrorCodes";
 
 class UserStrikeService {
     static async getUserStrikeStatus({email}: GetUserStrikeStatusParams): Promise<GetUserStrikeStatusResponse> {
         try {
             const {user} = await AuthService.getUserByEmail({email});
             if (!user) {
-                return {error: 'USER_NOT_FOUND'};
+                return {error: generateNotFoundCode('user')};
             }
 
             const strikeData = await StrikeService.getUserStrikes(email);
@@ -78,7 +79,7 @@ class UserStrikeService {
         try {
             const {user} = await AuthService.getUserByEmail({email});
             if (!user) {
-                return {error: 'USER_NOT_FOUND'};
+                return {error: generateNotFoundCode('user')};
             }
 
             const strikeData = await StrikeService.getUserStrikes(email);
