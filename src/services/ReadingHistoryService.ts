@@ -16,7 +16,7 @@ import {
     GetReadingHistoryResponse,
     ModifyReadingHistoryParams,
     ModifyReadingHistoryResponse,
-    SearchReadingHistoryParams,
+    SearchReadingHistoryParams, SearchReadingHistoryResponse,
     SUPPORTED_READING_HISTORY_SORTINGS,
 } from "../types/reading-history";
 
@@ -264,7 +264,7 @@ class ReadingHistoryService {
         }
     }
 
-    static async searchReadingHistories({email, q, sources, sortBy = 'readAt', sortOrder = 'desc', pageSize = 10, page = 1}: SearchReadingHistoryParams) {
+    static async searchReadingHistories({email, q, sources, sortBy = 'readAt', sortOrder = 'desc', pageSize = 10, page = 1}: SearchReadingHistoryParams): Promise<SearchReadingHistoryResponse> {
         console.log('Service: ReadingHistoryService.searchReadingHistories called'.cyan.italic, {email, q, sources, sortBy, sortOrder, pageSize, page});
 
         /**
