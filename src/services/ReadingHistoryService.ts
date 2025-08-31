@@ -22,6 +22,8 @@ import {
 class ReadingHistoryService {
     static async modifyReadingHistory
     ({email, title, articleUrl, source, description, readAt, readDuration, completed, publishedAt}: ModifyReadingHistoryParams): Promise<ModifyReadingHistoryResponse> {
+        console.log('Service: ReadingHistoryService.modifyReadingHistory called'.cyan.italic, {email, title, articleUrl, source, description, readAt, readDuration, completed, publishedAt});
+
         try {
             const {user, error} = await AuthService.getUserByEmail({email});
             if (!user) {
@@ -31,18 +33,23 @@ class ReadingHistoryService {
             if (!title) {
                 return {error: generateMissingCode('title')};
             }
+
             if (!articleUrl) {
                 return {error: generateMissingCode('article_url')};
             }
+
             if (!source) {
                 return {error: generateMissingCode('source')};
             }
+
             if (!readAt) {
                 return {error: generateMissingCode('read_at')};
             }
+
             if (completed === null || typeof completed === 'undefined') {
                 return {error: generateMissingCode('completed')};
             }
+
             if (!publishedAt) {
                 return {error: generateMissingCode('published_at')};
             }
@@ -57,7 +64,7 @@ class ReadingHistoryService {
                 // Update analytics if reading time changed
                 if (readDuration && readDuration !== existingArticleHistory.readDuration) {
                     await AnalyticsService.updateSourceAnalytics({source, action: 'view', readingTime: readDuration})
-                        .catch((error: any) => console.error('Analytics update failed:'.red.bold, error));
+                        .catch((error: any) => console.error('Service Error: ReadingHistoryService.modifyReadingHistory analytics update failed:'.red.bold, error));
                 }
 
                 if (modifiedCount === 1) {
@@ -78,22 +85,26 @@ class ReadingHistoryService {
                 completed,
                 publishedAt,
             });
-            console.log('savedReadingHistory:'.cyan.italic, savedReadingHistory);
+            console.log('Database: Reading history created'.cyan, savedReadingHistory);
 
             // Track analytics for new reading history
             if (savedReadingHistory) {
                 await AnalyticsService.updateSourceAnalytics({source, action: 'view', readingTime: readDuration || 0})
-                    .catch((error: any) => console.error('Analytics update failed:'.red.bold, error));
+                    .catch((error: any) => console.error('Service Error: ReadingHistoryService.modifyReadingHistory analytics update failed:'.red.bold, error));
             }
 
-            return {isModified: savedReadingHistory !== null};
+            const isModified = savedReadingHistory !== null;
+            console.log('Reading history modification completed successfully'.green.bold, {isModified});
+            return {isModified};
         } catch (error: any) {
-            console.error('ERROR: inside catch of modifyReadingHistory:'.red.bold, error);
+            console.error('Service Error: ReadingHistoryService.modifyReadingHistory failed:'.red.bold, error);
             throw error;
         }
     }
 
     static async getReadingHistories({email, pageSize = 10, page = 1}: GetReadingHistoryParams): Promise<GetReadingHistoryResponse> {
+        console.log('Service: ReadingHistoryService.getReadingHistories called'.cyan.italic, {email, pageSize, page});
+
         try {
             const {user, error} = await AuthService.getUserByEmail({email});
             if (!user) {
@@ -108,16 +119,20 @@ class ReadingHistoryService {
                 .limit(pageSize);
 
             const totalCount = await ReadingHistoryModel.countDocuments({userExternalId: user.userExternalId});
-            console.log('readingHistories:'.cyan.italic, readingHistories);
+            console.log('Database: Reading histories retrieved'.cyan, readingHistories);
 
-            return {readingHistories, totalCount, currentPage: page, totalPages: Math.ceil(totalCount / pageSize)};
+            const result = {readingHistories, totalCount, currentPage: page, totalPages: Math.ceil(totalCount / pageSize)};
+            console.log('Reading histories retrieved successfully'.green.bold, result);
+            return result;
         } catch (error: any) {
-            console.error('ERROR: inside catch of getReadingHistories:'.red.bold, error);
+            console.error('Service Error: ReadingHistoryService.getReadingHistories failed:'.red.bold, error);
             throw error;
         }
     }
 
     static async completeArticle({email, articleUrl}: CompleteArticleParams): Promise<CompleteArticleResponse> {
+        console.log('Service: ReadingHistoryService.completeArticle called'.cyan.italic, {email, articleUrl});
+
         try {
             const {user, error} = await AuthService.getUserByEmail({email});
             if (!user) {
@@ -136,20 +151,23 @@ class ReadingHistoryService {
             if (!updatedArticleHistory) {
                 return {error: 'ARTICLE_NOT_IN_HISTORY'};
             }
-            console.log('completedArticle:'.cyan.italic, updatedArticleHistory);
+            console.log('Database: Article marked as completed'.cyan, updatedArticleHistory);
 
             // Track completion analytics
             await AnalyticsService.updateSourceAnalytics({source: updatedArticleHistory.source, action: 'complete', readingTime: updatedArticleHistory.readDuration || 0})
-                .catch((error: any) => console.error('Analytics update failed:'.red.bold, error));
+                .catch((error: any) => console.error('Service Error: ReadingHistoryService.completeArticle analytics update failed:'.red.bold, error));
 
+            console.log('Article completion completed successfully'.green.bold, {articleUrl, isCompleted: true});
             return {isCompleted: true};
         } catch (error: any) {
-            console.error('ERROR: inside catch of completeArticle:'.red.bold, error);
+            console.error('Service Error: ReadingHistoryService.completeArticle failed:'.red.bold, error);
             throw error;
         }
     }
 
     static async clearReadingHistories({email}: ClearReadingHistoryParams): Promise<ClearReadingHistoryResponse> {
+        console.log('Service: ReadingHistoryService.clearReadingHistories called'.cyan.italic, {email});
+
         try {
             const {user, error} = await AuthService.getUserByEmail({email});
             if (!user) {
@@ -158,16 +176,19 @@ class ReadingHistoryService {
 
             const {deletedCount, acknowledged} = await ReadingHistoryModel.deleteMany({userExternalId: user.userExternalId});
             const isCleared = acknowledged;
-            console.log('isCleared:'.cyan.italic, acknowledged);
+            console.log('Database: Reading histories cleared'.cyan, acknowledged);
 
+            console.log('Reading histories cleared successfully'.green.bold, {isCleared});
             return {isCleared};
         } catch (error: any) {
-            console.error('ERROR: inside catch of clearReadingHistories:'.red.bold, error);
+            console.error('Service Error: ReadingHistoryService.clearReadingHistories failed:'.red.bold, error);
             throw error;
         }
     }
 
     static async getReadingAnalytics({email}: GetReadingAnalyticsParams): Promise<GetReadingAnalyticsResponse> {
+        console.log('Service: ReadingHistoryService.getReadingAnalytics called'.cyan.italic, {email});
+
         try {
             const {user, error} = await AuthService.getUserByEmail({email});
             if (!user) {
@@ -224,25 +245,27 @@ class ReadingHistoryService {
             const averageReadingTimeMinutes = Math.round((readingTimeStats[0]?.avgReadingTime || 0) / 60);
             const completionRate = totalArticles > 0 ? Math.round((completedArticles / totalArticles) * 100) : 0;
 
-            return {
-                analytics: {
-                    articlesReadToday: articlesToday,
-                    articlesReadThisWeek: articlesWeek,
-                    articlesReadThisMonth: articlesMonth,
-                    totalArticlesRead: totalArticles,
-                    totalReadingTimeMinutes,
-                    averageReadingTimeMinutes,
-                    completedArticlesCount: completedArticles,
-                    completionRate,
-                },
+            const analytics = {
+                articlesReadToday: articlesToday,
+                articlesReadThisWeek: articlesWeek,
+                articlesReadThisMonth: articlesMonth,
+                totalArticlesRead: totalArticles,
+                totalReadingTimeMinutes,
+                averageReadingTimeMinutes,
+                completedArticlesCount: completedArticles,
+                completionRate,
             };
+            console.log('Reading analytics retrieved successfully'.green.bold, analytics);
+            return {analytics};
         } catch (error: any) {
-            console.error('ERROR: inside catch of getReadingAnalytics:', error);
+            console.error('Service Error: ReadingHistoryService.getReadingAnalytics failed:'.red.bold, error);
             throw error;
         }
     }
 
     static async searchReadingHistories({email, q, sources, sortBy = 'readAt', sortOrder = 'desc', pageSize = 10, page = 1}: SearchReadingHistoryParams) {
+        console.log('Service: ReadingHistoryService.searchReadingHistories called'.cyan.italic, {email, q, sources, sortBy, sortOrder, pageSize, page});
+
         /**
          * userExternalId — filters for the specific user (AND)
          * source (if provided) — filters by source (AND)
@@ -278,7 +301,7 @@ class ReadingHistoryService {
             const sortField = SUPPORTED_READING_HISTORY_SORTINGS.includes(sortBy) ? sortBy : 'createdAt';
             const sortDirection = sortOrder === 'asc' ? 1 : -1;
 
-            console.log('Filter used in searchReadingHistories:', filter);
+            console.log('Database: Search filter applied'.cyan, filter);
 
             const readingHistories = await ReadingHistoryModel.find(filter)
                 .sort({[sortField]: sortDirection})
@@ -287,19 +310,23 @@ class ReadingHistoryService {
 
             const totalCount = await ReadingHistoryModel.countDocuments(filter);
 
-            return {
+            const result = {
                 readingHistories,
                 totalCount,
                 currentPage: page,
                 totalPages: Math.ceil(totalCount / pageSize),
             };
+            console.log('Reading history search completed successfully'.green.bold, result);
+            return result;
         } catch (error: any) {
-            console.error('ERROR in searchReadingHistories:'.red.bold, error);
+            console.error('Service Error: ReadingHistoryService.searchReadingHistories failed:'.red.bold, error);
             throw error;
         }
     }
 
     static async deleteReadingHistory({email, readingHistoryExternalId}: DeleteReadingHistoryParams): Promise<DeleteReadingHistoryResponse> {
+        console.log('Service: ReadingHistoryService.deleteReadingHistory called'.cyan.italic, {email, readingHistoryExternalId});
+
         try {
             const {user, error} = await AuthService.getUserByEmail({email});
             if (!user) {
@@ -315,11 +342,12 @@ class ReadingHistoryService {
                 return {error: generateNotFoundCode('reading_history')};
             }
             const isDeleted = deletedCount === 1 && acknowledged;
-            console.log('isDeleted:'.cyan.italic, acknowledged);
+            console.log('Database: Reading history deleted'.cyan, acknowledged);
 
+            console.log('Reading history deletion completed successfully'.green.bold, {isDeleted});
             return {isDeleted};
         } catch (error: any) {
-            console.error('ERROR: inside catch of deleteReadingHistory:'.red.bold, error);
+            console.error('Service Error: ReadingHistoryService.deleteReadingHistory failed:'.red.bold, error);
             throw error;
         }
     }
