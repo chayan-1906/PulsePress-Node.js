@@ -1,4 +1,4 @@
-import 'colors';
+import "colors";
 import {Request} from 'express';
 import rateLimit from 'express-rate-limit';
 import {AuthRequest} from '../types/auth';

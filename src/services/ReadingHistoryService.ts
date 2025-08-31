@@ -1,3 +1,4 @@
+import "colors";
 import AuthService from "./AuthService";
 import AnalyticsService from "./AnalyticsService";
 import ReadingHistoryModel, {IReadingHistory} from "../models/ReadingHistorySchema";

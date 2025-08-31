@@ -1,4 +1,4 @@
-import 'colors';
+import "colors";
 import jwt, {JwtPayload} from 'jsonwebtoken';
 import {NextFunction, Request, Response} from "express";
 import {AuthRequest} from "../types/auth";

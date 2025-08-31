@@ -1,5 +1,5 @@
-import 'colors';
-import {customAlphabet} from 'nanoid';
+import "colors";
+import {customAlphabet} from "nanoid";
 
 const alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 

@@ -1,3 +1,4 @@
+import "colors";
 import {ArticleComplexities} from "../types/news";
 import {ReadingTimeComplexityParams, ReadingTimeComplexityResponse} from "../types/ai";
 
