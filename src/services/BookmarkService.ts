@@ -21,6 +21,8 @@ class BookmarkService {
         try {
             const {user, error} = await AuthService.getUserByEmail({email});
             if (!user) {
+                // TODO Question: Is it needed? AuthService.getUserByEmail already returns generateNotFoundCode('user'); Need to call /bookmark/toggle (PUT) with a deleted user's token...
+                //  Temporarily create abcd@gmail.com & delete
                 return {error: generateNotFoundCode('user')};
             }
 
