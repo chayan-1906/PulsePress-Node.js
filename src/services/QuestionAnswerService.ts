@@ -6,13 +6,13 @@ import {GEMINI_API_KEY, NODE_ENV} from "../config/config";
 import {QUESTION_ANSWER_MODELS} from "../utils/constants";
 import CachedQuestionAnswerModel from "../models/CachedQuestionAnswerSchema";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
-import {AIQuestionAnswering, AIQuestionGeneration, QuestionAnsweringParams, QuestionAnsweringResponse, QuestionGenerationParams, QuestionGenerationResponse} from "../types/ai";
+import {IAIQuestionAnswering, IAIQuestionGeneration, IQuestionAnsweringParams, IQuestionAnsweringResponse, IQuestionGenerationParams, IQuestionGenerationResponse} from "../types/ai";
 
 class QuestionAnswerService {
     /**
      * Generate relevant questions for news article content using Gemini AI with caching
      */
-    static async generateQuestions({content}: QuestionGenerationParams): Promise<QuestionGenerationResponse> {
+    static async generateQuestions({content}: IQuestionGenerationParams): Promise<IQuestionGenerationResponse> {
         console.log('Service: QuestionAnswerService.generateQuestions called'.cyan.italic, {content});
 
         if (!content || content.trim().length === 0) {
@@ -70,7 +70,7 @@ class QuestionAnswerService {
     /**
      * Answer a specific question based on article content using Gemini AI with caching
      */
-    static async answerQuestion({content, question}: QuestionAnsweringParams): Promise<QuestionAnsweringResponse> {
+    static async answerQuestion({content, question}: IQuestionAnsweringParams): Promise<IQuestionAnsweringResponse> {
         console.log('Service: QuestionAnswerService.answerQuestion called'.cyan.italic, {content, question});
 
         if (!content || content.trim().length === 0) {
@@ -132,7 +132,7 @@ class QuestionAnswerService {
     /**
      * Generate questions using Gemini AI
      */
-    private static async generateQuestionsWithGemini(modelName: string, content: string): Promise<QuestionGenerationResponse> {
+    private static async generateQuestionsWithGemini(modelName: string, content: string): Promise<IQuestionGenerationResponse> {
         console.log('Service: QuestionAnswerService.generateQuestionsWithGemini called'.cyan.italic, {modelName, content});
 
         if (!GEMINI_API_KEY) {
@@ -164,7 +164,7 @@ class QuestionAnswerService {
             console.log('Stripped markdown, clean JSON:'.cyan, responseText);
         }
 
-        const parsed: AIQuestionGeneration = JSON.parse(responseText);
+        const parsed: IAIQuestionGeneration = JSON.parse(responseText);
 
         if (!parsed.questions || !Array.isArray(parsed.questions) || parsed.questions.length === 0) {
             console.error('Service Error: Invalid questions array in response:'.red.bold, parsed.questions);
@@ -184,7 +184,7 @@ class QuestionAnswerService {
     /**
      * Answer question using Gemini AI
      */
-    private static async answerQuestionWithGemini(modelName: string, content: string, question: string): Promise<QuestionAnsweringResponse> {
+    private static async answerQuestionWithGemini(modelName: string, content: string, question: string): Promise<IQuestionAnsweringResponse> {
         console.log('Service: QuestionAnswerService.answerQuestionWithGemini called'.cyan.italic, {modelName, content, question});
 
         if (!GEMINI_API_KEY) {
@@ -216,7 +216,7 @@ class QuestionAnswerService {
             console.log('Stripped markdown, clean JSON:'.cyan, responseText);
         }
 
-        const parsed: AIQuestionAnswering = JSON.parse(responseText);
+        const parsed: IAIQuestionAnswering = JSON.parse(responseText);
 
         if (!parsed.answer || parsed.answer.trim().length === 0) {
             console.error('Service Error: Invalid answer in response:'.red.bold, parsed.answer);

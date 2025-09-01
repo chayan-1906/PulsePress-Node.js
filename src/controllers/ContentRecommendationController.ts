@@ -1,8 +1,8 @@
 import "colors";
 import {Request, Response} from "express";
-import {AuthRequest} from "../types/auth";
+import {IAuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
-import {GetContentRecommendationsParams} from "../types/content-recommendation";
+import {IGetContentRecommendationsParams} from "../types/content-recommendation";
 import {getContentRecommendation} from "../services/ContentRecommendationService";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 
@@ -10,8 +10,8 @@ const getContentRecommendationController = async (req: Request, res: Response) =
     console.info('getContentRecommendationController called'.bgMagenta.white.italic);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {pageSize}: Partial<GetContentRecommendationsParams> = req.query;
+        const email = (req as IAuthRequest).email;
+        const {pageSize}: Partial<IGetContentRecommendationsParams> = req.query;
 
         let pageSizeNumber;
         if (pageSize && !isNaN(pageSize)) {

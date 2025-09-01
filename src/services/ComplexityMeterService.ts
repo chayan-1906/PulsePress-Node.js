@@ -4,13 +4,13 @@ import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {AI_COMPLEXITY_METER__MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
-import {AIComplexityMeter, COMPLEXITY_LEVELS, ComplexityMeterParams, ComplexityMeterResponse} from "../types/ai";
+import {IAIComplexityMeter, COMPLEXITY_LEVELS, IComplexityMeterParams, IComplexityMeterResponse} from "../types/ai";
 
 class ComplexityMeterService {
     /**
      * Analyzes content complexity using Gemini AI
      */
-    static async analyzeComplexity({content}: ComplexityMeterParams): Promise<ComplexityMeterResponse> {
+    static async analyzeComplexity({content}: IComplexityMeterParams): Promise<IComplexityMeterResponse> {
         console.log('Service: ComplexityMeterService.analyzeComplexity called'.cyan.italic);
 
         if (!content || content.trim().length === 0) {
@@ -27,7 +27,7 @@ class ComplexityMeterService {
             console.log(`Trying complexity analysis with model ${i + 1}/${AI_COMPLEXITY_METER__MODELS.length}:`.cyan, model);
 
             try {
-                let result: ComplexityMeterResponse;
+                let result: IComplexityMeterResponse;
                 result = await this.analyzeWithGemini(model, truncatedContent);
 
                 if (result.complexityMeter) {
@@ -50,7 +50,7 @@ class ComplexityMeterService {
     /**
      * Analyze complexity using Gemini AI
      */
-    private static async analyzeWithGemini(modelName: string, content: string): Promise<ComplexityMeterResponse> {
+    private static async analyzeWithGemini(modelName: string, content: string): Promise<IComplexityMeterResponse> {
         if (!GEMINI_API_KEY) {
             console.warn('Config Warning: Gemini API key not configured'.yellow.italic);
             return {error: generateMissingCode('gemini_api_key')};
@@ -81,7 +81,7 @@ class ComplexityMeterService {
             console.log('JSON markdown stripped'.cyan, responseText);
         }
 
-        const parsed: AIComplexityMeter = JSON.parse(responseText);
+        const parsed: IAIComplexityMeter = JSON.parse(responseText);
 
         if (!parsed.complexityMeter || !parsed.complexityMeter.level) {
             console.error('Service Error: Invalid complexity meter in response'.red.bold, parsed.complexityMeter);

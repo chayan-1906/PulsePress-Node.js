@@ -13,27 +13,27 @@ import UserPreferenceModel from "../models/UserPreferenceSchema";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {ACCESS_TOKEN_EXPIRY, ACCESS_TOKEN_SECRET, REFRESH_TOKEN_EXPIRY, REFRESH_TOKEN_SECRET} from "../config/config";
 import {
-    AuthRequest,
-    DeleteAccountByEmailParams,
-    DeleteAccountByEmailResponse,
-    GenerateJWTResponse,
-    GetUserByEmailParams,
-    GetUserByEmailResponse,
-    LoginParams,
-    LoginResponse,
-    LoginWithGoogleParams,
-    RefreshTokenParams,
-    RefreshTokenResponse,
-    RegisterParams,
-    RegisterResponse,
-    ResetPasswordParams,
-    ResetPasswordResponse,
-    UpdateUserParams,
-    UpdateUserResponse
+    IAuthRequest,
+    IDeleteAccountByEmailParams,
+    IDeleteAccountByEmailResponse,
+    IGenerateJWTResponse,
+    IGetUserByEmailParams,
+    IGetUserByEmailResponse,
+    ILoginParams,
+    ILoginResponse,
+    ILoginWithGoogleParams,
+    IRefreshTokenParams,
+    IRefreshTokenResponse,
+    IRegisterParams,
+    IRegisterResponse,
+    IResetPasswordParams,
+    IResetPasswordResponse,
+    IUpdateUserParams,
+    IUpdateUserResponse
 } from "../types/auth";
 
 class AuthService {
-    static async registerUser({name, email, password, confirmPassword}: RegisterParams): Promise<RegisterResponse> {
+    static async registerUser({name, email, password, confirmPassword}: IRegisterParams): Promise<IRegisterResponse> {
         console.log('Service: AuthService.registerUser called'.cyan.italic, {name, email});
 
         try {
@@ -108,7 +108,7 @@ class AuthService {
         }
     }
 
-    static async loginUser({email, password}: LoginParams): Promise<LoginResponse> {
+    static async loginUser({email, password}: ILoginParams): Promise<ILoginResponse> {
         console.log('Service: AuthService.loginUser called'.cyan.italic, {email});
 
         try {
@@ -150,7 +150,7 @@ class AuthService {
         }
     }
 
-    static async resetPassword({email, currentPassword, newPassword}: ResetPasswordParams): Promise<ResetPasswordResponse> {
+    static async resetPassword({email, currentPassword, newPassword}: IResetPasswordParams): Promise<IResetPasswordResponse> {
         console.log('Service: AuthService.resetPassword called'.cyan.italic, {email});
 
         try {
@@ -195,7 +195,7 @@ class AuthService {
         }
     }
 
-    static async refreshToken({refreshToken: rawRefreshToken}: RefreshTokenParams): Promise<RefreshTokenResponse> {
+    static async refreshToken({refreshToken: rawRefreshToken}: IRefreshTokenParams): Promise<IRefreshTokenResponse> {
         console.log('Service: AuthService.refreshToken called'.cyan.italic);
 
         try {
@@ -203,7 +203,7 @@ class AuthService {
                 return {error: generateMissingCode('refreshToken')};
             }
 
-            const decoded = jwt.verify(rawRefreshToken, REFRESH_TOKEN_SECRET!) as AuthRequest;
+            const decoded = jwt.verify(rawRefreshToken, REFRESH_TOKEN_SECRET!) as IAuthRequest;
             const user: IUser | null = await UserModel.findOne({userExternalId: decoded.userExternalId, refreshToken: rawRefreshToken}).select('+refreshToken');
             if (!user) {
                 return {error: generateNotFoundCode('user')};
@@ -223,7 +223,7 @@ class AuthService {
         }
     }
 
-    static async loginWithGoogle({code}: LoginWithGoogleParams): Promise<LoginResponse> {
+    static async loginWithGoogle({code}: ILoginWithGoogleParams): Promise<ILoginResponse> {
         console.log('Service: AuthService.loginWithGoogle called'.cyan.italic);
 
         try {
@@ -304,7 +304,7 @@ class AuthService {
         }
     }
 
-    static async updateUser({email, name, password, profilePicture}: UpdateUserParams): Promise<UpdateUserResponse> {
+    static async updateUser({email, name, password, profilePicture}: IUpdateUserParams): Promise<IUpdateUserResponse> {
         console.log('Service: AuthService.updateUser called'.cyan.italic, {email, name});
 
         try {
@@ -385,7 +385,7 @@ class AuthService {
         }
     }
 
-    static async generateJWT(user: IUser): Promise<GenerateJWTResponse> {
+    static async generateJWT(user: IUser): Promise<IGenerateJWTResponse> {
         console.log('Service: AuthService.generateJWT called'.cyan.italic, {user});
 
         try {
@@ -414,7 +414,7 @@ class AuthService {
         }
     }
 
-    static async getUserByEmail({email}: GetUserByEmailParams): Promise<GetUserByEmailResponse> {
+    static async getUserByEmail({email}: IGetUserByEmailParams): Promise<IGetUserByEmailResponse> {
         console.log('Service: AuthService.getUserByEmail called'.cyan.italic, {email});
 
         try {
@@ -436,7 +436,7 @@ class AuthService {
         }
     }
 
-    static async deleteAccount({email}: DeleteAccountByEmailParams): Promise<DeleteAccountByEmailResponse> {
+    static async deleteAccount({email}: IDeleteAccountByEmailParams): Promise<IDeleteAccountByEmailResponse> {
         console.log('Service: AuthService.deleteAccount called'.cyan.italic, {email});
 
         const session = await mongoose.startSession();

@@ -12,14 +12,14 @@ import CachedSummaryModel, {ICachedSummary} from "../models/CachedSummarySchema"
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {GEMINI_API_KEY, GEMINI_QUOTA_MS, GEMINI_QUOTA_REQUESTS, GOOGLE_TRANSLATE_API_KEY, NODE_ENV} from "../config/config";
 import {
-    GenerateContentHashParams,
-    GenerateContentHashResponse,
-    GetCachedSummaryParams,
-    SaveSummaryToCacheParams,
+    IGenerateContentHashParams,
+    IGenerateContentHashResponse,
+    IGetCachedSummaryParams,
+    ISaveSummaryToCacheParams,
     SUMMARIZATION_STYLES,
-    SummarizeArticleParams,
-    SummarizeArticleResponse,
-    TranslateTextParams,
+    ISummarizeArticleParams,
+    ISummarizeArticleResponse,
+    ITranslateTextParams,
 } from "../types/ai";
 
 class AIService {
@@ -39,7 +39,7 @@ class AIService {
         }
     }
 
-    static async summarizeArticle({email, content, url, language = 'en', style = 'standard'}: SummarizeArticleParams): Promise<SummarizeArticleResponse> {
+    static async summarizeArticle({email, content, url, language = 'en', style = 'standard'}: ISummarizeArticleParams): Promise<ISummarizeArticleResponse> {
         console.log('Service: AIService.summarizeArticle called'.cyan.italic, {content, url});
 
         try {
@@ -163,7 +163,7 @@ class AIService {
         }
     }
 
-    private static async generateContentHash({articleContent, language = 'en', style = 'standard'}: GenerateContentHashParams): Promise<GenerateContentHashResponse> {
+    private static async generateContentHash({articleContent, language = 'en', style = 'standard'}: IGenerateContentHashParams): Promise<IGenerateContentHashResponse> {
         console.log('Service: AIService.generateContentHash called'.cyan.italic, {articleContent: articleContent.substring(0, 50) + '...', language, style});
 
         try {
@@ -182,7 +182,7 @@ class AIService {
         }
     }
 
-    private static async saveSummaryToCache({contentHash, summary, language, style}: SaveSummaryToCacheParams): Promise<ICachedSummary | null> {
+    private static async saveSummaryToCache({contentHash, summary, language, style}: ISaveSummaryToCacheParams): Promise<ICachedSummary | null> {
         console.log('Service: AIService.saveSummaryToCache called'.cyan.italic, {contentHash, summary: summary.substring(0, 50) + '...', language, style});
 
         try {
@@ -195,7 +195,7 @@ class AIService {
         }
     }
 
-    private static async getCachedSummary({contentHash}: GetCachedSummaryParams): Promise<ICachedSummary | null> {
+    private static async getCachedSummary({contentHash}: IGetCachedSummaryParams): Promise<ICachedSummary | null> {
         console.log('Service: AIService.getCachedSummary called'.cyan.italic, {contentHash});
 
         const cachedSummary: ICachedSummary | null = await CachedSummaryModel.findOne({contentHash});
@@ -203,7 +203,7 @@ class AIService {
         return cachedSummary;
     }
 
-    private static async translateText({text, targetLanguage}: TranslateTextParams): Promise<string> {
+    private static async translateText({text, targetLanguage}: ITranslateTextParams): Promise<string> {
         console.log('Service: AIService.translateText called'.cyan.italic, {text, targetLanguage});
 
         try {

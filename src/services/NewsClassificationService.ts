@@ -4,7 +4,7 @@ import AIService from "./AIService";
 import {AI_PROMPTS} from "../utils/prompts";
 import {buildHeader} from "../utils/buildHeader";
 import {AI_SUMMARIZATION_MODELS} from "../utils/constants";
-import {AIClassification, ClassificationResult} from "../types/ai";
+import {IAIClassification, TClassificationResult} from "../types/ai";
 import {GEMINI_API_KEY, HUGGINGFACE_API_TOKEN} from "../config/config";
 
 class NewsClassificationService {
@@ -13,7 +13,7 @@ class NewsClassificationService {
     /**
      * Main classification method with HuggingFace -> Gemini fallback
      */
-    static async classifyContent(text: string): Promise<ClassificationResult> {
+    static async classifyContent(text: string): Promise<TClassificationResult> {
         console.log('Service: NewsClassificationService.classifyContent called'.cyan.italic, {textLength: text?.length});
 
         if (!text || text.trim().length === 0) {
@@ -44,7 +44,7 @@ class NewsClassificationService {
     /**
      * HuggingFace BART-based classification using zero-shot classification
      */
-    private static async classifyWithHuggingFace(text: string): Promise<ClassificationResult> {
+    private static async classifyWithHuggingFace(text: string): Promise<TClassificationResult> {
         if (!HUGGINGFACE_API_TOKEN) {
             console.warn('Config Warning: HuggingFace API token not configured'.yellow.italic);
             throw new Error('HuggingFace API token not configured');
@@ -110,7 +110,7 @@ class NewsClassificationService {
     /**
      * Gemini-based classification fallback with enhanced prompting
      */
-    private static async classifyWithGemini(text: string): Promise<ClassificationResult> {
+    private static async classifyWithGemini(text: string): Promise<TClassificationResult> {
         if (!GEMINI_API_KEY) {
             console.warn('Config Warning: Gemini API key not configured'.yellow.italic);
             throw new Error('Gemini API key not configured');
@@ -131,7 +131,7 @@ class NewsClassificationService {
         console.log('External API: Gemini response received'.magenta, responseText);
 
         try {
-            const parsed: AIClassification = JSON.parse(responseText);
+            const parsed: IAIClassification = JSON.parse(responseText);
             if (parsed.classification === 'news' || parsed.classification === 'non_news') {
                 console.log('Gemini JSON response parsed successfully'.cyan, parsed.classification);
                 return parsed.classification;

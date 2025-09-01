@@ -8,22 +8,22 @@ import {verifyTokenErrorHTML} from "../templates/verifyTokenErrorHTML";
 import {verifyTokenSuccessHTML} from "../templates/verifyTokenSuccessHTML";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {
-    AuthRequest,
-    CheckAuthStatusParams,
-    GenerateMagicLinkParams,
-    LoginParams,
-    RefreshTokenParams,
-    RegisterParams,
-    ResetPasswordParams,
-    UpdateUserParams,
-    VerifyMagicLinkParams
+    IAuthRequest,
+    ICheckAuthStatusParams,
+    IGenerateMagicLinkParams,
+    ILoginParams,
+    IRefreshTokenParams,
+    IRegisterParams,
+    IResetPasswordParams,
+    IUpdateUserParams,
+    IVerifyMagicLinkParams
 } from "../types/auth";
 
 const registerUserController = async (req: Request, res: Response) => {
     console.info('Controller: registerUserController started'.bgBlue.white.bold);
 
     try {
-        const {name, email, password, confirmPassword}: RegisterParams = req.body;
+        const {name, email, password, confirmPassword}: IRegisterParams = req.body;
         if (!name) {
             console.warn('Client Error: Missing name parameter'.yellow);
             res.status(400).send(new ApiResponse({
@@ -118,7 +118,7 @@ const loginController = async (req: Request, res: Response) => {
     console.info('Controller: loginController started'.bgBlue.white.bold);
 
     try {
-        const {email, password}: LoginParams = req.body;
+        const {email, password}: ILoginParams = req.body;
         if (!email) {
             console.warn('Client Error: Missing email parameter'.yellow);
             res.status(400).send(new ApiResponse({
@@ -209,8 +209,8 @@ const resetPasswordController = async (req: Request, res: Response) => {
     console.info('Controller: resetPasswordController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {currentPassword, newPassword}: ResetPasswordParams = req.body;
+        const email = (req as IAuthRequest).email;
+        const {currentPassword, newPassword}: IResetPasswordParams = req.body;
         if (!email) {
             console.warn('Client Error: Missing email parameter'.yellow);
             res.status(400).send(new ApiResponse({
@@ -306,7 +306,7 @@ const refreshTokenController = async (req: Request, res: Response) => {
     console.info('Controller: refreshTokenController started'.bgBlue.white.bold);
 
     try {
-        const {refreshToken: rawRefreshToken}: RefreshTokenParams = req.body;
+        const {refreshToken: rawRefreshToken}: IRefreshTokenParams = req.body;
         if (!rawRefreshToken) {
             console.warn('Client Error: Missing refresh token parameter'.yellow);
             res.status(400).send(new ApiResponse({
@@ -386,7 +386,7 @@ const generateMagicLinkController = async (req: Request, res: Response) => {
     console.info('Controller: generateMagicLinkController started'.bgBlue.white.bold);
 
     try {
-        const {email}: GenerateMagicLinkParams = req.body;
+        const {email}: IGenerateMagicLinkParams = req.body;
         if (!email) {
             console.warn('Client Error: Missing email parameter'.yellow);
             res.status(400).send(new ApiResponse({
@@ -417,7 +417,7 @@ const verifyMagicLinkController = async (req: Request, res: Response) => {
     console.info('Controller: verifyMagicLinkController started'.bgBlue.white.bold);
 
     try {
-        const {token}: Partial<VerifyMagicLinkParams> = req.query;
+        const {token}: Partial<IVerifyMagicLinkParams> = req.query;
         if (!token) {
             console.warn('Client Error: Missing token parameter'.yellow);
             res.send(verifyTokenErrorHTML);
@@ -452,7 +452,7 @@ const checkAuthStatusController = async (req: Request, res: Response) => {
     console.info('Controller: checkAuthStatusController started'.bgBlue.white.bold);
 
     try {
-        const {email}: CheckAuthStatusParams = req.body;
+        const {email}: ICheckAuthStatusParams = req.body;
         if (!email) {
             console.warn('Client Error: Missing email parameter'.yellow);
             res.status(400).send(new ApiResponse({
@@ -506,7 +506,7 @@ const getUserProfileController = async (req: Request, res: Response) => {
     console.info('Controller: getUserProfileController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
+        const email = (req as IAuthRequest).email;
 
         const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
@@ -539,8 +539,8 @@ const updateUserController = async (req: Request, res: Response) => {
     console.info('Controller: updateUserController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {name, password, profilePicture}: UpdateUserParams = req.body;
+        const email = (req as IAuthRequest).email;
+        const {name, password, profilePicture}: IUpdateUserParams = req.body;
         if ('name' in req.body && (typeof name !== 'string' || !name.trim() || name.trim() === 'null')) {
             console.warn('Client Error: Invalid name parameter'.yellow);
             res.status(400).send(new ApiResponse({
@@ -609,7 +609,7 @@ const deleteAccountController = async (req: Request, res: Response) => {
     console.info('Controller: deleteAccountController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
+        const email = (req as IAuthRequest).email;
 
         const {isDeleted, error} = await AuthService.deleteAccount({email});
         if (error === generateNotFoundCode('user')) {

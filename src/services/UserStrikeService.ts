@@ -2,11 +2,11 @@ import "colors";
 import AuthService from "./AuthService";
 import StrikeService from "./StrikeService";
 import {STRIKE_COOLDOWN_COUNT, STRIKE_LONG_BLOCK_DURATION, STRIKE_TEMPORARY_BLOCK_COUNT, STRIKE_TEMPORARY_BLOCK_DURATION} from "../config/config";
-import {GetUserStrikeHistoryParams, GetUserStrikeHistoryResponse, GetUserStrikeStatusParams, GetUserStrikeStatusResponse, UserStrikeHistory, UserStrikeStatus} from "../types/ai";
+import {IGetUserStrikeHistoryParams, IGetUserStrikeHistoryResponse, IGetUserStrikeStatusParams, IGetUserStrikeStatusResponse, IUserStrikeHistory, IUserStrikeStatus} from "../types/ai";
 import {generateNotFoundCode} from "../utils/generateErrorCodes";
 
 class UserStrikeService {
-    static async getUserStrikeStatus({email}: GetUserStrikeStatusParams): Promise<GetUserStrikeStatusResponse> {
+    static async getUserStrikeStatus({email}: IGetUserStrikeStatusParams): Promise<IGetUserStrikeStatusResponse> {
         console.log('Service: UserStrikeService.getUserStrikeStatus called'.cyan.italic, {email});
 
         try {
@@ -59,7 +59,7 @@ class UserStrikeService {
 
             const tempBlockCount = Number.parseInt(STRIKE_TEMPORARY_BLOCK_COUNT!) || 3;
 
-            const strikeStatus: UserStrikeStatus = {
+            const strikeStatus: IUserStrikeStatus = {
                 currentStrikes: strikeData.count,
                 maxStrikes: tempBlockCount + 1,
                 isBlocked,
@@ -79,7 +79,7 @@ class UserStrikeService {
         }
     }
 
-    static async getUserStrikeHistory({email, limit = 10}: GetUserStrikeHistoryParams): Promise<GetUserStrikeHistoryResponse> {
+    static async getUserStrikeHistory({email, limit = 10}: IGetUserStrikeHistoryParams): Promise<IGetUserStrikeHistoryResponse> {
         console.log('Service: UserStrikeService.getUserStrikeHistory called'.cyan.italic, {email, limit});
 
         try {
@@ -96,7 +96,7 @@ class UserStrikeService {
 
             const finalLimit = Math.min(Math.max(limit, 1), 50);
 
-            const strikeHistory: UserStrikeHistory[] = [];
+            const strikeHistory: IUserStrikeHistory[] = [];
 
             if (strikeData.history && strikeData.history.length > 0) {
                 const sortedHistory = strikeData.history

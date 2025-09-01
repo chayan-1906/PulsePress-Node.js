@@ -2,16 +2,16 @@ import "colors";
 import {DEFAULT_ENGAGEMENT_WEIGHTS} from "../utils/constants";
 import SourceAnalyticsModel, {ISourceAnalytics} from "../models/SourceAnalyticsSchema";
 import {
-    GetSourceAnalyticsParams,
-    GetSourceAnalyticsResponse,
-    GetTopPerformingSourcesParams,
-    GetTopPerformingSourcesResponse,
-    UpdateSourceAnalyticsParams,
-    UpdateSourceAnalyticsResponse,
+    IGetSourceAnalyticsParams,
+    IGetSourceAnalyticsResponse,
+    IGetTopPerformingSourcesParams,
+    IGetTopPerformingSourcesResponse,
+    IUpdateSourceAnalyticsParams,
+    IUpdateSourceAnalyticsResponse,
 } from "../types/analytics";
 
 class AnalyticsService {
-    static async updateSourceAnalytics({source, action, readingTime = 0}: UpdateSourceAnalyticsParams): Promise<UpdateSourceAnalyticsResponse> {
+    static async updateSourceAnalytics({source, action, readingTime = 0}: IUpdateSourceAnalyticsParams): Promise<IUpdateSourceAnalyticsResponse> {
         console.log('Service: AnalyticsService.updateSourceAnalytics called'.cyan.italic, {source, action, readingTime});
         
         try {
@@ -114,7 +114,7 @@ class AnalyticsService {
         return Math.round(viewScore + bookmarkScore + completionScore + readingTimeScore);
     }
 
-    static async getSourceAnalytics({limit = 20, sortBy = 'engagementScore', sortOrder = 'desc'}: GetSourceAnalyticsParams): Promise<GetSourceAnalyticsResponse> {
+    static async getSourceAnalytics({limit = 20, sortBy = 'engagementScore', sortOrder = 'desc'}: IGetSourceAnalyticsParams): Promise<IGetSourceAnalyticsResponse> {
         console.log('Service: AnalyticsService.getSourceAnalytics called'.cyan.italic, {limit, sortBy, sortOrder});
 
         try {
@@ -133,7 +133,7 @@ class AnalyticsService {
         }
     }
 
-    static async getTopPerformingSources({limit = 10, minViews = 10}: GetTopPerformingSourcesParams): Promise<GetTopPerformingSourcesResponse> {
+    static async getTopPerformingSources({limit = 10, minViews = 10}: IGetTopPerformingSourcesParams): Promise<IGetTopPerformingSourcesResponse> {
         console.log('Service: AnalyticsService.getTopPerformingSources called'.cyan.italic, {limit, minViews});
 
         try {

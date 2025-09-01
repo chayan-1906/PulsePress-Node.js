@@ -6,13 +6,13 @@ import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {AI_NEWS_INSIGHTS_MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
-import {AINewsInsights, IMPACT_LEVELS, ImpactLevel, NewsInsightsParams, NewsInsightsResponse} from "../types/ai";
+import {IAINewsInsights, IMPACT_LEVELS, TImpactLevel, INewsInsightsParams, INewsInsightsResponse} from "../types/ai";
 
 class NewsInsightsService {
     /**
      * Generate comprehensive news insights and analysis using Gemini AI
      */
-    static async generateInsights({content, url}: NewsInsightsParams): Promise<NewsInsightsResponse> {
+    static async generateInsights({content, url}: INewsInsightsParams): Promise<INewsInsightsResponse> {
         console.log('Service: NewsInsightsService.generateInsights called'.cyan.italic, {contentLength: content?.length, url});
 
         if (!content && !url) {
@@ -78,7 +78,7 @@ class NewsInsightsService {
     /**
      * Generate news insights using Gemini AI
      */
-    private static async generateWithGemini(modelName: string, content: string): Promise<NewsInsightsResponse> {
+    private static async generateWithGemini(modelName: string, content: string): Promise<INewsInsightsResponse> {
         if (!GEMINI_API_KEY) {
             console.warn('Config Warning: Gemini API key not configured'.yellow.italic);
             return {error: generateMissingCode('gemini_api_key')};
@@ -109,15 +109,15 @@ class NewsInsightsService {
             console.log('JSON markdown stripped'.cyan, responseText);
         }
 
-        const parsed: AINewsInsights = JSON.parse(responseText);
+        const parsed: IAINewsInsights = JSON.parse(responseText);
 
         if (!parsed.keyThemes || !Array.isArray(parsed.keyThemes) || parsed.keyThemes.length === 0) {
             console.error('Service Error: Invalid keyThemes array in response'.red.bold, parsed.keyThemes);
             return {error: 'NEWS_INSIGHTS_PARSE_ERROR'};
         }
 
-        const normalizedLevel = parsed.impactAssessment?.level?.toLowerCase() as ImpactLevel;
-        if (!parsed.impactAssessment || !normalizedLevel || !IMPACT_LEVELS.includes(normalizedLevel as ImpactLevel)) {
+        const normalizedLevel = parsed.impactAssessment?.level?.toLowerCase() as TImpactLevel;
+        if (!parsed.impactAssessment || !normalizedLevel || !IMPACT_LEVELS.includes(normalizedLevel as TImpactLevel)) {
             console.error('Service Error: Invalid impactAssessment in response'.red.bold, parsed.impactAssessment);
             return {error: 'NEWS_INSIGHTS_PARSE_ERROR'};
         }

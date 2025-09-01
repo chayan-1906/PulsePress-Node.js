@@ -1,25 +1,25 @@
 import "colors";
 import {Request, Response} from "express";
 import {isListEmpty} from "../utils/list";
-import {AuthRequest} from "../types/auth";
+import {IAuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
 import NewsService from "../services/NewsService";
 import ArticleEnhancementService from "../services/ArticleEnhancementService";
 import {COUNTRY_KEYWORDS, TOPIC_METADATA, TOPIC_QUERIES} from "../utils/constants";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {
-    Country,
-    ExploreTopicParams,
-    GuardianSearchParams,
-    MultisourceFetchNewsParams,
-    NEWSORGEverythingParams,
-    NEWSORGTopHeadlinesParams,
-    NYTimesSearchParams,
-    NYTimesTopStoriesParams,
-    RSSFeedParams,
-    ScrapeMultipleWebsitesParams,
+    TCountry,
+    IExploreTopicParams,
+    IGuardianSearchParams,
+    IMultisourceFetchNewsParams,
+    INewsAPIOrgEverythingParams,
+    INewsAPIOrgTopHeadlinesParams,
+    INYTimesSearchParams,
+    INYTimesTopStoriesParams,
+    IRSSFeedParams,
+    IScrapeMultipleWebsitesParams,
     SUPPORTED_NEWS_LANGUAGES,
-    Topic,
+    TTopic,
     VALID_NYTIMES_SECTIONS,
 } from "../types/news";
 
@@ -27,7 +27,7 @@ const fetchNewsAPIOrgTopHeadlinesController = async (req: Request, res: Response
     console.info('Controller: fetchNewsAPIOrgTopHeadlinesController started'.bgBlue.white.bold);
 
     try {
-        const {country, category, sources, q, pageSize, page}: Partial<NEWSORGTopHeadlinesParams> = req.query;
+        const {country, category, sources, q, pageSize, page}: Partial<INewsAPIOrgTopHeadlinesParams> = req.query;
 
         let pageSizeNumber, pageNumber;
         if (pageSize && !isNaN(pageSize)) {
@@ -58,7 +58,7 @@ const fetchNewsAPIOrgEverythingController = async (req: Request, res: Response) 
     console.info('Controller: fetchNewsAPIOrgEverythingController started'.bgBlue.white.bold);
 
     try {
-        const {sources, from, to, sortBy, language, q, pageSize, page}: Partial<NEWSORGEverythingParams> = req.query;
+        const {sources, from, to, sortBy, language, q, pageSize, page}: Partial<INewsAPIOrgEverythingParams> = req.query;
 
         if (!sources && !q) {
             console.warn('Client Error: Missing required search parameters'.yellow);
@@ -99,7 +99,7 @@ const fetchGuardianNewsController = async (req: Request, res: Response) => {
     console.info('Controller: fetchGuardianNewsController started'.bgBlue.white.bold);
 
     try {
-        const {q, section, fromDate, toDate, orderBy, pageSize, page}: Partial<GuardianSearchParams> = req.query;
+        const {q, section, fromDate, toDate, orderBy, pageSize, page}: Partial<IGuardianSearchParams> = req.query;
 
         let pageSizeNumber, pageNumber;
         if (pageSize && !isNaN(pageSize)) {
@@ -130,7 +130,7 @@ const fetchNYTimesNewsController = async (req: Request, res: Response) => {
     console.info('Controller: fetchNYTimesNewsController started'.bgBlue.white.bold);
 
     try {
-        const {q, section, sort, fromDate, toDate, pageSize, page}: Partial<NYTimesSearchParams> = req.query;
+        const {q, section, sort, fromDate, toDate, pageSize, page}: Partial<INYTimesSearchParams> = req.query;
         console.debug('Debug: NYTimes query parameter'.gray, {q});
 
         if (section && !VALID_NYTIMES_SECTIONS.includes(section)) {
@@ -173,7 +173,7 @@ const fetchNYTimesTopStoriesController = async (req: Request, res: Response) => 
     console.info('Controller: fetchNYTimesTopStoriesController started'.bgBlue.white.bold);
 
     try {
-        const {section}: Partial<NYTimesTopStoriesParams> = req.query;
+        const {section}: Partial<INYTimesTopStoriesParams> = req.query;
 
         if (section && !VALID_NYTIMES_SECTIONS.includes(section)) {
             console.warn('Client Error: Invalid NYTimes section'.yellow, {section});
@@ -207,7 +207,7 @@ const fetchAllRSSFeedsController = async (req: Request, res: Response) => {
     console.info('Controller: fetchAllRSSFeedsController started'.bgBlue.white.bold);
 
     try {
-        const {q, sources, languages, pageSize, page}: Partial<RSSFeedParams> = req.query;
+        const {q, sources, languages, pageSize, page}: Partial<IRSSFeedParams> = req.query;
 
         const sourceList = sources ? sources.split(',').map((source: string) => source.trim().toLowerCase()).filter(Boolean) : [];
         if (!isListEmpty(sourceList) && sourceList.every(lang => !SUPPORTED_NEWS_LANGUAGES.includes(lang))) {
@@ -269,8 +269,8 @@ const fetchMultiSourceNewsController = async (req: Request, res: Response) => {
     console.info('Controller: fetchMultiSourceNewsController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {q, category, sources, pageSize, page}: Partial<MultisourceFetchNewsParams> = req.query;
+        const email = (req as IAuthRequest).email;
+        const {q, category, sources, pageSize, page}: Partial<IMultisourceFetchNewsParams> = req.query;
 
         if (!q && !category && !sources) {
             res.status(400).send(new ApiResponse({
@@ -319,7 +319,7 @@ const scrapeWebsiteController = async (req: Request, res: Response) => {
     console.info('Controller: scrapeWebsiteController started'.bgBlue.white.bold);
 
     try {
-        const {urls}: Partial<ScrapeMultipleWebsitesParams> = req.body;
+        const {urls}: Partial<IScrapeMultipleWebsitesParams> = req.body;
 
         if (isListEmpty(urls)) {
             console.warn('Client Error: Missing URLs parameter'.yellow);
@@ -360,8 +360,8 @@ const exploreTopicController = async (req: Request, res: Response) => {
     console.info('Controller: exploreTopicController started'.bgBlue.white.bold);
 
     try {
-        const {topic}: { topic?: Topic } = req.params;
-        const {country, pageSize, page}: Partial<ExploreTopicParams> = req.query;
+        const {topic}: { topic?: TTopic } = req.params;
+        const {country, pageSize, page}: Partial<IExploreTopicParams> = req.query;
 
         if (!topic || !TOPIC_QUERIES[topic]) {
             res.status(400).send(new ApiResponse({
@@ -385,7 +385,7 @@ const exploreTopicController = async (req: Request, res: Response) => {
         let countryTerms: string | undefined;
         const countryStr = Array.isArray(country) ? country[0] : country;
         if (countryStr) {
-            const key = countryStr.toLowerCase() as Country;
+            const key = countryStr.toLowerCase() as TCountry;
             countryTerms = COUNTRY_KEYWORDS[key];
         }
 
@@ -422,8 +422,8 @@ const fetchMultiSourceNewsEnhancedController = async (req: Request, res: Respons
     console.info('Controller: fetchMultiSourceNewsEnhancedController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {q, category, sources, pageSize, page}: Partial<MultisourceFetchNewsParams> = req.query;
+        const email = (req as IAuthRequest).email;
+        const {q, category, sources, pageSize, page}: Partial<IMultisourceFetchNewsParams> = req.query;
 
         if (!q && !category && !sources) {
             res.status(400).send(new ApiResponse({
@@ -472,7 +472,7 @@ const fetchEnhancementStatusController = async (req: Request, res: Response) => 
     console.info('Controller: fetchEnhancementStatusController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
+        const email = (req as IAuthRequest).email;
         const {articleIds}: { articleIds?: string } = req.query;
 
         if (!articleIds) {

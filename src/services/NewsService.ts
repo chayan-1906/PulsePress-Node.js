@@ -15,30 +15,30 @@ import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCo
 import {RSS_SOURCES, TOPIC_SPECIFIC_SOURCES, TRUSTED_NEWS_SOURCES, USER_AGENTS} from "../utils/constants";
 import {GUARDIAN_API_KEY, GUARDIAN_QUOTA_REQUESTS, NEWSAPI_QUOTA_REQUESTS, NEWSAPIORG_QUOTA_MS, NODE_ENV, NYTIMES_API_KEY, NYTIMES_QUOTA_REQUESTS, RSS_CACHE_DURATION} from "../config/config";
 import {
-    Article,
-    EnhancementStatus,
-    GuardianArticle,
-    GuardianResponse,
-    GuardianSearchParams,
-    MultisourceFetchNewsParams,
-    NEWSORGEverythingParams,
-    NEWSORGTopHeadlinesAPIResponse,
-    NEWSORGTopHeadlinesParams,
-    NYTimesArticle,
-    NYTimesSearchParams,
-    NYTimesSearchResponse,
-    NYTimesTopStoriesParams,
-    NYTimesTopStoriesResponse,
-    QualityScore,
-    RSSFeed,
-    RSSFeedParams,
-    ScrapeMultipleWebsitesParams,
-    ScrapeWebsiteParams,
+    IArticle,
+    TEnhancementStatus,
+    IGuardianArticle,
+    IGuardianResponse,
+    IGuardianSearchParams,
+    IMultisourceFetchNewsParams,
+    INewsAPIOrgEverythingParams,
+    INewsAPIOrgTopHeadlinesAPIResponse,
+    INewsAPIOrgTopHeadlinesParams,
+    INYTimesArticle,
+    INYTimesSearchParams,
+    INYTimesSearchResponse,
+    INYTimesTopStoriesParams,
+    INYTimesTopStoriesResponse,
+    IQualityScore,
+    IRSSFeed,
+    IRSSFeedParams,
+    IScrapeMultipleWebsitesParams,
+    IScrapeWebsiteParams,
     SUPPORTED_NEWS_LANGUAGES,
     VALID_NYTIMES_SECTIONS
 } from "../types/news";
 
-const RSS_CACHE = new Map<string, { data: RSSFeed[], timestamp: number }>();
+const RSS_CACHE = new Map<string, { data: IRSSFeed[], timestamp: number }>();
 const TOPHEADLINES_CACHE = new Map<string, { data: any, timestamp: number }>();
 const EVERYTHING_NEWS_CACHE = new Map<string, { data: any, timestamp: number }>();
 const GUARDIAN_CACHE = new Map<string, { data: any, timestamp: number }>();
@@ -56,12 +56,12 @@ setInterval(() => {
 }, Number.parseInt(NEWSAPIORG_QUOTA_MS!));
 
 class NewsService {
-    private static convertGuardianToArticle(guardianArticle: GuardianArticle): Article {
+    private static convertGuardianToArticle(guardianArticle: IGuardianArticle): IArticle {
         console.log('Service: NewsService.convertGuardianToArticle called'.cyan.italic, {guardianArticle});
 
         const title = guardianArticle.fields?.headline || guardianArticle.webTitle;
         const url = guardianArticle.webUrl;
-        const article: Article = {
+        const article: IArticle = {
             source: {
                 id: 'guardian',
                 name: 'The Guardian',
@@ -79,12 +79,12 @@ class NewsService {
         return article;
     }
 
-    private static convertNYTimesToArticle(nytArticle: NYTimesArticle): Article {
+    private static convertNYTimesToArticle(nytArticle: INYTimesArticle): IArticle {
         console.log('Service: NewsService.convertNYTimesToArticle called'.cyan.italic, {nytArticle});
 
         const title = nytArticle.headline?.main;
         const url = nytArticle.web_url;
-        const article: Article = {
+        const article: IArticle = {
             source: {
                 id: 'nytimes',
                 name: 'The New York Times',
@@ -102,12 +102,12 @@ class NewsService {
         return article;
     }
 
-    private static convertNYTimesTopStoryToArticle(story: NYTimesTopStoriesResponse['results'][0]): Article {
+    private static convertNYTimesTopStoryToArticle(story: INYTimesTopStoriesResponse['results'][0]): IArticle {
         console.log('Service: NewsService.convertNYTimesTopStoryToArticle called'.cyan.italic, {story});
 
         const title = story.title;
         const url = story.url;
-        const article: Article = {
+        const article: IArticle = {
             source: {
                 id: 'nytimes',
                 name: 'The New York Times',
@@ -125,12 +125,12 @@ class NewsService {
         return article;
     }
 
-    private static convertRSSFeedToArticle(rss: RSSFeed): Article {
+    private static convertRSSFeedToArticle(rss: IRSSFeed): IArticle {
         console.log('Service: NewsService.convertRSSFeedToArticle called'.cyan.italic, {rss});
 
         const title = rss.title || '';
         const url = rss.url || '';
-        const article: Article = {
+        const article: IArticle = {
             source: {
                 id: null,
                 name: rss.source?.name || 'RSS Feed',
@@ -306,7 +306,7 @@ class NewsService {
         return sectionMap[topic] || 'home';
     }
 
-    private static assessContentQuality(article: Article, query?: string): QualityScore {
+    private static assessContentQuality(article: IArticle, query?: string): IQualityScore {
         console.log('Service: NewsService.assessContentQuality called'.cyan.italic, {article, query});
 
         let score = 0.5;
@@ -383,7 +383,7 @@ class NewsService {
         };
     }
 
-    private static isDuplicateArticle(article: Article, existing: Article[]): boolean {
+    private static isDuplicateArticle(article: IArticle, existing: IArticle[]): boolean {
         console.log('Service: NewsService.isDuplicateArticle called'.cyan.italic, {article, existing});
 
         return existing.some(existingArticle => !!(article.url && existingArticle.url && article.url === existingArticle.url));
@@ -403,7 +403,7 @@ class NewsService {
             .trim();
     }
 
-    static async fetchNewsAPIOrgTopHeadlines({country, category, sources, q, pageSize = 10, page = 1}: NEWSORGTopHeadlinesParams) {
+    static async fetchNewsAPIOrgTopHeadlines({country, category, sources, q, pageSize = 10, page = 1}: INewsAPIOrgTopHeadlinesParams) {
         console.log('Service: NewsService.fetchNewsAPIOrgTopHeadlines called'.cyan.italic, {country, category, sources, q, pageSize, page});
 
         try {
@@ -427,7 +427,7 @@ class NewsService {
                 return {status: 'error', message: 'NewsAPIOrg daily limit reached', articles: [], totalResults: 0};
             }
 
-            const {data: topHeadlinesResponse} = await axios.get<NEWSORGTopHeadlinesAPIResponse>(
+            const {data: topHeadlinesResponse} = await axios.get<INewsAPIOrgTopHeadlinesAPIResponse>(
                 apis.topHeadlinesApi({country: country || 'us', category, sources, q: processedQuery, pageSize, page}),
                 {headers: buildHeader('newsapi')},
             );
@@ -436,7 +436,7 @@ class NewsService {
 
             // Add articleId to each article
             if (topHeadlinesResponse.articles) {
-                topHeadlinesResponse.articles = topHeadlinesResponse.articles.map((article: Article) => ({
+                topHeadlinesResponse.articles = topHeadlinesResponse.articles.map((article: IArticle) => ({
                     ...article,
                     articleId: generateArticleId({article}),
                 }));
@@ -453,7 +453,7 @@ class NewsService {
         }
     }
 
-    static async fetchNewsAPIOrgEverything({sources, from, to, sortBy, language, q, pageSize = 10, page = 1}: NEWSORGEverythingParams) {
+    static async fetchNewsAPIOrgEverything({sources, from, to, sortBy, language, q, pageSize = 10, page = 1}: INewsAPIOrgEverythingParams) {
         console.log('Service: NewsService.fetchNewsAPIOrgTopHeadlines called'.cyan.italic, {sources, from, to, sortBy, language, q, pageSize, page});
 
         try {
@@ -479,7 +479,7 @@ class NewsService {
                 return {status: 'error', message: 'NewsAPIOrg daily limit reached', articles: [], totalResults: 0};
             }
 
-            const {data: everything} = await axios.get<NEWSORGTopHeadlinesAPIResponse>(
+            const {data: everything} = await axios.get<INewsAPIOrgTopHeadlinesAPIResponse>(
                 apis.fetchEverythingApi({sources, from, to, sortBy, language, q: processedQuery, pageSize, page}),
                 {headers: buildHeader('newsapi')},
             );
@@ -487,7 +487,7 @@ class NewsService {
             console.log('External API: NewsAPIOrg Everything response'.magenta, everything);
 
             if (everything.articles) {
-                everything.articles = everything.articles.map((article: Article) => ({
+                everything.articles = everything.articles.map((article: IArticle) => ({
                     ...article,
                     articleId: generateArticleId({article}),
                 }));
@@ -504,7 +504,7 @@ class NewsService {
         }
     }
 
-    static async fetchGuardianNews({q, section, fromDate, toDate, orderBy = 'newest', pageSize = 10, page = 1}: GuardianSearchParams) {
+    static async fetchGuardianNews({q, section, fromDate, toDate, orderBy = 'newest', pageSize = 10, page = 1}: IGuardianSearchParams) {
         console.log('Service: NewsService.fetchGuardianNews called'.cyan.italic, {q, section, fromDate, toDate, orderBy, pageSize, page});
 
         try {
@@ -536,7 +536,7 @@ class NewsService {
             }
 
             const url = apis.guardianSearchApi({q: processedQuery, section, fromDate, toDate, orderBy, pageSize, page}) + `&api-key=${GUARDIAN_API_KEY}`;
-            const {data: guardianResponse} = await axios.get<GuardianResponse>(url, {headers: buildHeader('guardian')});
+            const {data: guardianResponse} = await axios.get<IGuardianResponse>(url, {headers: buildHeader('guardian')});
 
             guardianApiRequestCount++;
             console.log(`External API: Guardian request ${guardianApiRequestCount}/${GUARDIAN_QUOTA_REQUESTS}:`.magenta, guardianResponse.response.total, 'results');
@@ -560,7 +560,7 @@ class NewsService {
         }
     }
 
-    static async fetchNYTimesNews({q, section, sort = 'newest', fromDate, toDate, pageSize = 10, page = 1}: NYTimesSearchParams) {
+    static async fetchNYTimesNews({q, section, sort = 'newest', fromDate, toDate, pageSize = 10, page = 1}: INYTimesSearchParams) {
         console.log('Service: NewsService.fetchNYTimesNews called'.cyan.italic, {q, section, sort, fromDate, toDate, pageSize, page});
 
         try {
@@ -597,7 +597,7 @@ class NewsService {
             }
 
             const url = apis.nytimesSearchApi({q: processedQuery, section, sort, fromDate, toDate, pageSize, page}) + `&api-key=${NYTIMES_API_KEY}`;
-            const {data: nytResponse} = await axios.get<NYTimesSearchResponse>(url, {headers: buildHeader('nytimes')});
+            const {data: nytResponse} = await axios.get<INYTimesSearchResponse>(url, {headers: buildHeader('nytimes')});
             console.log('Raw NYT search response:'.cyan, {
                 status: nytResponse.status,
                 hasResponse: !!nytResponse.response,
@@ -614,7 +614,7 @@ class NewsService {
                 return {articles: [], totalResults: 0};
             }
 
-            const articles: Article[] = nytResponse.response.docs.map(this.convertNYTimesToArticle);
+            const articles: IArticle[] = nytResponse.response.docs.map(this.convertNYTimesToArticle);
             const nytResponseMeta = nytResponse.response.metadata;
             const totalHits = nytResponseMeta?.hits || 0;
 
@@ -636,7 +636,7 @@ class NewsService {
         }
     }
 
-    static async fetchNYTimesTopStories({section = 'home'}: NYTimesTopStoriesParams) {
+    static async fetchNYTimesTopStories({section = 'home'}: INYTimesTopStoriesParams) {
         console.log('Service: NewsService.fetchNYTimesTopStories called'.cyan.italic, {section});
 
         try {
@@ -662,12 +662,12 @@ class NewsService {
             }
 
             const url = apis.nytimesTopStoriesApi({section}) + `?api-key=${NYTIMES_API_KEY}`;
-            const {data: nytResponse} = await axios.get<NYTimesTopStoriesResponse>(url, {headers: buildHeader('nytimes')});
+            const {data: nytResponse} = await axios.get<INYTimesTopStoriesResponse>(url, {headers: buildHeader('nytimes')});
 
             nytimesApiRequestCount++;
             console.log(`External API: NYTimes Top Stories request ${nytimesApiRequestCount}/${NYTIMES_QUOTA_REQUESTS}:`.magenta, nytResponse.num_results, 'results');
 
-            const articles: Article[] = nytResponse.results?.map(this.convertNYTimesTopStoryToArticle);
+            const articles: IArticle[] = nytResponse.results?.map(this.convertNYTimesTopStoryToArticle);
 
             const result = {
                 articles,
@@ -687,7 +687,7 @@ class NewsService {
         }
     }
 
-    static async fetchAllRSSFeeds({q, sources, languages = 'english', pageSize = 10, page = 1}: RSSFeedParams) {
+    static async fetchAllRSSFeeds({q, sources, languages = 'english', pageSize = 10, page = 1}: IRSSFeedParams) {
         console.log('Service: NewsService.fetchAllRSSFeeds called'.cyan.italic, {q, sources, languages, pageSize, page});
 
         try {
@@ -734,8 +734,8 @@ class NewsService {
             const results = await Promise.allSettled(promises);
             const allItems = results
                 .filter(r => r.status === 'fulfilled' && r.value)
-                .flatMap(r => (r as PromiseFulfilledResult<RSSFeed[]>).value)
-                .sort((a: RSSFeed, b: RSSFeed) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
+                .flatMap(r => (r as PromiseFulfilledResult<IRSSFeed[]>).value)
+                .sort((a: IRSSFeed, b: IRSSFeed) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
 
             if (q && q.trim()) {
                 console.log(`Service: fetchAllRSSFeeds searching for: "${q}"`.cyan);
@@ -756,7 +756,7 @@ class NewsService {
                     ignoreLocation: true,
                 });
 
-                const allResults = new Map<string, { item: RSSFeed, score: number }>();
+                const allResults = new Map<string, { item: IRSSFeed, score: number }>();
                 expandedTerms.forEach((term, index) => {
                     const termResults = fuse.search(term);
                     const weight = index === 0 ? 1.0 : 0.7;
@@ -825,11 +825,11 @@ class NewsService {
                 if (result && result.articles && result.articles.length > 0) {
                     // Apply quality scoring and filtering
                     const qualityArticles = result.articles
-                        .map((article: Article) => {
+                        .map((article: IArticle) => {
                             article.qualityScore = this.assessContentQuality(article, query); // Use original query for relevance
                             return article;
                         })
-                        .filter((article: Article) => article.qualityScore!.isProfessional && article.qualityScore!.isRelevant && article.qualityScore!.score > 0.4);
+                        .filter((article: IArticle) => article.qualityScore!.isProfessional && article.qualityScore!.isRelevant && article.qualityScore!.score > 0.4);
 
                     console.log(`Query variation "${variation}" yielded ${qualityArticles.length} quality articles (from ${result.articles.length} total)`.cyan);
 
@@ -851,7 +851,7 @@ class NewsService {
         return null;
     }
 
-    static async fetchMultiSourceNews({email, q, category, sources, pageSize = 10, page = 1}: MultisourceFetchNewsParams) {
+    static async fetchMultiSourceNews({email, q, category, sources, pageSize = 10, page = 1}: IMultisourceFetchNewsParams) {
         console.log('Service: fetchMultiSourceNews called'.cyan.italic, {q, category, sources, pageSize, page});
 
         const topic = this.determineTopicFromQuery(q, category);
@@ -864,7 +864,7 @@ class NewsService {
         console.log('Optimized sources:'.cyan, optimizedSources);
         console.log('NYT section:'.cyan, nytSection);
 
-        const results: Article[] = [];
+        const results: IArticle[] = [];
         const usedSources: string[] = [];
         const errors: string[] = [];
 
@@ -883,7 +883,7 @@ class NewsService {
 
                 if (newsApiResult && newsApiResult.articles && newsApiResult.articles.length > 0) {
                     const topArticles = newsApiResult.articles
-                        .sort((a: Article, b: Article) => b.qualityScore!.score - a.qualityScore!.score)
+                        .sort((a: IArticle, b: IArticle) => b.qualityScore!.score - a.qualityScore!.score)
                         .slice(0, newsApiTargetCount);
 
                     results.push(...topArticles);
@@ -947,8 +947,8 @@ class NewsService {
 
                     if (guardianResult && guardianResult.articles && guardianResult.articles.length > 0) {
                         const qualityArticles = guardianResult.articles
-                            .filter((article: Article) => !this.isDuplicateArticle(article, results))
-                            .sort((a: Article, b: Article) => b.qualityScore!.score - a.qualityScore!.score)
+                            .filter((article: IArticle) => !this.isDuplicateArticle(article, results))
+                            .sort((a: IArticle, b: IArticle) => b.qualityScore!.score - a.qualityScore!.score)
                             .slice(0, guardianTargetCount);
 
                         results.push(...qualityArticles);
@@ -965,7 +965,7 @@ class NewsService {
 
                     if (guardianResult && guardianResult.articles && guardianResult.articles.length > 0) {
                         const articles = guardianResult.articles
-                            .filter((article: Article) => !this.isDuplicateArticle(article, results))
+                            .filter((article: IArticle) => !this.isDuplicateArticle(article, results))
                             .slice(0, guardianTargetCount);
                         results.push(...articles);
                         usedSources.push('Guardian (section)');
@@ -1000,8 +1000,8 @@ class NewsService {
 
                         if (nytResult && nytResult.articles && nytResult.articles.length > 0) {
                             const qualityArticles = nytResult.articles
-                                .filter((article: Article) => !this.isDuplicateArticle(article, results))
-                                .sort((a: Article, b: Article) => b.qualityScore!.score - a.qualityScore!.score)
+                                .filter((article: IArticle) => !this.isDuplicateArticle(article, results))
+                                .sort((a: IArticle, b: IArticle) => b.qualityScore!.score - a.qualityScore!.score)
                                 .slice(0, nytimesTargetCount);
 
                             results.push(...qualityArticles);
@@ -1013,7 +1013,7 @@ class NewsService {
 
                         if (nytResult && nytResult.articles && nytResult.articles.length > 0) {
                             const articles = nytResult.articles
-                                .filter((article: Article) => !this.isDuplicateArticle(article, results))
+                                .filter((article: IArticle) => !this.isDuplicateArticle(article, results))
                                 .slice(0, nytimesTargetCount);
                             results.push(...articles);
                             usedSources.push('NYTimes (top stories)');
@@ -1047,7 +1047,7 @@ class NewsService {
                             article.qualityScore = this.assessContentQuality(article, q);
                             return article;
                         })
-                        .filter((article: Article) => article.qualityScore!.isProfessional && article.qualityScore!.isRelevant && article.qualityScore!.score > 0.2 && !this.isDuplicateArticle(article, results))
+                        .filter((article: IArticle) => article.qualityScore!.isProfessional && article.qualityScore!.isRelevant && article.qualityScore!.score > 0.2 && !this.isDuplicateArticle(article, results))
                         .sort((a, b) => b.qualityScore!.score - a.qualityScore!.score)
                         .slice(0, remainingSlots3);
 
@@ -1061,7 +1061,7 @@ class NewsService {
             }
         }
 
-        const finalResults = results.sort((a: Article, b: Article) => {
+        const finalResults = results.sort((a: IArticle, b: IArticle) => {
             // Primary sort: Quality score
             const scoreDiff = (b.qualityScore?.score || 0) - (a.qualityScore?.score || 0);
             if (Math.abs(scoreDiff) > 0.1) return scoreDiff;
@@ -1114,7 +1114,7 @@ class NewsService {
         };
     }
 
-    private static async scrapeArticle({url}: ScrapeWebsiteParams) {
+    private static async scrapeArticle({url}: IScrapeWebsiteParams) {
         console.log('Service: scrapeArticle called'.cyan.italic, url);
 
         try {
@@ -1179,7 +1179,7 @@ class NewsService {
         }
     }
 
-    static async scrapeMultipleArticles({urls}: ScrapeMultipleWebsitesParams) {
+    static async scrapeMultipleArticles({urls}: IScrapeMultipleWebsitesParams) {
         console.log('Service: NewsService.scrapeMultipleArticles called'.cyan.italic, {urls});
 
         const results = [];
@@ -1217,7 +1217,7 @@ class NewsService {
         return results;
     }
 
-    private static async fetchMultiSourceNewsFast({email, q, category, sources, pageSize = 10, page = 1}: MultisourceFetchNewsParams) {
+    private static async fetchMultiSourceNewsFast({email, q, category, sources, pageSize = 10, page = 1}: IMultisourceFetchNewsParams) {
         console.log('Service: fetchMultiSourceNewsFast called'.cyan.italic, {q, category, sources, pageSize, page});
 
         const startTime = Date.now();
@@ -1228,7 +1228,7 @@ class NewsService {
         console.log('Topic:'.cyan, topic);
         console.log('Simplified query:'.cyan, simplifiedQuery);
 
-        const results: Article[] = [];
+        const results: IArticle[] = [];
         const usedSources: string[] = [];
         const errors: string[] = [];
 
@@ -1333,10 +1333,10 @@ class NewsService {
                 } else if (apiResult.result && apiResult.result.articles && apiResult.result.articles.length > 0) {
                     // Simple deduplication by URL and tag with source API
                     const newArticles = apiResult.result.articles
-                        .filter((article: Article) =>
+                        .filter((article: IArticle) =>
                             article.url && !results.some(existing => existing.url === article.url)
                         )
-                        .map((article: Article) => ({
+                        .map((article: IArticle) => ({
                             ...article,
                             sourceApi: apiResult.source // Tag each article with the API source
                         }));
@@ -1420,7 +1420,7 @@ class NewsService {
         };
     }
 
-    static async fetchMultiSourceNewsEnhanced({email, q, category, sources, pageSize = 10, page = 1}: MultisourceFetchNewsParams) {
+    static async fetchMultiSourceNewsEnhanced({email, q, category, sources, pageSize = 10, page = 1}: IMultisourceFetchNewsParams) {
         console.log('Service: fetchMultiSourceNewsEnhanced called'.cyan.italic, {q, category, sources, pageSize, page});
 
         const startTime = Date.now();
@@ -1440,7 +1440,7 @@ class NewsService {
 
         const processingStatus = await ArticleEnhancementService.getProcessingStatus({articles: enhancedArticles});
 
-        const status: EnhancementStatus = processingStatus.status;
+        const status: TEnhancementStatus = processingStatus.status;
         const progress: number = processingStatus.progress;
 
         return {

@@ -1,13 +1,13 @@
 import "colors";
 import UserModel from "../models/UserSchema";
 import {STRIKE_COOLDOWN_COUNT, STRIKE_LONG_BLOCK_DURATION, STRIKE_TEMPORARY_BLOCK_COUNT, STRIKE_TEMPORARY_BLOCK_DURATION} from "../config/config";
-import {StrikeCheckResult, StrikeHistoryEvent, StrikeResult, UserStrikeBlock} from "../types/ai";
+import {IStrikeCheckResult, IStrikeHistoryEvent, IStrikeResult, TUserStrikeBlock} from "../types/ai";
 
 class StrikeService {
     /**
      * Check if user is currently blocked and handle 48-hour reset
      */
-    static async checkUserBlock(email: string): Promise<StrikeCheckResult> {
+    static async checkUserBlock(email: string): Promise<IStrikeCheckResult> {
         console.log('Service: StrikeService.checkUserBlock called'.cyan.italic, {email});
 
         try {
@@ -88,7 +88,7 @@ class StrikeService {
     /**
      * Apply a strike to user for non-news query
      */
-    static async applyStrike(email: string): Promise<StrikeResult> {
+    static async applyStrike(email: string): Promise<IStrikeResult> {
         console.log('Service: StrikeService.applyStrike called'.cyan.italic, {email});
 
         try {
@@ -116,7 +116,7 @@ class StrikeService {
 
             let message: string;
             let isBlocked = false;
-            let blockType: UserStrikeBlock | undefined;
+            let blockType: TUserStrikeBlock | undefined;
             let blockedUntil: Date | undefined;
             let reason: string;
             let blockDuration: string | undefined;
@@ -160,7 +160,7 @@ class StrikeService {
             }
 
             // Create history event
-            const historyEvent: StrikeHistoryEvent = {
+            const historyEvent: IStrikeHistoryEvent = {
                 strikeNumber: newStrikeCount,
                 appliedAt: now,
                 reason,
@@ -223,7 +223,7 @@ class StrikeService {
     /**
      * Get user's current strike information
      */
-    static async getUserStrikes(email: string): Promise<{ count: number; lastStrikeAt?: Date; blockedUntil?: Date; history?: StrikeHistoryEvent[] } | null> {
+    static async getUserStrikes(email: string): Promise<{ count: number; lastStrikeAt?: Date; blockedUntil?: Date; history?: IStrikeHistoryEvent[] } | null> {
         console.log('Service: StrikeService.getUserStrikes called'.cyan.italic, {email});
 
         try {

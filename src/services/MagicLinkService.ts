@@ -8,10 +8,10 @@ import UserPreferenceService from "./UserPreferenceService";
 import generateNanoIdWithAlphabet from "../utils/generateUUID";
 import AuthSessionModel, {IAuthSession} from "../models/AuthSessionSchema";
 import {generateInvalidCode, generateNotFoundCode} from "../utils/generateErrorCodes";
-import {CheckAuthStatusParams, CheckAuthStatusResponse, GenerateMagicLinkParams, GenerateMagicLinkResponse, VerifyMagicLinkParams, VerifyMagicLinkResponse} from "../types/auth";
+import {ICheckAuthStatusParams, ICheckAuthStatusResponse, IGenerateMagicLinkParams, IGenerateMagicLinkResponse, IVerifyMagicLinkParams, IVerifyMagicLinkResponse} from "../types/auth";
 
 class MagicLinkService {
-    static async generateMagicLink({email}: GenerateMagicLinkParams): Promise<GenerateMagicLinkResponse> {
+    static async generateMagicLink({email}: IGenerateMagicLinkParams): Promise<IGenerateMagicLinkResponse> {
         console.log('Service: MagicLinkService.generateMagicLink called'.cyan.italic, {email});
         
         try {
@@ -46,7 +46,7 @@ class MagicLinkService {
         }
     }
 
-    static async verifyMagicLink({token}: VerifyMagicLinkParams): Promise<VerifyMagicLinkResponse> {
+    static async verifyMagicLink({token}: IVerifyMagicLinkParams): Promise<IVerifyMagicLinkResponse> {
         console.log('Service: MagicLinkService.verifyMagicLink called'.cyan.italic, {token: token.substring(0, 10) + '...'});
         
         try {
@@ -145,7 +145,7 @@ class MagicLinkService {
     }
 
     // only for magicLink users -- not designed for google oauth and email/pass users
-    static async checkAuthStatus({email}: CheckAuthStatusParams): Promise<CheckAuthStatusResponse> {
+    static async checkAuthStatus({email}: ICheckAuthStatusParams): Promise<ICheckAuthStatusResponse> {
         console.log('Service: MagicLinkService.checkAuthStatus called'.cyan.italic, {email});
         
         try {

@@ -6,13 +6,13 @@ import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {AI_TAG_GENERATION_MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
-import {TagGenerationParams, TagGenerationResponse} from "../types/ai";
+import {ITagGenerationParams, ITagGenerationResponse} from "../types/ai";
 
 class TagGenerationService {
     /**
      * Generate relevant tags for news article content using Gemini AI
      */
-    static async generateTags({content, url}: TagGenerationParams): Promise<TagGenerationResponse> {
+    static async generateTags({content, url}: ITagGenerationParams): Promise<ITagGenerationResponse> {
         console.log('Service: TagGenerationService.generateTags called'.cyan.italic, {content, url});
 
         if (!content && !url) {
@@ -72,7 +72,7 @@ class TagGenerationService {
     /**
      * Generate tags using Gemini AI
      */
-    private static async generateWithGemini(modelName: string, content: string): Promise<TagGenerationResponse> {
+    private static async generateWithGemini(modelName: string, content: string): Promise<ITagGenerationResponse> {
         console.log('Service: TagGenerationService.generateWithGemini called'.cyan.italic, {modelName, content});
 
         if (!GEMINI_API_KEY) {

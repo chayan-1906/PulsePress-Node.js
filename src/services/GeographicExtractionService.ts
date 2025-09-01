@@ -6,13 +6,13 @@ import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {generateMissingCode} from "../utils/generateErrorCodes";
 import {AI_GEOGRAPHIC_EXTRACTION_MODELS} from "../utils/constants";
-import {AIGeographicExtraction, GeographicExtractionParams, GeographicExtractionResponse} from "../types/ai";
+import {IAIGeographicExtraction, IGeographicExtractionParams, IGeographicExtractionResponse} from "../types/ai";
 
 class GeographicExtractionService {
     /**
      * Extract geographic locations from news article content using Gemini AI
      */
-    static async extractLocations({content, url}: GeographicExtractionParams): Promise<GeographicExtractionResponse> {
+    static async extractLocations({content, url}: IGeographicExtractionParams): Promise<IGeographicExtractionResponse> {
         console.log('Service: GeographicExtractionService.extractLocations called'.cyan.italic, {contentLength: content?.length, url});
 
         if (!content && !url) {
@@ -74,7 +74,7 @@ class GeographicExtractionService {
     /**
      * Extract geographic locations using Gemini AI
      */
-    private static async extractWithGemini(modelName: string, content: string): Promise<GeographicExtractionResponse> {
+    private static async extractWithGemini(modelName: string, content: string): Promise<IGeographicExtractionResponse> {
         if (!GEMINI_API_KEY) {
             console.warn('Config Warning: Gemini API key not configured'.yellow.italic);
             return {error: generateMissingCode('gemini_api_key')};
@@ -105,7 +105,7 @@ class GeographicExtractionService {
             console.log('JSON markdown stripped'.cyan, responseText);
         }
 
-        const parsed: AIGeographicExtraction = JSON.parse(responseText);
+        const parsed: IAIGeographicExtraction = JSON.parse(responseText);
 
         if (!parsed.locations || !Array.isArray(parsed.locations)) {
             console.error('Service Error: Invalid locations array in response'.red.bold, parsed.locations);

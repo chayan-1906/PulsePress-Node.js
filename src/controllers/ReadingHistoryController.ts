@@ -1,17 +1,17 @@
 import "colors";
 import {Request, Response} from "express";
-import {AuthRequest} from "../types/auth";
+import {IAuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
 import ReadingHistoryService from "../services/ReadingHistoryService";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
-import {CompleteArticleParams, DeleteReadingHistoryParams, GetReadingHistoryParams, ModifyReadingHistoryParams, SearchReadingHistoryParams} from "../types/reading-history";
+import {ICompleteArticleParams, IDeleteReadingHistoryParams, IGetReadingHistoryParams, IModifyReadingHistoryParams, ISearchReadingHistoryParams} from "../types/reading-history";
 
 const modifyReadingHistoryController = async (req: Request, res: Response) => {
     console.info('Controller: modifyReadingHistoryController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {title, articleUrl, source, description, readAt, readDuration, completed, publishedAt}: ModifyReadingHistoryParams = req.body;
+        const email = (req as IAuthRequest).email;
+        const {title, articleUrl, source, description, readAt, readDuration, completed, publishedAt}: IModifyReadingHistoryParams = req.body;
         if (!title) {
             console.warn('Client Error: Missing title parameter'.yellow);
             res.status(400).send(new ApiResponse({
@@ -116,8 +116,8 @@ const getReadingHistoriesController = async (req: Request, res: Response) => {
     console.info('Controller: getReadingHistoriesController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {pageSize, page}: Partial<GetReadingHistoryParams> = req.query;
+        const email = (req as IAuthRequest).email;
+        const {pageSize, page}: Partial<IGetReadingHistoryParams> = req.query;
 
         let pageSizeNumber, pageNumber;
         if (pageSize && !isNaN(pageSize)) {
@@ -171,8 +171,8 @@ const completeArticleController = async (req: Request, res: Response) => {
     console.info('Controller: completeArticleController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {articleUrl}: CompleteArticleParams = req.body;
+        const email = (req as IAuthRequest).email;
+        const {articleUrl}: ICompleteArticleParams = req.body;
         if (!articleUrl) {
             console.warn('Client Error: Missing article URL parameter'.yellow);
             res.status(400).send(new ApiResponse({
@@ -242,7 +242,7 @@ const clearReadingHistoryController = async (req: Request, res: Response) => {
     console.info('Controller: clearReadingHistoryController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
+        const email = (req as IAuthRequest).email;
 
         const {isCleared, error} = await ReadingHistoryService.clearReadingHistories({email});
         if (error === generateMissingCode('email')) {
@@ -291,7 +291,7 @@ const getReadingHistoryAnalyticsController = async (req: Request, res: Response)
     console.info('Controller: getReadingHistoryAnalyticsController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
+        const email = (req as IAuthRequest).email;
 
         const {analytics, error} = await ReadingHistoryService.getReadingAnalytics({email});
         if (error === generateMissingCode('email')) {
@@ -342,8 +342,8 @@ const searchReadingHistoriesController = async (req: Request, res: Response) => 
     console.info('Controller: searchReadingHistoriesController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {q, sources, sortBy, sortOrder, pageSize, page}: Partial<SearchReadingHistoryParams> = req.query;
+        const email = (req as IAuthRequest).email;
+        const {q, sources, sortBy, sortOrder, pageSize, page}: Partial<ISearchReadingHistoryParams> = req.query;
 
         let pageSizeNumber, pageNumber;
         if (pageSize && !isNaN(pageSize)) {
@@ -404,8 +404,8 @@ const deleteReadingHistoryController = async (req: Request, res: Response) => {
     console.info('Controller: deleteReadingHistoryController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {readingHistoryExternalId}: DeleteReadingHistoryParams = req.body;
+        const email = (req as IAuthRequest).email;
+        const {readingHistoryExternalId}: IDeleteReadingHistoryParams = req.body;
 
         if (!readingHistoryExternalId) {
             console.warn('Client Error: Missing reading history external ID parameter'.yellow);

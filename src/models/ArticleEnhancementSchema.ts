@@ -1,29 +1,29 @@
 import {Document, model, Model, Schema} from 'mongoose';
-import {COMPLEXITY_LEVELS, ComplexityLevel, SentimentResult} from "../types/ai";
-import {ARTICLE_COMPLEXITIES, ArticleComplexities, PROCESSING_STATUSES, ProcessingStatus} from "../types/news";
+import {COMPLEXITY_LEVELS, TComplexityLevel, TSentimentResult} from "../types/ai";
+import {ARTICLE_COMPLEXITIES, TArticleComplexities, PROCESSING_STATUSES, TProcessingStatus} from "../types/news";
 
 export interface IArticleEnhancement extends Document {
     articleId: string;
     url: string;
     tags?: string[];
     sentiment?: {
-        sentiment: SentimentResult;
+        sentiment: TSentimentResult;
         confidence: number;
         emoji: string;
         color: string;
     };
     complexity?: {
-        level: ArticleComplexities;
+        level: TArticleComplexities;
         readingTimeMinutes: number;
         wordCount: number;
     };
     keyPoints?: string[];
     complexityMeter?: {
-        level: ComplexityLevel;
+        level: TComplexityLevel;
         reasoning: string;
     };
     locations?: string[];
-    processingStatus: ProcessingStatus;
+    processingStatus: TProcessingStatus;
     createdAt: Date;
     updatedAt: Date;
 }

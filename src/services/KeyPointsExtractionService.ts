@@ -4,13 +4,13 @@ import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {generateMissingCode} from "../utils/generateErrorCodes";
 import {AI_KEY_POINTS_EXTRACTOR_MODELS} from "../utils/constants";
-import {AIKeyPoints, KeyPointsExtractionParams, KeyPointsExtractionResponse} from "../types/ai";
+import {IAIKeyPoints, IKeyPointsExtractionParams, IKeyPointsExtractionResponse} from "../types/ai";
 
 class KeyPointsExtractionService {
     /**
      * Extracts key points from news article content using Gemini AI
      */
-    static async extractKeyPoints({content}: KeyPointsExtractionParams): Promise<KeyPointsExtractionResponse> {
+    static async extractKeyPoints({content}: IKeyPointsExtractionParams): Promise<IKeyPointsExtractionResponse> {
         console.log('Service: KeyPointsExtractionService.extractKeyPoints called'.cyan.italic, {contentLength: content?.length});
 
         if (!content || content.trim().length === 0) {
@@ -27,7 +27,7 @@ class KeyPointsExtractionService {
             console.log(`Trying key points extraction with model ${i + 1}/${AI_KEY_POINTS_EXTRACTOR_MODELS.length}:`.cyan, model);
 
             try {
-                let result: KeyPointsExtractionResponse;
+                let result: IKeyPointsExtractionResponse;
                 result = await this.extractWithGemini(model, truncatedContent);
 
                 if (result.keyPoints && result.keyPoints.length > 0) {
@@ -50,7 +50,7 @@ class KeyPointsExtractionService {
     /**
      * Extract key points using Gemini AI
      */
-    private static async extractWithGemini(modelName: string, content: string): Promise<KeyPointsExtractionResponse> {
+    private static async extractWithGemini(modelName: string, content: string): Promise<IKeyPointsExtractionResponse> {
         if (!GEMINI_API_KEY) {
             console.warn('Config Warning: Gemini API key not configured'.yellow.italic);
             return {error: generateMissingCode('gemini_api_key')};
@@ -81,7 +81,7 @@ class KeyPointsExtractionService {
             console.log('JSON markdown stripped'.cyan, responseText);
         }
 
-        const parsed: AIKeyPoints = JSON.parse(responseText);
+        const parsed: IAIKeyPoints = JSON.parse(responseText);
 
         if (!parsed.keyPoints || !Array.isArray(parsed.keyPoints) || parsed.keyPoints.length === 0) {
             console.error('Service Error: Invalid key points array in response'.red.bold, parsed.keyPoints);

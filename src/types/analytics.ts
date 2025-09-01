@@ -2,19 +2,19 @@ import {ISourceAnalytics} from "../models/SourceAnalyticsSchema";
 
 /** ------------- API response types ------------- */
 
-export interface GetSourceAnalyticsResponse {
+export interface IGetSourceAnalyticsResponse {
     sourceAnalytics?: ISourceAnalytics[];
     totalSources?: number;
     error?: string;
 }
 
-export interface GetTopPerformingSourcesResponse {
+export interface IGetTopPerformingSourcesResponse {
     topSources?: ISourceAnalytics[];
     totalSources?: number;
     error?: string;
 }
 
-export interface UpdateSourceAnalyticsResponse {
+export interface IUpdateSourceAnalyticsResponse {
     sourceAnalytics?: ISourceAnalytics;
     isUpdated?: boolean;
     error?: string;
@@ -23,19 +23,19 @@ export interface UpdateSourceAnalyticsResponse {
 
 /** ------------- function params ------------- */
 
-export interface UpdateSourceAnalyticsParams {
+export interface IUpdateSourceAnalyticsParams {
     source: string;
     action: 'view' | 'bookmark' | 'complete' | 'unbookmark';
     readingTime?: number; // in seconds, for 'view' and 'complete' actions
 }
 
-export interface GetSourceAnalyticsParams {
+export interface IGetSourceAnalyticsParams {
     limit?: number;
     sortBy?: 'engagementScore' | 'totalViews' | 'bookmarkConversionRate' | 'completionRate';
     sortOrder?: 'asc' | 'desc';
 }
 
-export interface GetTopPerformingSourcesParams {
+export interface IGetTopPerformingSourcesParams {
     limit?: number;
     minViews?: number; // Minimum views to be considered for top sources
 }
@@ -43,7 +43,7 @@ export interface GetTopPerformingSourcesParams {
 
 /** ------------- analytics calculation helpers ------------- */
 
-export interface EngagementScoreWeights {
+export interface IEngagementScoreWeights {
     viewWeight: number;          // Default: 1
     bookmarkWeight: number;      // Default: 3
     completionWeight: number;    // Default: 2

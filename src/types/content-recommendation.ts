@@ -1,4 +1,4 @@
-export interface RecommendedArticle {
+export interface IRecommendedArticle {
     // Original article properties (from RSS or NewsAPI)
     source?: { name?: string; creator?: string } | { id?: string; name?: string };
     title?: string;
@@ -19,8 +19,8 @@ export interface RecommendedArticle {
 
 /** ------------- API response types ------------- */
 
-export interface GetContentRecommendationsResponse {
-    recommendations?: RecommendedArticle[];
+export interface IGetContentRecommendationsResponse {
+    recommendations?: IRecommendedArticle[];
     totalRecommendations?: number;
     error?: string;
 }
@@ -28,7 +28,7 @@ export interface GetContentRecommendationsResponse {
 
 /** ------------- function params ------------- */
 
-export interface GetContentRecommendationsParams {
+export interface IGetContentRecommendationsParams {
     email: string;  // for authMiddleware
     pageSize?: number;
 }

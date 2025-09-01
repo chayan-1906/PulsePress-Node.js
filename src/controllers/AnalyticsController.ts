@@ -2,13 +2,13 @@ import "colors";
 import {Request, Response} from "express";
 import {ApiResponse} from "../utils/ApiResponse";
 import AnalyticsService from "../services/AnalyticsService";
-import {GetSourceAnalyticsParams, GetTopPerformingSourcesParams} from "../types/analytics";
+import {IGetSourceAnalyticsParams, IGetTopPerformingSourcesParams} from "../types/analytics";
 
 const getSourceAnalyticsController = async (req: Request, res: Response) => {
     console.info('Controller: getSourceAnalyticsController started'.bgBlue.white.bold);
 
     try {
-        const {limit, sortBy, sortOrder}: GetSourceAnalyticsParams = req.query;
+        const {limit, sortBy, sortOrder}: IGetSourceAnalyticsParams = req.query;
 
         let limitNumber;
         if (limit && !isNaN(Number(limit))) {
@@ -48,7 +48,7 @@ const getTopPerformingSourcesController = async (req: Request, res: Response) =>
     console.info('Controller: getTopPerformingSourcesController started'.bgBlue.white.bold);
 
     try {
-        const {limit, minViews}: GetTopPerformingSourcesParams = req.query;
+        const {limit, minViews}: IGetTopPerformingSourcesParams = req.query;
 
         let limitNumber, minViewsNumber;
         if (limit && !isNaN(Number(limit))) {

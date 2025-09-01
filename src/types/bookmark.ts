@@ -1,25 +1,25 @@
-import {SupportedSource} from "./news";
+import {TSupportedSource} from "./news";
 import {IBookmark} from "../models/BookmarkSchema";
 
 export const SUPPORTED_BOOKMARK_SORTINGS = ['title', 'source', 'createdAt', 'updatedAt', 'publishedAt'];
-type SupportedBookmarkSorting = typeof SUPPORTED_BOOKMARK_SORTINGS[number];
+type TSupportedBookmarkSorting = typeof SUPPORTED_BOOKMARK_SORTINGS[number];
 
 
 /** ------------- API response types ------------- */
 
-export interface ToggleBookmarkResponse {
+export interface IToggleBookmarkResponse {
     bookmark?: IBookmark | null;
     added?: boolean;
     deleted?: boolean;
     error?: string;
 }
 
-export interface IsBookmarkedResponse {
+export interface IIsBookmarkedResponse {
     isBookmarked?: boolean;
     error?: string;
 }
 
-export interface GetAllBookmarksResponse {
+export interface IGetAllBookmarksResponse {
     bookmarkedArticles?: IBookmark[] | null;
     totalCount?: number;
     currentPage?: number;
@@ -27,12 +27,12 @@ export interface GetAllBookmarksResponse {
     error?: string;
 }
 
-export interface GetBookmarkCountResponse {
+export interface IGetBookmarkCountResponse {
     count?: number;
     error?: string;
 }
 
-export interface SearchBookmarksResponse {
+export interface ISearchBookmarksResponse {
     bookmarks?: IBookmark[] | null;
     totalCount?: number;
     currentPage?: number;
@@ -43,8 +43,8 @@ export interface SearchBookmarksResponse {
 
 /** ------------- function params ------------- */
 
-export interface ToggleBookmarkParams {
-    email: string;
+export interface IToggleBookmarkParams {
+    email: string;  // for authMiddleware
     articleUrl: string;
     title: string;
     source: string
@@ -53,22 +53,22 @@ export interface ToggleBookmarkParams {
     publishedAt: Date;
 }
 
-export interface IsBookmarkedParams {
-    email: string;
+export interface IIsBookmarkedParams {
+    email: string;  // for authMiddleware
     articleUrl: string;
 }
 
-export interface GetAllBookmarksParams {
+export interface IGetAllBookmarksParams {
     email: string;
     pageSize?: number;
     page?: number;
 }
 
-export interface SearchBookmarksParams {
+export interface ISearchBookmarksParams {
     email: string;
     q?: string;
-    sources?: SupportedSource;
-    sortBy?: SupportedBookmarkSorting;
+    sources?: TSupportedSource;
+    sortBy?: TSupportedBookmarkSorting;
     sortOrder?: 'asc' | 'desc';
     pageSize?: number;
     page?: number;

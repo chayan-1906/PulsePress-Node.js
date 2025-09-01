@@ -7,13 +7,13 @@ import AIService from "./AIService";
 import {parseRSS} from "../utils/parseRSS";
 import {getOAuth2Client} from "../utils/OAuth";
 import {buildHeader} from "../utils/buildHeader";
-import {HealthCheckResponse} from "../types/health-check";
+import {IHealthCheckResponse} from "../types/health-check";
 import {GOOGLE_TRANSLATE_API_KEY} from "../config/config";
 import {getDatabaseHealth} from "../utils/databaseHealth";
 import {AI_SUMMARIZATION_MODELS, RSS_SOURCES} from "../utils/constants";
 
 class HealthService {
-    static async checkNewsAPIOrgHealth(): Promise<HealthCheckResponse> {
+    static async checkNewsAPIOrgHealth(): Promise<IHealthCheckResponse> {
         console.log('Service: HealthService.checkNewsAPIOrgHealth called'.cyan.italic);
 
         try {
@@ -33,7 +33,7 @@ class HealthService {
         }
     }
 
-    static async checkRSSFeedsHealth(): Promise<HealthCheckResponse> {
+    static async checkRSSFeedsHealth(): Promise<IHealthCheckResponse> {
         console.log('Service: HealthService.checkRSSFeedsHealth called'.cyan.italic);
 
         try {
@@ -82,7 +82,7 @@ class HealthService {
         }
     }
 
-    static async checkGoogleServicesHealth(): Promise<HealthCheckResponse> {
+    static async checkGoogleServicesHealth(): Promise<IHealthCheckResponse> {
         console.log('Service: HealthService.checkGoogleServicesHealth called'.cyan.italic);
 
         try {
@@ -109,7 +109,7 @@ class HealthService {
         }
     }
 
-    static async checkGeminiAIHealth(): Promise<HealthCheckResponse> {
+    static async checkGeminiAIHealth(): Promise<IHealthCheckResponse> {
         console.log('Service: HealthService.checkGeminiAIHealth called'.cyan.italic);
 
         try {
@@ -126,7 +126,7 @@ class HealthService {
         }
     }
 
-    static async checkDatabaseHealth(): Promise<HealthCheckResponse> {
+    static async checkDatabaseHealth(): Promise<IHealthCheckResponse> {
         console.log('Service: HealthService.checkDatabaseHealth called'.cyan.italic);
 
         try {
@@ -169,7 +169,7 @@ class HealthService {
         }
     }
 
-    static async checkOverallSystemHealth(): Promise<HealthCheckResponse> {
+    static async checkOverallSystemHealth(): Promise<IHealthCheckResponse> {
         console.log('Service: HealthService.checkOverallSystemHealth called'.cyan.italic);
 
         try {

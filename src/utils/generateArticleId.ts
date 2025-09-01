@@ -1,7 +1,7 @@
 import {createHash} from "crypto";
-import {GenerateArticleIdParams} from "../types/news";
+import {IGenerateArticleIdParams} from "../types/news";
 
-const generateArticleId = ({article, title, url}: GenerateArticleIdParams): string => {
+const generateArticleId = ({article, title, url}: IGenerateArticleIdParams): string => {
     const finalUrl = url || article?.url;
     const finalTitle = title || article?.title;
 

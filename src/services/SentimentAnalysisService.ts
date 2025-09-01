@@ -1,17 +1,17 @@
 import "colors";
 import AIService from "./AIService";
-import {Article} from "../types/news";
+import {IArticle} from "../types/news";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {generateMissingCode} from "../utils/generateErrorCodes";
 import {AI_SENTIMENT_ANALYSIS_MODELS} from "../utils/constants";
-import {AISentiment, EnrichedArticleWithSentiment, SENTIMENT_TYPES, SentimentAnalysisParams, SentimentAnalysisResponse, SentimentResult} from "../types/ai";
+import {IAISentiment, IEnrichedArticleWithSentiment, SENTIMENT_TYPES, ISentimentAnalysisParams, ISentimentAnalysisResponse, TSentimentResult} from "../types/ai";
 
 class SentimentAnalysisService {
     /**
      * Analyzes the sentiment of news article content using Gemini AI
      */
-    static async analyzeSentiment({content}: SentimentAnalysisParams): Promise<SentimentAnalysisResponse> {
+    static async analyzeSentiment({content}: ISentimentAnalysisParams): Promise<ISentimentAnalysisResponse> {
         console.log('Service: SentimentAnalysisService.analyzeSentiment called'.cyan.italic, {content});
 
         if (!content || content.trim().length === 0) {
@@ -27,7 +27,7 @@ class SentimentAnalysisService {
             console.log(`Trying sentiment analysis with model ${i + 1}/${AI_SENTIMENT_ANALYSIS_MODELS.length}:`.cyan, model);
 
             try {
-                let result: SentimentAnalysisResponse;
+                let result: ISentimentAnalysisResponse;
                 result = await this.analyzeWithGemini(model, truncatedContent);
 
                 if (result.sentiment && result.confidence) {
@@ -50,7 +50,7 @@ class SentimentAnalysisService {
     /**
      * Analyze sentiment using Gemini AI
      */
-    private static async analyzeWithGemini(modelName: string, content: string): Promise<SentimentAnalysisResponse> {
+    private static async analyzeWithGemini(modelName: string, content: string): Promise<ISentimentAnalysisResponse> {
         console.log('Service: SentimentAnalysisService.analyzeWithGemini called'.cyan.italic, {modelName, content});
 
         if (!GEMINI_API_KEY) {
@@ -82,14 +82,14 @@ class SentimentAnalysisService {
             console.log('Stripped markdown, clean JSON:'.cyan, responseText);
         }
 
-        const parsed: AISentiment = JSON.parse(responseText);
+        const parsed: IAISentiment = JSON.parse(responseText);
 
         if (!parsed.sentiment || !SENTIMENT_TYPES.includes(parsed.sentiment)) {
             console.error('Service Error: Invalid sentiment value in response:'.red.bold, parsed.sentiment);
             return {error: 'SENTIMENT_PARSE_ERROR'};
         }
 
-        const sentiment = parsed.sentiment as SentimentResult;
+        const sentiment = parsed.sentiment as TSentimentResult;
         const confidence = typeof parsed.confidence === 'number' ? parsed.confidence : 0.5;
 
         return {sentiment, confidence};
@@ -98,7 +98,7 @@ class SentimentAnalysisService {
     /**
      * Get emoji representation for sentiment
      */
-    static getSentimentEmoji(sentiment: SentimentResult): string {
+    static getSentimentEmoji(sentiment: TSentimentResult): string {
         console.log('Service: SentimentAnalysisService.getSentimentEmoji called'.cyan.italic, {sentiment});
 
         switch (sentiment) {
@@ -116,7 +116,7 @@ class SentimentAnalysisService {
     /**
      * Get color indicator for sentiment (for UI styling)
      */
-    static getSentimentColor(sentiment: SentimentResult): string {
+    static getSentimentColor(sentiment: TSentimentResult): string {
         console.log('Service: SentimentAnalysisService.getSentimentColor called'.cyan.italic, {sentiment});
 
         switch (sentiment) {
@@ -134,7 +134,7 @@ class SentimentAnalysisService {
     /**
      * Analyze sentiment for an individual article and add sentiment data
      */
-    private static async enrichArticleWithSentiment(article: any, shouldAnalyze: boolean = true): Promise<EnrichedArticleWithSentiment> {
+    private static async enrichArticleWithSentiment(article: any, shouldAnalyze: boolean = true): Promise<IEnrichedArticleWithSentiment> {
         console.log('Service: SentimentAnalysisService.enrichArticleWithSentiment called'.cyan.italic, {article, shouldAnalyze});
 
         if (!shouldAnalyze) {
@@ -173,7 +173,7 @@ class SentimentAnalysisService {
     /**
      * Analyze sentiment for multiple articles in batches
      */
-    static async enrichArticlesWithSentiment(articles: any[], shouldAnalyze: boolean = true): Promise<Article[]> {
+    static async enrichArticlesWithSentiment(articles: any[], shouldAnalyze: boolean = true): Promise<IArticle[]> {
         console.log('Service: SentimentAnalysisService.getSentimentColor called'.cyan.italic, {articles, shouldAnalyze});
 
         if (!shouldAnalyze || !articles?.length) {

@@ -1,10 +1,10 @@
 import {Document, Model, model, Schema} from "mongoose";
-import {SUMMARIZATION_STYLES, SummarizationStyle, SUPPORTED_LANGUAGES} from "../types/ai";
+import {SUMMARIZATION_STYLES, TSummarizationStyle, SUPPORTED_LANGUAGES} from "../types/ai";
 
 export interface ICachedSummary extends Document {
     contentHash: string;    // content + language + style
     summary: string;
-    style: SummarizationStyle;
+    style: TSummarizationStyle;
     language: string;
     createdAt: Date;
     expiresAt: Date;

@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
-import {DatabaseHealth} from "../types/health-check";
+import {IDatabaseHealth} from "../types/health-check";
 
-function getDatabaseHealth(): DatabaseHealth {
+function getDatabaseHealth(): IDatabaseHealth {
     const readyStates = {
         0: 'disconnected',
         1: 'connected',
@@ -9,7 +9,7 @@ function getDatabaseHealth(): DatabaseHealth {
         3: 'disconnecting',
     };
 
-    const health: DatabaseHealth = {
+    const health: IDatabaseHealth = {
         connected: mongoose.connection.readyState === 1,
         readyState: readyStates[mongoose.connection.readyState as keyof typeof readyStates] || 'unknown',
     };

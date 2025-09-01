@@ -7,17 +7,17 @@ import UserPreferenceModel, {IUserPreference} from "../models/UserPreferenceSche
 import {SUPPORTED_CATEGORIES, SUPPORTED_NEWS_LANGUAGES, SUPPORTED_SOURCES} from "../types/news";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {
-    GetUserPreferenceParams,
-    GetUserPreferenceResponse,
-    ModifyUserPreferenceParams,
-    ModifyUserPreferenceResponse,
-    ResetUserPreferenceParams,
-    ResetUserPreferenceResponse,
+    IGetUserPreferenceParams,
+    IGetUserPreferenceResponse,
+    IModifyUserPreferenceParams,
+    IModifyUserPreferenceResponse,
+    IResetUserPreferenceParams,
+    IResetUserPreferenceResponse,
 } from "../types/user-preference";
 
 class UserPreferenceService {
     static async modifyUserPreference(
-        {email, user, preferredLanguage, preferredCategories, preferredSources, summaryStyle, newsLanguages, session}: ModifyUserPreferenceParams): Promise<ModifyUserPreferenceResponse> {
+        {email, user, preferredLanguage, preferredCategories, preferredSources, summaryStyle, newsLanguages, session}: IModifyUserPreferenceParams): Promise<IModifyUserPreferenceResponse> {
         console.log('Service: UserPreferenceService.modifyUserPreference called'.cyan.italic, {
             email,
             user,
@@ -93,7 +93,7 @@ class UserPreferenceService {
         }
     }
 
-    static async getUserPreference({email}: GetUserPreferenceParams): Promise<GetUserPreferenceResponse> {
+    static async getUserPreference({email}: IGetUserPreferenceParams): Promise<IGetUserPreferenceResponse> {
         console.log('Service: UserPreferenceService.getUserPreference called'.cyan.italic, {email});
 
         try {
@@ -120,7 +120,7 @@ class UserPreferenceService {
         }
     }
 
-    static async resetUserPreference({email}: ResetUserPreferenceParams): Promise<ResetUserPreferenceResponse> {
+    static async resetUserPreference({email}: IResetUserPreferenceParams): Promise<IResetUserPreferenceResponse> {
         console.log('Service: UserPreferenceService.resetUserPreference called'.cyan.italic, {email});
 
         try {

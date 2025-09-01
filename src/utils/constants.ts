@@ -1,4 +1,4 @@
-import {EngagementScoreWeights} from "../types/analytics";
+import {IEngagementScoreWeights} from "../types/analytics";
 
 const RSS_SOURCES = {
     english: {
@@ -223,7 +223,7 @@ const USER_AGENTS = [
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15',
 ];
 
-const DEFAULT_ENGAGEMENT_WEIGHTS: EngagementScoreWeights = {
+const DEFAULT_ENGAGEMENT_WEIGHTS: IEngagementScoreWeights = {
     viewWeight: 1,
     bookmarkWeight: 3,
     completionWeight: 2,

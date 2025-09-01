@@ -1,17 +1,17 @@
 import "colors";
 import {Request, Response} from "express";
-import {AuthRequest} from "../types/auth";
+import {IAuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
 import BookmarkService from "../services/BookmarkService";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
-import {GetAllBookmarksParams, IsBookmarkedParams, SearchBookmarksParams, ToggleBookmarkParams} from "../types/bookmark";
+import {IGetAllBookmarksParams, IIsBookmarkedParams, ISearchBookmarksParams, IToggleBookmarkParams} from "../types/bookmark";
 
 const toggleBookmarkController = async (req: Request, res: Response) => {
     console.info('Controller: toggleBookmarkController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {articleUrl, title, source, description, imageUrl, publishedAt}: Partial<ToggleBookmarkParams> = req.body;
+        const email = (req as IAuthRequest).email;
+        const {articleUrl, title, source, description, imageUrl, publishedAt}: Partial<IToggleBookmarkParams> = req.body;
         if (!articleUrl) {
             console.warn('Client Error: Missing article URL parameter'.yellow);
             res.status(400).send(new ApiResponse({
@@ -109,8 +109,8 @@ const isBookmarkedController = async (req: Request, res: Response) => {
     console.info('Controller: isBookmarkedController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {articleUrl}: Partial<IsBookmarkedParams> = req.query;
+        const email = (req as IAuthRequest).email;
+        const {articleUrl}: Partial<IIsBookmarkedParams> = req.query;
         if (!articleUrl) {
             console.warn('Client Error: Missing article URL parameter'.yellow);
             res.status(400).send(new ApiResponse({
@@ -161,8 +161,8 @@ const getAllBookmarksController = async (req: Request, res: Response) => {
     console.info('Controller: getAllBookmarksController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {pageSize, page}: Partial<GetAllBookmarksParams> = req.query;
+        const email = (req as IAuthRequest).email;
+        const {pageSize, page}: Partial<IGetAllBookmarksParams> = req.query;
 
         let pageSizeNumber, pageNumber;
         if (pageSize && !isNaN(pageSize)) {
@@ -215,7 +215,7 @@ const getBookmarkCountController = async (req: Request, res: Response) => {
     console.info('Controller: getBookmarkCountController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
+        const email = (req as IAuthRequest).email;
 
         const {count, error} = await BookmarkService.getBookmarkCount({email});
         if (error === generateMissingCode('email')) {
@@ -257,8 +257,8 @@ const searchBookmarksController = async (req: Request, res: Response) => {
     console.info('Controller: searchBookmarksController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {q, sources, sortBy, sortOrder, pageSize, page}: Partial<SearchBookmarksParams> = req.query;
+        const email = (req as IAuthRequest).email;
+        const {q, sources, sortBy, sortOrder, pageSize, page}: Partial<ISearchBookmarksParams> = req.query;
 
         let pageSizeNumber, pageNumber;
         if (pageSize && !isNaN(pageSize)) {

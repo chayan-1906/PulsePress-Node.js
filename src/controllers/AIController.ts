@@ -1,6 +1,6 @@
 import "colors";
 import {Request, Response} from "express";
-import {AuthRequest} from "../types/auth";
+import {IAuthRequest} from "../types/auth";
 import {isListEmpty} from "../utils/list";
 import AIService from "../services/AIService";
 import {ApiResponse} from "../utils/ApiResponse";
@@ -18,19 +18,19 @@ import KeyPointsExtractionService from "../services/KeyPointsExtractionService";
 import GeographicExtractionService from "../services/GeographicExtractionService";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {
-    ComplexityMeterParams,
-    GeographicExtractionParams,
-    KeyPointsExtractionParams,
-    NewsInsightsParams,
-    QuestionAnsweringParams,
-    QuestionGenerationParams,
-    SentimentAnalysisParams,
+    IComplexityMeterParams,
+    IGeographicExtractionParams,
+    IKeyPointsExtractionParams,
+    INewsInsightsParams,
+    IQuestionAnsweringParams,
+    IQuestionGenerationParams,
+    ISentimentAnalysisParams,
     SOCIAL_MEDIA_CAPTION_STYLES,
     SOCIAL_MEDIA_PLATFORMS,
-    SocialMediaCaptionParams,
+    ISocialMediaCaptionParams,
     SUMMARIZATION_STYLES,
-    SummarizeArticleParams,
-    TagGenerationParams,
+    ISummarizeArticleParams,
+    ITagGenerationParams,
 } from "../types/ai";
 
 const classifyContentController = async (req: Request, res: Response) => {
@@ -118,8 +118,8 @@ const summarizeArticleController = async (req: Request, res: Response) => {
     console.info('Controller: summarizeArticleController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {content, url, language, style}: SummarizeArticleParams = req.body;
+        const email = (req as IAuthRequest).email;
+        const {content, url, language, style}: ISummarizeArticleParams = req.body;
 
         if (!content && !url) {
             console.warn('Client Error: Missing content and URL parameters'.yellow);
@@ -283,8 +283,8 @@ const generateTagsController = async (req: Request, res: Response) => {
     console.info('Controller: generateTagsController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {content, url}: TagGenerationParams = req.body;
+        const email = (req as IAuthRequest).email;
+        const {content, url}: ITagGenerationParams = req.body;
 
         if (!content && !url) {
             res.status(400).send(new ApiResponse({
@@ -370,8 +370,8 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
     console.info('Controller: analyzeSentimentController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {content, url}: SentimentAnalysisParams = req.body;
+        const email = (req as IAuthRequest).email;
+        const {content, url}: ISentimentAnalysisParams = req.body;
 
         if (!content && !url) {
             res.status(400).send(new ApiResponse({
@@ -476,8 +476,8 @@ const extractKeyPointsController = async (req: Request, res: Response) => {
     console.info('Controller: extractKeyPointsController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {content, url}: KeyPointsExtractionParams = req.body;
+        const email = (req as IAuthRequest).email;
+        const {content, url}: IKeyPointsExtractionParams = req.body;
 
         if (!content && !url) {
             res.status(400).send(new ApiResponse({
@@ -580,8 +580,8 @@ const analyzeComplexityController = async (req: Request, res: Response) => {
     console.info('Controller: analyzeComplexityController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {content, url}: ComplexityMeterParams = req.body;
+        const email = (req as IAuthRequest).email;
+        const {content, url}: IComplexityMeterParams = req.body;
 
         if (!content && !url) {
             res.status(400).send(new ApiResponse({
@@ -684,8 +684,8 @@ const generateQuestionsController = async (req: Request, res: Response) => {
     console.info('Controller: generateQuestionsController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {content}: QuestionGenerationParams = req.body;
+        const email = (req as IAuthRequest).email;
+        const {content}: IQuestionGenerationParams = req.body;
 
         if (!content || content.trim().length === 0) {
             res.status(400).send(new ApiResponse({
@@ -756,8 +756,8 @@ const answerQuestionController = async (req: Request, res: Response) => {
     console.info('Controller: answerQuestionController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {content, question}: QuestionAnsweringParams = req.body;
+        const email = (req as IAuthRequest).email;
+        const {content, question}: IQuestionAnsweringParams = req.body;
 
         if (!content || content.trim().length === 0) {
             res.status(400).send(new ApiResponse({
@@ -841,8 +841,8 @@ const extractLocationsController = async (req: Request, res: Response) => {
     console.info('Controller: extractLocationsController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {content, url}: GeographicExtractionParams = req.body;
+        const email = (req as IAuthRequest).email;
+        const {content, url}: IGeographicExtractionParams = req.body;
 
         if (!content && !url) {
             res.status(400).send(new ApiResponse({
@@ -956,8 +956,8 @@ const generateSocialMediaCaptionController = async (req: Request, res: Response)
     console.info('Controller: generateSocialMediaCaptionController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {content, url, platform, style}: SocialMediaCaptionParams = req.body;
+        const email = (req as IAuthRequest).email;
+        const {content, url, platform, style}: ISocialMediaCaptionParams = req.body;
 
         if (!content && !url) {
             res.status(400).send(new ApiResponse({
@@ -1062,8 +1062,8 @@ const generateNewsInsightsController = async (req: Request, res: Response) => {
     console.info('Controller: generateNewsInsightsController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {content, url}: NewsInsightsParams = req.body;
+        const email = (req as IAuthRequest).email;
+        const {content, url}: INewsInsightsParams = req.body;
 
         if (!content && !url) {
             res.status(400).send(new ApiResponse({

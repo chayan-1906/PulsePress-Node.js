@@ -4,25 +4,25 @@ import AnalyticsService from "./AnalyticsService";
 import ReadingHistoryModel, {IReadingHistory} from "../models/ReadingHistorySchema";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {
-    ClearReadingHistoryParams,
-    ClearReadingHistoryResponse,
-    CompleteArticleParams,
-    CompleteArticleResponse,
-    DeleteReadingHistoryParams,
-    DeleteReadingHistoryResponse,
-    GetReadingAnalyticsParams,
-    GetReadingAnalyticsResponse,
-    GetReadingHistoryParams,
-    GetReadingHistoryResponse,
-    ModifyReadingHistoryParams,
-    ModifyReadingHistoryResponse,
-    SearchReadingHistoryParams, SearchReadingHistoryResponse,
+    IClearReadingHistoryParams,
+    IClearReadingHistoryResponse,
+    ICompleteArticleParams,
+    ICompleteArticleResponse,
+    IDeleteReadingHistoryParams,
+    IDeleteReadingHistoryResponse,
+    IGetReadingAnalyticsParams,
+    IGetReadingAnalyticsResponse,
+    IGetReadingHistoryParams,
+    IGetReadingHistoryResponse,
+    IModifyReadingHistoryParams,
+    IModifyReadingHistoryResponse,
+    ISearchReadingHistoryParams, ISearchReadingHistoryResponse,
     SUPPORTED_READING_HISTORY_SORTINGS,
 } from "../types/reading-history";
 
 class ReadingHistoryService {
     static async modifyReadingHistory
-    ({email, title, articleUrl, source, description, readAt, readDuration, completed, publishedAt}: ModifyReadingHistoryParams): Promise<ModifyReadingHistoryResponse> {
+    ({email, title, articleUrl, source, description, readAt, readDuration, completed, publishedAt}: IModifyReadingHistoryParams): Promise<IModifyReadingHistoryResponse> {
         console.log('Service: ReadingHistoryService.modifyReadingHistory called'.cyan.italic, {email, title, articleUrl, source, description, readAt, readDuration, completed, publishedAt});
 
         try {
@@ -103,7 +103,7 @@ class ReadingHistoryService {
         }
     }
 
-    static async getReadingHistories({email, pageSize = 10, page = 1}: GetReadingHistoryParams): Promise<GetReadingHistoryResponse> {
+    static async getReadingHistories({email, pageSize = 10, page = 1}: IGetReadingHistoryParams): Promise<IGetReadingHistoryResponse> {
         console.log('Service: ReadingHistoryService.getReadingHistories called'.cyan.italic, {email, pageSize, page});
 
         try {
@@ -131,7 +131,7 @@ class ReadingHistoryService {
         }
     }
 
-    static async completeArticle({email, articleUrl}: CompleteArticleParams): Promise<CompleteArticleResponse> {
+    static async completeArticle({email, articleUrl}: ICompleteArticleParams): Promise<ICompleteArticleResponse> {
         console.log('Service: ReadingHistoryService.completeArticle called'.cyan.italic, {email, articleUrl});
 
         try {
@@ -166,7 +166,7 @@ class ReadingHistoryService {
         }
     }
 
-    static async clearReadingHistories({email}: ClearReadingHistoryParams): Promise<ClearReadingHistoryResponse> {
+    static async clearReadingHistories({email}: IClearReadingHistoryParams): Promise<IClearReadingHistoryResponse> {
         console.log('Service: ReadingHistoryService.clearReadingHistories called'.cyan.italic, {email});
 
         try {
@@ -187,7 +187,7 @@ class ReadingHistoryService {
         }
     }
 
-    static async getReadingAnalytics({email}: GetReadingAnalyticsParams): Promise<GetReadingAnalyticsResponse> {
+    static async getReadingAnalytics({email}: IGetReadingAnalyticsParams): Promise<IGetReadingAnalyticsResponse> {
         console.log('Service: ReadingHistoryService.getReadingAnalytics called'.cyan.italic, {email});
 
         try {
@@ -264,7 +264,7 @@ class ReadingHistoryService {
         }
     }
 
-    static async searchReadingHistories({email, q, sources, sortBy = 'readAt', sortOrder = 'desc', pageSize = 10, page = 1}: SearchReadingHistoryParams): Promise<SearchReadingHistoryResponse> {
+    static async searchReadingHistories({email, q, sources, sortBy = 'readAt', sortOrder = 'desc', pageSize = 10, page = 1}: ISearchReadingHistoryParams): Promise<ISearchReadingHistoryResponse> {
         console.log('Service: ReadingHistoryService.searchReadingHistories called'.cyan.italic, {email, q, sources, sortBy, sortOrder, pageSize, page});
 
         /**
@@ -325,7 +325,7 @@ class ReadingHistoryService {
         }
     }
 
-    static async deleteReadingHistory({email, readingHistoryExternalId}: DeleteReadingHistoryParams): Promise<DeleteReadingHistoryResponse> {
+    static async deleteReadingHistory({email, readingHistoryExternalId}: IDeleteReadingHistoryParams): Promise<IDeleteReadingHistoryResponse> {
         console.log('Service: ReadingHistoryService.deleteReadingHistory called'.cyan.italic, {email, readingHistoryExternalId});
 
         try {

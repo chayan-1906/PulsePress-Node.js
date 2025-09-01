@@ -1,9 +1,9 @@
 import "colors";
 import {Request, Response} from "express";
-import {AuthRequest} from "../types/auth";
+import {IAuthRequest} from "../types/auth";
 import {hasInvalidItems} from "../utils/list";
 import {ApiResponse} from "../utils/ApiResponse";
-import {ModifyUserPreferenceParams} from "../types/user-preference";
+import {IModifyUserPreferenceParams} from "../types/user-preference";
 import UserPreferenceService from "../services/UserPreferenceService";
 import {SUPPORTED_CATEGORIES, SUPPORTED_NEWS_LANGUAGES, SUPPORTED_SOURCES} from "../types/news";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
@@ -12,8 +12,8 @@ const modifyUserPreferenceController = async (req: Request, res: Response) => {
     console.info('Controller: modifyUserPreferenceController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {preferredLanguage, preferredCategories, preferredSources, summaryStyle, newsLanguages}: ModifyUserPreferenceParams = req.body;
+        const email = (req as IAuthRequest).email;
+        const {preferredLanguage, preferredCategories, preferredSources, summaryStyle, newsLanguages}: IModifyUserPreferenceParams = req.body;
 
         if (preferredCategories && !Array.isArray(preferredCategories)) {
             console.warn('Client Error: Invalid preferred categories format'.yellow);
@@ -130,7 +130,7 @@ const getUserPreferenceController = async (req: Request, res: Response) => {
     console.info('Controller: getUserPreferenceController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
+        const email = (req as IAuthRequest).email;
 
         const {userPreference, error} = await UserPreferenceService.getUserPreference({email});
         if (error === generateMissingCode('email')) {
@@ -182,7 +182,7 @@ const resetUserPreferenceController = async (req: Request, res: Response) => {
     console.info('Controller: resetUserPreferenceController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
+        const email = (req as IAuthRequest).email;
 
         const {isReset, error} = await UserPreferenceService.resetUserPreference({email});
         if (error === generateMissingCode('email')) {

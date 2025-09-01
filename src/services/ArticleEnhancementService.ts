@@ -3,7 +3,7 @@ import AIService from "./AIService";
 import AuthService from "./AuthService";
 import {AI_PROMPTS} from "../utils/prompts";
 import StrikeService from "./StrikeService";
-import {Article, EnhancementStatus} from "../types/news";
+import {IArticle, TEnhancementStatus} from "../types/news";
 import {AI_ENHANCEMENT_MODELS} from "../utils/constants";
 import {generateArticleId} from "../utils/generateArticleId";
 import SentimentAnalysisService from "./SentimentAnalysisService";
@@ -11,15 +11,15 @@ import ReadingTimeAnalysisService from "./ReadingTimeAnalysisService";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import ArticleEnhancementModel, {IArticleEnhancement} from "../models/ArticleEnhancementSchema";
 import {
-    CombinedAIParams,
-    CombinedAIResponse,
-    EnhanceArticlesInBackgroundParams,
-    GetEnhancementForArticlesParams,
-    GetEnhancementStatusByIdsParams,
-    GetEnhancementStatusByIdsResponse,
-    GetProcessingStatusParams,
-    GetProcessingStatusResponse,
-    MergeEnhancementsWithArticlesParams,
+    ICombinedAIParams,
+    ICombinedAIResponse,
+    IEnhanceArticlesInBackgroundParams,
+    IGetEnhancementForArticlesParams,
+    IGetEnhancementStatusByIdsParams,
+    IGetEnhancementStatusByIdsResponse,
+    IGetProcessingStatusParams,
+    IGetProcessingStatusResponse,
+    IMergeEnhancementsWithArticlesParams,
     SENTIMENT_TYPES,
 } from "../types/ai";
 
@@ -29,7 +29,7 @@ class ArticleEnhancementService {
     /**
      * Combined AI enhancement method - smart tags, sentiment analysis, key points extractor, complexity meter, geographic entity locations
      */
-    private static async aiEnhanceArticle({content, tasks}: CombinedAIParams): Promise<CombinedAIResponse> {
+    private static async aiEnhanceArticle({content, tasks}: ICombinedAIParams): Promise<ICombinedAIResponse> {
         console.log('Service: ArticleEnhancementService.aiEnhanceArticle called'.cyan.italic, {tasks});
 
         if (!content || content.trim().length === 0) {
@@ -112,10 +112,10 @@ class ArticleEnhancementService {
                     console.log('Service: JSON markdown stripped'.cyan, responseText);
                 }
 
-                const parsed: CombinedAIResponse = JSON.parse(responseText);
+                const parsed: ICombinedAIResponse = JSON.parse(responseText);
                 console.log('parsed response:'.cyan, parsed);
 
-                const response: CombinedAIResponse = {};
+                const response: ICombinedAIResponse = {};
 
                 if (tasks.includes('tags') && parsed.tags) {
                     response.tags = parsed.tags;
@@ -168,10 +168,10 @@ class ArticleEnhancementService {
         return {error: 'AI_ENHANCEMENT_FAILED'};
     }
 
-    static async getProcessingStatus({articles}: GetProcessingStatusParams): Promise<GetProcessingStatusResponse> {
+    static async getProcessingStatus({articles}: IGetProcessingStatusParams): Promise<IGetProcessingStatusResponse> {
         console.log('Service: ArticleEnhancementService.getProcessingStatus called'.cyan.italic, {articleCount: articles.length});
 
-        const articleIds = articles.map((article: Article) => generateArticleId({article}));
+        const articleIds = articles.map((article: IArticle) => generateArticleId({article}));
 
         const hasActiveJobs = articleIds.some((id: string) => this.activeJobs.has(id));
 
@@ -192,7 +192,7 @@ class ArticleEnhancementService {
         }
     }
 
-    static async enhanceArticlesInBackground({email, articles}: EnhanceArticlesInBackgroundParams): Promise<void> {
+    static async enhanceArticlesInBackground({email, articles}: IEnhanceArticlesInBackgroundParams): Promise<void> {
         console.log('Service: ArticleEnhancementService.enhanceArticlesInBackground called'.cyan.italic, {email, articleCount: articles.length});
 
         if (email) {
@@ -212,7 +212,7 @@ class ArticleEnhancementService {
             return;
         }
 
-        const articleIds = articles.map((article: Article) => generateArticleId({article}));
+        const articleIds = articles.map((article: IArticle) => generateArticleId({article}));
         articleIds.forEach((id: string) => this.activeJobs.add(id));
 
         setTimeout(async () => {
@@ -244,7 +244,7 @@ class ArticleEnhancementService {
 
                     const complexity = ReadingTimeAnalysisService.calculateReadingTimeComplexity({article});
 
-                    const aiResult: CombinedAIResponse = await this.aiEnhanceArticle({
+                    const aiResult: ICombinedAIResponse = await this.aiEnhanceArticle({
                         content: article.content || article.description || article.title || '',
                         tasks: ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'geoExtraction'],
                     });
@@ -315,11 +315,11 @@ class ArticleEnhancementService {
         }, 500);
     }
 
-    static async getEnhancementsForArticles({articles}: GetEnhancementForArticlesParams): Promise<{ [articleId: string]: IArticleEnhancement }> {
+    static async getEnhancementsForArticles({articles}: IGetEnhancementForArticlesParams): Promise<{ [articleId: string]: IArticleEnhancement }> {
         console.log('Service: ArticleEnhancementService.getEnhancementsForArticles called'.cyan.italic, {articleCount: articles.length});
 
         try {
-            const articleIds = articles.map((article: Article) => generateArticleId({article}));
+            const articleIds = articles.map((article: IArticle) => generateArticleId({article}));
 
             const completedEnhancements: IArticleEnhancement[] = await ArticleEnhancementModel.find({
                 articleId: {$in: articleIds},
@@ -336,7 +336,7 @@ class ArticleEnhancementService {
         }
     }
 
-    static async getEnhancementStatusByIds({email, articleIds}: GetEnhancementStatusByIdsParams): Promise<GetEnhancementStatusByIdsResponse> {
+    static async getEnhancementStatusByIds({email, articleIds}: IGetEnhancementStatusByIdsParams): Promise<IGetEnhancementStatusByIdsResponse> {
         console.log('Service: ArticleEnhancementService.getEnhancementStatusByIds called'.cyan.italic, {email, articleCount: articleIds.length});
 
         try {
@@ -373,7 +373,7 @@ class ArticleEnhancementService {
                     enhanced: true,
                 }));
 
-            let status: EnhancementStatus = 'processing';
+            let status: TEnhancementStatus = 'processing';
             if (!hasActiveJobs && processedCount >= articleIds.length) {
                 status = 'complete';
             }
@@ -385,7 +385,7 @@ class ArticleEnhancementService {
         }
     }
 
-    static mergeEnhancementsWithArticles({articles, enhancements}: MergeEnhancementsWithArticlesParams): Article[] {
+    static mergeEnhancementsWithArticles({articles, enhancements}: IMergeEnhancementsWithArticlesParams): IArticle[] {
         return articles.map(article => {
             const articleId = generateArticleId({article});
             const enhancement = enhancements[articleId];

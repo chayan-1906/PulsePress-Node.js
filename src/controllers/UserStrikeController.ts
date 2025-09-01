@@ -1,8 +1,8 @@
 import "colors";
 import {Request, Response} from "express";
-import {AuthRequest} from "../types/auth";
+import {IAuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
-import {GetUserStrikeHistoryParams} from "../types/ai";
+import {IGetUserStrikeHistoryParams} from "../types/ai";
 import UserStrikeService from "../services/UserStrikeService";
 import {generateNotFoundCode} from "../utils/generateErrorCodes";
 
@@ -10,7 +10,7 @@ const getUserStrikeStatusController = async (req: Request, res: Response) => {
     console.info('Controller: getUserStrikeStatusController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
+        const email = (req as IAuthRequest).email;
 
         const {strikeStatus, error} = await UserStrikeService.getUserStrikeStatus({email});
         if (error) {
@@ -55,8 +55,8 @@ const getUserStrikeHistoryController = async (req: Request, res: Response) => {
     console.info('Controller: getUserStrikeHistoryController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {limit}: Partial<GetUserStrikeHistoryParams> = req.query;
+        const email = (req as IAuthRequest).email;
+        const {limit}: Partial<IGetUserStrikeHistoryParams> = req.query;
 
         let limitNumber = 10;
         if (limit && !isNaN(Number(limit))) {

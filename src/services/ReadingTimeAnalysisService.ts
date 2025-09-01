@@ -1,12 +1,12 @@
 import "colors";
-import {ArticleComplexities} from "../types/news";
-import {ReadingTimeComplexityParams, ReadingTimeComplexityResponse} from "../types/ai";
+import {TArticleComplexities} from "../types/news";
+import {IReadingTimeComplexityParams, IReadingTimeComplexityResponse} from "../types/ai";
 
 class ReadingTimeAnalysisService {
     /**
      * Calculate reading time and complexity for an article
      */
-    static calculateReadingTimeComplexity({article}: ReadingTimeComplexityParams): ReadingTimeComplexityResponse {
+    static calculateReadingTimeComplexity({article}: IReadingTimeComplexityParams): IReadingTimeComplexityResponse {
         console.log('Service: ReadingTimeAnalysisService.calculateReadingTimeComplexity called'.cyan.italic, {article});
 
         const text = (article.content || article.description || '').toLowerCase();
@@ -18,7 +18,7 @@ class ReadingTimeAnalysisService {
         const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
         const avgWordsPerSentence = wordCount / Math.max(1, sentences.length);
 
-        let level: ArticleComplexities = 'easy';
+        let level: TArticleComplexities = 'easy';
 
         if (wordCount > 800 || avgWordsPerSentence > 20) {
             level = 'hard';

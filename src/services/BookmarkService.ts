@@ -4,20 +4,20 @@ import AnalyticsService from "./AnalyticsService";
 import BookmarkModel, {IBookmark} from "../models/BookmarkSchema";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {
-    GetAllBookmarksParams,
-    GetAllBookmarksResponse,
-    GetBookmarkCountResponse,
-    IsBookmarkedParams,
-    IsBookmarkedResponse,
-    SearchBookmarksParams,
-    SearchBookmarksResponse,
+    IGetAllBookmarksParams,
+    IGetAllBookmarksResponse,
+    IGetBookmarkCountResponse,
+    IIsBookmarkedParams,
+    IIsBookmarkedResponse,
+    ISearchBookmarksParams,
+    ISearchBookmarksResponse,
     SUPPORTED_BOOKMARK_SORTINGS,
-    ToggleBookmarkParams,
-    ToggleBookmarkResponse,
+    IToggleBookmarkParams,
+    IToggleBookmarkResponse,
 } from "../types/bookmark";
 
 class BookmarkService {
-    static async toggleBookmark({email, articleUrl, title, source, description, imageUrl, publishedAt}: ToggleBookmarkParams): Promise<ToggleBookmarkResponse> {
+    static async toggleBookmark({email, articleUrl, title, source, description, imageUrl, publishedAt}: IToggleBookmarkParams): Promise<IToggleBookmarkResponse> {
         console.log('Service: BookmarkService.toggleBookmark called'.cyan.italic, {email, articleUrl, title, source});
 
         try {
@@ -81,7 +81,7 @@ class BookmarkService {
         }
     }
 
-    static async getBookmarkStatus({email, articleUrl}: IsBookmarkedParams): Promise<IsBookmarkedResponse> {
+    static async getBookmarkStatus({email, articleUrl}: IIsBookmarkedParams): Promise<IIsBookmarkedResponse> {
         console.log('Service: BookmarkService.getBookmarkStatus called'.cyan.italic, {email, articleUrl});
         
         try {
@@ -110,7 +110,7 @@ class BookmarkService {
         }
     }
 
-    static async getAllBookmarks({email, pageSize = 10, page = 1}: GetAllBookmarksParams): Promise<GetAllBookmarksResponse> {
+    static async getAllBookmarks({email, pageSize = 10, page = 1}: IGetAllBookmarksParams): Promise<IGetAllBookmarksResponse> {
         console.log('Service: BookmarkService.getAllBookmarks called'.cyan.italic, {email, pageSize, page});
         
         try {
@@ -139,7 +139,7 @@ class BookmarkService {
         }
     }
 
-    static async getBookmarkCount({email}: GetAllBookmarksParams): Promise<GetBookmarkCountResponse> {
+    static async getBookmarkCount({email}: IGetAllBookmarksParams): Promise<IGetBookmarkCountResponse> {
         console.log('Service: BookmarkService.getBookmarkCount called'.cyan.italic, {email});
         
         try {
@@ -159,7 +159,7 @@ class BookmarkService {
         }
     }
 
-    static async searchBookmarks({email, q, sources, sortBy = 'createdAt', sortOrder = 'desc', pageSize = 10, page = 1}: SearchBookmarksParams): Promise<SearchBookmarksResponse> {
+    static async searchBookmarks({email, q, sources, sortBy = 'createdAt', sortOrder = 'desc', pageSize = 10, page = 1}: ISearchBookmarksParams): Promise<ISearchBookmarksResponse> {
         console.log('Service: BookmarkService.searchBookmarks called'.cyan.italic, {email, q, sources, sortBy, sortOrder, pageSize, page});
         
         try {

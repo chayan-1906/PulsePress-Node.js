@@ -7,20 +7,20 @@ import {GEMINI_API_KEY} from "../config/config";
 import {AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS} from "../utils/constants";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
 import {
-    AISocialMediaCaption,
+    IAISocialMediaCaption,
     SOCIAL_MEDIA_CAPTION_STYLES,
     SOCIAL_MEDIA_PLATFORMS,
-    SocialMediaCaptionParams,
-    SocialMediaCaptionResponse,
-    SocialMediaCaptionStyle,
-    SocialMediaPlatform
+    ISocialMediaCaptionParams,
+    ISocialMediaCaptionResponse,
+    TSocialMediaCaptionStyle,
+    TSocialMediaPlatform
 } from "../types/ai";
 
 class SocialMediaCaptionService {
     /**
      * Generate engaging social media captions for news article content using Gemini AI
      */
-    static async generateCaption({content, url, platform, style}: SocialMediaCaptionParams): Promise<SocialMediaCaptionResponse> {
+    static async generateCaption({content, url, platform, style}: ISocialMediaCaptionParams): Promise<ISocialMediaCaptionResponse> {
         console.log('Service: SocialMediaCaptionService.generateCaption called'.cyan.italic, {content, url, platform, style});
 
         if (!content && !url) {
@@ -90,7 +90,7 @@ class SocialMediaCaptionService {
     /**
      * Generate social media caption using Gemini AI
      */
-    private static async generateWithGemini(modelName: string, content: string, platform?: SocialMediaPlatform, style?: SocialMediaCaptionStyle): Promise<SocialMediaCaptionResponse> {
+    private static async generateWithGemini(modelName: string, content: string, platform?: TSocialMediaPlatform, style?: TSocialMediaCaptionStyle): Promise<ISocialMediaCaptionResponse> {
         console.log('Service: SentimentAnalysisService.generateWithGemini called'.cyan.italic, {modelName, content, platform, style});
 
         if (!GEMINI_API_KEY) {
@@ -122,7 +122,7 @@ class SocialMediaCaptionService {
             console.log('Stripped markdown, clean JSON:'.cyan, responseText);
         }
 
-        const parsed: AISocialMediaCaption = JSON.parse(responseText);
+        const parsed: IAISocialMediaCaption = JSON.parse(responseText);
 
         if (!parsed.caption) {
             console.error('Service Error: Invalid caption in response:'.red.bold, parsed.caption);
