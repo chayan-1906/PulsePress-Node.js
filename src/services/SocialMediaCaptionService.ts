@@ -65,21 +65,21 @@ class SocialMediaCaptionService {
         const truncatedContent = articleContent.substring(0, 4000);
 
         for (let i = 0; i < AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS.length; i++) {
-            const model = AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS[i];
-            console.log(`Trying caption generation with model ${i + 1}/${AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS.length}:`.cyan, model);
+            const modelName = AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS[i];
+            console.log(`Trying caption generation with model ${i + 1}/${AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS.length}:`.cyan, modelName);
 
             try {
-                const result = await this.generateWithGemini(model, truncatedContent, platform, style);
+                const result = await this.generateWithGemini(modelName, truncatedContent, platform, style);
 
                 if (result.caption && result.caption.length > 0) {
-                    console.log(`Caption generation successful with model:`.cyan, model);
-                    console.log('Social media caption generation completed successfully'.green.bold, {caption: result.caption, model});
-                    return result;
+                    console.log(`Caption generation successful with model:`.cyan, modelName);
+                    console.log('Social media caption generation completed successfully'.green.bold, {caption: result.caption, model: modelName});
+                    return {...result, powered_by: modelName};
                 }
 
-                console.error(`Service Error: Model failed:`.red.bold, model, 'Error:', result.error);
+                console.error(`Service Error: Model failed:`.red.bold, modelName, 'Error:', result.error);
             } catch (error: any) {
-                console.error(`Service Error: Model failed:`.red.bold, model, 'Error:', error.message);
+                console.error(`Service Error: Model failed:`.red.bold, modelName, 'Error:', error.message);
             }
         }
 

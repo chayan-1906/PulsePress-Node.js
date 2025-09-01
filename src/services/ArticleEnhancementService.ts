@@ -154,7 +154,7 @@ class ArticleEnhancementService {
 
                 console.log(`✅ AI enhancement successful with model:`.green.bold, modelName);
                 console.log('Combined AI enhancement result:'.green.bold, response);
-                return response;
+                return {...response, powered_by: modelName};
             } catch (error: any) {
                 console.warn('Service Warning: AI model failed'.yellow, {model: modelName, error: error.message});
                 if (i === AI_ENHANCEMENT_MODELS.length - 1) {

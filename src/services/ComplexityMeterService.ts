@@ -23,23 +23,23 @@ class ComplexityMeterService {
         console.log('Content truncated for analysis'.cyan, {originalLength: content.length, truncatedLength: truncatedContent.length});
 
         for (let i = 0; i < AI_COMPLEXITY_METER__MODELS.length; i++) {
-            const model = AI_COMPLEXITY_METER__MODELS[i];
-            console.log(`Trying complexity analysis with model ${i + 1}/${AI_COMPLEXITY_METER__MODELS.length}:`.cyan, model);
+            const modelName = AI_COMPLEXITY_METER__MODELS[i];
+            console.log(`Trying complexity analysis with model ${i + 1}/${AI_COMPLEXITY_METER__MODELS.length}:`.cyan, modelName);
 
             try {
                 let result: IComplexityMeterResponse;
-                result = await this.analyzeWithGemini(model, truncatedContent);
+                result = await this.analyzeWithGemini(modelName, truncatedContent);
 
                 if (result.complexityMeter) {
-                    console.log(`✅ Complexity analysis successful with model:`.cyan, model);
+                    console.log(`✅ Complexity analysis successful with model:`.cyan, modelName);
                     console.log('Complexity analysis result:'.cyan, result.complexityMeter);
                     console.log('Complexity analysis completed successfully'.green.bold);
-                    return result;
+                    return {...result, powered_by: modelName};
                 }
 
-                console.error('Service Error: Complexity analysis model failed'.red.bold, {model, error: result.error});
+                console.error('Service Error: Complexity analysis model failed'.red.bold, {model: modelName, error: result.error});
             } catch (error: any) {
-                console.error('Service Error: Complexity analysis model failed'.red.bold, {model, error: error.message});
+                console.error('Service Error: Complexity analysis model failed'.red.bold, {model: modelName, error: error.message});
             }
         }
 

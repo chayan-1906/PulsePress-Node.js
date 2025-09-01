@@ -6,7 +6,7 @@ import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {AI_NEWS_INSIGHTS_MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
-import {IAINewsInsights, IMPACT_LEVELS, TImpactLevel, INewsInsightsParams, INewsInsightsResponse} from "../types/ai";
+import {IAINewsInsights, IMPACT_LEVELS, INewsInsightsParams, INewsInsightsResponse, TImpactLevel} from "../types/ai";
 
 class NewsInsightsService {
     /**
@@ -48,26 +48,26 @@ class NewsInsightsService {
         console.log('Content prepared for news insights analysis'.cyan, {originalLength: articleContent.length, truncatedLength: truncatedContent.length});
 
         for (let i = 0; i < AI_NEWS_INSIGHTS_MODELS.length; i++) {
-            const model = AI_NEWS_INSIGHTS_MODELS[i];
-            console.log(`Trying news insights analysis with model ${i + 1}/${AI_NEWS_INSIGHTS_MODELS.length}:`.cyan, model);
+            const modelName = AI_NEWS_INSIGHTS_MODELS[i];
+            console.log(`Trying news insights analysis with model ${i + 1}/${AI_NEWS_INSIGHTS_MODELS.length}:`.cyan, modelName);
 
             try {
-                const result = await this.generateWithGemini(model, truncatedContent);
+                const result = await this.generateWithGemini(modelName, truncatedContent);
 
                 if (result.keyThemes && result.keyThemes.length > 0) {
-                    console.log(`✅ News insights analysis successful with model:`.cyan, model);
+                    console.log(`✅ News insights analysis successful with model:`.cyan, modelName);
                     console.log('Generated insights:'.cyan, {
                         themes: result.keyThemes,
                         impact: result.impactAssessment?.level,
                         stakeholders: Object.keys(result.stakeholderAnalysis || {}).length
                     });
                     console.log('News insights analysis completed successfully'.green.bold);
-                    return result;
+                    return {...result, powered_by: modelName};
                 }
 
-                console.error('Service Error: News insights analysis model failed'.red.bold, {model, error: result.error});
+                console.error('Service Error: News insights analysis model failed'.red.bold, {model: modelName, error: result.error});
             } catch (error: any) {
-                console.error('Service Error: News insights analysis model failed'.red.bold, {model, error: error.message});
+                console.error('Service Error: News insights analysis model failed'.red.bold, {model: modelName, error: error.message});
             }
         }
 

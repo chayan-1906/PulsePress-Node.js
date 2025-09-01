@@ -40,26 +40,26 @@ class QuestionAnswerService {
         const truncatedContent = content.substring(0, 4000);
 
         for (let i = 0; i < QUESTION_ANSWER_MODELS.length; i++) {
-            const model = QUESTION_ANSWER_MODELS[i];
-            console.log(`Trying question generation with model ${i + 1}/${QUESTION_ANSWER_MODELS.length}:`.cyan, model);
+            const modelName = QUESTION_ANSWER_MODELS[i];
+            console.log(`Trying question generation with model ${i + 1}/${QUESTION_ANSWER_MODELS.length}:`.cyan, modelName);
 
             try {
-                const result = await this.generateQuestionsWithGemini(model, truncatedContent);
+                const result = await this.generateQuestionsWithGemini(modelName, truncatedContent);
 
                 if (result.questions && result.questions.length > 0) {
-                    console.log(`Question generation successful with model:`.cyan, model);
+                    console.log(`Question generation successful with model:`.cyan, modelName);
                     console.log('Generated questions:'.green.bold, result.questions);
 
                     if (NODE_ENV === 'production') {
                         await this.cacheQuestions(contentHash, result.questions);
                     }
 
-                    return result;
+                    return {...result, powered_by: modelName};
                 }
 
-                console.error(`Service Error: Model failed:`.red.bold, model, 'Error:', result.error);
+                console.error(`Service Error: Model failed:`.red.bold, modelName, 'Error:', result.error);
             } catch (error: any) {
-                console.error(`Service Error: Model failed:`.red.bold, model, 'Error:', error.message);
+                console.error(`Service Error: Model failed:`.red.bold, modelName, 'Error:', error.message);
             }
         }
 
@@ -104,24 +104,24 @@ class QuestionAnswerService {
         const truncatedContent = content.substring(0, 4000);
 
         for (let i = 0; i < QUESTION_ANSWER_MODELS.length; i++) {
-            const model = QUESTION_ANSWER_MODELS[i];
-            console.log(`Trying question answering with model ${i + 1}/${QUESTION_ANSWER_MODELS.length}:`.cyan, model);
+            const modelName = QUESTION_ANSWER_MODELS[i];
+            console.log(`Trying question answering with model ${i + 1}/${QUESTION_ANSWER_MODELS.length}:`.cyan, modelName);
 
             try {
-                const result = await this.answerQuestionWithGemini(model, truncatedContent, question);
+                const result = await this.answerQuestionWithGemini(modelName, truncatedContent, question);
 
                 if (result.answer && result.answer.trim().length > 0) {
-                    console.log(`Question answering successful with model:`.cyan, model);
+                    console.log(`Question answering successful with model:`.cyan, modelName);
                     console.log('Generated answer:'.green.bold, result.answer);
 
                     await this.cacheAnswer(contentHash, question, result.answer);
 
-                    return result;
+                    return {...result, powered_by: modelName};
                 }
 
-                console.error(`Service Error: Model failed:`.red.bold, model, 'Error:', result.error);
+                console.error(`Service Error: Model failed:`.red.bold, modelName, 'Error:', result.error);
             } catch (error: any) {
-                console.error(`Service Error: Model failed:`.red.bold, model, 'Error:', error.message);
+                console.error(`Service Error: Model failed:`.red.bold, modelName, 'Error:', error.message);
             }
         }
 

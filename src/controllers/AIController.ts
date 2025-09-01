@@ -428,7 +428,7 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {sentiment, confidence, error} = await SentimentAnalysisService.analyzeSentiment({content: contentToAnalyze});
+        const {sentiment, powered_by, confidence, error} = await SentimentAnalysisService.analyzeSentiment({content: contentToAnalyze});
 
         if (error) {
             let errorMsg = 'Failed to analyze sentiment';
@@ -460,6 +460,7 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
             confidence,
             sentimentEmoji,
             sentimentColor,
+            powered_by,
             contentPreview: contentToAnalyze.substring(0, 200) + '...',
         }));
     } catch (error: any) {
@@ -534,7 +535,7 @@ const extractKeyPointsController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {keyPoints, error} = await KeyPointsExtractionService.extractKeyPoints({content: contentToAnalyze});
+        const {keyPoints, powered_by, error} = await KeyPointsExtractionService.extractKeyPoints({content: contentToAnalyze});
 
         if (error) {
             let errorMsg = 'Failed to extract key points';
@@ -564,6 +565,7 @@ const extractKeyPointsController = async (req: Request, res: Response) => {
             success: true,
             message: 'Key points have been extracted successfully 🎉',
             keyPoints,
+            powered_by,
             contentPreview: contentToAnalyze.substring(0, 200) + '...',
         }));
     } catch (error: any) {
@@ -638,7 +640,7 @@ const analyzeComplexityController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {complexityMeter, error} = await ComplexityMeterService.analyzeComplexity({content: contentToAnalyze});
+        const {complexityMeter, powered_by, error} = await ComplexityMeterService.analyzeComplexity({content: contentToAnalyze});
 
         if (error) {
             let errorMsg = 'Failed to generate complexity meter';
@@ -668,6 +670,7 @@ const analyzeComplexityController = async (req: Request, res: Response) => {
             success: true,
             message: 'Complexity meter has been generated successfully 🎉',
             complexityMeter,
+            powered_by,
             contentPreview: contentToAnalyze.substring(0, 200) + '...',
         }));
     } catch (error: any) {
@@ -706,7 +709,7 @@ const generateQuestionsController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {questions, error} = await QuestionAnswerService.generateQuestions({content});
+        const {questions, powered_by, error} = await QuestionAnswerService.generateQuestions({content});
 
         if (error) {
             let errorMsg = 'Failed to generate questions';
@@ -740,6 +743,7 @@ const generateQuestionsController = async (req: Request, res: Response) => {
             success: true,
             message: 'Questions have been generated successfully 🎉',
             questions,
+            powered_by,
             contentPreview: content.substring(0, 200) + '...',
         }));
     } catch (error: any) {
@@ -787,7 +791,7 @@ const answerQuestionController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {answer, error} = await QuestionAnswerService.answerQuestion({content, question});
+        const {answer, powered_by, error} = await QuestionAnswerService.answerQuestion({content, question});
 
         if (error) {
             let errorMsg = 'Failed to answer question';
@@ -825,6 +829,7 @@ const answerQuestionController = async (req: Request, res: Response) => {
             message: 'Question has been answered successfully 🎉',
             question,
             answer,
+            powered_by,
             contentPreview: content.substring(0, 200) + '...',
         }));
     } catch (error: any) {
@@ -899,7 +904,7 @@ const extractLocationsController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {locations, error} = await GeographicExtractionService.extractLocations({content: contentToAnalyze});
+        const {locations, powered_by, error} = await GeographicExtractionService.extractLocations({content: contentToAnalyze});
 
         if (error) {
             let errorMsg = 'Failed to extract geographic locations';
@@ -940,6 +945,7 @@ const extractLocationsController = async (req: Request, res: Response) => {
             success: true,
             message: 'Geographic locations have been extracted successfully 🎉',
             locations,
+            powered_by,
             contentPreview: contentToAnalyze.substring(0, 200) + '...',
         }));
     } catch (error: any) {

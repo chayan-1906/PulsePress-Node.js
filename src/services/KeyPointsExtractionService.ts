@@ -23,23 +23,23 @@ class KeyPointsExtractionService {
         console.log('Content prepared for key points extraction'.cyan, {originalLength: content.length, truncatedLength: truncatedContent.length});
 
         for (let i = 0; i < AI_KEY_POINTS_EXTRACTOR_MODELS.length; i++) {
-            const model = AI_KEY_POINTS_EXTRACTOR_MODELS[i];
-            console.log(`Trying key points extraction with model ${i + 1}/${AI_KEY_POINTS_EXTRACTOR_MODELS.length}:`.cyan, model);
+            const modelName = AI_KEY_POINTS_EXTRACTOR_MODELS[i];
+            console.log(`Trying key points extraction with model ${i + 1}/${AI_KEY_POINTS_EXTRACTOR_MODELS.length}:`.cyan, modelName);
 
             try {
                 let result: IKeyPointsExtractionResponse;
-                result = await this.extractWithGemini(model, truncatedContent);
+                result = await this.extractWithGemini(modelName, truncatedContent);
 
                 if (result.keyPoints && result.keyPoints.length > 0) {
-                    console.log(`✅ Key points extraction successful with model:`.cyan, model);
+                    console.log(`✅ Key points extraction successful with model:`.cyan, modelName);
                     console.log('Key points extraction result:'.cyan, result.keyPoints);
                     console.log('Key points extraction completed successfully'.green.bold);
-                    return result;
+                    return {...result, powered_by: modelName};
                 }
 
-                console.error('Service Error: Key points extraction model failed'.red.bold, {model, error: result.error});
+                console.error('Service Error: Key points extraction model failed'.red.bold, {model: modelName, error: result.error});
             } catch (error: any) {
-                console.error('Service Error: Key points extraction model failed'.red.bold, {model, error: error.message});
+                console.error('Service Error: Key points extraction model failed'.red.bold, {model: modelName, error: error.message});
             }
         }
 

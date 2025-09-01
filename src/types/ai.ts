@@ -219,13 +219,13 @@ export interface ITagGenerationResponse {
 export interface ISentimentAnalysisResponse {
     sentiment?: TSentimentResult;
     confidence?: number;
-    // TODO: Add powered_by
+    powered_by?: string;
     error?: string;
 }
 
 export interface IKeyPointsExtractionResponse {
     keyPoints?: string[];
-    // TODO: Add powered_by
+    powered_by?: string;
     error?: string;
 }
 
@@ -234,7 +234,7 @@ export interface IComplexityMeterResponse {
         level: TComplexityLevel;
         reasoning: string;
     };
-    // TODO: Add powered_by
+    powered_by?: string;
     error?: string;
 }
 
@@ -246,19 +246,19 @@ export interface IReadingTimeComplexityResponse {
 
 export interface IQuestionGenerationResponse {
     questions?: string[];
-    // TODO: Add powered_by
+    powered_by?: string;
     error?: string;
 }
 
 export interface IQuestionAnsweringResponse {
     answer?: string;
-    // TODO: Add powered_by
+    powered_by?: string;
     error?: string;
 }
 
 export interface IGeographicExtractionResponse {
     locations?: string[];
-    // TODO: Add powered_by
+    powered_by?: string;
     error?: string;
 }
 
@@ -303,7 +303,7 @@ export interface ICombinedAIResponse {
         reasoning: string;
     };
     locations?: string[];
-    // TODO: Add powered_by
+    powered_by?: string;
     error?: string;
 }
 

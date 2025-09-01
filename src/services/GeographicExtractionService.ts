@@ -48,22 +48,22 @@ class GeographicExtractionService {
         console.log('Content prepared for geographic extraction'.cyan, {originalLength: articleContent.length, truncatedLength: truncatedContent.length});
 
         for (let i = 0; i < AI_GEOGRAPHIC_EXTRACTION_MODELS.length; i++) {
-            const model = AI_GEOGRAPHIC_EXTRACTION_MODELS[i];
-            console.log(`Trying geographic extraction with model ${i + 1}/${AI_GEOGRAPHIC_EXTRACTION_MODELS.length}:`.cyan, model);
+            const modelName = AI_GEOGRAPHIC_EXTRACTION_MODELS[i];
+            console.log(`Trying geographic extraction with model ${i + 1}/${AI_GEOGRAPHIC_EXTRACTION_MODELS.length}:`.cyan, modelName);
 
             try {
-                const result = await this.extractWithGemini(model, truncatedContent);
+                const result = await this.extractWithGemini(modelName, truncatedContent);
 
                 if (result.locations && result.locations.length > 0) {
-                    console.log(`✅ Geographic extraction successful with model:`.cyan, model);
+                    console.log(`✅ Geographic extraction successful with model:`.cyan, modelName);
                     console.log('Extracted locations:'.cyan, result.locations);
                     console.log('Geographic extraction completed successfully'.green.bold);
-                    return result;
+                    return {...result, powered_by: modelName};
                 }
 
-                console.error('Service Error: Geographic extraction model failed'.red.bold, {model, error: result.error});
+                console.error('Service Error: Geographic extraction model failed'.red.bold, {model: modelName, error: result.error});
             } catch (error: any) {
-                console.error('Service Error: Geographic extraction model failed'.red.bold, {model, error: error.message});
+                console.error('Service Error: Geographic extraction model failed'.red.bold, {model: modelName, error: error.message});
             }
         }
 

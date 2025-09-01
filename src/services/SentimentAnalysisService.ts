@@ -34,7 +34,7 @@ class SentimentAnalysisService {
                     console.log(`Sentiment analysis successful with model:`.cyan, model);
                     console.log('Sentiment analysis completed successfully'.green.bold, {sentiment: result.sentiment, confidence: result.confidence});
 
-                    return result;
+                    return {...result, powered_by: model};
                 }
 
                 console.error(`Service Error: Model failed:`.red.bold, model, 'Error:', result.error);

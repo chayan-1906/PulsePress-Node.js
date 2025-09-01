@@ -47,21 +47,21 @@ class TagGenerationService {
         const truncatedContent = articleContent.substring(0, 4000);
 
         for (let i = 0; i < AI_TAG_GENERATION_MODELS.length; i++) {
-            const model = AI_TAG_GENERATION_MODELS[i];
-            console.log(`Trying tag generation with model ${i + 1}/${AI_TAG_GENERATION_MODELS.length}:`.cyan, model);
+            const modelName = AI_TAG_GENERATION_MODELS[i];
+            console.log(`Trying tag generation with model ${i + 1}/${AI_TAG_GENERATION_MODELS.length}:`.cyan, modelName);
 
             try {
-                const result = await this.generateWithGemini(model, truncatedContent);
+                const result = await this.generateWithGemini(modelName, truncatedContent);
 
                 if (result.tags && result.tags.length > 0) {
-                    console.log(`Tag generation successful with model:`.cyan, model);
-                    console.log('Tag generation completed successfully'.green.bold, {caption: result.tags, model});
-                    return result;
+                    console.log(`Tag generation successful with model:`.cyan, modelName);
+                    console.log('Tag generation completed successfully'.green.bold, {caption: result.tags, model: modelName});
+                    return {...result, powered_by: modelName};
                 }
 
-                console.error(`Service Error: Model failed:`.red.bold, model, 'Error:', result.error);
+                console.error(`Service Error: Model failed:`.red.bold, modelName, 'Error:', result.error);
             } catch (error: any) {
-                console.error(`Service Error: Model failed:`.red.bold, model, 'Error:', error.message);
+                console.error(`Service Error: Model failed:`.red.bold, modelName, 'Error:', error.message);
             }
         }
 
