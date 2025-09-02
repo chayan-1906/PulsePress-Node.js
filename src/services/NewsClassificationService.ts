@@ -1,6 +1,6 @@
 import "colors";
 import axios from "axios";
-import AIService from "./AIService";
+import {GoogleGenerativeAI} from "@google/generative-ai";
 import {AI_PROMPTS} from "../utils/prompts";
 import {buildHeader} from "../utils/buildHeader";
 import {AI_SUMMARIZATION_MODELS} from "../utils/constants";
@@ -8,6 +8,7 @@ import {IAIClassification, TClassificationResult} from "../types/ai";
 import {GEMINI_API_KEY, HUGGINGFACE_API_TOKEN} from "../config/config";
 
 class NewsClassificationService {
+    static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
     static readonly huggingFaceUrl = 'https://api-inference.huggingface.co/models/facebook/bart-large-mnli';
 
     /**
@@ -45,6 +46,8 @@ class NewsClassificationService {
      * HuggingFace BART-based classification using zero-shot classification
      */
     private static async classifyWithHuggingFace(text: string): Promise<TClassificationResult> {
+        console.log('Service: NewsClassificationService.classifyWithHuggingFace called'.cyan.italic, {text});
+
         if (!HUGGINGFACE_API_TOKEN) {
             console.warn('Config Warning: HuggingFace API token not configured'.yellow.italic);
             throw new Error('HuggingFace API token not configured');
@@ -111,6 +114,8 @@ class NewsClassificationService {
      * Gemini-based classification fallback with enhanced prompting
      */
     private static async classifyWithGemini(text: string): Promise<TClassificationResult> {
+        console.log('Service: NewsClassificationService.classifyWithGemini called'.cyan.italic, {text});
+
         if (!GEMINI_API_KEY) {
             console.warn('Config Warning: Gemini API key not configured'.yellow.italic);
             throw new Error('Gemini API key not configured');
@@ -121,7 +126,7 @@ class NewsClassificationService {
         console.log('Content prepared for Gemini classification'.cyan, {originalLength: text.length, truncatedLength: truncatedText.length});
 
         console.log('External API: Generating classification with Gemini'.magenta, {model: AI_SUMMARIZATION_MODELS[0]});
-        const model = AIService.genAI.getGenerativeModel({model: AI_SUMMARIZATION_MODELS[0]});
+        const model = this.genAI.getGenerativeModel({model: AI_SUMMARIZATION_MODELS[0]});
 
         const prompt = AI_PROMPTS.NEWS_CLASSIFICATION(truncatedText);
 

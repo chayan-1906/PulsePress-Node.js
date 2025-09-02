@@ -1,12 +1,14 @@
 import "colors";
-import AIService from "./AIService";
+import {GoogleGenerativeAI} from "@google/generative-ai";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {AI_COMPLEXITY_METER__MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
-import {IAIComplexityMeter, COMPLEXITY_LEVELS, IComplexityMeterParams, IComplexityMeterResponse} from "../types/ai";
+import {COMPLEXITY_LEVELS, IAIComplexityMeter, IComplexityMeterParams, IComplexityMeterResponse} from "../types/ai";
 
 class ComplexityMeterService {
+    static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
+
     /**
      * Analyzes content complexity using Gemini AI
      */
@@ -51,13 +53,15 @@ class ComplexityMeterService {
      * Analyze complexity using Gemini AI
      */
     private static async analyzeWithGemini(modelName: string, content: string): Promise<IComplexityMeterResponse> {
+        console.log('Service: ComplexityMeterService.analyzeWithGemini called'.cyan.italic, {modelName, content,});
+
         if (!GEMINI_API_KEY) {
             console.warn('Config Warning: Gemini API key not configured'.yellow.italic);
             return {error: generateMissingCode('gemini_api_key')};
         }
 
         console.log('External API: Generating complexity analysis with Gemini'.magenta, {model: modelName});
-        const model = AIService.genAI.getGenerativeModel({model: modelName});
+        const model = this.genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.COMPLEXITY_METER(content);
 

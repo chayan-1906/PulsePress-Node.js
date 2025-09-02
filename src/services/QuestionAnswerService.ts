@@ -1,6 +1,6 @@
 import "colors";
 import crypto from "crypto";
-import AIService from "./AIService";
+import {GoogleGenerativeAI} from "@google/generative-ai";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY, NODE_ENV} from "../config/config";
 import {QUESTION_ANSWER_MODELS} from "../utils/constants";
@@ -9,6 +9,8 @@ import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCo
 import {IAIQuestionAnswering, IAIQuestionGeneration, IQuestionAnsweringParams, IQuestionAnsweringResponse, IQuestionGenerationParams, IQuestionGenerationResponse} from "../types/ai";
 
 class QuestionAnswerService {
+    static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
+
     /**
      * Generate relevant questions for news article content using Gemini AI with caching
      */
@@ -140,7 +142,7 @@ class QuestionAnswerService {
             return {error: generateMissingCode('gemini_api_key')};
         }
 
-        const model = AIService.genAI.getGenerativeModel({model: modelName});
+        const model = this.genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.QUESTION_GENERATION(content);
 
@@ -192,7 +194,7 @@ class QuestionAnswerService {
             return {error: generateMissingCode('gemini_api_key')};
         }
 
-        const model = AIService.genAI.getGenerativeModel({model: modelName});
+        const model = this.genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.QUESTION_ANSWERING(content, question);
 

@@ -1,13 +1,15 @@
 import "colors";
-import AIService from "./AIService";
+import {GoogleGenerativeAI} from "@google/generative-ai";
 import {IArticle} from "../types/news";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {generateMissingCode} from "../utils/generateErrorCodes";
 import {AI_SENTIMENT_ANALYSIS_MODELS} from "../utils/constants";
-import {IAISentiment, IEnrichedArticleWithSentiment, SENTIMENT_TYPES, ISentimentAnalysisParams, ISentimentAnalysisResponse, TSentimentResult} from "../types/ai";
+import {IAISentiment, IEnrichedArticleWithSentiment, ISentimentAnalysisParams, ISentimentAnalysisResponse, SENTIMENT_TYPES, TSentimentResult} from "../types/ai";
 
 class SentimentAnalysisService {
+    static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
+
     /**
      * Analyzes the sentiment of news article content using Gemini AI
      */
@@ -58,7 +60,7 @@ class SentimentAnalysisService {
             return {error: generateMissingCode('gemini_api_key')};
         }
 
-        const model = AIService.genAI.getGenerativeModel({model: modelName});
+        const model = this.genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.SENTIMENT_ANALYSIS(content);
 

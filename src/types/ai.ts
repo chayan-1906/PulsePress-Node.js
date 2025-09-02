@@ -205,6 +205,12 @@ export interface ISummarizeArticleResponse {
     errorMsg?: string;
 }
 
+export interface ISummarizeContentResponse {
+    summary?: string;
+    powered_by?: string;
+    error?: string;
+}
+
 export interface IGenerateContentHashResponse {
     hash?: string;
     error?: string;
@@ -361,6 +367,12 @@ export interface IGetCachedSummaryParams {
 export interface ITranslateTextParams {
     text: string;
     targetLanguage: TSupportedLanguage;
+}
+
+export interface ISummarizeContentParams {
+    content?: string;
+    url?: string;
+    style?: TSummarizationStyle;
 }
 
 export interface ITagGenerationParams {

@@ -1,18 +1,20 @@
 import "colors";
 import axios from "axios";
 import mongoose from "mongoose";
+import {GoogleGenerativeAI} from "@google/generative-ai";
 import {Translate} from "@google-cloud/translate/build/src/v2";
 import {apis} from "../utils/apis";
-import AIService from "./AIService";
 import {parseRSS} from "../utils/parseRSS";
 import {getOAuth2Client} from "../utils/OAuth";
 import {buildHeader} from "../utils/buildHeader";
 import {IHealthCheckResponse} from "../types/health-check";
-import {GOOGLE_TRANSLATE_API_KEY} from "../config/config";
+import {GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY} from "../config/config";
 import {getDatabaseHealth} from "../utils/databaseHealth";
 import {AI_SUMMARIZATION_MODELS, RSS_SOURCES} from "../utils/constants";
 
 class HealthService {
+    static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
+
     /**
      * Check health status of NewsAPI.org service
      */
@@ -127,7 +129,7 @@ class HealthService {
         try {
             const start = Date.now();
             console.log('External API: Testing Gemini AI health'.magenta, {model: AI_SUMMARIZATION_MODELS[0]});
-            const model = AIService.genAI.getGenerativeModel({model: AI_SUMMARIZATION_MODELS[0]});
+            const model = this.genAI.getGenerativeModel({model: AI_SUMMARIZATION_MODELS[0]});
             await model.generateContent('test');
             console.log('External API: Gemini AI health check successful'.magenta);
             console.log('Gemini AI health check completed successfully'.green.bold);
@@ -203,12 +205,12 @@ class HealthService {
             ]);
 
             const results = {
-                    newsAPI: newsHealth.status === 'fulfilled' ? newsHealth.value : {status: 'failed'},
-                    geminiAI: aiHealth.status === 'fulfilled' ? aiHealth.value : {status: 'failed'},
-                    database: dbHealth.status === 'fulfilled' ? dbHealth.value : {status: 'failed'},
-                    googleServices: googleHealth.status === 'fulfilled' ? googleHealth.value : {status: 'failed'},
-                    rssFeeds: rssHealth.status === 'fulfilled' ? rssHealth.value : {status: 'failed'}
-                };
+                newsAPI: newsHealth.status === 'fulfilled' ? newsHealth.value : {status: 'failed'},
+                geminiAI: aiHealth.status === 'fulfilled' ? aiHealth.value : {status: 'failed'},
+                database: dbHealth.status === 'fulfilled' ? dbHealth.value : {status: 'failed'},
+                googleServices: googleHealth.status === 'fulfilled' ? googleHealth.value : {status: 'failed'},
+                rssFeeds: rssHealth.status === 'fulfilled' ? rssHealth.value : {status: 'failed'}
+            };
 
             const healthyServices = Object.values(results).filter(r => r.status === 'healthy').length;
             const totalServices = Object.keys(results).length;

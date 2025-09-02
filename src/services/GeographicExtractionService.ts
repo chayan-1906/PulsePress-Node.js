@@ -1,5 +1,5 @@
 import "colors";
-import AIService from "./AIService";
+import {GoogleGenerativeAI} from "@google/generative-ai";
 import NewsService from "./NewsService";
 import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
@@ -9,6 +9,8 @@ import {AI_GEOGRAPHIC_EXTRACTION_MODELS} from "../utils/constants";
 import {IAIGeographicExtraction, IGeographicExtractionParams, IGeographicExtractionResponse} from "../types/ai";
 
 class GeographicExtractionService {
+    static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
+
     /**
      * Extract geographic locations from news article content using Gemini AI
      */
@@ -75,13 +77,15 @@ class GeographicExtractionService {
      * Extract geographic locations using Gemini AI
      */
     private static async extractWithGemini(modelName: string, content: string): Promise<IGeographicExtractionResponse> {
+        console.log('Service: GeographicExtractionService.extractWithGemini called'.cyan.italic, {modelName, content});
+
         if (!GEMINI_API_KEY) {
             console.warn('Config Warning: Gemini API key not configured'.yellow.italic);
             return {error: generateMissingCode('gemini_api_key')};
         }
 
         console.log('External API: Generating geographic extraction with Gemini'.magenta, {model: modelName});
-        const model = AIService.genAI.getGenerativeModel({model: modelName});
+        const model = this.genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.GEOGRAPHIC_EXTRACTION(content);
 

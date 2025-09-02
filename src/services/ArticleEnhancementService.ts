@@ -1,5 +1,4 @@
 import "colors";
-import AIService from "./AIService";
 import AuthService from "./AuthService";
 import {AI_PROMPTS} from "../utils/prompts";
 import StrikeService from "./StrikeService";
@@ -22,8 +21,11 @@ import {
     IMergeEnhancementsWithArticlesParams,
     SENTIMENT_TYPES,
 } from "../types/ai";
+import {GoogleGenerativeAI} from "@google/generative-ai";
+import {GEMINI_API_KEY} from "../config/config";
 
 class ArticleEnhancementService {
+    static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
     private static activeJobs = new Set<string>();
 
     /**
@@ -45,7 +47,7 @@ class ArticleEnhancementService {
             console.log(`Trying AI enhancement with model ${i + 1}/${AI_ENHANCEMENT_MODELS.length}:`.cyan, modelName);
 
             try {
-                const model = AIService.genAI.getGenerativeModel({model: modelName});
+                const model = this.genAI.getGenerativeModel({model: modelName});
 
                 // Build dynamic prompt based on requested tasks using the same prompt functions
                 let prompt = `Analyze this news article and provide the following information:\n\n`;

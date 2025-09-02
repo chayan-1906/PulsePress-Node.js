@@ -2,13 +2,13 @@ import "colors";
 import {Request, Response} from "express";
 import {IAuthRequest} from "../types/auth";
 import {isListEmpty} from "../utils/list";
-import AIService from "../services/AIService";
 import {ApiResponse} from "../utils/ApiResponse";
 import AuthService from "../services/AuthService";
 import NewsService from "../services/NewsService";
 import StrikeService from "../services/StrikeService";
 import NewsInsightsService from "../services/NewsInsightsService";
 import TagGenerationService from "../services/TagGenerationService";
+import SummarizationService from "../services/SummarizationService";
 import QuestionAnswerService from "../services/QuestionAnswerService";
 import ComplexityMeterService from "../services/ComplexityMeterService";
 import SentimentAnalysisService from "../services/SentimentAnalysisService";
@@ -25,12 +25,12 @@ import {
     IQuestionAnsweringParams,
     IQuestionGenerationParams,
     ISentimentAnalysisParams,
-    SOCIAL_MEDIA_CAPTION_STYLES,
-    SOCIAL_MEDIA_PLATFORMS,
     ISocialMediaCaptionParams,
-    SUMMARIZATION_STYLES,
     ISummarizeArticleParams,
     ITagGenerationParams,
+    SOCIAL_MEDIA_CAPTION_STYLES,
+    SOCIAL_MEDIA_PLATFORMS,
+    SUMMARIZATION_STYLES,
 } from "../types/ai";
 
 const classifyContentController = async (req: Request, res: Response) => {
@@ -212,7 +212,7 @@ const summarizeArticleController = async (req: Request, res: Response) => {
             console.log('News content verified, proceeding with summarization'.bgGreen.bold);
         }
 
-        const {summary, powered_by, error} = await AIService.summarizeArticle({email, content: articleContent, language, style});
+        const {summary, powered_by, error} = await SummarizationService.summarizeArticle({email, content: articleContent, language, style});
 
         if (error === generateMissingCode('email')) {
             console.warn('Client Error: Email parameter missing'.yellow);

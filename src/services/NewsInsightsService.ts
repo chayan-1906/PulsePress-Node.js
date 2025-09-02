@@ -1,5 +1,5 @@
 import "colors";
-import AIService from "./AIService";
+import {GoogleGenerativeAI} from "@google/generative-ai";
 import NewsService from "./NewsService";
 import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
@@ -9,6 +9,8 @@ import {generateMissingCode} from "../utils/generateErrorCodes";
 import {IAINewsInsights, IMPACT_LEVELS, INewsInsightsParams, INewsInsightsResponse, TImpactLevel} from "../types/ai";
 
 class NewsInsightsService {
+    static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
+
     /**
      * Generate comprehensive news insights and analysis using Gemini AI
      */
@@ -85,7 +87,7 @@ class NewsInsightsService {
         }
 
         console.log('External API: Generating news insights with Gemini'.magenta, {model: modelName});
-        const model = AIService.genAI.getGenerativeModel({model: modelName});
+        const model = this.genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.NEWS_INSIGHTS_ANALYSIS(content);
 

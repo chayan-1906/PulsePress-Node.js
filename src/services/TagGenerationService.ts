@@ -1,5 +1,5 @@
 import "colors";
-import AIService from "./AIService";
+import {GoogleGenerativeAI} from "@google/generative-ai";
 import NewsService from "./NewsService";
 import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
@@ -9,6 +9,8 @@ import {generateMissingCode} from "../utils/generateErrorCodes";
 import {ITagGenerationParams, ITagGenerationResponse} from "../types/ai";
 
 class TagGenerationService {
+    static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
+
     /**
      * Generate relevant tags for news article content using Gemini AI
      */
@@ -80,7 +82,7 @@ class TagGenerationService {
             return {error: generateMissingCode('gemini_api_key')};
         }
 
-        const model = AIService.genAI.getGenerativeModel({model: modelName});
+        const model = this.genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.TAG_GENERATION(content);
 

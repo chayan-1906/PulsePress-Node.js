@@ -1,5 +1,5 @@
 import "colors";
-import AIService from "./AIService";
+import {GoogleGenerativeAI} from "@google/generative-ai";
 import NewsService from "./NewsService";
 import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
@@ -8,15 +8,17 @@ import {AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS} from "../utils/constants";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
 import {
     IAISocialMediaCaption,
-    SOCIAL_MEDIA_CAPTION_STYLES,
-    SOCIAL_MEDIA_PLATFORMS,
     ISocialMediaCaptionParams,
     ISocialMediaCaptionResponse,
+    SOCIAL_MEDIA_CAPTION_STYLES,
+    SOCIAL_MEDIA_PLATFORMS,
     TSocialMediaCaptionStyle,
     TSocialMediaPlatform
 } from "../types/ai";
 
 class SocialMediaCaptionService {
+    static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
+
     /**
      * Generate engaging social media captions for news article content using Gemini AI
      */
@@ -98,7 +100,7 @@ class SocialMediaCaptionService {
             return {error: generateMissingCode('gemini_api_key')};
         }
 
-        const model = AIService.genAI.getGenerativeModel({model: modelName});
+        const model = this.genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.SOCIAL_MEDIA_CAPTION(content, platform || 'twitter', style || 'engaging');
 
