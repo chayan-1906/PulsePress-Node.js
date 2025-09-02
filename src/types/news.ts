@@ -16,7 +16,7 @@ export const VALID_NYTIMES_SECTIONS = [
     'realestate', 'science', 'sports', 'sundayreview', 'technology', 'theater',
     't-magazine', 'travel', 'upshot', 'us', 'world'
 ];
-export type TValidNYTimesSection = typeof VALID_NYTIMES_SECTIONS[number];
+export type TValidNewYorkTimesSection = typeof VALID_NYTIMES_SECTIONS[number];
 
 export type TTopic = keyof typeof TOPIC_QUERIES;
 export type TCountry = keyof typeof COUNTRY_KEYWORDS;
@@ -105,7 +105,7 @@ export interface IArticle {
     enhanced?: boolean;
 }
 
-export interface IRSSFeed {
+export interface IRssFeed {
     source: {
         name: string | undefined;
         creator: string | undefined;
@@ -139,7 +139,7 @@ export interface IGuardianArticle {
     };
 }
 
-export interface INYTimesArticle {
+export interface INewYorkTimesArticle {
     _id: string;
     web_url: string;
     snippet: string;
@@ -197,7 +197,7 @@ export interface INYTimesArticle {
 
 /** ------------- API response types ------------- */
 
-export interface INewsAPIOrgTopHeadlinesAPIResponse {
+export interface INewsApiOrgTopHeadlinesAPIResponse {
     status: string;
     totalResults: number;
     articles: IArticle[];
@@ -216,11 +216,11 @@ export interface IGuardianResponse {
     };
 }
 
-export interface INYTimesSearchResponse {
+export interface INewYorkTimesSearchResponse {
     status: string;
     copyright: string;
     response: {
-        docs: INYTimesArticle[];
+        docs: INewYorkTimesArticle[];
         metadata: {
             hits: number;
             offset: number;
@@ -229,7 +229,7 @@ export interface INYTimesSearchResponse {
     };
 }
 
-export interface INYTimesTopStoriesResponse {
+export interface INewYorkTimesTopStoriesResponse {
     status: string;
     copyright: string;
     section: string;
@@ -270,7 +270,7 @@ export interface INYTimesTopStoriesResponse {
 
 /** ------------- function params ------------- */
 
-export interface INewsAPIOrgTopHeadlinesParams {
+export interface INewsApiOrgTopHeadlinesParams {
     country?: string;
     category?: string;
     sources?: string
@@ -279,7 +279,7 @@ export interface INewsAPIOrgTopHeadlinesParams {
     page?: number;
 }
 
-export interface INewsAPIOrgEverythingParams {
+export interface INewsApiOrgEverythingParams {
     sources?: string;
     from?: string;
     to?: string
@@ -300,7 +300,7 @@ export interface IGuardianSearchParams {
     page?: number;
 }
 
-export interface INYTimesSearchParams {
+export interface INewYorkTimesSearchParams {
     q?: string;
     section?: string;
     sort?: string;
@@ -310,11 +310,11 @@ export interface INYTimesSearchParams {
     page?: number;
 }
 
-export interface INYTimesTopStoriesParams {
+export interface INewYorkTimesTopStoriesParams {
     section?: string;
 }
 
-export interface IRSSFeedParams {
+export interface IRssFeedParams {
     q?: string;
     sources?: string;
     languages?: TSupportedNewsLanguage;

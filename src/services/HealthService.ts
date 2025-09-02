@@ -18,8 +18,8 @@ class HealthService {
     /**
      * Check health status of NewsAPI.org service
      */
-    static async checkNewsAPIOrgHealth(): Promise<IHealthCheckResponse> {
-        console.log('Service: HealthService.checkNewsAPIOrgHealth called'.cyan.italic);
+    static async checkNewsApiOrgHealth(): Promise<IHealthCheckResponse> {
+        console.log('Service: HealthService.checkNewsApiOrgHealth called'.cyan.italic);
 
         try {
             const start = Date.now();
@@ -33,7 +33,7 @@ class HealthService {
             console.log('NewsAPI health check completed successfully'.green.bold);
             return {status: 'healthy', responseTime: `${responseTime}ms`, data: topHeadlines};
         } catch (error: any) {
-            console.error('Service Error: HealthService.checkNewsAPIOrgHealth failed'.red.bold, error);
+            console.error('Service Error: HealthService.checkNewsApiOrgHealth failed'.red.bold, error);
             return {status: 'unhealthy', error: {message: error.message}};
         }
     }
@@ -41,8 +41,8 @@ class HealthService {
     /**
      * Check health status of all RSS feeds with success rate reporting
      */
-    static async checkRSSFeedsHealth(): Promise<IHealthCheckResponse> {
-        console.log('Service: HealthService.checkRSSFeedsHealth called'.cyan.italic);
+    static async checkRssFeedsHealth(): Promise<IHealthCheckResponse> {
+        console.log('Service: HealthService.checkRssFeedsHealth called'.cyan.italic);
 
         try {
             const start = Date.now();
@@ -85,7 +85,7 @@ class HealthService {
             console.log('RSS feeds health check completed successfully'.green.bold);
             return {status: 'healthy', responseTime: `${Date.now() - start}ms`};
         } catch (error: any) {
-            console.error('Service Error: HealthService.checkRSSFeedsHealth failed'.red.bold, error);
+            console.error('Service Error: HealthService.checkRssFeedsHealth failed'.red.bold, error);
             return {status: 'unhealthy', error: {message: error.message}};
         }
     }
@@ -123,8 +123,8 @@ class HealthService {
     /**
      * Check health status of Gemini AI service
      */
-    static async checkGeminiAIHealth(): Promise<IHealthCheckResponse> {
-        console.log('Service: HealthService.checkGeminiAIHealth called'.cyan.italic);
+    static async checkGeminiAiHealth(): Promise<IHealthCheckResponse> {
+        console.log('Service: HealthService.checkGeminiAiHealth called'.cyan.italic);
 
         try {
             const start = Date.now();
@@ -135,7 +135,7 @@ class HealthService {
             console.log('Gemini AI health check completed successfully'.green.bold);
             return {status: 'healthy', responseTime: `${Date.now() - start}ms`};
         } catch (error: any) {
-            console.error('Service Error: HealthService.checkGeminiAIHealth failed'.red.bold, error);
+            console.error('Service Error: HealthService.checkGeminiAiHealth failed'.red.bold, error);
             return {status: 'unhealthy', error: {message: error.message}};
         }
     }
@@ -197,10 +197,10 @@ class HealthService {
             console.log('Running comprehensive system health checks'.cyan);
 
             const [newsHealth, rssHealth, googleHealth, aiHealth, dbHealth] = await Promise.allSettled([
-                this.checkNewsAPIOrgHealth(),
-                this.checkRSSFeedsHealth(),
+                this.checkNewsApiOrgHealth(),
+                this.checkRssFeedsHealth(),
                 this.checkGoogleServicesHealth(),
-                this.checkGeminiAIHealth(),
+                this.checkGeminiAiHealth(),
                 this.checkDatabaseHealth(),
             ]);
 

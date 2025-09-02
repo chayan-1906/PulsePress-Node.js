@@ -3,11 +3,11 @@ import {Request, Response} from "express";
 import {ApiResponse} from "../utils/ApiResponse";
 import HealthService from "../services/HealthService";
 
-const checkNewsAPIOrgHealthController = async (req: Request, res: Response) => {
-    console.info('Controller: checkNewsAPIOrgHealthController started'.bgBlue.white.bold);
+const checkNewsApiOrgHealthController = async (req: Request, res: Response) => {
+    console.info('Controller: checkNewsApiOrgHealthController started'.bgBlue.white.bold);
 
     try {
-        const healthCheck = await HealthService.checkNewsAPIOrgHealth();
+        const healthCheck = await HealthService.checkNewsApiOrgHealth();
 
         if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
             console.log('SUCCESS: News API health check completed'.bgGreen.bold, {status: healthCheck.status});
@@ -26,7 +26,7 @@ const checkNewsAPIOrgHealthController = async (req: Request, res: Response) => {
             }));
         }
     } catch (error: any) {
-        console.error('Controller Error: checkNewsAPIOrgHealthController failed'.red.bold, error);
+        console.error('Controller Error: checkNewsApiOrgHealthController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
@@ -35,11 +35,11 @@ const checkNewsAPIOrgHealthController = async (req: Request, res: Response) => {
     }
 }
 
-const checkRSSFeedsHealthController = async (req: Request, res: Response) => {
-    console.info('Controller: checkRSSFeedsHealthController started'.bgBlue.white.bold);
+const checkRssFeedsHealthController = async (req: Request, res: Response) => {
+    console.info('Controller: checkRssFeedsHealthController started'.bgBlue.white.bold);
 
     try {
-        const healthCheck = await HealthService.checkRSSFeedsHealth();
+        const healthCheck = await HealthService.checkRssFeedsHealth();
         console.debug('Debug: RSS health check status'.gray, {status: healthCheck.status, type: typeof healthCheck.status});
 
         console.debug('Debug: Evaluating health condition'.gray);
@@ -61,7 +61,7 @@ const checkRSSFeedsHealthController = async (req: Request, res: Response) => {
         }
     } catch (error: any) {
         console.debug('Debug: Caught exception in RSS health check'.gray, {error: error.message});
-        console.error('Controller Error: checkRSSFeedsHealthController failed'.red.bold, error);
+        console.error('Controller Error: checkRssFeedsHealthController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
@@ -102,11 +102,11 @@ const checkGoogleServicesHealthController = async (req: Request, res: Response) 
     }
 }
 
-const checkGeminiAIHealthController = async (req: Request, res: Response) => {
-    console.info('Controller: checkGeminiAIHealthController started'.bgBlue.white.bold);
+const checkGeminiAiHealthController = async (req: Request, res: Response) => {
+    console.info('Controller: checkGeminiAiHealthController started'.bgBlue.white.bold);
 
     try {
-        const healthCheck = await HealthService.checkGeminiAIHealth();
+        const healthCheck = await HealthService.checkGeminiAiHealth();
 
         if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
             console.log('SUCCESS: Gemini AI health check completed'.bgGreen.bold, {status: healthCheck.status});
@@ -125,7 +125,7 @@ const checkGeminiAIHealthController = async (req: Request, res: Response) => {
             }));
         }
     } catch (error: any) {
-        console.error('Controller Error: checkGeminiAIHealthController failed'.red.bold, error);
+        console.error('Controller Error: checkGeminiAiHealthController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
@@ -199,10 +199,10 @@ const checkOverallSystemHealthController = async (req: Request, res: Response) =
 }
 
 export {
-    checkNewsAPIOrgHealthController,
-    checkRSSFeedsHealthController,
+    checkNewsApiOrgHealthController,
+    checkRssFeedsHealthController,
     checkGoogleServicesHealthController,
-    checkGeminiAIHealthController,
+    checkGeminiAiHealthController,
     checkDatabaseHealthController,
     checkOverallSystemHealthController,
 };

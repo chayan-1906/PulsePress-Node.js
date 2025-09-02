@@ -8,26 +8,26 @@ import ArticleEnhancementService from "../services/ArticleEnhancementService";
 import {COUNTRY_KEYWORDS, TOPIC_METADATA, TOPIC_QUERIES} from "../utils/constants";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {
-    TCountry,
     IExploreTopicParams,
     IGuardianSearchParams,
     IMultisourceFetchNewsParams,
-    INewsAPIOrgEverythingParams,
-    INewsAPIOrgTopHeadlinesParams,
-    INYTimesSearchParams,
-    INYTimesTopStoriesParams,
-    IRSSFeedParams,
+    INewsApiOrgEverythingParams,
+    INewsApiOrgTopHeadlinesParams,
+    INewYorkTimesSearchParams,
+    INewYorkTimesTopStoriesParams,
+    IRssFeedParams,
     IScrapeMultipleWebsitesParams,
     SUPPORTED_NEWS_LANGUAGES,
+    TCountry,
     TTopic,
     VALID_NYTIMES_SECTIONS,
 } from "../types/news";
 
-const fetchNewsAPIOrgTopHeadlinesController = async (req: Request, res: Response) => {
-    console.info('Controller: fetchNewsAPIOrgTopHeadlinesController started'.bgBlue.white.bold);
+const fetchNewsApiOrgTopHeadlinesController = async (req: Request, res: Response) => {
+    console.info('Controller: fetchNewsApiOrgTopHeadlinesController started'.bgBlue.white.bold);
 
     try {
-        const {country, category, sources, q, pageSize, page}: Partial<INewsAPIOrgTopHeadlinesParams> = req.query;
+        const {country, category, sources, q, pageSize, page}: Partial<INewsApiOrgTopHeadlinesParams> = req.query;
 
         let pageSizeNumber, pageNumber;
         if (pageSize && !isNaN(pageSize)) {
@@ -36,7 +36,7 @@ const fetchNewsAPIOrgTopHeadlinesController = async (req: Request, res: Response
         if (page && !isNaN(page)) {
             pageNumber = Number(page);
         }
-        const topHeadlines = await NewsService.fetchNewsAPIOrgTopHeadlines({country, category, sources, q, pageSize: pageSizeNumber, page: pageNumber});
+        const topHeadlines = await NewsService.fetchNewsApiOrgTopHeadlines({country, category, sources, q, pageSize: pageSizeNumber, page: pageNumber});
         console.log('SUCCESS: Top headlines fetched'.bgGreen.bold, {count: topHeadlines?.totalResults || 0});
 
         res.status(200).send(new ApiResponse({
@@ -45,7 +45,7 @@ const fetchNewsAPIOrgTopHeadlinesController = async (req: Request, res: Response
             topHeadlines,
         }));
     } catch (error: any) {
-        console.error('Controller Error: fetchNewsAPIOrgTopHeadlinesController failed'.red.bold, error);
+        console.error('Controller Error: fetchNewsApiOrgTopHeadlinesController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
@@ -54,11 +54,11 @@ const fetchNewsAPIOrgTopHeadlinesController = async (req: Request, res: Response
     }
 }
 
-const fetchNewsAPIOrgEverythingController = async (req: Request, res: Response) => {
-    console.info('Controller: fetchNewsAPIOrgEverythingController started'.bgBlue.white.bold);
+const fetchNewsApiOrgEverythingController = async (req: Request, res: Response) => {
+    console.info('Controller: fetchNewsApiOrgEverythingController started'.bgBlue.white.bold);
 
     try {
-        const {sources, from, to, sortBy, language, q, pageSize, page}: Partial<INewsAPIOrgEverythingParams> = req.query;
+        const {sources, from, to, sortBy, language, q, pageSize, page}: Partial<INewsApiOrgEverythingParams> = req.query;
 
         if (!sources && !q) {
             console.warn('Client Error: Missing required search parameters'.yellow);
@@ -77,7 +77,7 @@ const fetchNewsAPIOrgEverythingController = async (req: Request, res: Response) 
         if (page && !isNaN(page)) {
             pageNumber = Number(page);
         }
-        const everything = await NewsService.fetchNewsAPIOrgEverything({sources, from, to, sortBy, language, q, pageSize: pageSizeNumber, page: pageNumber});
+        const everything = await NewsService.fetchNewsApiOrgEverything({sources, from, to, sortBy, language, q, pageSize: pageSizeNumber, page: pageNumber});
         console.log('SUCCESS: Everything search completed'.bgGreen.bold, {count: everything?.totalResults || 0});
 
         res.status(200).send(new ApiResponse({
@@ -126,11 +126,11 @@ const fetchGuardianNewsController = async (req: Request, res: Response) => {
     }
 }
 
-const fetchNYTimesNewsController = async (req: Request, res: Response) => {
-    console.info('Controller: fetchNYTimesNewsController started'.bgBlue.white.bold);
+const fetchNewYorkTimesNewsController = async (req: Request, res: Response) => {
+    console.info('Controller: fetchNewYorkTimesNewsController started'.bgBlue.white.bold);
 
     try {
-        const {q, section, sort, fromDate, toDate, pageSize, page}: Partial<INYTimesSearchParams> = req.query;
+        const {q, section, sort, fromDate, toDate, pageSize, page}: Partial<INewYorkTimesSearchParams> = req.query;
         console.debug('Debug: NYTimes query parameter'.gray, {q});
 
         if (section && !VALID_NYTIMES_SECTIONS.includes(section)) {
@@ -152,7 +152,7 @@ const fetchNYTimesNewsController = async (req: Request, res: Response) => {
             pageNumber = Number(page);
         }
 
-        const nytResults = await NewsService.fetchNYTimesNews({q, section, sort, fromDate, toDate, pageSize: pageSizeNumber, page: pageNumber});
+        const nytResults = await NewsService.fetchNewYorkTimesNews({q, section, sort, fromDate, toDate, pageSize: pageSizeNumber, page: pageNumber});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -160,7 +160,7 @@ const fetchNYTimesNewsController = async (req: Request, res: Response) => {
             searchResults: nytResults,
         }));
     } catch (error: any) {
-        console.error('Controller Error: fetchNYTimesNewsController failed'.red.bold, error);
+        console.error('Controller Error: fetchNewYorkTimesNewsController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
@@ -169,11 +169,11 @@ const fetchNYTimesNewsController = async (req: Request, res: Response) => {
     }
 }
 
-const fetchNYTimesTopStoriesController = async (req: Request, res: Response) => {
-    console.info('Controller: fetchNYTimesTopStoriesController started'.bgBlue.white.bold);
+const fetchNewYorkTimesTopStoriesController = async (req: Request, res: Response) => {
+    console.info('Controller: fetchNewYorkTimesTopStoriesController started'.bgBlue.white.bold);
 
     try {
-        const {section}: Partial<INYTimesTopStoriesParams> = req.query;
+        const {section}: Partial<INewYorkTimesTopStoriesParams> = req.query;
 
         if (section && !VALID_NYTIMES_SECTIONS.includes(section)) {
             console.warn('Client Error: Invalid NYTimes section'.yellow, {section});
@@ -186,7 +186,7 @@ const fetchNYTimesTopStoriesController = async (req: Request, res: Response) => 
             return;
         }
 
-        const nytTopStories = await NewsService.fetchNYTimesTopStories({section});
+        const nytTopStories = await NewsService.fetchNewYorkTimesTopStories({section});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -194,7 +194,7 @@ const fetchNYTimesTopStoriesController = async (req: Request, res: Response) => 
             searchResults: nytTopStories,
         }));
     } catch (error: any) {
-        console.error('Controller Error: fetchNYTimesTopStoriesController failed'.red.bold, error);
+        console.error('Controller Error: fetchNewYorkTimesTopStoriesController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
@@ -203,11 +203,11 @@ const fetchNYTimesTopStoriesController = async (req: Request, res: Response) => 
     }
 }
 
-const fetchAllRSSFeedsController = async (req: Request, res: Response) => {
-    console.info('Controller: fetchAllRSSFeedsController started'.bgBlue.white.bold);
+const fetchAllRssFeedsController = async (req: Request, res: Response) => {
+    console.info('Controller: fetchAllRssFeedsController started'.bgBlue.white.bold);
 
     try {
-        const {q, sources, languages, pageSize, page}: Partial<IRSSFeedParams> = req.query;
+        const {q, sources, languages, pageSize, page}: Partial<IRssFeedParams> = req.query;
 
         const sourceList = sources ? sources.split(',').map((source: string) => source.trim().toLowerCase()).filter(Boolean) : [];
         if (!isListEmpty(sourceList) && sourceList.every(lang => !SUPPORTED_NEWS_LANGUAGES.includes(lang))) {
@@ -240,7 +240,7 @@ const fetchAllRSSFeedsController = async (req: Request, res: Response) => {
         }
 
         console.time('Performance: RSS_FETCH_TIME'.cyan);
-        const rssFeeds = await NewsService.fetchAllRSSFeeds({q, sources, languages, pageSize: pageSizeNumber, page: pageNumber});
+        const rssFeeds = await NewsService.fetchAllRssFeeds({q, sources, languages, pageSize: pageSizeNumber, page: pageNumber});
         console.timeEnd('Performance: RSS_FETCH_TIME'.cyan);
         console.log('SUCCESS: RSS feeds fetched'.bgGreen.bold, {count: rssFeeds.length});
 
@@ -256,7 +256,7 @@ const fetchAllRSSFeedsController = async (req: Request, res: Response) => {
             rssFeeds,
         }));
     } catch (error: any) {
-        console.error('Controller Error: fetchAllRSSFeedsController failed'.red.bold, error);
+        console.error('Controller Error: fetchAllRssFeedsController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
@@ -539,12 +539,12 @@ const fetchEnhancementStatusController = async (req: Request, res: Response) => 
 }
 
 export {
-    fetchNewsAPIOrgTopHeadlinesController,
-    fetchNewsAPIOrgEverythingController,
+    fetchNewsApiOrgTopHeadlinesController,
+    fetchNewsApiOrgEverythingController,
     fetchGuardianNewsController,
-    fetchNYTimesNewsController,
-    fetchNYTimesTopStoriesController,
-    fetchAllRSSFeedsController,
+    fetchNewYorkTimesNewsController,
+    fetchNewYorkTimesTopStoriesController,
+    fetchAllRssFeedsController,
     fetchMultiSourceNewsController,
     fetchMultiSourceNewsEnhancedController,
     fetchEnhancementStatusController,

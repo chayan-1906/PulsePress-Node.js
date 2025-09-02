@@ -1,19 +1,19 @@
 import {Router} from "express";
 import {
     checkDatabaseHealthController,
-    checkGeminiAIHealthController,
+    checkGeminiAiHealthController,
     checkGoogleServicesHealthController,
-    checkNewsAPIOrgHealthController,
+    checkNewsApiOrgHealthController,
     checkOverallSystemHealthController,
-    checkRSSFeedsHealthController
+    checkRssFeedsHealthController
 } from "../controllers/HealthController";
 
 const router = Router();
 
-router.get('/news', checkNewsAPIOrgHealthController);               // /health/news
-router.get('/rss', checkRSSFeedsHealthController);                  // /health/rss
+router.get('/news', checkNewsApiOrgHealthController);               // /health/news
+router.get('/rss', checkRssFeedsHealthController);                  // /health/rss
 router.get('/google-service', checkGoogleServicesHealthController); // /health/google-service
-router.get('/ai', checkGeminiAIHealthController);                   // /health/ai
+router.get('/ai', checkGeminiAiHealthController);                   // /health/ai
 router.get('/database', checkDatabaseHealthController);             // /health/database
 router.get('/', checkOverallSystemHealthController);                // /health
 

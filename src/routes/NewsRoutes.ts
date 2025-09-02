@@ -3,26 +3,26 @@ import {authMiddlewareOptional} from "../middlewares/AuthMiddleware";
 import {newsScrapingRateLimiter} from "../middlewares/RateLimiterMiddleware";
 import {
     exploreTopicController,
-    fetchAllRSSFeedsController,
+    fetchAllRssFeedsController,
     fetchEnhancementStatusController,
     fetchGuardianNewsController,
     fetchMultiSourceNewsController,
     fetchMultiSourceNewsEnhancedController,
-    fetchNewsAPIOrgEverythingController,
-    fetchNewsAPIOrgTopHeadlinesController,
-    fetchNYTimesNewsController,
-    fetchNYTimesTopStoriesController,
+    fetchNewsApiOrgEverythingController,
+    fetchNewsApiOrgTopHeadlinesController,
+    fetchNewYorkTimesNewsController,
+    fetchNewYorkTimesTopStoriesController,
     scrapeWebsiteController,
 } from "../controllers/NewsController";
 
 const router = Router();
 
-router.get('/newsapiorg/top-headlines', fetchNewsAPIOrgTopHeadlinesController);     // /api/v1/news/newsapiorg/top-headlines?country=India&category=Sports&sources=techcrunch,hacker_news&q=eng vs ind 4th test&pageSize=12&page=1
-router.get('/newsapiorg/search', fetchNewsAPIOrgEverythingController);               // /api/v1/news/newsapiorg/search?sources=techcrunch&from=2025-06-27&to=2025-07-27&sortBy=publishedAt&language=spanish&q=tesla
+router.get('/newsapiorg/top-headlines', fetchNewsApiOrgTopHeadlinesController);     // /api/v1/news/newsapiorg/top-headlines?country=India&category=Sports&sources=techcrunch,hacker_news&q=eng vs ind 4th test&pageSize=12&page=1
+router.get('/newsapiorg/search', fetchNewsApiOrgEverythingController);               // /api/v1/news/newsapiorg/search?sources=techcrunch&from=2025-06-27&to=2025-07-27&sortBy=publishedAt&language=spanish&q=tesla
 router.get('/guardian/search', fetchGuardianNewsController);           // /api/v1/news/guardian/search?q=climate change&section=environment&pageSize=10
-router.get('/nytimes/search', fetchNYTimesNewsController);      // /api/v1/news/nytimes/search?q=artificial intelligence&section=technology&sort=newest
-router.get('/nytimes/top-stories', fetchNYTimesTopStoriesController); // /api/v1/news/nytimes/top-stories?section=technology
-router.get('/rss', fetchAllRSSFeedsController);                   // /api/v1/news/rss?sources=prothom_alo,zeenews_bengali&language=bengali&pageSize=12&page=2
+router.get('/nytimes/search', fetchNewYorkTimesNewsController);      // /api/v1/news/nytimes/search?q=artificial intelligence&section=technology&sort=newest
+router.get('/nytimes/top-stories', fetchNewYorkTimesTopStoriesController); // /api/v1/news/nytimes/top-stories?section=technology
+router.get('/rss', fetchAllRssFeedsController);                   // /api/v1/news/rss?sources=prothom_alo,zeenews_bengali&language=bengali&pageSize=12&page=2
 router.get('/multi-source', authMiddlewareOptional, fetchMultiSourceNewsController);                   // /api/v1/news/multi-source?q=tesla&category=technology&sources=techcrunch&pageSize=10&page=1
 router.get('/multi-source/enhanced', authMiddlewareOptional, fetchMultiSourceNewsEnhancedController);    // /api/v1/news/multi-source/enhanced?q=tesla&category=technology&sources=techcrunch&pageSize=10&page=1 (RECOMMENDED FOR HOME SCREEN)
 router.get('/multi-source/enhancement-status', authMiddlewareOptional, fetchEnhancementStatusController);    // /api/v1/news/multi-source/enhancement-status?articleIds=id1,id2,id3 (FOR POLLING)

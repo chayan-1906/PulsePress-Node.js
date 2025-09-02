@@ -76,7 +76,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: IGetContentRecom
 
         // Fetch from each preferred language
         preferredLanguages.forEach(language => {
-            newsPromises.push(NewsService.fetchAllRSSFeeds({
+            newsPromises.push(NewsService.fetchAllRssFeeds({
                 languages: language,
                 pageSize: rssFetchSize,
             }));
@@ -85,7 +85,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: IGetContentRecom
         // Prioritize top performing sources
         const topSourcesToFetch = topPerformingSources.slice(0, 3);
         if (topSourcesToFetch.length > 0) {
-            newsPromises.push(NewsService.fetchAllRSSFeeds({
+            newsPromises.push(NewsService.fetchAllRssFeeds({
                 sources: topSourcesToFetch.join(','),
                 languages: preferredLanguages.join(','),
                 pageSize: rssFetchSize,
@@ -96,7 +96,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: IGetContentRecom
         const topUserSources = Object.keys(sourceFrequency).slice(0, 3);
         const uniqueUserSources = topUserSources.filter(s => !topSourcesToFetch.includes(s));
         if (uniqueUserSources.length > 0) {
-            newsPromises.push(NewsService.fetchAllRSSFeeds({
+            newsPromises.push(NewsService.fetchAllRssFeeds({
                 sources: uniqueUserSources.join(','),
                 languages: preferredLanguages.join(','),
                 pageSize: rssFetchSize,
@@ -107,8 +107,8 @@ const getContentRecommendation = async ({email, pageSize = 10}: IGetContentRecom
         if (preferences?.preferredCategories?.length) {
             const primaryCategory = preferences.preferredCategories[0];
 
-            // NewsAPI
-            newsPromises.push(NewsService.fetchNewsAPIOrgTopHeadlines({
+            // NewsAPI.Org
+            newsPromises.push(NewsService.fetchNewsApiOrgTopHeadlines({
                 category: primaryCategory,
                 pageSize: categoryFetchSize,
             }));
@@ -126,7 +126,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: IGetContentRecom
             // NYTimes - map category and fetch top stories
             const nytimesSection = CATEGORY_MAPPING[primaryCategory]?.nytimes;
             if (nytimesSection) {
-                newsPromises.push(NewsService.fetchNYTimesTopStories({
+                newsPromises.push(NewsService.fetchNewYorkTimesTopStories({
                     section: nytimesSection,
                 }));
             }
@@ -146,7 +146,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: IGetContentRecom
 
                 const nytimesSecondarySection = CATEGORY_MAPPING[secondaryCategory]?.nytimes;
                 if (nytimesSecondarySection) {
-                    newsPromises.push(NewsService.fetchNYTimesTopStories({
+                    newsPromises.push(NewsService.fetchNewYorkTimesTopStories({
                         section: nytimesSecondarySection,
                     }));
                 }
@@ -159,9 +159,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: IGetContentRecom
                 orderBy: 'newest',
             }));
 
-            newsPromises.push(NewsService.fetchNYTimesTopStories({
-                section: 'world',
-            }));
+            newsPromises.push(NewsService.fetchNewYorkTimesTopStories({section: 'world'}));
         }
 
         const newsResults = await Promise.allSettled(newsPromises);

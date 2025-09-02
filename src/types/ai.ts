@@ -347,6 +347,12 @@ export interface ISummarizeArticleParams {
     style?: TSummarizationStyle;
 }
 
+export interface ISummarizeContentParams {
+    content?: string;
+    url?: string;
+    style?: TSummarizationStyle;
+}
+
 export interface IGenerateContentHashParams {
     articleContent: string;
     language?: TSupportedLanguage;
@@ -367,12 +373,6 @@ export interface IGetCachedSummaryParams {
 export interface ITranslateTextParams {
     text: string;
     targetLanguage: TSupportedLanguage;
-}
-
-export interface ISummarizeContentParams {
-    content?: string;
-    url?: string;
-    style?: TSummarizationStyle;
 }
 
 export interface ITagGenerationParams {

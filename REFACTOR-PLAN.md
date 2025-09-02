@@ -143,7 +143,7 @@ class AuthService {
 ```typescript
 // ✅ Standardized naming
 class NewsService {
-    static async fetchNewsApiTopHeadlines()    // ✅ camelCase
+    static async fetchNewsApiOrgTopHeadlines()    // ✅ camelCase
     static async fetchNewYorkTimesNews()       // ✅ camelCase
     static async fetchGuardianNews()           // ✅ Already good
 }
