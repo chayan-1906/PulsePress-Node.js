@@ -17,6 +17,9 @@ import {
 } from "../types/bookmark";
 
 class BookmarkService {
+    /**
+     * Toggle bookmark status for an article (add if not bookmarked, remove if bookmarked)
+     */
     static async toggleBookmark({email, articleUrl, title, source, description, imageUrl, publishedAt}: IToggleBookmarkParams): Promise<IToggleBookmarkResponse> {
         console.log('Service: BookmarkService.toggleBookmark called'.cyan.italic, {email, articleUrl, title, source});
 
@@ -81,6 +84,9 @@ class BookmarkService {
         }
     }
 
+    /**
+     * Check if an article is bookmarked by user
+     */
     static async getBookmarkStatus({email, articleUrl}: IIsBookmarkedParams): Promise<IIsBookmarkedResponse> {
         console.log('Service: BookmarkService.getBookmarkStatus called'.cyan.italic, {email, articleUrl});
         
@@ -110,6 +116,9 @@ class BookmarkService {
         }
     }
 
+    /**
+     * Get all bookmarked articles for user with pagination
+     */
     static async getAllBookmarks({email, pageSize = 10, page = 1}: IGetAllBookmarksParams): Promise<IGetAllBookmarksResponse> {
         console.log('Service: BookmarkService.getAllBookmarks called'.cyan.italic, {email, pageSize, page});
         
@@ -139,6 +148,9 @@ class BookmarkService {
         }
     }
 
+    /**
+     * Get total count of bookmarked articles for user
+     */
     static async getBookmarkCount({email}: IGetAllBookmarksParams): Promise<IGetBookmarkCountResponse> {
         console.log('Service: BookmarkService.getBookmarkCount called'.cyan.italic, {email});
         
@@ -159,6 +171,9 @@ class BookmarkService {
         }
     }
 
+    /**
+     * Search bookmarked articles with filters, sorting, and pagination
+     */
     static async searchBookmarks({email, q, sources, sortBy = 'createdAt', sortOrder = 'desc', pageSize = 10, page = 1}: ISearchBookmarksParams): Promise<ISearchBookmarksResponse> {
         console.log('Service: BookmarkService.searchBookmarks called'.cyan.italic, {email, q, sources, sortBy, sortOrder, pageSize, page});
         

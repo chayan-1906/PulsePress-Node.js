@@ -11,9 +11,12 @@ import {generateInvalidCode, generateNotFoundCode} from "../utils/generateErrorC
 import {ICheckAuthStatusParams, ICheckAuthStatusResponse, IGenerateMagicLinkParams, IGenerateMagicLinkResponse, IVerifyMagicLinkParams, IVerifyMagicLinkResponse} from "../types/auth";
 
 class MagicLinkService {
+    /**
+     * Generate and send magic link for passwordless authentication
+     */
     static async generateMagicLink({email}: IGenerateMagicLinkParams): Promise<IGenerateMagicLinkResponse> {
         console.log('Service: MagicLinkService.generateMagicLink called'.cyan.italic, {email});
-        
+
         try {
             console.log('Database: Cleaning expired magic links'.cyan);
             await MagicLinkModel.deleteMany({
@@ -46,9 +49,12 @@ class MagicLinkService {
         }
     }
 
+    /**
+     * Verify magic link token and authenticate or register user
+     */
     static async verifyMagicLink({token}: IVerifyMagicLinkParams): Promise<IVerifyMagicLinkResponse> {
         console.log('Service: MagicLinkService.verifyMagicLink called'.cyan.italic, {token: token.substring(0, 10) + '...'});
-        
+
         try {
             console.log('Database: Looking up magic link'.cyan);
             const magicLink = await MagicLinkModel.findOne({
@@ -65,7 +71,7 @@ class MagicLinkService {
             console.log('Database: Magic link found and valid'.cyan, {email: magicLink.email});
             const {user} = await AuthService.getUserByEmail({email: magicLink.email});
             let finalUser: IUser;
-            
+
             if (!user) {
                 console.log('Database: Creating new user from magic link'.cyan);
                 const session = await mongoose.startSession();
@@ -144,10 +150,12 @@ class MagicLinkService {
         }
     }
 
-    // only for magicLink users -- not designed for google oauth and email/pass users
+    /**
+     * Check authentication status for magic link users only
+     */
     static async checkAuthStatus({email}: ICheckAuthStatusParams): Promise<ICheckAuthStatusResponse> {
         console.log('Service: MagicLinkService.checkAuthStatus called'.cyan.italic, {email});
-        
+
         try {
             const {user} = await AuthService.getUserByEmail({email});
             if (!user) {
@@ -158,7 +166,7 @@ class MagicLinkService {
             console.log('Database: Looking up auth session'.cyan);
             const session: IAuthSession | null = await AuthSessionModel.findOne({userExternalId: user.userExternalId});
             console.log('Database: Auth session lookup result'.cyan, {found: !!session});
-            
+
             if (session) {
                 console.log('Database: Removing auth session after retrieval'.cyan);
                 await AuthSessionModel.deleteOne({userExternalId: user.userExternalId});

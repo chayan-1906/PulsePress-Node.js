@@ -13,6 +13,9 @@ import {getDatabaseHealth} from "../utils/databaseHealth";
 import {AI_SUMMARIZATION_MODELS, RSS_SOURCES} from "../utils/constants";
 
 class HealthService {
+    /**
+     * Check health status of NewsAPI.org service
+     */
     static async checkNewsAPIOrgHealth(): Promise<IHealthCheckResponse> {
         console.log('Service: HealthService.checkNewsAPIOrgHealth called'.cyan.italic);
 
@@ -33,6 +36,9 @@ class HealthService {
         }
     }
 
+    /**
+     * Check health status of all RSS feeds with success rate reporting
+     */
     static async checkRSSFeedsHealth(): Promise<IHealthCheckResponse> {
         console.log('Service: HealthService.checkRSSFeedsHealth called'.cyan.italic);
 
@@ -82,6 +88,9 @@ class HealthService {
         }
     }
 
+    /**
+     * Check health status of Google services (OAuth and Translate API)
+     */
     static async checkGoogleServicesHealth(): Promise<IHealthCheckResponse> {
         console.log('Service: HealthService.checkGoogleServicesHealth called'.cyan.italic);
 
@@ -109,6 +118,9 @@ class HealthService {
         }
     }
 
+    /**
+     * Check health status of Gemini AI service
+     */
     static async checkGeminiAIHealth(): Promise<IHealthCheckResponse> {
         console.log('Service: HealthService.checkGeminiAIHealth called'.cyan.italic);
 
@@ -126,6 +138,9 @@ class HealthService {
         }
     }
 
+    /**
+     * Check health status of MongoDB database connection
+     */
     static async checkDatabaseHealth(): Promise<IHealthCheckResponse> {
         console.log('Service: HealthService.checkDatabaseHealth called'.cyan.italic);
 
@@ -169,6 +184,9 @@ class HealthService {
         }
     }
 
+    /**
+     * Check comprehensive health status of all system services
+     */
     static async checkOverallSystemHealth(): Promise<IHealthCheckResponse> {
         console.log('Service: HealthService.checkOverallSystemHealth called'.cyan.italic);
 

@@ -168,6 +168,9 @@ class ArticleEnhancementService {
         return {error: 'AI_ENHANCEMENT_FAILED'};
     }
 
+    /**
+     * Get processing status and progress for article enhancements
+     */
     static async getProcessingStatus({articles}: IGetProcessingStatusParams): Promise<IGetProcessingStatusResponse> {
         console.log('Service: ArticleEnhancementService.getProcessingStatus called'.cyan.italic, {articleCount: articles.length});
 
@@ -192,6 +195,9 @@ class ArticleEnhancementService {
         }
     }
 
+    /**
+     * Process article enhancements in background with AI analysis
+     */
     static async enhanceArticlesInBackground({email, articles}: IEnhanceArticlesInBackgroundParams): Promise<void> {
         console.log('Service: ArticleEnhancementService.enhanceArticlesInBackground called'.cyan.italic, {email, articleCount: articles.length});
 
@@ -315,6 +321,9 @@ class ArticleEnhancementService {
         }, 500);
     }
 
+    /**
+     * Retrieve completed enhancements for given articles
+     */
     static async getEnhancementsForArticles({articles}: IGetEnhancementForArticlesParams): Promise<{ [articleId: string]: IArticleEnhancement }> {
         console.log('Service: ArticleEnhancementService.getEnhancementsForArticles called'.cyan.italic, {articleCount: articles.length});
 
@@ -336,6 +345,9 @@ class ArticleEnhancementService {
         }
     }
 
+    /**
+     * Get enhancement status and enhanced articles by article IDs
+     */
     static async getEnhancementStatusByIds({email, articleIds}: IGetEnhancementStatusByIdsParams): Promise<IGetEnhancementStatusByIdsResponse> {
         console.log('Service: ArticleEnhancementService.getEnhancementStatusByIds called'.cyan.italic, {email, articleCount: articleIds.length});
 
@@ -385,6 +397,9 @@ class ArticleEnhancementService {
         }
     }
 
+    /**
+     * Merge enhancement data with original articles
+     */
     static mergeEnhancementsWithArticles({articles, enhancements}: IMergeEnhancementsWithArticlesParams): IArticle[] {
         return articles.map(article => {
             const articleId = generateArticleId({article});

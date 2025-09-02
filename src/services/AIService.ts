@@ -33,12 +33,18 @@ class AIService {
         console.log('Daily Gemini API counter reset'.blue);
     }, Number.parseInt(GEMINI_QUOTA_MS!));
 
+    /**
+     * Clean up the Gemini API request counter reset interval
+     */
     static cleanup(): void {
         if (this.resetInterval) {
             clearInterval(this.resetInterval);
         }
     }
 
+    /**
+     * Summarize article content using Gemini AI with caching and translation support
+     */
     static async summarizeArticle({email, content, url, language = 'en', style = 'standard'}: ISummarizeArticleParams): Promise<ISummarizeArticleResponse> {
         console.log('Service: AIService.summarizeArticle called'.cyan.italic, {content, url});
 
@@ -163,6 +169,9 @@ class AIService {
         }
     }
 
+    /**
+     * Generate SHA256 hash for article content with language and style parameters
+     */
     private static async generateContentHash({articleContent, language = 'en', style = 'standard'}: IGenerateContentHashParams): Promise<IGenerateContentHashResponse> {
         console.log('Service: AIService.generateContentHash called'.cyan.italic, {articleContent: articleContent.substring(0, 50) + '...', language, style});
 
@@ -182,6 +191,9 @@ class AIService {
         }
     }
 
+    /**
+     * Save generated summary to cache with content hash and metadata
+     */
     private static async saveSummaryToCache({contentHash, summary, language, style}: ISaveSummaryToCacheParams): Promise<ICachedSummary | null> {
         console.log('Service: AIService.saveSummaryToCache called'.cyan.italic, {contentHash, summary: summary.substring(0, 50) + '...', language, style});
 
@@ -195,6 +207,9 @@ class AIService {
         }
     }
 
+    /**
+     * Retrieve cached summary by content hash
+     */
     private static async getCachedSummary({contentHash}: IGetCachedSummaryParams): Promise<ICachedSummary | null> {
         console.log('Service: AIService.getCachedSummary called'.cyan.italic, {contentHash});
 
@@ -203,6 +218,9 @@ class AIService {
         return cachedSummary;
     }
 
+    /**
+     * Translate text to target language using Google Translate API
+     */
     private static async translateText({text, targetLanguage}: ITranslateTextParams): Promise<string> {
         console.log('Service: AIService.translateText called'.cyan.italic, {text, targetLanguage});
 

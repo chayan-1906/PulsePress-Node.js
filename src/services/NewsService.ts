@@ -16,7 +16,6 @@ import {RSS_SOURCES, TOPIC_SPECIFIC_SOURCES, TRUSTED_NEWS_SOURCES, USER_AGENTS} 
 import {GUARDIAN_API_KEY, GUARDIAN_QUOTA_REQUESTS, NEWSAPI_QUOTA_REQUESTS, NEWSAPIORG_QUOTA_MS, NODE_ENV, NYTIMES_API_KEY, NYTIMES_QUOTA_REQUESTS, RSS_CACHE_DURATION} from "../config/config";
 import {
     IArticle,
-    TEnhancementStatus,
     IGuardianArticle,
     IGuardianResponse,
     IGuardianSearchParams,
@@ -35,6 +34,7 @@ import {
     IScrapeMultipleWebsitesParams,
     IScrapeWebsiteParams,
     SUPPORTED_NEWS_LANGUAGES,
+    TEnhancementStatus,
     VALID_NYTIMES_SECTIONS
 } from "../types/news";
 
@@ -56,6 +56,9 @@ setInterval(() => {
 }, Number.parseInt(NEWSAPIORG_QUOTA_MS!));
 
 class NewsService {
+    /**
+     * Convert Guardian API response to standardized article format
+     */
     private static convertGuardianToArticle(guardianArticle: IGuardianArticle): IArticle {
         console.log('Service: NewsService.convertGuardianToArticle called'.cyan.italic, {guardianArticle});
 
@@ -79,6 +82,9 @@ class NewsService {
         return article;
     }
 
+    /**
+     * Convert NY Times search API response to standardized article format
+     */
     private static convertNYTimesToArticle(nytArticle: INYTimesArticle): IArticle {
         console.log('Service: NewsService.convertNYTimesToArticle called'.cyan.italic, {nytArticle});
 
@@ -102,6 +108,9 @@ class NewsService {
         return article;
     }
 
+    /**
+     * Convert NY Times top stories API response to standardized article format
+     */
     private static convertNYTimesTopStoryToArticle(story: INYTimesTopStoriesResponse['results'][0]): IArticle {
         console.log('Service: NewsService.convertNYTimesTopStoryToArticle called'.cyan.italic, {story});
 
@@ -125,6 +134,9 @@ class NewsService {
         return article;
     }
 
+    /**
+     * Convert RSS feed item to standardized article format
+     */
     private static convertRSSFeedToArticle(rss: IRSSFeed): IArticle {
         console.log('Service: NewsService.convertRSSFeedToArticle called'.cyan.italic, {rss});
 
@@ -161,6 +173,9 @@ class NewsService {
         "latest news"                                             // First 2 words
       ]
     */
+    /**
+     * Generate query variations by removing noise words and creating shorter versions
+     */
     private static generateQueryVariations(query: string): string[] {
         console.log('Service: NewsService.generateQueryVariations called'.cyan.italic, {query});
 
@@ -194,12 +209,18 @@ class NewsService {
         return [...new Set(variations)];
     }
 
+    /**
+     * Simplify search query by taking the first variation
+     */
     private static simplifySearchQuery(query: string): string {
         console.log('Service: NewsService.simplifySearchQuery called'.cyan.italic, {query});
 
         return this.generateQueryVariations(query)[0];
     }
 
+    /**
+     * Determine news topic/category from query text or explicit category
+     */
     private static determineTopicFromQuery(query?: string, category?: string): string {
         console.log('Service: NewsService.determineTopicFromQuery called'.cyan.italic, {query, category});
 
@@ -226,6 +247,9 @@ class NewsService {
         return 'general';
     }
 
+    /**
+     * Convert domain names to NewsAPI-compatible source format
+     */
     private static convertDomainToNewsAPIFormat(sources: string): string {
         console.log('Service: NewsService.convertDomainToNewsAPIFormat called'.cyan.italic, {sources});
 
@@ -281,6 +305,9 @@ class NewsService {
         return sources.split(',').map(source => sourceMap[source.trim()] || source.trim()).join(',');
     }
 
+    /**
+     * Get topic-specific news sources or convert user-provided sources
+     */
     private static getOptimizedSourcesForTopic(topic: string, userSources?: string): string | undefined {
         console.log('Service: NewsService.getOptimizedSourcesForTopic called'.cyan.italic, {topic, userSources});
 
@@ -290,6 +317,9 @@ class NewsService {
         return topicSources ? this.convertDomainToNewsAPIFormat(topicSources.join(',')) : undefined;
     }
 
+    /**
+     * Map topic to NY Times API section parameter
+     */
     private static mapToNYTimesSection(topic: string): string {
         console.log('Service: NewsService.mapToNYTimesSection called'.cyan.italic, {topic});
 
@@ -306,6 +336,9 @@ class NewsService {
         return sectionMap[topic] || 'home';
     }
 
+    /**
+     * Assess article quality based on source reliability, relevance, and content
+     */
     private static assessContentQuality(article: IArticle, query?: string): IQualityScore {
         console.log('Service: NewsService.assessContentQuality called'.cyan.italic, {article, query});
 
@@ -383,12 +416,18 @@ class NewsService {
         };
     }
 
+    /**
+     * Check if article is duplicate based on URL comparison
+     */
     private static isDuplicateArticle(article: IArticle, existing: IArticle[]): boolean {
         console.log('Service: NewsService.isDuplicateArticle called'.cyan.italic, {article, existing});
 
         return existing.some(existingArticle => !!(article.url && existingArticle.url && article.url === existingArticle.url));
     }
 
+    /**
+     * Clean scraped text by removing extra whitespace and newlines
+     */
     private static cleanScrapedText(text: string): string {
         console.log('Service: NewsService.cleanScrapedText called'.cyan.italic, {text});
 
@@ -403,6 +442,9 @@ class NewsService {
             .trim();
     }
 
+    /**
+     * Fetch top headlines from NewsAPI.org with caching
+     */
     static async fetchNewsAPIOrgTopHeadlines({country, category, sources, q, pageSize = 10, page = 1}: INewsAPIOrgTopHeadlinesParams) {
         console.log('Service: NewsService.fetchNewsAPIOrgTopHeadlines called'.cyan.italic, {country, category, sources, q, pageSize, page});
 
@@ -453,6 +495,9 @@ class NewsService {
         }
     }
 
+    /**
+     * Fetch everything articles from NewsAPI.org with caching
+     */
     static async fetchNewsAPIOrgEverything({sources, from, to, sortBy, language, q, pageSize = 10, page = 1}: INewsAPIOrgEverythingParams) {
         console.log('Service: NewsService.fetchNewsAPIOrgTopHeadlines called'.cyan.italic, {sources, from, to, sortBy, language, q, pageSize, page});
 
@@ -504,6 +549,9 @@ class NewsService {
         }
     }
 
+    /**
+     * Fetch news from Guardian API with caching
+     */
     static async fetchGuardianNews({q, section, fromDate, toDate, orderBy = 'newest', pageSize = 10, page = 1}: IGuardianSearchParams) {
         console.log('Service: NewsService.fetchGuardianNews called'.cyan.italic, {q, section, fromDate, toDate, orderBy, pageSize, page});
 
@@ -560,6 +608,9 @@ class NewsService {
         }
     }
 
+    /**
+     * Fetch news from NY Times search API with caching
+     */
     static async fetchNYTimesNews({q, section, sort = 'newest', fromDate, toDate, pageSize = 10, page = 1}: INYTimesSearchParams) {
         console.log('Service: NewsService.fetchNYTimesNews called'.cyan.italic, {q, section, sort, fromDate, toDate, pageSize, page});
 
@@ -636,6 +687,9 @@ class NewsService {
         }
     }
 
+    /**
+     * Fetch top stories from NY Times API with caching
+     */
     static async fetchNYTimesTopStories({section = 'home'}: INYTimesTopStoriesParams) {
         console.log('Service: NewsService.fetchNYTimesTopStories called'.cyan.italic, {section});
 
@@ -687,6 +741,9 @@ class NewsService {
         }
     }
 
+    /**
+     * Fetch and search RSS feeds from multiple sources with fuzzy matching
+     */
     static async fetchAllRSSFeeds({q, sources, languages = 'english', pageSize = 10, page = 1}: IRSSFeedParams) {
         console.log('Service: NewsService.fetchAllRSSFeeds called'.cyan.italic, {q, sources, languages, pageSize, page});
 
@@ -809,6 +866,9 @@ class NewsService {
         }
     }
 
+    /**
+     * Smart fetch with query variations and quality filtering
+     */
     private static async smartFetchWithVariations(apiFunction: Function, query: string, params: any, minQualityResults: number = 3): Promise<any> {
         console.log('Service: NewsService.smartFetchWithVariations called'.cyan.italic, {query, params, minQualityResults});
 
@@ -851,6 +911,9 @@ class NewsService {
         return null;
     }
 
+    /**
+     * Fetch news from multiple sources with quality scoring and sentiment analysis
+     */
     static async fetchMultiSourceNews({email, q, category, sources, pageSize = 10, page = 1}: IMultisourceFetchNewsParams) {
         console.log('Service: fetchMultiSourceNews called'.cyan.italic, {q, category, sources, pageSize, page});
 
@@ -1114,6 +1177,9 @@ class NewsService {
         };
     }
 
+    /**
+     * Scrape article content from URL using Readability
+     */
     private static async scrapeArticle({url}: IScrapeWebsiteParams) {
         console.log('Service: scrapeArticle called'.cyan.italic, url);
 
@@ -1179,6 +1245,9 @@ class NewsService {
         }
     }
 
+    /**
+     * Scrape content from multiple URLs with error handling
+     */
     static async scrapeMultipleArticles({urls}: IScrapeMultipleWebsitesParams) {
         console.log('Service: NewsService.scrapeMultipleArticles called'.cyan.italic, {urls});
 
@@ -1217,6 +1286,9 @@ class NewsService {
         return results;
     }
 
+    /**
+     * Fast multi-source news fetch with parallel API calls and simple deduplication
+     */
     private static async fetchMultiSourceNewsFast({email, q, category, sources, pageSize = 10, page = 1}: IMultisourceFetchNewsParams) {
         console.log('Service: fetchMultiSourceNewsFast called'.cyan.italic, {q, category, sources, pageSize, page});
 
@@ -1420,6 +1492,9 @@ class NewsService {
         };
     }
 
+    /**
+     * Enhanced multi-source news fetch with AI enhancements and progressive loading
+     */
     static async fetchMultiSourceNewsEnhanced({email, q, category, sources, pageSize = 10, page = 1}: IMultisourceFetchNewsParams) {
         console.log('Service: fetchMultiSourceNewsEnhanced called'.cyan.italic, {q, category, sources, pageSize, page});
 

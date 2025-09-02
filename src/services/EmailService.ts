@@ -12,6 +12,9 @@ class EmailService {
         },
     });
 
+    /**
+     * Send magic link email for passwordless authentication using nodemailer
+     */
     static async sendMagicLink(email: string, token: string): Promise<void> {
         console.log('Service: EmailService.sendMagicLink called'.cyan.italic, {email, token: token.substring(0, 10) + '...'});
         

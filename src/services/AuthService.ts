@@ -33,6 +33,9 @@ import {
 } from "../types/auth";
 
 class AuthService {
+    /**
+     * Register new user with email and password validation
+     */
     static async registerUser({name, email, password, confirmPassword}: IRegisterParams): Promise<IRegisterResponse> {
         console.log('Service: AuthService.registerUser called'.cyan.italic, {name, email});
 
@@ -108,6 +111,9 @@ class AuthService {
         }
     }
 
+    /**
+     * Authenticate user with email and password credentials
+     */
     static async loginUser({email, password}: ILoginParams): Promise<ILoginResponse> {
         console.log('Service: AuthService.loginUser called'.cyan.italic, {email});
 
@@ -150,6 +156,9 @@ class AuthService {
         }
     }
 
+    /**
+     * Reset user password with current password verification
+     */
     static async resetPassword({email, currentPassword, newPassword}: IResetPasswordParams): Promise<IResetPasswordResponse> {
         console.log('Service: AuthService.resetPassword called'.cyan.italic, {email});
 
@@ -195,6 +204,9 @@ class AuthService {
         }
     }
 
+    /**
+     * Generate new access token using valid refresh token
+     */
     static async refreshToken({refreshToken: rawRefreshToken}: IRefreshTokenParams): Promise<IRefreshTokenResponse> {
         console.log('Service: AuthService.refreshToken called'.cyan.italic);
 
@@ -223,6 +235,9 @@ class AuthService {
         }
     }
 
+    /**
+     * Authenticate or register user using Google OAuth2
+     */
     static async loginWithGoogle({code}: ILoginWithGoogleParams): Promise<ILoginResponse> {
         console.log('Service: AuthService.loginWithGoogle called'.cyan.italic);
 
@@ -304,6 +319,9 @@ class AuthService {
         }
     }
 
+    /**
+     * Update user profile information including name, password, and profile picture
+     */
     static async updateUser({email, name, password, profilePicture}: IUpdateUserParams): Promise<IUpdateUserResponse> {
         console.log('Service: AuthService.updateUser called'.cyan.italic, {email, name});
 
@@ -338,6 +356,9 @@ class AuthService {
         }
     }
 
+    /**
+     * Hash password using bcrypt with salt rounds
+     */
     private static async hashPassword(password: string): Promise<string> {
         console.log('Service: AuthService.hashPassword called'.cyan.italic, password);
 
@@ -351,6 +372,9 @@ class AuthService {
         }
     }
 
+    /**
+     * Compare two plain text passwords for equality
+     */
     private static comparePassword(password1: string, password2: string): boolean {
         console.log('Service: AuthService.comparePassword called'.cyan.italic, {password1, password2});
 
@@ -368,6 +392,9 @@ class AuthService {
         }
     }
 
+    /**
+     * Verify plain text password against bcrypt hash
+     */
     private static async verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
         console.log('Service: AuthService.verifyPassword called'.cyan.italic, {password, hashedPassword});
 
@@ -385,6 +412,9 @@ class AuthService {
         }
     }
 
+    /**
+     * Generate JWT access and refresh tokens for user
+     */
     static async generateJWT(user: IUser): Promise<IGenerateJWTResponse> {
         console.log('Service: AuthService.generateJWT called'.cyan.italic, {user});
 
@@ -414,6 +444,9 @@ class AuthService {
         }
     }
 
+    /**
+     * Retrieve user by email address
+     */
     static async getUserByEmail({email}: IGetUserByEmailParams): Promise<IGetUserByEmailResponse> {
         console.log('Service: AuthService.getUserByEmail called'.cyan.italic, {email});
 
@@ -436,6 +469,9 @@ class AuthService {
         }
     }
 
+    /**
+     * Delete user account and all associated data using transaction
+     */
     static async deleteAccount({email}: IDeleteAccountByEmailParams): Promise<IDeleteAccountByEmailResponse> {
         console.log('Service: AuthService.deleteAccount called'.cyan.italic, {email});
 

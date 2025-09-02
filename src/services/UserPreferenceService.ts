@@ -16,6 +16,9 @@ import {
 } from "../types/user-preference";
 
 class UserPreferenceService {
+    /**
+     * Create or update user preferences with validation and cache invalidation
+     */
     static async modifyUserPreference(
         {email, user, preferredLanguage, preferredCategories, preferredSources, summaryStyle, newsLanguages, session}: IModifyUserPreferenceParams): Promise<IModifyUserPreferenceResponse> {
         console.log('Service: UserPreferenceService.modifyUserPreference called'.cyan.italic, {
@@ -93,6 +96,9 @@ class UserPreferenceService {
         }
     }
 
+    /**
+     * Retrieve user preferences by email
+     */
     static async getUserPreference({email}: IGetUserPreferenceParams): Promise<IGetUserPreferenceResponse> {
         console.log('Service: UserPreferenceService.getUserPreference called'.cyan.italic, {email});
 
@@ -120,6 +126,9 @@ class UserPreferenceService {
         }
     }
 
+    /**
+     * Reset user preferences to default values
+     */
     static async resetUserPreference({email}: IResetUserPreferenceParams): Promise<IResetUserPreferenceResponse> {
         console.log('Service: UserPreferenceService.resetUserPreference called'.cyan.italic, {email});
 

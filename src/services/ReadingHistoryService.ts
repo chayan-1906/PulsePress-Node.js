@@ -16,11 +16,15 @@ import {
     IGetReadingHistoryResponse,
     IModifyReadingHistoryParams,
     IModifyReadingHistoryResponse,
-    ISearchReadingHistoryParams, ISearchReadingHistoryResponse,
+    ISearchReadingHistoryParams,
+    ISearchReadingHistoryResponse,
     SUPPORTED_READING_HISTORY_SORTINGS,
 } from "../types/reading-history";
 
 class ReadingHistoryService {
+    /**
+     * Create or update reading history entry with analytics tracking
+     */
     static async modifyReadingHistory
     ({email, title, articleUrl, source, description, readAt, readDuration, completed, publishedAt}: IModifyReadingHistoryParams): Promise<IModifyReadingHistoryResponse> {
         console.log('Service: ReadingHistoryService.modifyReadingHistory called'.cyan.italic, {email, title, articleUrl, source, description, readAt, readDuration, completed, publishedAt});
@@ -103,6 +107,9 @@ class ReadingHistoryService {
         }
     }
 
+    /**
+     * Get paginated reading history for user sorted by newest first
+     */
     static async getReadingHistories({email, pageSize = 10, page = 1}: IGetReadingHistoryParams): Promise<IGetReadingHistoryResponse> {
         console.log('Service: ReadingHistoryService.getReadingHistories called'.cyan.italic, {email, pageSize, page});
 
@@ -131,6 +138,9 @@ class ReadingHistoryService {
         }
     }
 
+    /**
+     * Mark article as completed in reading history with analytics update
+     */
     static async completeArticle({email, articleUrl}: ICompleteArticleParams): Promise<ICompleteArticleResponse> {
         console.log('Service: ReadingHistoryService.completeArticle called'.cyan.italic, {email, articleUrl});
 
@@ -166,6 +176,9 @@ class ReadingHistoryService {
         }
     }
 
+    /**
+     * Clear all reading history entries for user
+     */
     static async clearReadingHistories({email}: IClearReadingHistoryParams): Promise<IClearReadingHistoryResponse> {
         console.log('Service: ReadingHistoryService.clearReadingHistories called'.cyan.italic, {email});
 
@@ -187,6 +200,9 @@ class ReadingHistoryService {
         }
     }
 
+    /**
+     * Get comprehensive reading analytics with time-based metrics and completion rates
+     */
     static async getReadingAnalytics({email}: IGetReadingAnalyticsParams): Promise<IGetReadingAnalyticsResponse> {
         console.log('Service: ReadingHistoryService.getReadingAnalytics called'.cyan.italic, {email});
 
@@ -264,6 +280,9 @@ class ReadingHistoryService {
         }
     }
 
+    /**
+     * Search reading history with text query, source filters, and sorting options
+     */
     static async searchReadingHistories({email, q, sources, sortBy = 'readAt', sortOrder = 'desc', pageSize = 10, page = 1}: ISearchReadingHistoryParams): Promise<ISearchReadingHistoryResponse> {
         console.log('Service: ReadingHistoryService.searchReadingHistories called'.cyan.italic, {email, q, sources, sortBy, sortOrder, pageSize, page});
 
@@ -325,6 +344,9 @@ class ReadingHistoryService {
         }
     }
 
+    /**
+     * Delete specific reading history entry by external ID
+     */
     static async deleteReadingHistory({email, readingHistoryExternalId}: IDeleteReadingHistoryParams): Promise<IDeleteReadingHistoryResponse> {
         console.log('Service: ReadingHistoryService.deleteReadingHistory called'.cyan.italic, {email, readingHistoryExternalId});
 

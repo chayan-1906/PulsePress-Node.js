@@ -6,6 +6,9 @@ import {IGetUserStrikeHistoryParams, IGetUserStrikeHistoryResponse, IGetUserStri
 import {generateNotFoundCode} from "../utils/generateErrorCodes";
 
 class UserStrikeService {
+    /**
+     * Get user strike status including blocks and time calculations
+     */
     static async getUserStrikeStatus({email}: IGetUserStrikeStatusParams): Promise<IGetUserStrikeStatusResponse> {
         console.log('Service: UserStrikeService.getUserStrikeStatus called'.cyan.italic, {email});
 
@@ -79,6 +82,9 @@ class UserStrikeService {
         }
     }
 
+    /**
+     * Get paginated user strike history sorted by most recent first
+     */
     static async getUserStrikeHistory({email, limit = 10}: IGetUserStrikeHistoryParams): Promise<IGetUserStrikeHistoryResponse> {
         console.log('Service: UserStrikeService.getUserStrikeHistory called'.cyan.italic, {email, limit});
 
@@ -123,7 +129,9 @@ class UserStrikeService {
         }
     }
 
-    // Helper functions
+    /**
+     * Calculate next strike penalty based on current strike count
+     */
     private static async getNextStrikePenalty(currentCount: number) {
         console.log('Service: UserStrikeService.getNextStrikePenalty called'.cyan.italic, {currentCount});
 

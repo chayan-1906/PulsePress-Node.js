@@ -11,6 +11,9 @@ import {
 } from "../types/analytics";
 
 class AnalyticsService {
+    /**
+     * Update or create source analytics with user interactions and reading time
+     */
     static async updateSourceAnalytics({source, action, readingTime = 0}: IUpdateSourceAnalyticsParams): Promise<IUpdateSourceAnalyticsResponse> {
         console.log('Service: AnalyticsService.updateSourceAnalytics called'.cyan.italic, {source, action, readingTime});
         
@@ -34,6 +37,9 @@ class AnalyticsService {
         }
     }
 
+    /**
+     * Create initial analytics record for a new source
+     */
     private static async createInitialAnalytics(source: string, action: string, readingTime: number): Promise<ISourceAnalytics> {
         console.log('Service: AnalyticsService.createInitialAnalytics called'.cyan.italic, {source, action, readingTime});
 
@@ -53,6 +59,9 @@ class AnalyticsService {
         return await SourceAnalyticsModel.create(initialData);
     }
 
+    /**
+     * Update existing analytics with new user action and recalculate metrics
+     */
     private static async updateExistingAnalytics(analytics: ISourceAnalytics, action: string, readingTime: number): Promise<ISourceAnalytics> {
         console.log('Service: AnalyticsService.updateExistingAnalytics called'.cyan.italic, {analytics, action, readingTime});
 
@@ -101,6 +110,9 @@ class AnalyticsService {
         ) as ISourceAnalytics;
     }
 
+    /**
+     * Calculate engagement score based on weighted metrics
+     */
     private static calculateEngagementScore(metrics: any): number {
         console.log('Service: AnalyticsService.calculateEngagementScore called'.cyan.italic, {metrics});
 
@@ -114,6 +126,9 @@ class AnalyticsService {
         return Math.round(viewScore + bookmarkScore + completionScore + readingTimeScore);
     }
 
+    /**
+     * Get source analytics with pagination and sorting options
+     */
     static async getSourceAnalytics({limit = 20, sortBy = 'engagementScore', sortOrder = 'desc'}: IGetSourceAnalyticsParams): Promise<IGetSourceAnalyticsResponse> {
         console.log('Service: AnalyticsService.getSourceAnalytics called'.cyan.italic, {limit, sortBy, sortOrder});
 
@@ -133,6 +148,9 @@ class AnalyticsService {
         }
     }
 
+    /**
+     * Get top performing sources by engagement score with minimum view threshold
+     */
     static async getTopPerformingSources({limit = 10, minViews = 10}: IGetTopPerformingSourcesParams): Promise<IGetTopPerformingSourcesResponse> {
         console.log('Service: AnalyticsService.getTopPerformingSources called'.cyan.italic, {limit, minViews});
 
