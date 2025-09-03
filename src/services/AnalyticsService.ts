@@ -1,5 +1,5 @@
 import "colors";
-import {DEFAULT_ENGAGEMENT_WEIGHTS} from "../utils/constants";
+import {calculateEngagementScore} from "../utils/serviceHelpers/analyticsHelpers";
 import SourceAnalyticsModel, {ISourceAnalytics} from "../models/SourceAnalyticsSchema";
 import {
     IGetSourceAnalyticsParams,
@@ -16,7 +16,7 @@ class AnalyticsService {
      */
     static async updateSourceAnalytics({source, action, readingTime = 0}: IUpdateSourceAnalyticsParams): Promise<IUpdateSourceAnalyticsResponse> {
         console.log('Service: AnalyticsService.updateSourceAnalytics called'.cyan.italic, {source, action, readingTime});
-        
+
         try {
             if (!source) {
                 return {error: 'SOURCE_MISSING'};
@@ -55,7 +55,7 @@ class AnalyticsService {
             engagementScore: 0,
         };
 
-        initialData.engagementScore = this.calculateEngagementScore(initialData);
+        initialData.engagementScore = calculateEngagementScore(initialData);
         return await SourceAnalyticsModel.create(initialData);
     }
 
@@ -93,7 +93,7 @@ class AnalyticsService {
         updates.averageReadingTime = newTotalViews > 0 ? newTotalReadingTime / newTotalViews : 0;
         updates.bookmarkConversionRate = newTotalViews > 0 ? (newTotalBookmarks / newTotalViews) * 100 : 0;
         updates.completionRate = newTotalViews > 0 ? (newTotalCompletedReads / newTotalViews) * 100 : 0;
-        updates.engagementScore = this.calculateEngagementScore({
+        updates.engagementScore = calculateEngagementScore({
             totalViews: newTotalViews,
             totalBookmarks: newTotalBookmarks,
             totalCompletedReads: newTotalCompletedReads,
@@ -110,21 +110,6 @@ class AnalyticsService {
         ) as ISourceAnalytics;
     }
 
-    /**
-     * Calculate engagement score based on weighted metrics
-     */
-    private static calculateEngagementScore(metrics: any): number {
-        console.log('Service: AnalyticsService.calculateEngagementScore called'.cyan.italic, {metrics});
-
-        const {viewWeight, bookmarkWeight, completionWeight, readingTimeWeight} = DEFAULT_ENGAGEMENT_WEIGHTS;
-
-        const viewScore = metrics.totalViews * viewWeight;
-        const bookmarkScore = metrics.totalBookmarks * bookmarkWeight;
-        const completionScore = metrics.totalCompletedReads * completionWeight;
-        const readingTimeScore = (metrics.totalReadingTime / 60) * readingTimeWeight; // Convert to minutes
-
-        return Math.round(viewScore + bookmarkScore + completionScore + readingTimeScore);
-    }
 
     /**
      * Get source analytics with pagination and sorting options

@@ -1,6 +1,7 @@
 import "colors";
 import {generateArticleId} from "../generateArticleId";
 import {IArticle, IGuardianArticle, INewYorkTimesArticle, INewYorkTimesTopStoriesResponse, IRssFeed} from "../../types/news";
+import {IArticleEnhancement} from "../../models/ArticleEnhancementSchema";
 
 /**
  * Convert Guardian API response to standardized article format
@@ -104,4 +105,29 @@ export const convertRSSFeedToArticle = (rss: IRssFeed): IArticle => {
     };
     console.log('convertRSSFeedToArticle:'.cyan, article);
     return article;
-}
+};
+
+/**
+ * Merge enhancement data with original articles
+ */
+export const mergeEnhancementsWithArticles = (articles: IArticle[], enhancements: { [articleId: string]: IArticleEnhancement }): IArticle[] => {
+    return articles.map(article => {
+        const articleId = generateArticleId({article});
+        const enhancement = enhancements[articleId];
+
+        if (enhancement) {
+            return {
+                ...article,
+                tags: enhancement.tags,
+                sentimentData: enhancement.sentiment,
+                keyPoints: enhancement.keyPoints,
+                complexityMeter: enhancement.complexityMeter,
+                locations: enhancement.locations,
+                complexity: enhancement.complexity,
+                enhanced: true,
+            };
+        }
+
+        return {...article, enhanced: false};
+    });
+};

@@ -1,14 +1,18 @@
 import "colors";
+import {GoogleGenerativeAI} from "@google/generative-ai";
 import AuthService from "./AuthService";
 import {AI_PROMPTS} from "../utils/prompts";
 import StrikeService from "./StrikeService";
-import {IArticle, TEnhancementStatus} from "../types/news";
+import {GEMINI_API_KEY} from "../config/config";
 import {AI_ENHANCEMENT_MODELS} from "../utils/constants";
+import {IArticle, TEnhancementStatus} from "../types/news";
 import {generateArticleId} from "../utils/generateArticleId";
 import SentimentAnalysisService from "./SentimentAnalysisService";
 import ReadingTimeAnalysisService from "./ReadingTimeAnalysisService";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
+import {mergeEnhancementsWithArticles} from "../utils/serviceHelpers/articleConverters";
 import ArticleEnhancementModel, {IArticleEnhancement} from "../models/ArticleEnhancementSchema";
+import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 import {
     ICombinedAIParams,
     ICombinedAIResponse,
@@ -21,8 +25,6 @@ import {
     IMergeEnhancementsWithArticlesParams,
     SENTIMENT_TYPES,
 } from "../types/ai";
-import {GoogleGenerativeAI} from "@google/generative-ai";
-import {GEMINI_API_KEY} from "../config/config";
 
 class ArticleEnhancementService {
     static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
@@ -40,7 +42,7 @@ class ArticleEnhancementService {
         }
 
         // Truncate content to avoid token limits
-        const truncatedContent = content.substring(0, 4000);
+        const truncatedContent = truncateContentForAI(content, 4000);
 
         for (let i = 0; i < AI_ENHANCEMENT_MODELS.length; i++) {
             const modelName = AI_ENHANCEMENT_MODELS[i];
@@ -99,20 +101,7 @@ class ArticleEnhancementService {
 
                 console.log('Combined AI response:'.cyan, responseText);
 
-                if (responseText.startsWith('```json')) {
-                    responseText = responseText.substring(7);
-                }
-                if (responseText.startsWith('```')) {
-                    responseText = responseText.substring(3);
-                }
-                if (responseText.endsWith('```')) {
-                    responseText = responseText.substring(0, responseText.length - 3);
-                }
-                responseText = responseText.trim();
-
-                if (responseText !== result.response.text().trim()) {
-                    console.log('Service: JSON markdown stripped'.cyan, responseText);
-                }
+                responseText = cleanJsonResponseMarkdown(responseText);
 
                 const parsed: ICombinedAIResponse = JSON.parse(responseText);
                 console.log('parsed response:'.cyan, parsed);
@@ -403,25 +392,7 @@ class ArticleEnhancementService {
      * Merge enhancement data with original articles
      */
     static mergeEnhancementsWithArticles({articles, enhancements}: IMergeEnhancementsWithArticlesParams): IArticle[] {
-        return articles.map(article => {
-            const articleId = generateArticleId({article});
-            const enhancement = enhancements[articleId];
-
-            if (enhancement) {
-                return {
-                    ...article,
-                    tags: enhancement.tags,
-                    sentimentData: enhancement.sentiment,
-                    keyPoints: enhancement.keyPoints,
-                    complexityMeter: enhancement.complexityMeter,
-                    locations: enhancement.locations,
-                    complexity: enhancement.complexity,
-                    enhanced: true,
-                };
-            }
-
-            return {...article, enhanced: false};
-        });
+        return mergeEnhancementsWithArticles(articles, enhancements);
     }
 }
 
