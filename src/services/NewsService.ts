@@ -8,27 +8,28 @@ import AuthService from "./AuthService";
 import {isListEmpty} from "../utils/list";
 import {parseRSS} from "../utils/parseRSS";
 import {buildHeader} from "../utils/buildHeader";
+import {RSS_SOURCES, USER_AGENTS} from "../utils/constants";
 import {generateArticleId} from "../utils/generateArticleId";
 import SentimentAnalysisService from "./SentimentAnalysisService";
 import ArticleEnhancementService from "./ArticleEnhancementService";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
-import {RSS_SOURCES, TOPIC_SPECIFIC_SOURCES, TRUSTED_NEWS_SOURCES, USER_AGENTS} from "../utils/constants";
+import {assessContentQuality, isDuplicateArticle} from "../utils/serviceHelpers/articleQuality";
+import {cleanScrapedText, generateQueryVariations, simplifySearchQuery} from "../utils/serviceHelpers/textProcessing";
+import {determineTopicFromQuery, getOptimizedSourcesForTopic, mapToNewYorkTimesSection} from "../utils/serviceHelpers/topicMapping";
 import {GUARDIAN_API_KEY, GUARDIAN_QUOTA_REQUESTS, NEWSAPI_QUOTA_REQUESTS, NEWSAPIORG_QUOTA_MS, NODE_ENV, NYTIMES_API_KEY, NYTIMES_QUOTA_REQUESTS, RSS_CACHE_DURATION} from "../config/config";
+import {convertGuardianToArticle, convertNewYorkTimesToArticle, convertNewYorkTimesTopStoryToArticle, convertRSSFeedToArticle} from "../utils/serviceHelpers/articleConverters";
 import {
     IArticle,
-    IGuardianArticle,
     IGuardianResponse,
     IGuardianSearchParams,
     IMultisourceFetchNewsParams,
     INewsApiOrgEverythingParams,
     INewsApiOrgTopHeadlinesAPIResponse,
     INewsApiOrgTopHeadlinesParams,
-    INewYorkTimesArticle,
     INewYorkTimesSearchParams,
     INewYorkTimesSearchResponse,
     INewYorkTimesTopStoriesParams,
     INewYorkTimesTopStoriesResponse,
-    IQualityScore,
     IRssFeed,
     IRssFeedParams,
     IScrapeMultipleWebsitesParams,
@@ -57,392 +58,6 @@ setInterval(() => {
 
 class NewsService {
     /**
-     * Convert Guardian API response to standardized article format
-     */
-    private static convertGuardianToArticle(guardianArticle: IGuardianArticle): IArticle {
-        console.log('Service: NewsService.convertGuardianToArticle called'.cyan.italic, {guardianArticle});
-
-        const title = guardianArticle.fields?.headline || guardianArticle.webTitle;
-        const url = guardianArticle.webUrl;
-        const article: IArticle = {
-            source: {
-                id: 'guardian',
-                name: 'The Guardian',
-            },
-            author: guardianArticle.fields?.byline || null,
-            articleId: generateArticleId({title, url}),
-            title,
-            description: guardianArticle.fields?.bodyText?.substring(0, 100) + '...' || null,
-            url,
-            urlToImage: guardianArticle.fields?.thumbnail || null,
-            publishedAt: guardianArticle.webPublicationDate,
-            content: guardianArticle.fields?.bodyText?.substring(0, 100) + '...' || null,
-        };
-        console.log('convertGuardianToArticle:'.cyan, article);
-        return article;
-    }
-
-    /**
-     * Convert NY Times search API response to standardized article format
-     */
-    private static convertNewYorkTimesToArticle(nytArticle: INewYorkTimesArticle): IArticle {
-        console.log('Service: NewsService.convertNewYorkTimesToArticle called'.cyan.italic, {nytArticle});
-
-        const title = nytArticle.headline?.main;
-        const url = nytArticle.web_url;
-        const article: IArticle = {
-            source: {
-                id: 'nytimes',
-                name: 'The New York Times',
-            },
-            author: nytArticle.byline?.original || null,
-            articleId: generateArticleId({title, url}),
-            title,
-            description: nytArticle.abstract || nytArticle.snippet || null,
-            url,
-            urlToImage: nytArticle.multimedia?.[0]?.url ? `https://static01.nyt.com/${nytArticle.multimedia[0].url}` : null,
-            publishedAt: nytArticle.pub_date,
-            content: nytArticle.lead_paragraph?.substring(0, 100) + '...' || null,
-        };
-        console.log('convertNewYorkTimesToArticle:'.cyan, article);
-        return article;
-    }
-
-    /**
-     * Convert NY Times top stories API response to standardized article format
-     */
-    private static convertNewYorkTimesTopStoryToArticle(story: INewYorkTimesTopStoriesResponse['results'][0]): IArticle {
-        console.log('Service: NewsService.convertNewYorkTimesTopStoryToArticle called'.cyan.italic, {story});
-
-        const title = story.title;
-        const url = story.url;
-        const article: IArticle = {
-            source: {
-                id: 'nytimes',
-                name: 'The New York Times',
-            },
-            author: story.byline,
-            articleId: generateArticleId({title, url}),
-            title,
-            description: story.abstract,
-            url,
-            urlToImage: story.multimedia?.[0]?.url || null,
-            publishedAt: story.published_date,
-            content: story.abstract?.substring(0, 100) + '...' || null,
-        };
-        console.log('convertNewYorkTimesTopStoryToArticle:'.cyan, article);
-        return article;
-    }
-
-    /**
-     * Convert RSS feed item to standardized article format
-     */
-    private static convertRSSFeedToArticle(rss: IRssFeed): IArticle {
-        console.log('Service: NewsService.convertRSSFeedToArticle called'.cyan.italic, {rss});
-
-        const title = rss.title || '';
-        const url = rss.url || '';
-        const article: IArticle = {
-            source: {
-                id: null,
-                name: rss.source?.name || 'RSS Feed',
-            },
-            author: rss.source?.creator || null,
-            articleId: generateArticleId({title, url}),
-            title,
-            description: rss.contentSnippet || null,
-            url,
-            urlToImage: null,
-            publishedAt: rss.publishedAt || null,
-            content: rss.content?.substring(0, 100) + '...' || null,
-        };
-        console.log('convertRSSFeedToArticle:'.cyan, article);
-        return article;
-    }
-
-    /*
-    * Workflow -
-    * Original Query: "The latest news about the Trump administration policy"
-    * Split by spaces using /\s+/: ["The", "latest", "news", "about", "the", "Trump", "administration", "policy"]
-    * Filter out noise words, short words, and numbers ["latest", "news", "Trump", "administration", "policy"]
-    * Create variations
-      variations = [
-        "The latest news about the Trump administration policy",  // Original
-        "latest news Trump administration policy",                // No noise words
-        "latest news Trump",                                      // First 3 words
-        "latest news"                                             // First 2 words
-      ]
-    */
-    /**
-     * Generate query variations by removing noise words and creating shorter versions
-     */
-    private static generateQueryVariations(query: string): string[] {
-        console.log('Service: NewsService.generateQueryVariations called'.cyan.italic, {query});
-
-        if (!query) return [query];
-
-        const noiseWords = [
-            'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'up',
-            'down', 'out', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some',
-            'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 'can', 'will', 'just', 'should', 'now',
-        ];
-
-        // Generic simplification approach
-        const words = query.split(/\s+/).filter(word => word.length > 2 && !noiseWords.includes(word.toLowerCase()) && !/^\d+$/.test(word));
-
-        const variations: string[] = [];
-
-        // Original query
-        variations.push(query);
-
-        // Simplified version (remove noise words)
-        if (words.length !== query.split(/\s+/).length) {
-            variations.push(words.join(' '));
-        }
-
-        // Core keywords only (first 2-3 most important words)
-        if (words.length > 3) {
-            variations.push(words.slice(0, 3).join(' '));
-            variations.push(words.slice(0, 2).join(' '));
-        }
-
-        return [...new Set(variations)];
-    }
-
-    /**
-     * Simplify search query by taking the first variation
-     */
-    private static simplifySearchQuery(query: string): string {
-        console.log('Service: NewsService.simplifySearchQuery called'.cyan.italic, {query});
-
-        return this.generateQueryVariations(query)[0];
-    }
-
-    /**
-     * Determine news topic/category from query text or explicit category
-     */
-    private static determineTopicFromQuery(query?: string, category?: string): string {
-        console.log('Service: NewsService.determineTopicFromQuery called'.cyan.italic, {query, category});
-
-        if (category) return category;
-
-        if (!query) return 'general';
-
-        const lowerQuery = query.toLowerCase();
-
-        // Legacy fallback detection
-        if (/sport|match|game|team|player|football|basketball|tennis|nba|cricket|soccer|olympics|athlete/i.test(lowerQuery)) return 'sports';
-        if (/business|economy|market|finance|stock|trade|company|earnings|revenue|merger|ipo|startup/i.test(lowerQuery)) return 'business';
-        if (/tech|technology|ai|software|digital|cyber|internet|app|gadget|robot|innovation |device/i.test(lowerQuery)) return 'technology';
-        if (/health|medical|medicine|disease|treatment|doctor|covid|vaccine|hospital|mental |wellness|fitness|nutrition/i.test(lowerQuery)) return 'health';
-        if (/science|research|study|climate|environment|space|nasa|discovery|biology|physics|astronomy|experiment/i.test(lowerQuery)) return 'science';
-        if (/politics|government|election|policy|parliament|law|minister|president|senate|congress|diplomacy|campaign/i.test(lowerQuery)) return 'politics';
-        if (/entertainment|movie|film|music|celebrity|actor|actress|hollywood|bollywood|show|tv|series|drama/i.test(lowerQuery)) return 'entertainment';
-        if (/crime|arrest|police|court|trial|murder|investigation|lawsuit|theft|fraud|scam|homicide/i.test(lowerQuery)) return 'crime';
-        if (/travel|tourism|flight|hotel|vacation|airline|destination|trip|journey|passport |visa/i.test(lowerQuery)) return 'travel';
-        if (/education|school|university|college|student|exam|curriculum|learning|degree|tuition/i.test(lowerQuery)) return 'education';
-        if (/weather|storm|rain|snow|heatwave|hurricane|flood|temperature|forecast/i.test(lowerQuery)) return 'weather';
-        if (/auto|car|vehicle|automobile|ev|electric.vehicle|motor|tesla|ford|bmw|transport/i.test(lowerQuery)) return 'automotive';
-
-        return 'general';
-    }
-
-    /**
-     * Convert domain names to NewsAPI-compatible source format
-     */
-    private static convertDomainToNewsAPIFormat(sources: string): string {
-        console.log('Service: NewsService.convertDomainToNewsAPIFormat called'.cyan.italic, {sources});
-
-        const sourceMap: Record<string, string> = {
-            // Business
-            'bloomberg': 'bloomberg.com',
-            'financial-times': 'financial-times.com',
-            'wall-street-journal': 'the-wall-street-journal.com',
-            'cnbc': 'cnbc.com',
-            'business-insider': 'business-insider.com',
-            'marketwatch': 'marketwatch.com',
-            'fortune': 'fortune.com',
-            'forbes': 'forbes.com',
-
-            // Technology
-            'techcrunch': 'techcrunch.com',
-            'ars-technica': 'ars-technica.com',
-            'the-verge': 'the-verge.com',
-            'wired': 'wired.com',
-            'engadget': 'engadget.com',
-            'cnet': 'cnet.com',
-            'zdnet': 'zdnet.com',
-            'mashable': 'mashable.com',
-            'gizmodo': 'gizmodo.com',
-            'techradar': 'techradar.com',
-            'recode': 'recode.net',
-            'hacker-news': 'hacker-news.com',
-
-            // Sports
-            'espn': 'espn.com',
-            'bbc-sport': 'bbc.co.uk',
-            'sky-sports': 'sky-sports.com',
-            'the-sport-bible': 'the-sport-bible.com',
-            'talksport': 'talksport.com',
-            'sporting-news': 'sporting-news.com',
-            'sportsnet': 'sportsnet.ca',
-
-            // General News
-            'bbc-news': 'bbc.co.uk',
-            'cnn': 'cnn.com',
-            'reuters': 'reuters.com',
-            'associated-press': 'associated-press.com',
-            'al-jazeera': 'al-jazeera-english.com',
-            'sky-news': 'sky-news.com',
-            'washington-post': 'the-washington-post.com',
-            'nytimes': 'the-new-york-times.com',
-            'politico': 'politico.com',
-            'the-hill': 'the-hill.com',
-            'axios': 'axios.com',
-            'usa-today': 'usa-today.com'
-        };
-
-        return sources.split(',').map(source => sourceMap[source.trim()] || source.trim()).join(',');
-    }
-
-    /**
-     * Get topic-specific news sources or convert user-provided sources
-     */
-    private static getOptimizedSourcesForTopic(topic: string, userSources?: string): string | undefined {
-        console.log('Service: NewsService.getOptimizedSourcesForTopic called'.cyan.italic, {topic, userSources});
-
-        if (userSources) return this.convertDomainToNewsAPIFormat(userSources);
-
-        const topicSources = TOPIC_SPECIFIC_SOURCES[topic as keyof typeof TOPIC_SPECIFIC_SOURCES];
-        return topicSources ? this.convertDomainToNewsAPIFormat(topicSources.join(',')) : undefined;
-    }
-
-    /**
-     * Map topic to NY Times API section parameter
-     */
-    private static mapToNewYorkTimesSection(topic: string): string {
-        console.log('Service: NewsService.mapToNewYorkTimesSection called'.cyan.italic, {topic});
-
-        const sectionMap: Record<string, string> = {
-            sports: 'sports',
-            business: 'business',
-            technology: 'technology',
-            health: 'health',
-            science: 'science',
-            politics: 'politics',
-            general: 'home',
-        };
-
-        return sectionMap[topic] || 'home';
-    }
-
-    /**
-     * Assess article quality based on source reliability, relevance, and content
-     */
-    private static assessContentQuality(article: IArticle, query?: string): IQualityScore {
-        console.log('Service: NewsService.assessContentQuality called'.cyan.italic, {article, query});
-
-        let score = 0.5;
-        const reasons: string[] = [];
-        let isRelevant = true;
-        let isProfessional = true;
-
-        const title = article.title?.toLowerCase() || '';
-        const sourceName = article.source?.name?.toLowerCase() || '';
-
-        const tier1Match = TRUSTED_NEWS_SOURCES.tier1.some(source => sourceName.includes(source.toLowerCase()));
-        const tier2Match = TRUSTED_NEWS_SOURCES.tier2.some(source => sourceName.includes(source.toLowerCase()));
-        const tier3Match = TRUSTED_NEWS_SOURCES.tier3.some(source => sourceName.includes(source.toLowerCase()));
-
-        if (tier1Match) {
-            score += 0.3;
-            reasons.push('Tier 1 trusted source');
-        } else if (tier2Match) {
-            score += 0.2;
-            reasons.push('Tier 2 reliable source');
-        } else if (tier3Match) {
-            score += 0.1;
-            reasons.push('Tier 3 acceptable source');
-        }
-
-        if (title.length < 10) {
-            score -= 0.2;
-            reasons.push('Title too short');
-        }
-
-        if (!article.description || article.description.length < 30) {
-            score -= 0.1;
-            reasons.push('Missing or short description');
-        }
-
-        if (query) {
-            const queryWords = query.toLowerCase().split(' ').filter(word => word.length > 2);
-            const description = article.description?.toLowerCase() || '';
-
-            const titleMatches = queryWords.filter(word => title.includes(word)).length;
-            const descMatches = queryWords.filter(word => description.includes(word)).length;
-
-            const totalMatches = titleMatches + (descMatches * 0.5);
-            const relevance = Math.min(1.0, totalMatches / queryWords.length);
-
-            if (relevance > 0.7) {
-                score += 0.3;
-                reasons.push('High relevance');
-            } else if (relevance > 0.4) {
-                score += 0.1;
-                reasons.push('Good relevance');
-            } else if (relevance > 0.2) {
-                reasons.push('Medium relevance');
-            } else if (relevance < 0.2) {
-                score -= 0.3;
-                isRelevant = false;
-                reasons.push('Low relevance');
-            }
-        }
-
-        const clickbaitPatterns = [/you won't believe/i, /shocking/i, /this will blow your mind/i, /number \d+ will surprise you/i, /one weird trick/i, /hate this/i, /must see/i, /amazing secret/i];
-
-        if (clickbaitPatterns.some(pattern => pattern.test(title))) {
-            score -= 0.4;
-            isProfessional = false;
-            reasons.push('Clickbait title');
-        }
-
-        return {
-            score: Math.max(0, Math.min(1, score)),
-            reasons,
-            isRelevant,
-            isProfessional,
-        };
-    }
-
-    /**
-     * Check if article is duplicate based on URL comparison
-     */
-    private static isDuplicateArticle(article: IArticle, existing: IArticle[]): boolean {
-        console.log('Service: NewsService.isDuplicateArticle called'.cyan.italic, {article, existing});
-
-        return existing.some(existingArticle => !!(article.url && existingArticle.url && article.url === existingArticle.url));
-    }
-
-    /**
-     * Clean scraped text by removing extra whitespace and newlines
-     */
-    private static cleanScrapedText(text: string): string {
-        console.log('Service: NewsService.cleanScrapedText called'.cyan.italic, {text});
-
-        if (!text) return '';
-
-        return text
-            // Remove all types of newlines and replace with single space
-            .replace(/\r\n|\r|\n/g, ' ')
-            // Replace multiple spaces, tabs with single space
-            .replace(/\s+/g, ' ')
-            // Remove leading and trailing whitespace
-            .trim();
-    }
-
-    /**
      * Fetch top headlines from NewsAPI.org with caching
      */
     static async fetchNewsApiOrgTopHeadlines({country, category, sources, q, pageSize = 10, page = 1}: INewsApiOrgTopHeadlinesParams) {
@@ -453,7 +68,7 @@ class NewsService {
 
             if (q && q.trim()) {
                 console.log(`Service: fetchNewsApiOrgTopHeadlines processing query: "${q}"`.cyan);
-                processedQuery = this.simplifySearchQuery(q.trim());
+                processedQuery = simplifySearchQuery(q.trim());
                 console.log(`Query processed: "${q}" → "${processedQuery}"`.cyan);
             }
 
@@ -571,7 +186,7 @@ class NewsService {
             if (q && q.trim()) {
                 console.log(`Service: fetchGuardianNews processing query: "${q}"`.cyan);
 
-                processedQuery = this.simplifySearchQuery(q.trim());
+                processedQuery = simplifySearchQuery(q.trim());
 
                 console.log(`Query processed: "${q}" → "${processedQuery}"`.cyan);
             }
@@ -589,7 +204,7 @@ class NewsService {
             guardianApiRequestCount++;
             console.log(`External API: Guardian request ${guardianApiRequestCount}/${GUARDIAN_QUOTA_REQUESTS}:`.magenta, guardianResponse.response.total, 'results');
 
-            const articles = guardianResponse.response.results.map(this.convertGuardianToArticle);
+            const articles = guardianResponse.response.results.map(convertGuardianToArticle);
             const result = {
                 articles,
                 totalResults: guardianResponse.response.total,
@@ -635,7 +250,7 @@ class NewsService {
             if (q && q.trim()) {
                 console.log(`Service: fetchNYTimesNews processing query: "${q}"`.cyan);
 
-                processedQuery = this.simplifySearchQuery(q.trim());
+                processedQuery = simplifySearchQuery(q.trim());
 
                 console.log(`Query processed: "${q}" → "${processedQuery}"`.cyan);
             }
@@ -665,7 +280,7 @@ class NewsService {
                 return {articles: [], totalResults: 0};
             }
 
-            const articles: IArticle[] = nytResponse.response.docs.map(this.convertNewYorkTimesToArticle);
+            const articles: IArticle[] = nytResponse.response.docs.map(convertNewYorkTimesToArticle);
             const nytResponseMeta = nytResponse.response.metadata;
             const totalHits = nytResponseMeta?.hits || 0;
 
@@ -721,7 +336,7 @@ class NewsService {
             nytimesApiRequestCount++;
             console.log(`External API: NYTimes Top Stories request ${nytimesApiRequestCount}/${NYTIMES_QUOTA_REQUESTS}:`.magenta, nytResponse.num_results, 'results');
 
-            const articles: IArticle[] = nytResponse.results?.map(this.convertNewYorkTimesTopStoryToArticle);
+            const articles: IArticle[] = nytResponse.results?.map(convertNewYorkTimesTopStoryToArticle);
 
             const result = {
                 articles,
@@ -797,7 +412,7 @@ class NewsService {
             if (q && q.trim()) {
                 console.log(`Service: fetchAllRSSFeeds searching for: "${q}"`.cyan);
 
-                const simplifiedQuery = this.simplifySearchQuery(q.trim());
+                const simplifiedQuery = simplifySearchQuery(q.trim());
                 const expandedTerms = simplifiedQuery.split(' ').filter(term => term.length > 2);
 
                 const fuse = new Fuse(allItems, {
@@ -872,7 +487,7 @@ class NewsService {
     private static async smartFetchWithVariations(apiFunction: Function, query: string, params: any, minQualityResults: number = 3): Promise<any> {
         console.log('Service: NewsService.smartFetchWithVariations called'.cyan.italic, {query, params, minQualityResults});
 
-        const queryVariations = this.generateQueryVariations(query);
+        const queryVariations = generateQueryVariations(query);
         console.log(`Service: smartFetchWithVariations trying ${queryVariations.length} query variations:`, queryVariations);
 
         for (let i = 0; i < queryVariations.length; i++) {
@@ -886,7 +501,7 @@ class NewsService {
                     // Apply quality scoring and filtering
                     const qualityArticles = result.articles
                         .map((article: IArticle) => {
-                            article.qualityScore = this.assessContentQuality(article, query); // Use original query for relevance
+                            article.qualityScore = assessContentQuality(article, query); // Use original query for relevance
                             return article;
                         })
                         .filter((article: IArticle) => article.qualityScore!.isProfessional && article.qualityScore!.isRelevant && article.qualityScore!.score > 0.4);
@@ -917,10 +532,10 @@ class NewsService {
     static async fetchMultiSourceNews({email, q, category, sources, pageSize = 10, page = 1}: IMultisourceFetchNewsParams) {
         console.log('Service: fetchMultiSourceNews called'.cyan.italic, {q, category, sources, pageSize, page});
 
-        const topic = this.determineTopicFromQuery(q, category);
-        const simplifiedQuery = q ? this.simplifySearchQuery(q) : q;
-        const optimizedSources = this.getOptimizedSourcesForTopic(topic, sources);
-        const nytSection = this.mapToNewYorkTimesSection(topic);
+        const topic = determineTopicFromQuery(q, category);
+        const simplifiedQuery = q ? simplifySearchQuery(q) : q;
+        const optimizedSources = getOptimizedSourcesForTopic(topic, sources);
+        const nytSection = mapToNewYorkTimesSection(topic);
 
         console.log('Topic:'.cyan, topic);
         console.log('Simplified query:'.cyan, simplifiedQuery);
@@ -1010,7 +625,7 @@ class NewsService {
 
                     if (guardianResult && guardianResult.articles && guardianResult.articles.length > 0) {
                         const qualityArticles = guardianResult.articles
-                            .filter((article: IArticle) => !this.isDuplicateArticle(article, results))
+                            .filter((article: IArticle) => !isDuplicateArticle(article, results))
                             .sort((a: IArticle, b: IArticle) => b.qualityScore!.score - a.qualityScore!.score)
                             .slice(0, guardianTargetCount);
 
@@ -1028,7 +643,7 @@ class NewsService {
 
                     if (guardianResult && guardianResult.articles && guardianResult.articles.length > 0) {
                         const articles = guardianResult.articles
-                            .filter((article: IArticle) => !this.isDuplicateArticle(article, results))
+                            .filter((article: IArticle) => !isDuplicateArticle(article, results))
                             .slice(0, guardianTargetCount);
                         results.push(...articles);
                         usedSources.push('Guardian (section)');
@@ -1063,7 +678,7 @@ class NewsService {
 
                         if (nytResult && nytResult.articles && nytResult.articles.length > 0) {
                             const qualityArticles = nytResult.articles
-                                .filter((article: IArticle) => !this.isDuplicateArticle(article, results))
+                                .filter((article: IArticle) => !isDuplicateArticle(article, results))
                                 .sort((a: IArticle, b: IArticle) => b.qualityScore!.score - a.qualityScore!.score)
                                 .slice(0, nytimesTargetCount);
 
@@ -1076,7 +691,7 @@ class NewsService {
 
                         if (nytResult && nytResult.articles && nytResult.articles.length > 0) {
                             const articles = nytResult.articles
-                                .filter((article: IArticle) => !this.isDuplicateArticle(article, results))
+                                .filter((article: IArticle) => !isDuplicateArticle(article, results))
                                 .slice(0, nytimesTargetCount);
                             results.push(...articles);
                             usedSources.push('NYTimes (top stories)');
@@ -1103,14 +718,14 @@ class NewsService {
                 const rssResults = await this.fetchAllRssFeeds({q: simplifiedQuery, sources: optimizedSources, pageSize: remainingSlots3 * 2, page});
 
                 if (rssResults && rssResults.length > 0) {
-                    const rssArticles = rssResults.map(this.convertRSSFeedToArticle);
+                    const rssArticles = rssResults.map(convertRSSFeedToArticle);
 
                     const qualityArticles = rssArticles
                         .map(article => {
-                            article.qualityScore = this.assessContentQuality(article, q);
+                            article.qualityScore = assessContentQuality(article, q);
                             return article;
                         })
-                        .filter((article: IArticle) => article.qualityScore!.isProfessional && article.qualityScore!.isRelevant && article.qualityScore!.score > 0.2 && !this.isDuplicateArticle(article, results))
+                        .filter((article: IArticle) => article.qualityScore!.isProfessional && article.qualityScore!.isRelevant && article.qualityScore!.score > 0.2 && !isDuplicateArticle(article, results))
                         .sort((a, b) => b.qualityScore!.score - a.qualityScore!.score)
                         .slice(0, remainingSlots3);
 
@@ -1225,14 +840,14 @@ class NewsService {
                 throw new Error('Failed to parse article content');
             }
 
-            const cleanedContent = this.cleanScrapedText(article.textContent || '');
+            const cleanedContent = cleanScrapedText(article.textContent || '');
 
             return {
                 url,
-                title: this.cleanScrapedText(article.title || ''),
+                title: cleanScrapedText(article.title || ''),
                 content: cleanedContent,
-                excerpt: this.cleanScrapedText(article.excerpt || ''),
-                byline: this.cleanScrapedText(article.byline || ''),
+                excerpt: cleanScrapedText(article.excerpt || ''),
+                byline: cleanScrapedText(article.byline || ''),
                 length: cleanedContent.length,
                 readingTimeMinutes: Math.ceil(cleanedContent.length / 200),
                 timestamp: new Date().toISOString(),
@@ -1293,9 +908,9 @@ class NewsService {
         console.log('Service: fetchMultiSourceNewsFast called'.cyan.italic, {q, category, sources, pageSize, page});
 
         const startTime = Date.now();
-        const topic = this.determineTopicFromQuery(q, category);
-        const simplifiedQuery = q ? this.simplifySearchQuery(q) : q;
-        const optimizedSources = this.getOptimizedSourcesForTopic(topic, sources);
+        const topic = determineTopicFromQuery(q, category);
+        const simplifiedQuery = q ? simplifySearchQuery(q) : q;
+        const optimizedSources = getOptimizedSourcesForTopic(topic, sources);
 
         console.log('Topic:'.cyan, topic);
         console.log('Simplified query:'.cyan, simplifiedQuery);
@@ -1352,7 +967,7 @@ class NewsService {
 
         // NYTimes (20% of articles)
         const nytimesCount = Math.ceil(pageSize * 0.2);
-        const nytSection = this.mapToNewYorkTimesSection(topic);
+        const nytSection = mapToNewYorkTimesSection(topic);
         if (nytimesApiRequestCount < Number.parseInt(NYTIMES_QUOTA_REQUESTS!)) {
             if (simplifiedQuery) {
                 apiPromises.push(
@@ -1388,7 +1003,7 @@ class NewsService {
                 pageSize: rssCount,
                 page,
             }).then(rssResults => {
-                const articles = rssResults.map(this.convertRSSFeedToArticle);
+                const articles = rssResults.map(convertRSSFeedToArticle);
                 return {source: 'RSS', result: {articles}};
             }).catch((error: any) => ({source: 'RSS', error: error.message}))
         );
@@ -1457,7 +1072,7 @@ class NewsService {
 
         // Start background enhancement (fire and forget)
         if (sortedResults.length > 0) {
-            ArticleEnhancementService.enhanceArticlesInBackground({email: email || '', articles: sortedResults}).then(r => {
+            ArticleEnhancementService.enhanceArticlesInBackground({email: email || '', articles: sortedResults}).then(() => {
             });
         }
 
