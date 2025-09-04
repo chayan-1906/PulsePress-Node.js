@@ -498,22 +498,20 @@ const fetchEnhancementStatusController = async (req: Request, res: Response) => 
         console.time('Performance: ENHANCEMENT_STATUS_CHECK_TIME'.cyan);
         const statusResults = await ArticleEnhancementService.getEnhancementStatusByIds({email, articleIds: articleIdArray});
         const {status, progress, articles, error} = statusResults;
+
         if (error) {
+            let errorMsg = 'Failed to fetch status';
+            let statusCode = 500;
+
             if (error === generateNotFoundCode('user')) {
-                console.warn('Client Error: User not found'.yellow);
-                res.status(404).send(new ApiResponse({
-                    success: false,
-                    errorCode: generateNotFoundCode('user'),
-                    errorMsg: 'User not found',
-                }));
-                return;
+                errorMsg = 'User not found';
+                statusCode = 404;
             }
 
-            console.warn('Client Error: Enhancement status fetch failed'.yellow, {error});
-            res.status(404).send(new ApiResponse({
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
                 errorCode: error,
-                errorMsg: 'Failed to fetch status',
+                errorMsg,
             }));
             return;
         }

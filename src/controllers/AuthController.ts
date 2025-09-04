@@ -62,39 +62,29 @@ const registerUserController = async (req: Request, res: Response) => {
         }
 
         const {user, error} = await AuthService.registerUser({name, email, password, confirmPassword});
-        if (error === generateInvalidCode('password')) {
-            console.warn('Client Error: Invalid password format'.yellow);
-            res.status(400).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to register user';
+            let statusCode = 500;
+
+            if (error === generateInvalidCode('password')) {
+                errorMsg = 'Password must contain lowercase, uppercase, special character, minimum 6 characters';
+                statusCode = 400;
+            } else if (error === 'PASSWORD_MISMATCH') {
+                errorMsg = 'Passwords don\'t match';
+                statusCode = 400;
+            } else if (error === 'ALREADY_REGISTERED') {
+                errorMsg = 'User already exists';
+                statusCode = 400;
+            } else if (error === 'CREATE_USER_PREFERENCE_FAILED') {
+                errorMsg = 'Failed to create user preference';
+                statusCode = 400;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateInvalidCode('password'),
-                errorMsg: 'Password must contain lowercase, uppercase, special character, minimum 6 characters',
-            }));
-            return;
-        }
-        if (error === 'PASSWORD_MISMATCH') {
-            console.warn('Client Error: Invalid credentials'.yellow);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'PASSWORD_MISMATCH',
-                errorMsg: 'Passwords don\'t match',
-            }));
-            return;
-        }
-        if (error === 'ALREADY_REGISTERED') {
-            console.warn('Client Error: User already exists'.yellow, {user});
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'ALREADY_REGISTERED',
-                errorMsg: 'User already exists',
-            }));
-            return;
-        }
-        if (error === 'CREATE_USER_PREFERENCE_FAILED') {
-            console.warn('Client Error: User preference creation failed during registration'.yellow, {error});
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'CREATE_USER_PREFERENCE_FAILED',
-                errorMsg: 'Failed to create user preference',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
@@ -139,50 +129,32 @@ const loginController = async (req: Request, res: Response) => {
         }
 
         const {user, accessToken, refreshToken, error} = await AuthService.loginUser({email, password});
-        if (error === generateNotFoundCode('user')) {
-            console.warn('Client Error: User not found'.yellow);
-            res.status(404).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to login user';
+            let statusCode = 500;
+
+            if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            } else if (error === 'USER_NOT_VERIFIED') {
+                errorMsg = 'User not verified';
+                statusCode = 400;
+            } else if (error === generateInvalidCode('credentials')) {
+                errorMsg = 'Invalid credentials';
+                statusCode = 400;
+            } else if (error === 'GOOGLE_OAUTH_USER') {
+                errorMsg = 'This account uses Google Sign-In. Please use Google authentication';
+                statusCode = 400;
+            } else if (error === 'MAGIC_LINK_USER') {
+                errorMsg = 'This account uses Magic Link Sign-In. Please use Magic Link Authentication';
+                statusCode = 400;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
-        if (error === 'USER_NOT_VERIFIED') {
-            console.warn('Client Error: User not verified'.yellow);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'USER_NOT_VERIFIED',
-                errorMsg: 'User not verified',
-            }));
-            return;
-        }
-        if (error === generateInvalidCode('credentials')) {
-            console.warn('Client Error: Invalid credentials'.yellow);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateInvalidCode('credentials'),
-                errorMsg: 'Invalid credentials',
-            }));
-            return;
-        }
-        if (error === 'GOOGLE_OAUTH_USER') {
-            console.warn('Client Error: Google OAuth user attempting email login'.yellow);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'GOOGLE_OAUTH_USER',
-                errorMsg: 'This account uses Google Sign-In. Please use Google authentication',
-                // errorMsg: 'Please sign in with Google instead. Use the "Continue with Google" button',
-            }));
-            return;
-        }
-        if (error === 'MAGIC_LINK_USER') {
-            console.warn('Client Error: Magic link user attempting email login'.yellow);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'MAGIC_LINK_USER',
-                errorMsg: 'This account uses Magic Link Sign-In. Please use Magic Link Authentication',
-                // errorMsg: 'Please sign in with Magic Link instead. Use the "Continue with Magic Link" button',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
@@ -222,66 +194,38 @@ const resetPasswordController = async (req: Request, res: Response) => {
         }
 
         const {user, error} = await AuthService.resetPassword({email, currentPassword, newPassword});
-        if (error === generateNotFoundCode('user')) {
-            console.warn('Client Error: User not found'.yellow);
-            res.status(404).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to reset password';
+            let statusCode = 500;
+
+            if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            } else if (error === 'NO_PASSWORD_SET') {
+                errorMsg = 'No password has been set';
+                statusCode = 400;
+            } else if (error === generateMissingCode('current_password')) {
+                errorMsg = 'Current password is missing';
+                statusCode = 400;
+            } else if (error === generateMissingCode('new_password')) {
+                errorMsg = 'New password is missing';
+                statusCode = 400;
+            } else if (error === generateInvalidCode('credentials')) {
+                errorMsg = 'Wrong current password';
+                statusCode = 400;
+            } else if (error === 'SAME_PASSWORD') {
+                errorMsg = 'Current and new password can\'t be same';
+                statusCode = 400;
+            } else if (error === generateInvalidCode('new_password')) {
+                errorMsg = 'Password must contain lowercase, uppercase, special character, minimum 6 characters';
+                statusCode = 400;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
-        if (error === 'NO_PASSWORD_SET') {
-            console.warn('Client Error: No password configured for user'.yellow);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'NO_PASSWORD_SET',
-                errorMsg: 'No password has been set',
-            }));
-            return;
-        }
-        if (error === generateMissingCode('current_password')) {
-            console.warn('Client Error: Missing current password parameter'.yellow);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('current_password'),
-                errorMsg: 'Current password is missing',
-            }));
-            return;
-        }
-        if (error === generateMissingCode('new_password')) {
-            console.warn('Client Error: Missing new password parameter'.yellow);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('new_password'),
-                errorMsg: 'New password is missing',
-            }));
-            return;
-        }
-        if (error === generateInvalidCode('credentials')) {
-            console.warn('Client Error: Invalid credentials'.yellow);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateInvalidCode('credentials'),
-                errorMsg: 'Wrong current password',
-            }));
-            return;
-        }
-        if (error === 'SAME_PASSWORD') {
-            console.warn('Client Error: Current and new password are identical'.yellow);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'SAME_PASSWORD',
-                errorMsg: 'Current and new password can\'t be same',
-            }));
-            return;
-        }
-        if (error === generateInvalidCode('new_password')) {
-            console.warn('Client Error: New password format invalid'.yellow);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateInvalidCode('password'),
-                errorMsg: 'Password must contain lowercase, uppercase, special character, minimum 6 characters',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
@@ -355,12 +299,20 @@ const loginWithGoogleController = async (req: Request, res: Response) => {
         }
 
         const {error, user, accessToken, refreshToken} = await AuthService.loginWithGoogle({code});
-        if (error === generateInvalidCode('email_address')) {
-            console.warn('Client Error: Invalid email address format'.yellow);
-            res.status(400).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to login with Google';
+            let statusCode = 500;
+
+            if (error === generateInvalidCode('email_address')) {
+                errorMsg = 'Invalid email address';
+                statusCode = 400;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateInvalidCode('email_address'),
-                errorMsg: 'Invalid email address',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
@@ -425,19 +377,21 @@ const verifyMagicLinkController = async (req: Request, res: Response) => {
         }
 
         const {user, accessToken, refreshToken, error} = await MagicLinkService.verifyMagicLink({token});
-        if (error === 'CREATE_USER_PREFERENCE_FAILED') {
-            console.warn('Client Error: User preference creation failed during registration'.yellow, {error});
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'CREATE_USER_PREFERENCE_FAILED',
-                errorMsg: 'Failed to create user preference',
-            }));
-            return;
-        }
+
         if (error) {
-            console.warn('Client Error: Magic link verification failed'.yellow, {error});
-            res.send(verifyTokenErrorHTML);
-            return;
+            if (error === 'CREATE_USER_PREFERENCE_FAILED') {
+                console.warn('Client Error: User preference creation failed during registration'.yellow, {error});
+                res.status(400).send(new ApiResponse({
+                    success: false,
+                    errorCode: 'CREATE_USER_PREFERENCE_FAILED',
+                    errorMsg: 'Failed to create user preference',
+                }));
+                return;
+            } else {
+                console.warn('Client Error: Magic link verification failed'.yellow, {error});
+                res.send(verifyTokenErrorHTML);
+                return;
+            }
         }
 
         console.log('SUCCESS: Magic link verification completed'.bgGreen.bold, {user});
@@ -464,21 +418,20 @@ const checkAuthStatusController = async (req: Request, res: Response) => {
         }
 
         const {authenticated, user, accessToken, refreshToken, error} = await MagicLinkService.checkAuthStatus({email});
-        if (error === generateNotFoundCode('user')) {
-            console.warn('Client Error: User not found'.yellow);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
+
         if (error) {
-            console.warn('Client Error: Auth status check failed'.yellow, {error});
-            res.status(400).send(new ApiResponse({
+            let errorMsg = 'Failed to check auth status';
+            let statusCode = 500;
+
+            if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: 'AUTH_STATUS_CHECK_FAILED',
-                errorMsg: 'Authentication failed, please try again',
+                errorCode: error === generateNotFoundCode('user') ? error : 'AUTH_STATUS_CHECK_FAILED',
+                errorMsg,
             }));
             return;
         }
@@ -561,30 +514,26 @@ const updateUserController = async (req: Request, res: Response) => {
         }
 
         const {user, error} = await AuthService.updateUser({email, name, password, profilePicture});
-        if (error === generateNotFoundCode('user')) {
-            console.warn('Client Error: User not found'.yellow);
-            res.status(404).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to update user';
+            let statusCode = 500;
+
+            if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            } else if (error === generateInvalidCode('password')) {
+                errorMsg = 'Password must contain lowercase, uppercase, special character, minimum 6 characters';
+                statusCode = 400;
+            } else if (error === 'UPDATE_USER_FAILED') {
+                errorMsg = 'Couldn\'t update user';
+                statusCode = 400;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
-        if (error === generateInvalidCode('password')) {
-            console.warn('Client Error: Invalid password parameter'.yellow);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateInvalidCode('password'),
-                errorMsg: 'Password must contain lowercase, uppercase, special character, minimum 6 characters',
-            }));
-            return;
-        }
-        if (error === 'UPDATE_USER_FAILED') {
-            console.warn('Client Error: User update operation failed'.yellow);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'UPDATE_USER_FAILED',
-                errorMsg: 'Couldn\'t update user',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
@@ -612,21 +561,23 @@ const deleteAccountController = async (req: Request, res: Response) => {
         const email = (req as IAuthRequest).email;
 
         const {isDeleted, error} = await AuthService.deleteAccount({email});
-        if (error === generateNotFoundCode('user')) {
-            console.warn('Client Error: User not found'.yellow);
-            res.status(404).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to delete account';
+            let statusCode = 500;
+
+            if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            } else if (error === 'DELETE_ACCOUNT_FAILED') {
+                errorMsg = 'Couldn\'t delete account';
+                statusCode = 400;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
-        if (error === 'DELETE_ACCOUNT_FAILED') {
-            console.warn('Client Error: Account deletion failed'.yellow);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'DELETE_ACCOUNT_FAILED',
-                errorMsg: 'Couldn\'t delete account',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }

@@ -214,48 +214,31 @@ const summarizeArticleController = async (req: Request, res: Response) => {
 
         const {summary, powered_by, error} = await SummarizationService.summarizeArticle({email, content: articleContent, language, style});
 
-        if (error === generateMissingCode('email')) {
-            console.warn('Client Error: Email parameter missing'.yellow);
-            res.status(400).send(new ApiResponse({
+        if (error) {
+            let errorMsg = 'Failed to summarize article';
+            let statusCode = 500;
+
+            if (error === generateMissingCode('email')) {
+                errorMsg = 'Email is missing';
+                statusCode = 400;
+            } else if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            } else if (error === 'GEMINI_DAILY_LIMIT_REACHED') {
+                errorMsg = 'Gemini\'s daily quota has been reached';
+                statusCode = 400;
+            } else if (error === generateMissingCode('content') || error === 'SCRAPING_FAILED') {
+                errorMsg = 'Failed to scrape website';
+                statusCode = 400;
+            } else if (error === 'SUMMARIZATION_FAILED') {
+                errorMsg = 'Can\'t summarize at the moment, try again after sometimes';
+                statusCode = 400;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateMissingCode('email'),
-                errorMsg: 'Email is missing',
-            }));
-            return;
-        }
-        if (error === generateNotFoundCode('user')) {
-            console.warn('Client Error: User not found in database'.yellow);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
-        if (error === 'GEMINI_DAILY_LIMIT_REACHED') {
-            console.warn('Rate Limit: Gemini daily quota exceeded'.yellow);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'GEMINI_DAILY_LIMIT_REACHED',
-                errorMsg: 'Gemini\'s daily quota has been reached',
-            }));
-            return;
-        }
-        if (error === generateMissingCode('content') || error === 'SCRAPING_FAILED') {
-            console.warn('Client Error: Content scraping failed'.yellow, {error});
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('content'),
-                errorMsg: 'Failed to scrape website',
-            }));
-            return;
-        }
-        if (error === 'SUMMARIZATION_FAILED') {
-            console.warn('Client Error: Article summarization failed'.yellow);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'SUMMARIZATION_FAILED',
-                errorMsg: 'Can\'t summarize at the moment, try again after sometimes',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }

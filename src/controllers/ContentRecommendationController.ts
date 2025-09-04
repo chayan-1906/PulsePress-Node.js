@@ -19,21 +19,23 @@ const getContentRecommendationController = async (req: Request, res: Response) =
         }
 
         const {recommendations, totalRecommendations, error} = await getContentRecommendation({email, pageSize: pageSizeNumber});
-        if (error === generateMissingCode('email')) {
-            console.error('Email is missing'.yellow.italic);
-            res.status(400).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to get content recommendations';
+            let statusCode = 500;
+
+            if (error === generateMissingCode('email')) {
+                errorMsg = 'Email is missing';
+                statusCode = 400;
+            } else if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateMissingCode('email'),
-                errorMsg: 'Email is missing',
-            }));
-            return;
-        }
-        if (error === generateNotFoundCode('user')) {
-            console.error('User not found'.yellow.italic);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }

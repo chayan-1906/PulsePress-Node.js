@@ -73,38 +73,29 @@ const modifyUserPreferenceController = async (req: Request, res: Response) => {
         }
 
         const {userPreference, error} = await UserPreferenceService.modifyUserPreference({email, preferredLanguage, preferredCategories, preferredSources, summaryStyle, newsLanguages});
-        if (error === generateMissingCode('email')) {
-            console.warn('Client Error: Missing email parameter'.yellow);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('email'),
-                errorMsg: 'Email is missing',
-            }));
-            return;
-        }
-        if (error === generateNotFoundCode('user')) {
-            console.warn('Client Error: User not found'.yellow);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
 
-        if (error === 'MODIFY_USER_PREFERENCE_FAILED') {
-            res.status(500).send(new ApiResponse({
+        if (error) {
+            let errorMsg = 'Failed to modify user preference';
+            let statusCode = 500;
+
+            if (error === generateMissingCode('email')) {
+                errorMsg = 'Email is missing';
+                statusCode = 400;
+            } else if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            } else if (error === 'MODIFY_USER_PREFERENCE_FAILED') {
+                errorMsg = 'Failed to modify user preference';
+                statusCode = 500;
+            } else if (error === generateNotFoundCode('user_preference')) {
+                errorMsg = 'User preference not found';
+                statusCode = 404;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: 'MODIFY_USER_PREFERENCE_FAILED',
-                errorMsg: 'Failed to modify user preference',
-            }));
-            return;
-        }
-        if (error === generateNotFoundCode('user_preference')) {
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user_preference'),
-                errorMsg: 'User preference not found',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
@@ -133,30 +124,26 @@ const getUserPreferenceController = async (req: Request, res: Response) => {
         const email = (req as IAuthRequest).email;
 
         const {userPreference, error} = await UserPreferenceService.getUserPreference({email});
-        if (error === generateMissingCode('email')) {
-            console.warn('Client Error: Missing email parameter'.yellow);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('email'),
-                errorMsg: 'Email is missing',
-            }));
-            return;
-        }
-        if (error === generateNotFoundCode('user')) {
-            console.warn('Client Error: User not found'.yellow);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
 
-        if (error === 'GET_USER_PREFERENCE_FAILED') {
-            res.status(500).send(new ApiResponse({
+        if (error) {
+            let errorMsg = 'Failed to get user preference';
+            let statusCode = 500;
+
+            if (error === generateMissingCode('email')) {
+                errorMsg = 'Email is missing';
+                statusCode = 400;
+            } else if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            } else if (error === 'GET_USER_PREFERENCE_FAILED') {
+                errorMsg = 'Failed to get user preference';
+                statusCode = 500;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: 'GET_USER_PREFERENCE_FAILED',
-                errorMsg: 'Failed to get user preference',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
@@ -185,38 +172,29 @@ const resetUserPreferenceController = async (req: Request, res: Response) => {
         const email = (req as IAuthRequest).email;
 
         const {isReset, error} = await UserPreferenceService.resetUserPreference({email});
-        if (error === generateMissingCode('email')) {
-            console.warn('Client Error: Missing email parameter'.yellow);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('email'),
-                errorMsg: 'Email is missing',
-            }));
-            return;
-        }
-        if (error === generateNotFoundCode('user')) {
-            console.warn('Client Error: User not found'.yellow);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
 
-        if (error === 'RESET_USER_PREFERENCE_FAILED') {
-            res.status(500).send(new ApiResponse({
+        if (error) {
+            let errorMsg = 'Failed to reset user preference';
+            let statusCode = 500;
+
+            if (error === generateMissingCode('email')) {
+                errorMsg = 'Email is missing';
+                statusCode = 400;
+            } else if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            } else if (error === 'RESET_USER_PREFERENCE_FAILED') {
+                errorMsg = 'Failed to reset user preference';
+                statusCode = 500;
+            } else if (error === generateNotFoundCode('user_preference')) {
+                errorMsg = 'User preference not found';
+                statusCode = 404;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: 'RESET_USER_PREFERENCE_FAILED',
-                errorMsg: 'Failed to reset user preference',
-            }));
-            return;
-        }
-        if (error === generateNotFoundCode('user_preference')) {
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user_preference'),
-                errorMsg: 'User preference not found',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }

@@ -68,21 +68,23 @@ const modifyReadingHistoryController = async (req: Request, res: Response) => {
         }
 
         const {isModified, error} = await ReadingHistoryService.modifyReadingHistory({email, title, articleUrl, source, description, readAt, readDuration, completed, publishedAt});
-        if (error === generateMissingCode('email')) {
-            console.warn('Client Error: Missing email parameter'.yellow);
-            res.status(400).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to modify reading history';
+            let statusCode = 500;
+
+            if (error === generateMissingCode('email')) {
+                errorMsg = 'Email is missing';
+                statusCode = 400;
+            } else if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateMissingCode('email'),
-                errorMsg: 'Email is missing',
-            }));
-            return;
-        }
-        if (error === generateNotFoundCode('user')) {
-            console.warn('Client Error: User not found'.yellow);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
@@ -128,21 +130,23 @@ const getReadingHistoriesController = async (req: Request, res: Response) => {
         }
 
         const {readingHistories, totalCount, currentPage, totalPages, error} = await ReadingHistoryService.getReadingHistories({email, pageSize: pageSizeNumber, page: pageNumber});
-        if (error === generateMissingCode('email')) {
-            console.warn('Client Error: Missing email parameter'.yellow);
-            res.status(400).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to get reading histories';
+            let statusCode = 500;
+
+            if (error === generateMissingCode('email')) {
+                errorMsg = 'Email is missing';
+                statusCode = 400;
+            } else if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateMissingCode('email'),
-                errorMsg: 'Email is missing',
-            }));
-            return;
-        }
-        if (error === generateNotFoundCode('user')) {
-            console.warn('Client Error: User not found'.yellow);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
@@ -184,30 +188,26 @@ const completeArticleController = async (req: Request, res: Response) => {
         }
 
         const {isCompleted, error} = await ReadingHistoryService.completeArticle({email, articleUrl});
-        if (error === generateMissingCode('email')) {
-            console.warn('Client Error: Missing email parameter'.yellow);
-            res.status(400).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to complete article';
+            let statusCode = 500;
+
+            if (error === generateMissingCode('email')) {
+                errorMsg = 'Email is missing';
+                statusCode = 400;
+            } else if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            } else if (error === 'ARTICLE_NOT_IN_HISTORY') {
+                errorMsg = 'Article is not present in reading history';
+                statusCode = 404;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateMissingCode('email'),
-                errorMsg: 'Email is missing',
-            }));
-            return;
-        }
-        if (error === generateNotFoundCode('user')) {
-            console.warn('Client Error: User not found'.yellow);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
-        if (error === 'ARTICLE_NOT_IN_HISTORY') {
-            console.warn('Client Error: Article not in reading history'.yellow);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: 'ARTICLE_NOT_IN_HISTORY',
-                errorMsg: 'Article is not present in reading history',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
@@ -245,21 +245,23 @@ const clearReadingHistoryController = async (req: Request, res: Response) => {
         const email = (req as IAuthRequest).email;
 
         const {isCleared, error} = await ReadingHistoryService.clearReadingHistories({email});
-        if (error === generateMissingCode('email')) {
-            console.warn('Client Error: Missing email parameter'.yellow);
-            res.status(400).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to clear reading history';
+            let statusCode = 500;
+
+            if (error === generateMissingCode('email')) {
+                errorMsg = 'Email is missing';
+                statusCode = 400;
+            } else if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateMissingCode('email'),
-                errorMsg: 'Email is missing',
-            }));
-            return;
-        }
-        if (error === generateNotFoundCode('user')) {
-            console.warn('Client Error: User not found'.yellow);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
@@ -294,29 +296,26 @@ const getReadingHistoryAnalyticsController = async (req: Request, res: Response)
         const email = (req as IAuthRequest).email;
 
         const {analytics, error} = await ReadingHistoryService.getReadingAnalytics({email});
-        if (error === generateMissingCode('email')) {
-            console.warn('Client Error: Missing email parameter'.yellow);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('email'),
-                errorMsg: 'Email is missing',
-            }));
-            return;
-        }
-        if (error === generateNotFoundCode('user')) {
-            console.warn('Client Error: User not found'.yellow);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
+
         if (error) {
-            res.status(500).send(new ApiResponse({
+            let errorMsg = 'Failed to get reading history analytics';
+            let statusCode = 500;
+
+            if (error === generateMissingCode('email')) {
+                errorMsg = 'Email is missing';
+                statusCode = 400;
+            } else if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            } else {
+                errorMsg = 'Failed to get reading history analytics';
+                statusCode = 500;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: 'GET_ANALYTICS_FAILED',
-                errorMsg: 'Failed to get reading history analytics',
+                errorCode: error === generateMissingCode('email') || error === generateNotFoundCode('user') ? error : 'GET_ANALYTICS_FAILED',
+                errorMsg,
             }));
             return;
         }
@@ -362,21 +361,23 @@ const searchReadingHistoriesController = async (req: Request, res: Response) => 
             pageSize: pageSizeNumber,
             page: pageNumber,
         });
-        if (error === generateMissingCode('email')) {
-            console.warn('Client Error: Missing email parameter'.yellow);
-            res.status(400).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to search reading histories';
+            let statusCode = 500;
+
+            if (error === generateMissingCode('email')) {
+                errorMsg = 'Email is missing';
+                statusCode = 400;
+            } else if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateMissingCode('email'),
-                errorMsg: 'Email is missing',
-            }));
-            return;
-        }
-        if (error === generateNotFoundCode('user')) {
-            console.warn('Client Error: User not found'.yellow);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
@@ -418,30 +419,26 @@ const deleteReadingHistoryController = async (req: Request, res: Response) => {
         }
 
         const {isDeleted, error} = await ReadingHistoryService.deleteReadingHistory({email, readingHistoryExternalId});
-        if (error === generateMissingCode('email')) {
-            console.warn('Client Error: Missing email parameter'.yellow);
-            res.status(400).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to delete reading history';
+            let statusCode = 500;
+
+            if (error === generateMissingCode('email')) {
+                errorMsg = 'Email is missing';
+                statusCode = 400;
+            } else if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            } else if (error === generateNotFoundCode('reading_history')) {
+                errorMsg = 'Reading history not found';
+                statusCode = 404;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateMissingCode('email'),
-                errorMsg: 'Email is missing',
-            }));
-            return;
-        }
-        if (error === generateNotFoundCode('user')) {
-            console.warn('Client Error: User not found'.yellow);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
-        if (error === generateNotFoundCode('reading_history')) {
-            console.warn('Client Error: Reading history not found'.yellow);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('reading_history'),
-                errorMsg: 'Reading history not found',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
