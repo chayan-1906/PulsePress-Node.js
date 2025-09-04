@@ -3,7 +3,7 @@ import {GoogleGenerativeAI} from "@google/generative-ai";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {generateMissingCode} from "../utils/generateErrorCodes";
-import {AI_KEY_POINTS_EXTRACTOR_MODELS} from "../utils/constants";
+import {AI_KEY_POINTS_EXTRACTOR_MODELS, API_CONFIG} from "../utils/constants";
 import {IAIKeyPoints, IKeyPointsExtractionParams, IKeyPointsExtractionResponse} from "../types/ai";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 
@@ -22,7 +22,7 @@ class KeyPointsExtractionService {
         }
 
         // Truncate content to avoid token limits
-        const truncatedContent = truncateContentForAI(content, 4000);
+        const truncatedContent = truncateContentForAI(content, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
         for (let i = 0; i < AI_KEY_POINTS_EXTRACTOR_MODELS.length; i++) {
             const modelName = AI_KEY_POINTS_EXTRACTOR_MODELS[i];

@@ -4,7 +4,7 @@ import {IArticle} from "../types/news";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {generateMissingCode} from "../utils/generateErrorCodes";
-import {AI_SENTIMENT_ANALYSIS_MODELS} from "../utils/constants";
+import {AI_SENTIMENT_ANALYSIS_MODELS, API_CONFIG} from "../utils/constants";
 import {getSentimentColor, getSentimentEmoji} from "../utils/serviceHelpers/sentimentHelpers";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 import {IAISentiment, IEnrichedArticleWithSentiment, ISentimentAnalysisParams, ISentimentAnalysisResponse, SENTIMENT_TYPES, TSentimentResult} from "../types/ai";
@@ -24,7 +24,7 @@ class SentimentAnalysisService {
         }
 
         // Truncate content to avoid token limits
-        const truncatedContent = truncateContentForAI(content, 4000);
+        const truncatedContent = truncateContentForAI(content, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
         for (let i = 0; i < AI_SENTIMENT_ANALYSIS_MODELS.length; i++) {
             const model = AI_SENTIMENT_ANALYSIS_MODELS[i];

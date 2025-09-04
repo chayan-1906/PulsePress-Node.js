@@ -4,8 +4,8 @@ import NewsService from "./NewsService";
 import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
-import {AI_TAG_GENERATION_MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
+import {AI_TAG_GENERATION_MODELS, API_CONFIG} from "../utils/constants";
 import {ITagGenerationParams, ITagGenerationResponse} from "../types/ai";
 import {validateAndProcessTags} from "../utils/serviceHelpers/tagHelpers";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
@@ -48,7 +48,7 @@ class TagGenerationService {
         }
 
         // Truncate content to avoid token limits - use title and description primarily
-        const truncatedContent = truncateContentForAI(articleContent, 4000);
+        const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
         for (let i = 0; i < AI_TAG_GENERATION_MODELS.length; i++) {
             const modelName = AI_TAG_GENERATION_MODELS[i];

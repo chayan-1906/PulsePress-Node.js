@@ -8,15 +8,15 @@ import AuthService from "./AuthService";
 import {isListEmpty} from "../utils/list";
 import {parseRSS} from "../utils/parseRSS";
 import {buildHeader} from "../utils/buildHeader";
-import {RSS_SOURCES, USER_AGENTS} from "../utils/constants";
 import {generateArticleId} from "../utils/generateArticleId";
 import SentimentAnalysisService from "./SentimentAnalysisService";
 import ArticleEnhancementService from "./ArticleEnhancementService";
+import {API_CONFIG, RSS_SOURCES, USER_AGENTS} from "../utils/constants";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
 import {assessContentQuality, isDuplicateArticle} from "../utils/serviceHelpers/articleQuality";
 import {cleanScrapedText, generateQueryVariations, simplifySearchQuery} from "../utils/serviceHelpers/textProcessing";
 import {determineTopicFromQuery, getOptimizedSourcesForTopic, mapToNewYorkTimesSection} from "../utils/serviceHelpers/topicMapping";
-import {GUARDIAN_API_KEY, GUARDIAN_QUOTA_REQUESTS, NEWSAPI_QUOTA_REQUESTS, NEWSAPIORG_QUOTA_MS, NODE_ENV, NYTIMES_API_KEY, NYTIMES_QUOTA_REQUESTS, RSS_CACHE_DURATION} from "../config/config";
+import {GUARDIAN_API_KEY, GUARDIAN_QUOTA_REQUESTS, NEWSAPI_QUOTA_REQUESTS, NEWSAPIORG_QUOTA_MS, NODE_ENV, NYTIMES_API_KEY, NYTIMES_QUOTA_REQUESTS} from "../config/config";
 import {convertGuardianToArticle, convertNewYorkTimesToArticle, convertNewYorkTimesTopStoryToArticle, convertRSSFeedToArticle} from "../utils/serviceHelpers/articleConverters";
 import {
     IArticle,
@@ -74,7 +74,7 @@ class NewsService {
 
             const cacheKey = `${country}-${category}-${sources}-${processedQuery}-${pageSize}-${page}`;
             const cached = TOPHEADLINES_CACHE.get(cacheKey);
-            if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
+            if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 console.log('Cache: returning cached data'.cyan, cached.data);
                 return cached.data;
             }
@@ -129,7 +129,7 @@ class NewsService {
 
             const cacheKey = `${sources}-${from}-${to}-${sortBy}-${language}-${processedQuery}-${pageSize}-${page}`;
             const cached = EVERYTHING_NEWS_CACHE.get(cacheKey);
-            if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
+            if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 console.log('Cache: returning cached data'.cyan, cached.data);
                 return cached.data;
             }
@@ -193,7 +193,7 @@ class NewsService {
 
             const cacheKey = `guardian-${processedQuery}-${section}-${fromDate}-${toDate}-${orderBy}-${pageSize}-${page}`;
             const cached = GUARDIAN_CACHE.get(cacheKey);
-            if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
+            if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 console.log('Cache: returning cached Guardian data'.cyan);
                 return cached.data;
             }
@@ -257,7 +257,7 @@ class NewsService {
 
             const cacheKey = `nytimes-${processedQuery}-${section}-${sort}-${fromDate}-${toDate}-${pageSize}-${page}`;
             const cached = NYTIMES_CACHE.get(cacheKey);
-            if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
+            if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 console.log('Cache: returning cached NYTimes data'.cyan);
                 return cached.data;
             }
@@ -325,7 +325,7 @@ class NewsService {
 
             const cacheKey = `nytimes-top-${section}`;
             const cached = NYTIMES_CACHE.get(cacheKey);
-            if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
+            if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 console.log('Cache: returning cached NYTimes top stories'.cyan);
                 return cached.data;
             }
@@ -366,7 +366,7 @@ class NewsService {
             const cacheKey = `${q}-${sources}-${languages}-${pageSize}-${page}`;
             const cached = RSS_CACHE.get(cacheKey);
 
-            if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < Number(RSS_CACHE_DURATION)) {
+            if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 return cached.data;
             }
 
@@ -421,10 +421,10 @@ class NewsService {
                         {name: 'contentSnippet', weight: 0.3},
                         {name: 'categories', weight: 0.2},
                     ],
-                    threshold: 0.4,
+                    threshold: API_CONFIG.SEARCH.FUSE_THRESHOLD,
                     includeScore: true,
                     includeMatches: true,
-                    minMatchCharLength: 3,
+                    minMatchCharLength: API_CONFIG.SEARCH.MIN_QUERY_LENGTH,
                     ignoreLocation: true,
                 });
 
@@ -504,7 +504,7 @@ class NewsService {
                             article.qualityScore = assessContentQuality(article, query); // Use original query for relevance
                             return article;
                         })
-                        .filter((article: IArticle) => article.qualityScore!.isProfessional && article.qualityScore!.isRelevant && article.qualityScore!.score > 0.4);
+                        .filter((article: IArticle) => article.qualityScore!.isProfessional && article.qualityScore!.isRelevant && article.qualityScore!.score > API_CONFIG.SEARCH.FUSE_THRESHOLD);
 
                     console.log(`Query variation "${variation}" yielded ${qualityArticles.length} quality articles (from ${result.articles.length} total)`.cyan);
 
@@ -555,7 +555,7 @@ class NewsService {
                 const newsApiResult = await this.smartFetchWithVariations(
                     this.fetchNewsApiOrgEverything,
                     simplifiedQuery,
-                    {language: 'en', sortBy: 'relevancy', pageSize: newsApiTargetCount * 3, page},
+                    {language: 'en', sortBy: 'relevancy', pageSize: newsApiTargetCount * API_CONFIG.NEWS_API.RESULT_MULTIPLIER, page},
                     Math.max(2, Math.ceil(newsApiTargetCount / 2)),
                 );
 
@@ -619,7 +619,7 @@ class NewsService {
                     const guardianResult = await this.smartFetchWithVariations(
                         this.fetchGuardianNews,
                         simplifiedQuery,
-                        {section: topic !== 'general' ? topic : undefined, orderBy: 'relevance', pageSize: guardianTargetCount * 3, page},
+                        {section: topic !== 'general' ? topic : undefined, orderBy: 'relevance', pageSize: guardianTargetCount * API_CONFIG.NEWS_API.RESULT_MULTIPLIER, page},
                         Math.max(1, Math.ceil(guardianTargetCount / 3)) // Need at least 1 good result
                     );
 
@@ -672,7 +672,7 @@ class NewsService {
                         const nytResult = await this.smartFetchWithVariations(
                             this.fetchNewYorkTimesNews,
                             simplifiedQuery,
-                            {section: nytSection, sort: 'relevance', pageSize: nytimesTargetCount * 3, page},
+                            {section: nytSection, sort: 'relevance', pageSize: nytimesTargetCount * API_CONFIG.NEWS_API.RESULT_MULTIPLIER, page},
                             Math.max(1, Math.ceil(nytimesTargetCount / 3)) // Need at least 1 good result
                         );
 

@@ -2,7 +2,7 @@ import "colors";
 import {GoogleGenerativeAI} from "@google/generative-ai";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY, NODE_ENV} from "../config/config";
-import {QUESTION_ANSWER_MODELS} from "../utils/constants";
+import {API_CONFIG, QUESTION_ANSWER_MODELS} from "../utils/constants";
 import {generateContentHash} from "../utils/serviceHelpers/contentHashing";
 import CachedQuestionAnswerModel from "../models/CachedQuestionAnswerSchema";
 import {cacheAnswer, cacheQuestions} from "../utils/serviceHelpers/cacheHelpers";
@@ -40,7 +40,7 @@ class QuestionAnswerService {
         console.log('Cache: No cached questions found for this article'.cyan);
 
         // Truncate content to avoid token limits
-        const truncatedContent = truncateContentForAI(content, 4000);
+        const truncatedContent = truncateContentForAI(content, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
         for (let i = 0; i < QUESTION_ANSWER_MODELS.length; i++) {
             const modelName = QUESTION_ANSWER_MODELS[i];
@@ -103,7 +103,7 @@ class QuestionAnswerService {
         console.log('Cache: No cached answer found for this question'.cyan);
 
         // Truncate content to avoid token limits
-        const truncatedContent = truncateContentForAI(content, 4000);
+        const truncatedContent = truncateContentForAI(content, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
         for (let i = 0; i < QUESTION_ANSWER_MODELS.length; i++) {
             const modelName = QUESTION_ANSWER_MODELS[i];

@@ -4,8 +4,8 @@ import NewsService from "./NewsService";
 import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
-import {AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS} from "../utils/constants";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
+import {AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS, API_CONFIG} from "../utils/constants";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 import {
     IAISocialMediaCaption,
@@ -65,7 +65,7 @@ class SocialMediaCaptionService {
         }
 
         // Truncate content to avoid token limits
-        const truncatedContent = truncateContentForAI(articleContent, 4000);
+        const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
         for (let i = 0; i < AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS.length; i++) {
             const modelName = AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS[i];

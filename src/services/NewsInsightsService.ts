@@ -4,8 +4,8 @@ import NewsService from "./NewsService";
 import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
-import {AI_NEWS_INSIGHTS_MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
+import {AI_NEWS_INSIGHTS_MODELS, API_CONFIG} from "../utils/constants";
 import {cleanArray, cleanStakeholderAnalysis} from "../utils/serviceHelpers/dataCleaners";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 import {IAINewsInsights, IMPACT_LEVELS, INewsInsightsParams, INewsInsightsResponse, TImpactLevel} from "../types/ai";
@@ -48,7 +48,7 @@ class NewsInsightsService {
         }
 
         // Truncate content to avoid token limits
-        const truncatedContent = truncateContentForAI(articleContent, 4000);
+        const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
         for (let i = 0; i < AI_NEWS_INSIGHTS_MODELS.length; i++) {
             const modelName = AI_NEWS_INSIGHTS_MODELS[i];

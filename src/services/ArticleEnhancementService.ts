@@ -4,9 +4,9 @@ import AuthService from "./AuthService";
 import {AI_PROMPTS} from "../utils/prompts";
 import StrikeService from "./StrikeService";
 import {GEMINI_API_KEY} from "../config/config";
-import {AI_ENHANCEMENT_MODELS} from "../utils/constants";
 import {IArticle, TEnhancementStatus} from "../types/news";
 import {generateArticleId} from "../utils/generateArticleId";
+import {AI_ENHANCEMENT_MODELS, API_CONFIG} from "../utils/constants";
 import ReadingTimeAnalysisService from "./ReadingTimeAnalysisService";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {mergeEnhancementsWithArticles} from "../utils/serviceHelpers/articleConverters";
@@ -42,7 +42,7 @@ class ArticleEnhancementService {
         }
 
         // Truncate content to avoid token limits
-        const truncatedContent = truncateContentForAI(content, 4000);
+        const truncatedContent = truncateContentForAI(content, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
         for (let i = 0; i < AI_ENHANCEMENT_MODELS.length; i++) {
             const modelName = AI_ENHANCEMENT_MODELS[i];

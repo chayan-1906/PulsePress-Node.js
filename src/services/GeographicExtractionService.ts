@@ -5,7 +5,7 @@ import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {generateMissingCode} from "../utils/generateErrorCodes";
-import {AI_GEOGRAPHIC_EXTRACTION_MODELS} from "../utils/constants";
+import {AI_GEOGRAPHIC_EXTRACTION_MODELS, API_CONFIG} from "../utils/constants";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 import {IAIGeographicExtraction, IGeographicExtractionParams, IGeographicExtractionResponse} from "../types/ai";
 
@@ -47,7 +47,7 @@ class GeographicExtractionService {
         }
 
         // Truncate content to avoid token limits
-        const truncatedContent = truncateContentForAI(articleContent, 4000);
+        const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
         for (let i = 0; i < AI_GEOGRAPHIC_EXTRACTION_MODELS.length; i++) {
             const modelName = AI_GEOGRAPHIC_EXTRACTION_MODELS[i];

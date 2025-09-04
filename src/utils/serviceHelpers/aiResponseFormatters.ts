@@ -1,9 +1,10 @@
 import "colors";
+import {API_CONFIG} from "../constants";
 
 /**
  * Clean JSON response by removing markdown formatting
  */
-export const cleanJsonResponseMarkdown = (responseText: string): string => {
+const cleanJsonResponseMarkdown = (responseText: string): string => {
     console.log('Service: cleanJsonResponseMarkdown called'.cyan.italic);
 
     let cleanedText = responseText.trim();
@@ -29,7 +30,7 @@ export const cleanJsonResponseMarkdown = (responseText: string): string => {
 /**
  * Truncate content to avoid AI API token limits
  */
-export const truncateContentForAI = (content: string, maxLength: number = 4000): string => {
+const truncateContentForAI = (content: string, maxLength: number = API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH): string => {
     console.log('Service: truncateContentForAI called'.cyan.italic, {contentLength: content.length, maxLength});
 
     if (!content) return '';
@@ -42,3 +43,5 @@ export const truncateContentForAI = (content: string, maxLength: number = 4000):
 
     return truncated;
 }
+
+export {cleanJsonResponseMarkdown, truncateContentForAI};

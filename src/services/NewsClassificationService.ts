@@ -3,8 +3,8 @@ import axios from "axios";
 import {GoogleGenerativeAI} from "@google/generative-ai";
 import {AI_PROMPTS} from "../utils/prompts";
 import {buildHeader} from "../utils/buildHeader";
-import {AI_SUMMARIZATION_MODELS} from "../utils/constants";
 import {IAIClassification, TClassificationResult} from "../types/ai";
+import {AI_SUMMARIZATION_MODELS, API_CONFIG} from "../utils/constants";
 import {GEMINI_API_KEY, HUGGINGFACE_API_TOKEN} from "../config/config";
 import {truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 import {processHuggingFaceResponse} from "../utils/serviceHelpers/externalApiHelpers";
@@ -96,7 +96,7 @@ class NewsClassificationService {
         }
 
         // Truncate text for Gemini
-        const truncatedText = truncateContentForAI(text, 4000);
+        const truncatedText = truncateContentForAI(text, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
         console.log('External API: Generating classification with Gemini'.magenta, {model: AI_SUMMARIZATION_MODELS[0]});
         const model = this.genAI.getGenerativeModel({model: AI_SUMMARIZATION_MODELS[0]});
