@@ -448,8 +448,9 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
             return;
         }
 
-        const sentimentEmoji = SentimentAnalysisService.getSentimentEmoji(sentiment!);
-        const sentimentColor = SentimentAnalysisService.getSentimentColor(sentiment!);
+        const {getSentimentEmoji, getSentimentColor} = await import('../utils/serviceHelpers/sentimentHelpers');
+        const sentimentEmoji = getSentimentEmoji(sentiment!);
+        const sentimentColor = getSentimentColor(sentiment!);
 
         console.log('Sentiment analysis completed'.bgGreen.bold, {sentiment, confidence});
 

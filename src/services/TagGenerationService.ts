@@ -7,6 +7,8 @@ import {GEMINI_API_KEY} from "../config/config";
 import {AI_TAG_GENERATION_MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
 import {ITagGenerationParams, ITagGenerationResponse} from "../types/ai";
+import {validateAndProcessTags} from "../utils/serviceHelpers/tagHelpers";
+import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 
 class TagGenerationService {
     static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
@@ -46,7 +48,7 @@ class TagGenerationService {
         }
 
         // Truncate content to avoid token limits - use title and description primarily
-        const truncatedContent = articleContent.substring(0, 4000);
+        const truncatedContent = truncateContentForAI(articleContent, 4000);
 
         for (let i = 0; i < AI_TAG_GENERATION_MODELS.length; i++) {
             const modelName = AI_TAG_GENERATION_MODELS[i];
@@ -91,40 +93,18 @@ class TagGenerationService {
 
         console.log('Gemini tag generation response:'.cyan, responseText);
 
-        if (responseText.startsWith('```json')) {
-            responseText = responseText.substring(7);
-        }
-        if (responseText.startsWith('```')) {
-            responseText = responseText.substring(3);
-        }
-        if (responseText.endsWith('```')) {
-            responseText = responseText.substring(0, responseText.length - 3);
-        }
-        responseText = responseText.trim();
-
-        if (responseText !== result.response.text().trim()) {
-            console.log('Stripped markdown, clean JSON:'.cyan, responseText);
-        }
+        responseText = cleanJsonResponseMarkdown(responseText);
 
         try {
             const parsed: string[] = JSON.parse(responseText);
 
-            if (!Array.isArray(parsed)) {
-                console.error('Service Error: Response is not an array:'.red.bold, parsed);
-                return {error: 'TAG_PARSE_ERROR'};
-            }
-
-            const validTags: string[] = parsed.filter((tag: string) => tag.trim().length > 0 && tag.trim().length <= 20).map(tag => tag.trim());
+            const validTags = validateAndProcessTags(parsed, 5);
 
             if (validTags.length === 0) {
-                console.error('Service Error: No valid tags found in response:'.red.bold, parsed);
                 return {error: 'NO_VALID_TAGS'};
             }
 
-            return {
-                tags: validTags.slice(0, 5),
-                powered_by: modelName,
-            };
+            return {tags: validTags, powered_by: modelName};
         } catch (error: any) {
             console.error('Service Error: Tag generation parsing failed:'.red.bold, error.message);
             return {error: 'TAG_PARSE_ERROR'};

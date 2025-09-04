@@ -1,4 +1,5 @@
 import "colors";
+import {TArticleComplexities} from "../../types/news";
 
 /*
 * Workflow -
@@ -16,7 +17,7 @@ import "colors";
 /**
  * Generate query variations by removing noise words and creating shorter versions
  */
-export const generateQueryVariations = (query: string): string[] => {
+const generateQueryVariations = (query: string): string[] => {
     console.log('Service: generateQueryVariations called'.cyan.italic, {query});
 
     if (!query) return [query];
@@ -52,7 +53,7 @@ export const generateQueryVariations = (query: string): string[] => {
 /**
  * Simplify search query by taking the first variation
  */
-export const simplifySearchQuery = (query: string): string => {
+const simplifySearchQuery = (query: string): string => {
     console.log('Service: simplifySearchQuery called'.cyan.italic, {query});
 
     return generateQueryVariations(query)[0];
@@ -61,7 +62,7 @@ export const simplifySearchQuery = (query: string): string => {
 /**
  * Clean scraped text by removing extra whitespace and newlines
  */
-export const cleanScrapedText = (text: string): string => {
+const cleanScrapedText = (text: string): string => {
     console.log('Service: cleanScrapedText called'.cyan.italic, {text});
 
     if (!text) return '';
@@ -74,3 +75,67 @@ export const cleanScrapedText = (text: string): string => {
         // Remove leading and trailing whitespace
         .trim();
 }
+
+/**
+ * Count words in text content
+ */
+const countWords = (text: string): number => {
+    console.log('Service: countWords called'.cyan.italic, {textLength: text.length});
+
+    const words = text.split(/\s+/).filter(word => word.length > 0);
+    const wordCount = words.length;
+
+    console.log('Word count calculated'.cyan, {wordCount});
+    return wordCount;
+}
+
+/**
+ * Analyze sentence structure and calculate average words per sentence
+ */
+const analyzeSentenceStructure = (text: string): { sentenceCount: number; avgWordsPerSentence: number } => {
+    console.log('Service: analyzeSentenceStructure called'.cyan.italic, {textLength: text.length});
+
+    const wordCount = countWords(text);
+    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    const sentenceCount = sentences.length;
+    const avgWordsPerSentence = wordCount / Math.max(1, sentenceCount);
+
+    console.log('Sentence structure analyzed'.cyan, {sentenceCount, avgWordsPerSentence});
+    return {sentenceCount, avgWordsPerSentence};
+};
+
+/**
+ * Calculate reading time based on word count (200 words per minute)
+ */
+const calculateReadingTime = (text: string): number => {
+    console.log('Service: calculateReadingTime called'.cyan.italic, {textLength: text.length});
+
+    const wordCount = countWords(text);
+    const readingTimeMinutes = Math.max(1, Math.ceil(wordCount / 200));
+
+    console.log('Reading time calculated'.cyan, {wordCount, readingTimeMinutes});
+    return readingTimeMinutes;
+};
+
+/**
+ * Determine text complexity based on word count and sentence structure
+ */
+const assessTextComplexity = (text: string): TArticleComplexities => {
+    console.log('Service: assessTextComplexity called'.cyan.italic, {textLength: text.length});
+
+    const wordCount = countWords(text);
+    const {avgWordsPerSentence} = analyzeSentenceStructure(text);
+
+    let level: TArticleComplexities = 'easy';
+
+    if (wordCount > 800 || avgWordsPerSentence > 20) {
+        level = 'hard';
+    } else if (wordCount > 400 || avgWordsPerSentence > 15) {
+        level = 'medium';
+    }
+
+    console.log('Text complexity assessed'.cyan, {wordCount, avgWordsPerSentence, level});
+    return level;
+};
+
+export {generateQueryVariations, simplifySearchQuery, cleanScrapedText, countWords, analyzeSentenceStructure, calculateReadingTime, assessTextComplexity};

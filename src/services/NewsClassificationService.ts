@@ -6,6 +6,8 @@ import {buildHeader} from "../utils/buildHeader";
 import {AI_SUMMARIZATION_MODELS} from "../utils/constants";
 import {IAIClassification, TClassificationResult} from "../types/ai";
 import {GEMINI_API_KEY, HUGGINGFACE_API_TOKEN} from "../config/config";
+import {truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
+import {processHuggingFaceResponse} from "../utils/serviceHelpers/externalApiHelpers";
 
 class NewsClassificationService {
     static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
@@ -54,8 +56,7 @@ class NewsClassificationService {
         }
 
         // Truncate text for HuggingFace
-        const truncatedText = text.substring(0, 2000);
-        console.log('Content prepared for HuggingFace classification'.cyan, {originalLength: text.length, truncatedLength: truncatedText.length});
+        const truncatedText = truncateContentForAI(text, 2000);
 
         const payload = {
             inputs: truncatedText,
@@ -80,34 +81,7 @@ class NewsClassificationService {
         );
 
         const result = response.data;
-
-        if (!result || !result.labels || !result.scores) {
-            console.error('Service Error: Invalid HuggingFace API response format'.red.bold);
-            throw new Error('Invalid HuggingFace API response format');
-        }
-
-        console.log('External API: HuggingFace response received'.magenta);
-        const topLabelIndex = result.scores.indexOf(Math.max(...result.scores));
-        const topLabel = result.labels[topLabelIndex];
-        const topScore = result.scores[topLabelIndex];
-
-        console.log('HuggingFace classification result processed'.cyan, {
-            topLabel,
-            topScore,
-            allLabels: result.labels,
-            allScores: result.scores,
-        });
-
-        if (topScore > 0.5) {
-            if (topLabel.includes('current news') || topLabel.includes('breaking news')) {
-                return 'news';
-            } else if (topLabel.includes('educational') || topLabel.includes('non-news')) {
-                return 'non_news';
-            }
-        }
-
-        console.error('Service Error: Low confidence classification from HuggingFace'.red.bold, {topScore});
-        throw new Error('Low confidence classification from HuggingFace');
+        return processHuggingFaceResponse(result);
     }
 
     /**
@@ -122,8 +96,7 @@ class NewsClassificationService {
         }
 
         // Truncate text for Gemini
-        const truncatedText = text.substring(0, 4000);
-        console.log('Content prepared for Gemini classification'.cyan, {originalLength: text.length, truncatedLength: truncatedText.length});
+        const truncatedText = truncateContentForAI(text, 4000);
 
         console.log('External API: Generating classification with Gemini'.magenta, {model: AI_SUMMARIZATION_MODELS[0]});
         const model = this.genAI.getGenerativeModel({model: AI_SUMMARIZATION_MODELS[0]});

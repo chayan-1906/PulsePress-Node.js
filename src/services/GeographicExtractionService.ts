@@ -6,6 +6,7 @@ import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {generateMissingCode} from "../utils/generateErrorCodes";
 import {AI_GEOGRAPHIC_EXTRACTION_MODELS} from "../utils/constants";
+import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 import {IAIGeographicExtraction, IGeographicExtractionParams, IGeographicExtractionResponse} from "../types/ai";
 
 class GeographicExtractionService {
@@ -46,8 +47,7 @@ class GeographicExtractionService {
         }
 
         // Truncate content to avoid token limits
-        const truncatedContent = articleContent.substring(0, 4000);
-        console.log('Content prepared for geographic extraction'.cyan, {originalLength: articleContent.length, truncatedLength: truncatedContent.length});
+        const truncatedContent = truncateContentForAI(articleContent, 4000);
 
         for (let i = 0; i < AI_GEOGRAPHIC_EXTRACTION_MODELS.length; i++) {
             const modelName = AI_GEOGRAPHIC_EXTRACTION_MODELS[i];
@@ -94,20 +94,7 @@ class GeographicExtractionService {
 
         console.log('External API: Gemini response received'.magenta, responseText);
 
-        if (responseText.startsWith('```json')) {
-            responseText = responseText.substring(7);
-        }
-        if (responseText.startsWith('```')) {
-            responseText = responseText.substring(3);
-        }
-        if (responseText.endsWith('```')) {
-            responseText = responseText.substring(0, responseText.length - 3);
-        }
-        responseText = responseText.trim();
-
-        if (responseText !== result.response.text().trim()) {
-            console.log('JSON markdown stripped'.cyan, responseText);
-        }
+        responseText = cleanJsonResponseMarkdown(responseText);
 
         const parsed: IAIGeographicExtraction = JSON.parse(responseText);
 

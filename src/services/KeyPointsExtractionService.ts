@@ -5,6 +5,7 @@ import {GEMINI_API_KEY} from "../config/config";
 import {generateMissingCode} from "../utils/generateErrorCodes";
 import {AI_KEY_POINTS_EXTRACTOR_MODELS} from "../utils/constants";
 import {IAIKeyPoints, IKeyPointsExtractionParams, IKeyPointsExtractionResponse} from "../types/ai";
+import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 
 class KeyPointsExtractionService {
     static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
@@ -21,8 +22,7 @@ class KeyPointsExtractionService {
         }
 
         // Truncate content to avoid token limits
-        const truncatedContent = content.substring(0, 4000);
-        console.log('Content prepared for key points extraction'.cyan, {originalLength: content.length, truncatedLength: truncatedContent.length});
+        const truncatedContent = truncateContentForAI(content, 4000);
 
         for (let i = 0; i < AI_KEY_POINTS_EXTRACTOR_MODELS.length; i++) {
             const modelName = AI_KEY_POINTS_EXTRACTOR_MODELS[i];
@@ -70,20 +70,7 @@ class KeyPointsExtractionService {
 
         console.log('External API: Gemini response received'.magenta, responseText);
 
-        if (responseText.startsWith('```json')) {
-            responseText = responseText.substring(7);
-        }
-        if (responseText.startsWith('```')) {
-            responseText = responseText.substring(3);
-        }
-        if (responseText.endsWith('```')) {
-            responseText = responseText.substring(0, responseText.length - 3);
-        }
-        responseText = responseText.trim();
-
-        if (responseText !== result.response.text().trim()) {
-            console.log('JSON markdown stripped'.cyan, responseText);
-        }
+        responseText = cleanJsonResponseMarkdown(responseText);
 
         const parsed: IAIKeyPoints = JSON.parse(responseText);
 

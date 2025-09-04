@@ -6,6 +6,7 @@ import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS} from "../utils/constants";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
+import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 import {
     IAISocialMediaCaption,
     ISocialMediaCaptionParams,
@@ -64,7 +65,7 @@ class SocialMediaCaptionService {
         }
 
         // Truncate content to avoid token limits
-        const truncatedContent = articleContent.substring(0, 4000);
+        const truncatedContent = truncateContentForAI(articleContent, 4000);
 
         for (let i = 0; i < AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS.length; i++) {
             const modelName = AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS[i];
@@ -109,20 +110,7 @@ class SocialMediaCaptionService {
 
         console.log('Gemini caption generation response:'.cyan, responseText);
 
-        if (responseText.startsWith('```json')) {
-            responseText = responseText.substring(7);
-        }
-        if (responseText.startsWith('```')) {
-            responseText = responseText.substring(3);
-        }
-        if (responseText.endsWith('```')) {
-            responseText = responseText.substring(0, responseText.length - 3);
-        }
-        responseText = responseText.trim();
-
-        if (responseText !== result.response.text().trim()) {
-            console.log('Stripped markdown, clean JSON:'.cyan, responseText);
-        }
+        responseText = cleanJsonResponseMarkdown(responseText);
 
         const parsed: IAISocialMediaCaption = JSON.parse(responseText);
 

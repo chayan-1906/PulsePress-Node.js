@@ -1,32 +1,21 @@
 import "colors";
-import {createHash} from "crypto";
 import {GoogleGenerativeAI} from "@google/generative-ai";
-import {Translate} from "@google-cloud/translate/build/src/v2";
 import AuthService from "./AuthService";
 import NewsService from "./NewsService";
 import StrikeService from "./StrikeService";
 import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
 import {AI_SUMMARIZATION_MODELS} from "../utils/constants";
-import CachedSummaryModel, {ICachedSummary} from "../models/CachedSummarySchema";
-import {GEMINI_API_KEY, GEMINI_QUOTA_MS, GEMINI_QUOTA_REQUESTS, GOOGLE_TRANSLATE_API_KEY, NODE_ENV} from "../config/config";
+import {translateText} from "../utils/serviceHelpers/translationHelpers";
+import {truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
+import {GEMINI_API_KEY, GEMINI_QUOTA_MS, GEMINI_QUOTA_REQUESTS} from "../config/config";
+import {generateSummarizationContentHash} from "../utils/serviceHelpers/contentHashing";
+import {getCachedSummary, saveSummaryToCache} from "../utils/serviceHelpers/cacheHelpers";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
-import {
-    IGenerateContentHashParams,
-    IGenerateContentHashResponse,
-    IGetCachedSummaryParams,
-    ISaveSummaryToCacheParams,
-    ISummarizeArticleParams,
-    ISummarizeArticleResponse,
-    ISummarizeContentParams,
-    ISummarizeContentResponse,
-    ITranslateTextParams,
-    SUMMARIZATION_STYLES
-} from "../types/ai";
+import {ISummarizeArticleParams, ISummarizeArticleResponse, ISummarizeContentParams, ISummarizeContentResponse, SUMMARIZATION_STYLES} from "../types/ai";
 
 class SummarizationService {
     static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
-    private static readonly translate = new Translate({key: GOOGLE_TRANSLATE_API_KEY});
 
     static geminiRequestCount = 0;
 
@@ -92,12 +81,12 @@ class SummarizationService {
             const articleContent = content || '';
 
             // Generate hash and check cache
-            const {hash} = await this.generateContentHash({articleContent, language, style});
+            const hash = generateSummarizationContentHash(articleContent, language, style);
             if (!hash) {
                 return {error: 'HASH_FAILED'};
             }
 
-            const cached = await this.getCachedSummary({contentHash: hash});
+            const cached = await getCachedSummary(hash);
             if (cached) {
                 console.log('Using cached summarization result'.cyan);
                 return {
@@ -128,17 +117,12 @@ class SummarizationService {
             // Translate if needed
             if (language !== 'en') {
                 console.log('Translating summary to target language:'.cyan, language);
-                finalSummary = await this.translateText({text: summary, targetLanguage: language});
+                finalSummary = await translateText(summary, language);
                 finalPoweredBy = `${powered_by} + Translate`;
             }
 
             // Save to cache
-            await this.saveSummaryToCache({
-                contentHash: hash,
-                summary: finalSummary,
-                language,
-                style
-            });
+            await saveSummaryToCache(hash, finalSummary, language, style);
 
             console.log('Article summarization completed successfully'.green.bold, {summary: finalSummary.substring(0, 50) + '...', powered_by: finalPoweredBy});
 
@@ -192,7 +176,7 @@ class SummarizationService {
         }
 
         // Truncate content to avoid token limits
-        const truncatedContent = articleContent.substring(0, 8000);
+        const truncatedContent = truncateContentForAI(articleContent, 8000);
 
         for (let i = 0; i < AI_SUMMARIZATION_MODELS.length; i++) {
             const modelName = AI_SUMMARIZATION_MODELS[i];
@@ -252,93 +236,7 @@ class SummarizationService {
         return {summary: responseText};
     }
 
-    /**
-     * Generate SHA256 hash for article content with language and style parameters
-     */
-    static async generateContentHash({articleContent, language = 'en', style = 'standard'}: IGenerateContentHashParams): Promise<IGenerateContentHashResponse> {
-        console.log('Service: SummarizationCacheService.generateContentHash called'.cyan.italic, {articleContent: articleContent.substring(0, 50) + '...', language, style});
 
-        try {
-            if (!articleContent) {
-                return {error: generateMissingCode('content')};
-            }
-
-            const data = `${articleContent}::${language}::${style}`;
-            const contentHash = createHash('sha256').update(data).digest('hex');
-            console.log('Content hash generated:'.cyan, contentHash);
-
-            return {hash: contentHash};
-        } catch (error: any) {
-            console.error('Service Error: SummarizationCacheService.generateContentHash failed'.red.bold, error);
-            throw error;
-        }
-    }
-
-    /**
-     * Save generated summary to cache with content hash and metadata
-     */
-    static async saveSummaryToCache({contentHash, summary, language, style}: ISaveSummaryToCacheParams): Promise<ICachedSummary | null> {
-        console.log('Service: SummarizationCacheService.saveSummaryToCache called'.cyan.italic, {contentHash, summary: summary.substring(0, 50) + '...', language, style});
-
-        try {
-            if (NODE_ENV !== 'production') {
-                console.log('Caching disabled in development mode'.cyan);
-                return null;
-            }
-
-            const savedContentHash: ICachedSummary | null = await CachedSummaryModel.create({contentHash, summary, language, style});
-            console.log('Saved content hash to cache:'.cyan, savedContentHash);
-            return savedContentHash;
-        } catch (error: any) {
-            console.error('Service Error: SummarizationCacheService.saveSummaryToCache failed'.red.bold, error);
-            throw error;
-        }
-    }
-
-    /**
-     * Retrieve cached summary by content hash
-     */
-    static async getCachedSummary({contentHash}: IGetCachedSummaryParams): Promise<ICachedSummary | null> {
-        console.log('Service: SummarizationCacheService.getCachedSummary called'.cyan.italic, {contentHash});
-
-        try {
-            if (NODE_ENV !== 'production') {
-                console.log('Caching disabled in development mode'.cyan);
-                return null;
-            }
-
-            const cachedSummary: ICachedSummary | null = await CachedSummaryModel.findOne({contentHash});
-            console.log('Retrieved cached summary:'.cyan, cachedSummary ? 'Found' : 'Not found');
-            return cachedSummary;
-        } catch (error: any) {
-            console.error('Service Error: SummarizationCacheService.getCachedSummary failed'.red.bold, error);
-            return null;
-        }
-    }
-
-    /**
-     * Translate text to target language using Google Translate API
-     */
-    static async translateText({text, targetLanguage}: ITranslateTextParams): Promise<string> {
-        console.log('Service: SummarizationCacheService.translateText called'.cyan.italic, {text: text.substring(0, 50) + '...', targetLanguage});
-
-        try {
-            if (!GOOGLE_TRANSLATE_API_KEY) {
-                console.warn('Config Warning: Google Translate API key not configured'.yellow.italic);
-                return text; // fallback to original text
-            }
-
-            console.log('External API: Translating text using Google Translate'.magenta);
-            const [translation] = await this.translate.translate(text, {
-                to: targetLanguage, // 'bn' for Bengali, 'hi' for Hindi, etc.
-            });
-            console.log('Translation completed:'.cyan, translation.substring(0, 50) + '...');
-            return translation;
-        } catch (error: any) {
-            console.error('Service Error: SummarizationCacheService.translateText failed'.red.bold, error);
-            return text; // fallback to original text
-        }
-    }
 }
 
 export default SummarizationService;

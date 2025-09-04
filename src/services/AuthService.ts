@@ -1,6 +1,5 @@
 import "colors";
 import mongoose from "mongoose";
-import bcryptjs from "bcryptjs";
 import jwt, {SignOptions} from "jsonwebtoken";
 import {getOAuth2Client} from "../utils/OAuth";
 import MagicLinkService from "./MagicLinkService";
@@ -10,6 +9,7 @@ import MagicLinkModel from "../models/MagicLinkSchema";
 import UserPreferenceService from "./UserPreferenceService";
 import ReadingHistoryModel from "../models/ReadingHistorySchema";
 import UserPreferenceModel from "../models/UserPreferenceSchema";
+import {comparePassword, hashPassword, verifyPassword} from "../utils/serviceHelpers/authHelpers";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {ACCESS_TOKEN_EXPIRY, ACCESS_TOKEN_SECRET, REFRESH_TOKEN_EXPIRY, REFRESH_TOKEN_SECRET} from "../config/config";
 import {
@@ -56,8 +56,8 @@ class AuthService {
                 return {error: generateInvalidCode('password')};
             }
 
-            const hashedPassword = await this.hashPassword(password);
-            const isMatched = this.comparePassword(password, confirmPassword);
+            const hashedPassword = await hashPassword(password);
+            const isMatched = comparePassword(password, confirmPassword);
             if (!isMatched) {
                 return {error: 'PASSWORD_MISMATCH'};
             }
@@ -141,7 +141,7 @@ class AuthService {
                 }
             }
 
-            const isMatched = await this.verifyPassword(password, user.password!);
+            const isMatched = await verifyPassword(password, user.password!);
             if (!isMatched) {
                 return {error: generateInvalidCode('credentials')};
             }
@@ -180,7 +180,7 @@ class AuthService {
                 return {error: generateMissingCode('new_password')};
             }
 
-            const isMatched = await this.verifyPassword(currentPassword, user.password!);
+            const isMatched = await verifyPassword(currentPassword, user.password!);
             if (!isMatched) {
                 return {error: generateInvalidCode('credentials')};
             }
@@ -192,7 +192,7 @@ class AuthService {
             if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*])(?=.{6,})/.test(newPassword)) {
                 return {error: generateInvalidCode('new_password')};
             }
-            user.password = await this.hashPassword(newPassword);
+            user.password = await hashPassword(newPassword);
             await user.save();
             console.log('Database: Password updated'.cyan);
 
@@ -339,7 +339,7 @@ class AuthService {
                 if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*])(?=.{6,})/.test(password)) {
                     return {error: generateInvalidCode('password')};
                 }
-                user.password = await this.hashPassword(password);
+                user.password = await hashPassword(password);
             }
 
             user.profilePicture = profilePicture;   // user can remove profile picture
@@ -352,62 +352,6 @@ class AuthService {
             return {user: updatedUser};
         } catch (error: any) {
             console.error('Service Error: AuthService.updateUser failed'.red.bold, error);
-            throw error;
-        }
-    }
-
-    /**
-     * Hash password using bcrypt with salt rounds
-     */
-    private static async hashPassword(password: string): Promise<string> {
-        console.log('Service: AuthService.hashPassword called'.cyan.italic, password);
-
-        try {
-            const hashedPassword = await bcryptjs.hash(password, 10);
-            console.log('Password hashed'.cyan, hashedPassword);
-            return hashedPassword;
-        } catch (error: any) {
-            console.error('Service Error: AuthService.hashPassword failed'.red.bold, error);
-            throw error;
-        }
-    }
-
-    /**
-     * Compare two plain text passwords for equality
-     */
-    private static comparePassword(password1: string, password2: string): boolean {
-        console.log('Service: AuthService.comparePassword called'.cyan.italic, {password1, password2});
-
-        try {
-            const isMatched = password1 === password2;
-            if (!isMatched) {
-                // throw new Error('Passwords don\'t match');
-                return false;
-            }
-
-            return isMatched;
-        } catch (error: any) {
-            console.error('Service Error: AuthService.comparePassword failed'.red.bold, error);
-            throw error;
-        }
-    }
-
-    /**
-     * Verify plain text password against bcrypt hash
-     */
-    private static async verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
-        console.log('Service: AuthService.verifyPassword called'.cyan.italic, {password, hashedPassword});
-
-        try {
-            const isMatched = await bcryptjs.compare(password, hashedPassword);
-            if (!isMatched) {
-                // throw new Error('Invalid credentials');
-                return false;
-            }
-
-            return isMatched;
-        } catch (error: any) {
-            console.error('Service Error: AuthService.verifyPassword failed'.red.bold, error);
             throw error;
         }
     }

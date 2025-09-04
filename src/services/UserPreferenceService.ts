@@ -1,11 +1,9 @@
 import "colors";
-import {ClientSession} from "mongoose";
 import AuthService from "./AuthService";
-import {hasInvalidItems} from "../utils/list";
 import {clearRecommendationCache} from "./ContentRecommendationService";
 import UserPreferenceModel, {IUserPreference} from "../models/UserPreferenceSchema";
-import {SUPPORTED_CATEGORIES, SUPPORTED_NEWS_LANGUAGES, SUPPORTED_SOURCES} from "../types/news";
-import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
+import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
+import {buildUserPreferenceDbOptions, buildUserPreferenceUpdateFields, validateUserPreferenceArrays} from "../utils/serviceHelpers/userPreferenceHelpers";
 import {
     IGetUserPreferenceParams,
     IGetUserPreferenceResponse,
@@ -38,44 +36,15 @@ class UserPreferenceService {
                 return {error: generateNotFoundCode('user')};
             }
 
-            if (preferredCategories && !Array.isArray(preferredCategories)) {
-                console.warn('Client Error: Invalid preferred categories - not an array'.yellow, {preferredCategories});
-                return {error: generateInvalidCode('preferred_categories')};
-            }
-            if (preferredCategories && hasInvalidItems(preferredCategories, SUPPORTED_CATEGORIES)) {
-                console.warn('Client Error: Invalid preferred categories - unsupported values'.yellow, {preferredCategories});
-                return {error: generateInvalidCode('preferred_categories')};
+            // Validate array inputs
+            const validation = validateUserPreferenceArrays(preferredCategories, preferredSources, newsLanguages);
+            if (!validation.isValid) {
+                return {error: validation.error!};
             }
 
-            if (preferredSources && !Array.isArray(preferredSources)) {
-                console.warn('Client Error: Invalid preferred sources - not an array'.yellow, {preferredSources});
-                return {error: generateInvalidCode('preferred_sources')};
-            }
-            if (preferredSources && hasInvalidItems(preferredSources, SUPPORTED_SOURCES)) {
-                console.warn('Client Error: Invalid preferred sources - unsupported values'.yellow, {preferredSources});
-                return {error: generateInvalidCode('preferred_sources')};
-            }
+            const updateFields = buildUserPreferenceUpdateFields(preferredLanguage, preferredCategories, preferredSources, summaryStyle, newsLanguages);
 
-            if (newsLanguages && !Array.isArray(newsLanguages)) {
-                console.warn('Client Error: Invalid news languages - not an array'.yellow, {newsLanguages});
-                return {error: generateInvalidCode('news_languages')};
-            }
-            if (newsLanguages && hasInvalidItems(newsLanguages, SUPPORTED_NEWS_LANGUAGES)) {
-                console.warn('Client Error: Invalid news languages - unsupported values'.yellow, {newsLanguages});
-                return {error: generateInvalidCode('news_languages')};
-            }
-
-            const updateFields: Partial<IUserPreference> = {};
-            if (typeof preferredLanguage !== 'undefined') updateFields.preferredLanguage = preferredLanguage;
-            if (typeof preferredCategories !== 'undefined') updateFields.preferredCategories = preferredCategories;
-            if (typeof preferredSources !== 'undefined') updateFields.preferredSources = preferredSources;
-            if (typeof summaryStyle !== 'undefined') updateFields.summaryStyle = summaryStyle;
-            if (typeof newsLanguages !== 'undefined') updateFields.newsLanguages = newsLanguages;
-
-            const options: { upsert: boolean; new: boolean; runValidators: boolean; session?: ClientSession; } = {upsert: true, new: true, runValidators: true};
-            if (session) {
-                options.session = session;
-            }
+            const options = buildUserPreferenceDbOptions(session);
 
             const modifiedUserPreference: IUserPreference | null = await UserPreferenceModel.findOneAndUpdate(
                 {userExternalId: targetUser.userExternalId},

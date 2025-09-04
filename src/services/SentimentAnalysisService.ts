@@ -5,6 +5,8 @@ import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {generateMissingCode} from "../utils/generateErrorCodes";
 import {AI_SENTIMENT_ANALYSIS_MODELS} from "../utils/constants";
+import {getSentimentColor, getSentimentEmoji} from "../utils/serviceHelpers/sentimentHelpers";
+import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 import {IAISentiment, IEnrichedArticleWithSentiment, ISentimentAnalysisParams, ISentimentAnalysisResponse, SENTIMENT_TYPES, TSentimentResult} from "../types/ai";
 
 class SentimentAnalysisService {
@@ -22,7 +24,7 @@ class SentimentAnalysisService {
         }
 
         // Truncate content to avoid token limits
-        const truncatedContent = content.substring(0, 4000);
+        const truncatedContent = truncateContentForAI(content, 4000);
 
         for (let i = 0; i < AI_SENTIMENT_ANALYSIS_MODELS.length; i++) {
             const model = AI_SENTIMENT_ANALYSIS_MODELS[i];
@@ -69,20 +71,7 @@ class SentimentAnalysisService {
 
         console.log('Gemini sentiment analysis response:'.cyan, responseText);
 
-        if (responseText.startsWith('```json')) {
-            responseText = responseText.substring(7);
-        }
-        if (responseText.startsWith('```')) {
-            responseText = responseText.substring(3);
-        }
-        if (responseText.endsWith('```')) {
-            responseText = responseText.substring(0, responseText.length - 3);
-        }
-        responseText = responseText.trim();
-
-        if (responseText !== result.response.text().trim()) {
-            console.log('Stripped markdown, clean JSON:'.cyan, responseText);
-        }
+        responseText = cleanJsonResponseMarkdown(responseText);
 
         const parsed: IAISentiment = JSON.parse(responseText);
 
@@ -97,41 +86,6 @@ class SentimentAnalysisService {
         return {sentiment, confidence};
     }
 
-    /**
-     * Get emoji representation for sentiment
-     */
-    static getSentimentEmoji(sentiment: TSentimentResult): string {
-        console.log('Service: SentimentAnalysisService.getSentimentEmoji called'.cyan.italic, {sentiment});
-
-        switch (sentiment) {
-            case 'positive':
-                return '😊';
-            case 'negative':
-                return '😔';
-            case 'neutral':
-                return '😐';
-            default:
-                return '❓';
-        }
-    }
-
-    /**
-     * Get color indicator for sentiment (for UI styling)
-     */
-    static getSentimentColor(sentiment: TSentimentResult): string {
-        console.log('Service: SentimentAnalysisService.getSentimentColor called'.cyan.italic, {sentiment});
-
-        switch (sentiment) {
-            case 'positive':
-                return 'green';
-            case 'negative':
-                return 'red';
-            case 'neutral':
-                return 'gray';
-            default:
-                return 'gray';
-        }
-    }
 
     /**
      * Analyze sentiment for an individual article and add sentiment data
@@ -162,8 +116,8 @@ class SentimentAnalysisService {
                 sentimentData: {
                     sentiment,
                     confidence,
-                    emoji: this.getSentimentEmoji(sentiment),
-                    color: this.getSentimentColor(sentiment),
+                    emoji: getSentimentEmoji(sentiment),
+                    color: getSentimentColor(sentiment),
                 },
             };
         } catch (error: any) {

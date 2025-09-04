@@ -7,10 +7,10 @@ import {GEMINI_API_KEY} from "../config/config";
 import {AI_ENHANCEMENT_MODELS} from "../utils/constants";
 import {IArticle, TEnhancementStatus} from "../types/news";
 import {generateArticleId} from "../utils/generateArticleId";
-import SentimentAnalysisService from "./SentimentAnalysisService";
 import ReadingTimeAnalysisService from "./ReadingTimeAnalysisService";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {mergeEnhancementsWithArticles} from "../utils/serviceHelpers/articleConverters";
+import {getSentimentColor, getSentimentEmoji} from "../utils/serviceHelpers/sentimentHelpers";
 import ArticleEnhancementModel, {IArticleEnhancement} from "../models/ArticleEnhancementSchema";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 import {
@@ -117,8 +117,8 @@ class ArticleEnhancementService {
                         response.sentiment = {
                             type: parsed.sentiment.type,
                             confidence: parsed.sentiment.confidence || 0.5,
-                            emoji: SentimentAnalysisService.getSentimentEmoji(parsed.sentiment.type),
-                            color: SentimentAnalysisService.getSentimentColor(parsed.sentiment.type),
+                            emoji: getSentimentEmoji(parsed.sentiment.type),
+                            color: getSentimentColor(parsed.sentiment.type),
                         };
                     }
                 }

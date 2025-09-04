@@ -6,6 +6,8 @@ import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {AI_NEWS_INSIGHTS_MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
+import {cleanArray, cleanStakeholderAnalysis} from "../utils/serviceHelpers/dataCleaners";
+import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 import {IAINewsInsights, IMPACT_LEVELS, INewsInsightsParams, INewsInsightsResponse, TImpactLevel} from "../types/ai";
 
 class NewsInsightsService {
@@ -46,8 +48,7 @@ class NewsInsightsService {
         }
 
         // Truncate content to avoid token limits
-        const truncatedContent = articleContent.substring(0, 4000);
-        console.log('Content prepared for news insights analysis'.cyan, {originalLength: articleContent.length, truncatedLength: truncatedContent.length});
+        const truncatedContent = truncateContentForAI(articleContent, 4000);
 
         for (let i = 0; i < AI_NEWS_INSIGHTS_MODELS.length; i++) {
             const modelName = AI_NEWS_INSIGHTS_MODELS[i];
@@ -81,6 +82,8 @@ class NewsInsightsService {
      * Generate news insights using Gemini AI
      */
     private static async generateWithGemini(modelName: string, content: string): Promise<INewsInsightsResponse> {
+        console.log('Service: NewsInsightsService.generateWithGemini called'.cyan.italic, {modelName, content});
+
         if (!GEMINI_API_KEY) {
             console.warn('Config Warning: Gemini API key not configured'.yellow.italic);
             return {error: generateMissingCode('gemini_api_key')};
@@ -96,20 +99,7 @@ class NewsInsightsService {
 
         console.log('External API: Gemini response received'.magenta, responseText);
 
-        if (responseText.startsWith('```json')) {
-            responseText = responseText.substring(7);
-        }
-        if (responseText.startsWith('```')) {
-            responseText = responseText.substring(3);
-        }
-        if (responseText.endsWith('```')) {
-            responseText = responseText.substring(0, responseText.length - 3);
-        }
-        responseText = responseText.trim();
-
-        if (responseText !== result.response.text().trim()) {
-            console.log('JSON markdown stripped'.cyan, responseText);
-        }
+        responseText = cleanJsonResponseMarkdown(responseText);
 
         const parsed: IAINewsInsights = JSON.parse(responseText);
 
@@ -125,18 +115,11 @@ class NewsInsightsService {
         }
 
         console.log('Processing and cleaning insights data'.cyan);
-        const cleanArray = (arr: any) => Array.isArray(arr) ? arr.filter(item => item && item.trim().length > 0) : [];
 
         const keyThemes = cleanArray(parsed.keyThemes);
         const contextConnections = cleanArray(parsed.contextConnections || []);
         const timelineContext = cleanArray(parsed.timelineContext || []);
-
-        const stakeholderAnalysis = parsed.stakeholderAnalysis || {};
-        const cleanedStakeholderAnalysis = {
-            winners: cleanArray(stakeholderAnalysis.winners || []),
-            losers: cleanArray(stakeholderAnalysis.losers || []),
-            affected: cleanArray(stakeholderAnalysis.affected || []),
-        };
+        const cleanedStakeholderAnalysis = cleanStakeholderAnalysis(parsed.stakeholderAnalysis);
 
         if (keyThemes.length === 0) {
             console.error('Service Error: No valid themes found in response'.red.bold);
