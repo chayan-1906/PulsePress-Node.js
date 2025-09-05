@@ -7,7 +7,16 @@ import {generateMissingCode} from "../utils/generateErrorCodes";
 import {AI_SENTIMENT_ANALYSIS_MODELS, API_CONFIG} from "../utils/constants";
 import {getSentimentColor, getSentimentEmoji} from "../utils/serviceHelpers/sentimentHelpers";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
-import {IAISentiment, IEnrichedArticleWithSentiment, ISentimentAnalysisParams, ISentimentAnalysisResponse, SENTIMENT_TYPES, TSentimentResult} from "../types/ai";
+import {
+    IAISentiment,
+    IEnrichArticlesWithSentimentParams,
+    IEnrichArticleWithSentimentParams,
+    IEnrichedArticleWithSentiment,
+    ISentimentAnalysisParams,
+    ISentimentAnalysisResponse,
+    SENTIMENT_TYPES,
+    TSentimentResult,
+} from "../types/ai";
 
 class SentimentAnalysisService {
     static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
@@ -86,11 +95,10 @@ class SentimentAnalysisService {
         return {sentiment, confidence};
     }
 
-
     /**
      * Analyze sentiment for an individual article and add sentiment data
      */
-    private static async enrichArticleWithSentiment(article: any, shouldAnalyze: boolean = true): Promise<IEnrichedArticleWithSentiment> {
+    private static async enrichArticleWithSentiment({article, shouldAnalyze = true}: IEnrichArticleWithSentimentParams): Promise<IEnrichedArticleWithSentiment> {
         console.log('Service: SentimentAnalysisService.enrichArticleWithSentiment called'.cyan.italic, {article, shouldAnalyze});
 
         if (!shouldAnalyze) {
@@ -129,7 +137,7 @@ class SentimentAnalysisService {
     /**
      * Analyze sentiment for multiple articles in batches
      */
-    static async enrichArticlesWithSentiment(articles: any[], shouldAnalyze: boolean = true): Promise<IArticle[]> {
+    static async enrichArticlesWithSentiment({articles, shouldAnalyze = true}: IEnrichArticlesWithSentimentParams): Promise<IArticle[]> {
         console.log('Service: SentimentAnalysisService.getSentimentColor called'.cyan.italic, {articles, shouldAnalyze});
 
         if (!shouldAnalyze || !articles?.length) {
@@ -143,7 +151,7 @@ class SentimentAnalysisService {
 
         for (let i = 0; i < articles.length; i += batchSize) {
             const batch = articles.slice(i, i + batchSize);
-            const batchPromises = batch.map(article => this.enrichArticleWithSentiment(article, true));
+            const batchPromises = batch.map(article => this.enrichArticleWithSentiment({article, shouldAnalyze: true}));
 
             try {
                 const batchResults = await Promise.all(batchPromises);

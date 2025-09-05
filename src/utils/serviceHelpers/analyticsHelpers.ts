@@ -1,10 +1,11 @@
 import "colors";
 import {DEFAULT_ENGAGEMENT_WEIGHTS} from "../constants";
+import {ICalculateEngagementScoreParams} from "../../types/analytics";
 
 /**
  * Calculate engagement score based on weighted metrics
  */
-export const calculateEngagementScore = (metrics: any): number => {
+const calculateEngagementScore = ({metrics}: ICalculateEngagementScoreParams): number => {
     console.log('Service: calculateEngagementScore called'.cyan.italic, {metrics});
 
     const {viewWeight, bookmarkWeight, completionWeight, readingTimeWeight} = DEFAULT_ENGAGEMENT_WEIGHTS;
@@ -16,3 +17,5 @@ export const calculateEngagementScore = (metrics: any): number => {
 
     return Math.round(viewScore + bookmarkScore + completionScore + readingTimeScore);
 }
+
+export {calculateEngagementScore};

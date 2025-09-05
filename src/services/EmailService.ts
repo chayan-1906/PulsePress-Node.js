@@ -1,5 +1,6 @@
 import "colors";
 import nodemailer from 'nodemailer';
+import {ISendMagicLinkParams} from "../types/auth";
 import {emailTemplateHTML} from "../templates/emailTemplateHTML";
 import {EMAIL_PASS, EMAIL_USER, FRONTEND_URL} from "../config/config";
 
@@ -15,9 +16,9 @@ class EmailService {
     /**
      * Send magic link email for passwordless authentication using nodemailer
      */
-    static async sendMagicLink(email: string, token: string): Promise<void> {
+    static async sendMagicLink({email, token}: ISendMagicLinkParams): Promise<void> {
         console.log('Service: EmailService.sendMagicLink called'.cyan.italic, {email, token: token.substring(0, 10) + '...'});
-        
+
         try {
             const magicUrl = `${FRONTEND_URL}/api/v1/auth/verify-magic-link?token=${token}`;
             console.log('Magic link URL constructed'.cyan, {url: magicUrl.substring(0, 50) + '...'});
@@ -32,7 +33,7 @@ class EmailService {
             console.log('External API: Sending email via nodemailer'.magenta, {to: email, subject: mailOptions.subject});
             await this.transporter.sendMail(mailOptions);
             console.log('External API: Email sent successfully'.magenta, {to: email});
-            
+
             console.log('Magic link email sent successfully'.green.bold);
         } catch (error: any) {
             console.error('Service Error: EmailService.sendMagicLink failed'.red.bold, error);

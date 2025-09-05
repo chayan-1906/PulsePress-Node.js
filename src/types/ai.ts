@@ -385,6 +385,16 @@ export interface ISentimentAnalysisParams {
     content?: string;
 }
 
+export interface IEnrichArticleWithSentimentParams {
+    article: any;
+    shouldAnalyze?: boolean;
+}
+
+export interface IEnrichArticlesWithSentimentParams {
+    articles: any[];
+    shouldAnalyze?: boolean;
+}
+
 export interface IKeyPointsExtractionParams {
     url?: string;
     content?: string;

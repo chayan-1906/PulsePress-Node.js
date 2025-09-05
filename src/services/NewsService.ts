@@ -34,9 +34,10 @@ import {
     IRssFeedParams,
     IScrapeMultipleWebsitesParams,
     IScrapeWebsiteParams,
+    ISmartFetchWithVariationsParams,
     SUPPORTED_NEWS_LANGUAGES,
     TEnhancementStatus,
-    VALID_NYTIMES_SECTIONS
+    VALID_NYTIMES_SECTIONS,
 } from "../types/news";
 
 const RSS_CACHE = new Map<string, { data: IRssFeed[], timestamp: number }>();
@@ -484,7 +485,7 @@ class NewsService {
     /**
      * Smart fetch with query variations and quality filtering
      */
-    private static async smartFetchWithVariations(apiFunction: Function, query: string, params: any, minQualityResults: number = 3): Promise<any> {
+    private static async smartFetchWithVariations({apiFunction, query, params, minQualityResults = 3}: ISmartFetchWithVariationsParams): Promise<any> {
         console.log('Service: NewsService.smartFetchWithVariations called'.cyan.italic, {query, params, minQualityResults});
 
         const queryVariations = generateQueryVariations(query);
@@ -552,12 +553,12 @@ class NewsService {
             if (newsApiRequestCount < Number.parseInt(NEWSAPI_QUOTA_REQUESTS!) && simplifiedQuery) {
                 console.log(`Service: Trying NewsAPIOrg with smart query variations (target: ${newsApiTargetCount} articles)...`.cyan);
 
-                const newsApiResult = await this.smartFetchWithVariations(
-                    this.fetchNewsApiOrgEverything,
-                    simplifiedQuery,
-                    {language: 'en', sortBy: 'relevancy', pageSize: newsApiTargetCount * API_CONFIG.NEWS_API.RESULT_MULTIPLIER, page},
-                    Math.max(2, Math.ceil(newsApiTargetCount / 2)),
-                );
+                const newsApiResult = await this.smartFetchWithVariations({
+                    apiFunction: this.fetchNewsApiOrgEverything,
+                    query: simplifiedQuery,
+                    params: {language: 'en', sortBy: 'relevancy', pageSize: newsApiTargetCount * API_CONFIG.NEWS_API.RESULT_MULTIPLIER, page},
+                    minQualityResults: Math.max(2, Math.ceil(newsApiTargetCount / 2)),
+                });
 
                 if (newsApiResult && newsApiResult.articles && newsApiResult.articles.length > 0) {
                     const topArticles = newsApiResult.articles
@@ -616,12 +617,12 @@ class NewsService {
                 if (guardianApiRequestCount < Number.parseInt(GUARDIAN_QUOTA_REQUESTS!) && simplifiedQuery) {
                     console.log(`Service: Trying Guardian API with smart variations (target: ${guardianTargetCount} articles)...`.cyan);
 
-                    const guardianResult = await this.smartFetchWithVariations(
-                        this.fetchGuardianNews,
-                        simplifiedQuery,
-                        {section: topic !== 'general' ? topic : undefined, orderBy: 'relevance', pageSize: guardianTargetCount * API_CONFIG.NEWS_API.RESULT_MULTIPLIER, page},
-                        Math.max(1, Math.ceil(guardianTargetCount / 3)) // Need at least 1 good result
-                    );
+                    const guardianResult = await this.smartFetchWithVariations({
+                        apiFunction: this.fetchGuardianNews,
+                        query: simplifiedQuery,
+                        params: {section: topic !== 'general' ? topic : undefined, orderBy: 'relevance', pageSize: guardianTargetCount * API_CONFIG.NEWS_API.RESULT_MULTIPLIER, page},
+                        minQualityResults: Math.max(1, Math.ceil(guardianTargetCount / 3)) // Need at least 1 good result
+                    });
 
                     if (guardianResult && guardianResult.articles && guardianResult.articles.length > 0) {
                         const qualityArticles = guardianResult.articles
@@ -669,12 +670,12 @@ class NewsService {
                     console.log(`Service: Trying NYTimes API (target: ${nytimesTargetCount} articles)...`.cyan);
 
                     if (simplifiedQuery) {
-                        const nytResult = await this.smartFetchWithVariations(
-                            this.fetchNewYorkTimesNews,
-                            simplifiedQuery,
-                            {section: nytSection, sort: 'relevance', pageSize: nytimesTargetCount * API_CONFIG.NEWS_API.RESULT_MULTIPLIER, page},
-                            Math.max(1, Math.ceil(nytimesTargetCount / 3)) // Need at least 1 good result
-                        );
+                        const nytResult = await this.smartFetchWithVariations({
+                            apiFunction: this.fetchNewYorkTimesNews,
+                            query: simplifiedQuery,
+                            params: {section: nytSection, sort: 'relevance', pageSize: nytimesTargetCount * API_CONFIG.NEWS_API.RESULT_MULTIPLIER, page},
+                            minQualityResults: Math.max(1, Math.ceil(nytimesTargetCount / 3)) // Need at least 1 good result
+                        });
 
                         if (nytResult && nytResult.articles && nytResult.articles.length > 0) {
                             const qualityArticles = nytResult.articles
@@ -763,7 +764,7 @@ class NewsService {
                 if (user) {
                     console.log('User verified, enriching articles with sentiment analysis...'.cyan);
                     console.time('Performance: MULTISOURCE_SENTIMENT_ENRICHMENT_TIME'.cyan);
-                    enrichedArticles = await SentimentAnalysisService.enrichArticlesWithSentiment(finalResults, true);
+                    enrichedArticles = await SentimentAnalysisService.enrichArticlesWithSentiment({articles: finalResults, shouldAnalyze: true});
                     console.timeEnd('Performance: MULTISOURCE_SENTIMENT_ENRICHMENT_TIME'.cyan);
                     sentimentAnalysisEnabled = true;
                 } else {

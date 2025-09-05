@@ -104,6 +104,11 @@ export interface ILoginWithGoogleParams {
     code: string;
 }
 
+export interface ISendMagicLinkParams {
+    email: string;
+    token: string;
+}
+
 export interface IGenerateMagicLinkParams {
     email: string;
 }

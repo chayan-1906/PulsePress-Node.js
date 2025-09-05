@@ -322,6 +322,13 @@ export interface IRssFeedParams {
     page?: number;
 }
 
+export interface ISmartFetchWithVariationsParams {
+    apiFunction: Function;
+    query: string;
+    params: any;
+    minQualityResults?: number;
+}
+
 export interface IMultisourceFetchNewsParams {
     email?: string;  // for authMiddleware
     q?: string;

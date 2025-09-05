@@ -40,6 +40,30 @@ export interface IGetTopPerformingSourcesParams {
     minViews?: number; // Minimum views to be considered for top sources
 }
 
+export interface ICreateInitialAnalyticsParams {
+    source: string;
+    action: string;
+    readingTime: number;
+}
+
+export interface IUpdateExistingAnalyticsParams {
+    analytics: ISourceAnalytics;
+    action: string;
+    readingTime: number;
+}
+
+export interface ICalculateEngagementScoreParams {
+    metrics: {
+        totalViews: number;
+        totalBookmarks: number;
+        totalCompletedReads: number;
+        totalReadingTime: number;
+        averageReadingTime: number;
+        bookmarkConversionRate: number;
+        completionRate: number;
+    };
+}
+
 
 /** ------------- analytics calculation helpers ------------- */
 

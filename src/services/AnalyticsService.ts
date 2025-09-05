@@ -2,10 +2,12 @@ import "colors";
 import {calculateEngagementScore} from "../utils/serviceHelpers/analyticsHelpers";
 import SourceAnalyticsModel, {ISourceAnalytics} from "../models/SourceAnalyticsSchema";
 import {
+    ICreateInitialAnalyticsParams,
     IGetSourceAnalyticsParams,
     IGetSourceAnalyticsResponse,
     IGetTopPerformingSourcesParams,
     IGetTopPerformingSourcesResponse,
+    IUpdateExistingAnalyticsParams,
     IUpdateSourceAnalyticsParams,
     IUpdateSourceAnalyticsResponse,
 } from "../types/analytics";
@@ -25,11 +27,11 @@ class AnalyticsService {
             const existingAnalytics = await SourceAnalyticsModel.findOne({source});
 
             if (!existingAnalytics) {
-                const newAnalytics = await this.createInitialAnalytics(source, action, readingTime);
+                const newAnalytics = await this.createInitialAnalytics({source, action, readingTime});
                 return {sourceAnalytics: newAnalytics, isUpdated: true};
             }
 
-            const updatedAnalytics = await this.updateExistingAnalytics(existingAnalytics, action, readingTime);
+            const updatedAnalytics = await this.updateExistingAnalytics({analytics: existingAnalytics, action, readingTime});
             return {sourceAnalytics: updatedAnalytics, isUpdated: true};
         } catch (error: any) {
             console.error('Service Error: AnalyticsService.updateSourceAnalytics failed'.red.bold, error);
@@ -40,7 +42,7 @@ class AnalyticsService {
     /**
      * Create initial analytics record for a new source
      */
-    private static async createInitialAnalytics(source: string, action: string, readingTime: number): Promise<ISourceAnalytics> {
+    private static async createInitialAnalytics({source, action, readingTime}: ICreateInitialAnalyticsParams): Promise<ISourceAnalytics> {
         console.log('Service: AnalyticsService.createInitialAnalytics called'.cyan.italic, {source, action, readingTime});
 
         const initialData = {
@@ -55,14 +57,14 @@ class AnalyticsService {
             engagementScore: 0,
         };
 
-        initialData.engagementScore = calculateEngagementScore(initialData);
+        initialData.engagementScore = calculateEngagementScore({metrics: initialData});
         return await SourceAnalyticsModel.create(initialData);
     }
 
     /**
      * Update existing analytics with new user action and recalculate metrics
      */
-    private static async updateExistingAnalytics(analytics: ISourceAnalytics, action: string, readingTime: number): Promise<ISourceAnalytics> {
+    private static async updateExistingAnalytics({analytics, action, readingTime}: IUpdateExistingAnalyticsParams): Promise<ISourceAnalytics> {
         console.log('Service: AnalyticsService.updateExistingAnalytics called'.cyan.italic, {analytics, action, readingTime});
 
         const updates: any = {};
@@ -84,7 +86,6 @@ class AnalyticsService {
                 break;
         }
 
-        // Recalculate derived metrics
         const newTotalViews = updates.totalViews || analytics.totalViews;
         const newTotalBookmarks = updates.totalBookmarks || analytics.totalBookmarks;
         const newTotalCompletedReads = updates.totalCompletedReads || analytics.totalCompletedReads;
@@ -94,13 +95,15 @@ class AnalyticsService {
         updates.bookmarkConversionRate = newTotalViews > 0 ? (newTotalBookmarks / newTotalViews) * 100 : 0;
         updates.completionRate = newTotalViews > 0 ? (newTotalCompletedReads / newTotalViews) * 100 : 0;
         updates.engagementScore = calculateEngagementScore({
-            totalViews: newTotalViews,
-            totalBookmarks: newTotalBookmarks,
-            totalCompletedReads: newTotalCompletedReads,
-            totalReadingTime: newTotalReadingTime,
-            averageReadingTime: updates.averageReadingTime,
-            bookmarkConversionRate: updates.bookmarkConversionRate,
-            completionRate: updates.completionRate,
+            metrics: {
+                totalViews: newTotalViews,
+                totalBookmarks: newTotalBookmarks,
+                totalCompletedReads: newTotalCompletedReads,
+                totalReadingTime: newTotalReadingTime,
+                averageReadingTime: updates.averageReadingTime,
+                bookmarkConversionRate: updates.bookmarkConversionRate,
+                completionRate: updates.completionRate,
+            },
         });
 
         return await SourceAnalyticsModel.findOneAndUpdate(
@@ -109,7 +112,6 @@ class AnalyticsService {
             {new: true, runValidators: true},
         ) as ISourceAnalytics;
     }
-
 
     /**
      * Get source analytics with pagination and sorting options

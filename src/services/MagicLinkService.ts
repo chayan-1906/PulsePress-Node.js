@@ -39,7 +39,7 @@ class MagicLinkService {
 
             console.log('Database: Creating magic link record'.cyan);
             await MagicLinkModel.create({email, token, expiresAt});
-            await EmailService.sendMagicLink(email, token);
+            await EmailService.sendMagicLink({email, token});
 
             console.log('Magic link generation completed successfully'.green.bold);
             return {success: true, message: 'Magic link sent to your email'};
