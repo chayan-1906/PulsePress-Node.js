@@ -74,6 +74,14 @@ class ArticleEnhancementService {
                     prompt += `GEOGRAPHIC EXTRACTION:\n${AI_PROMPTS.GEOGRAPHIC_EXTRACTION()}\n\n`;
                 }
 
+                if (tasks.includes('questions')) {
+                    prompt += `QUESTION GENERATION:\n${AI_PROMPTS.QUESTION_GENERATION(truncatedContent)}\n\n`;
+                }
+
+                if (tasks.includes('newsInsights')) {
+                    prompt += `NEWS INSIGHTS ANALYSIS:\n${AI_PROMPTS.NEWS_INSIGHTS_ANALYSIS(truncatedContent)}\n\n`;
+                }
+
                 prompt += `Article content: "${truncatedContent}"\n\n`;
                 prompt += `${AI_PROMPTS.JSON_FORMAT_INSTRUCTIONS}\n\n`;
                 prompt += `Return exactly this format:\n{\n`;
@@ -91,7 +99,19 @@ class ArticleEnhancementService {
                     prompt += `  "complexityMeter": {"level": "medium", "reasoning": "Contains technical terms but accessible language"},\n`;
                 }
                 if (tasks.includes('geoExtraction')) {
-                    prompt += `  "locations": ["New York City", "California", "United States"]\n`;
+                    prompt += `  "locations": ["New York City", "California", "United States"],\n`;
+                }
+                if (tasks.includes('questions')) {
+                    prompt += `  "questions": ["What happens next?", "How will this affect people?", "Why is this important?"],\n`;
+                }
+                if (tasks.includes('newsInsights')) {
+                    prompt += `  "newsInsights": {
+                        "keyThemes": ["Economic Impact", "Social Change"],
+                        "impactAssessment": {"level": "national", "description": "This will affect the entire country"},
+                        "contextConnections": ["Related to previous policy", "Similar to 2020 event"],
+                        "stakeholderAnalysis": {"winners": ["Tech companies"], "losers": ["Traditional media"], "affected": ["General public"]},
+                        "timelineContext": ["This follows last month's announcement"]
+                      }\n`;
                 }
 
                 prompt += `}`;
@@ -141,6 +161,23 @@ class ArticleEnhancementService {
                     if (validLocations.length > 0) {
                         response.locations = validLocations;
                     }
+                }
+
+                if (tasks.includes('questions') && parsed.questions && Array.isArray(parsed.questions)) {
+                    const validQuestions = parsed.questions.filter(question => question && question.trim().length > 0);
+                    if (validQuestions.length > 0) {
+                        response.questions = validQuestions;
+                    }
+                }
+
+                if (tasks.includes('newsInsights') && parsed.newsInsights) {
+                    response.newsInsights = {
+                        keyThemes: Array.isArray(parsed.newsInsights.keyThemes) ? parsed.newsInsights.keyThemes : [],
+                        impactAssessment: parsed.newsInsights.impactAssessment || {level: 'local', description: ''},
+                        contextConnections: Array.isArray(parsed.newsInsights.contextConnections) ? parsed.newsInsights.contextConnections : [],
+                        stakeholderAnalysis: parsed.newsInsights.stakeholderAnalysis || {winners: [], losers: [], affected: []},
+                        timelineContext: Array.isArray(parsed.newsInsights.timelineContext) ? parsed.newsInsights.timelineContext : [],
+                    };
                 }
 
                 console.log(`✅ AI enhancement successful with model:`.green.bold, modelName);

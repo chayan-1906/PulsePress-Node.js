@@ -1,6 +1,6 @@
 import {Document, model, Model, Schema} from 'mongoose';
-import {COMPLEXITY_LEVELS, TComplexityLevel, TSentimentResult} from "../types/ai";
-import {ARTICLE_COMPLEXITIES, TArticleComplexities, PROCESSING_STATUSES, TProcessingStatus} from "../types/news";
+import {COMPLEXITY_LEVELS, IMPACT_LEVELS, TComplexityLevel, TImpactLevel, TSentimentResult} from "../types/ai";
+import {ARTICLE_COMPLEXITIES, PROCESSING_STATUSES, TArticleComplexities, TProcessingStatus} from "../types/news";
 
 export interface IArticleEnhancement extends Document {
     articleId: string;
@@ -23,6 +23,21 @@ export interface IArticleEnhancement extends Document {
         reasoning: string;
     };
     locations?: string[];
+    questions?: string[];
+    newsInsights?: {
+        keyThemes: string[];
+        impactAssessment: {
+            level: TImpactLevel;
+            description: string;
+        };
+        contextConnections: string[];
+        stakeholderAnalysis: {
+            winners: string[];
+            losers: string[];
+            affected: string[];
+        };
+        timelineContext: string[];
+    };
     processingStatus: TProcessingStatus;
     createdAt: Date;
     updatedAt: Date;
@@ -71,6 +86,38 @@ const ArticleEnhancementSchema = new Schema<IArticleEnhancement>({
     locations: [{
         type: String,
     }],
+    questions: [{
+        type: String,
+    }],
+    newsInsights: {
+        keyThemes: [{
+            type: String,
+        }],
+        impactAssessment: {
+            level: {
+                type: String,
+                enum: IMPACT_LEVELS,
+            },
+            description: String,
+        },
+        contextConnections: [{
+            type: String,
+        }],
+        stakeholderAnalysis: {
+            winners: [{
+                type: String,
+            }],
+            losers: [{
+                type: String,
+            }],
+            affected: [{
+                type: String,
+            }],
+        },
+        timelineContext: [{
+            type: String,
+        }],
+    },
     processingStatus: {
         type: String,
         default: 'pending',

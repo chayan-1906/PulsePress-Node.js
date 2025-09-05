@@ -4,10 +4,10 @@ import {newsScrapingRateLimiter} from "../middlewares/RateLimiterMiddleware";
 import {
     exploreTopicController,
     fetchAllRssFeedsController,
-    fetchEnhancementStatusController,
     fetchGuardianNewsController,
     fetchMultiSourceNewsController,
     fetchMultiSourceNewsEnhancedController,
+    fetchMultiSourceNewsEnhancementStatusController,
     fetchNewsApiOrgEverythingController,
     fetchNewsApiOrgTopHeadlinesController,
     fetchNewYorkTimesNewsController,
@@ -24,8 +24,10 @@ router.get('/nytimes/search', fetchNewYorkTimesNewsController);      // /api/v1/
 router.get('/nytimes/top-stories', fetchNewYorkTimesTopStoriesController); // /api/v1/news/nytimes/top-stories?section=technology
 router.get('/rss', fetchAllRssFeedsController);                   // /api/v1/news/rss?sources=prothom_alo,zeenews_bengali&language=bengali&pageSize=12&page=2
 router.get('/multi-source', authMiddlewareOptional, fetchMultiSourceNewsController);                   // /api/v1/news/multi-source?q=tesla&category=technology&sources=techcrunch&pageSize=10&page=1
-router.get('/multi-source/enhanced', authMiddlewareOptional, fetchMultiSourceNewsEnhancedController);    // /api/v1/news/multi-source/enhanced?q=tesla&category=technology&sources=techcrunch&pageSize=10&page=1 (RECOMMENDED FOR HOME SCREEN)
-router.get('/multi-source/enhancement-status', authMiddlewareOptional, fetchEnhancementStatusController);    // /api/v1/news/multi-source/enhancement-status?articleIds=id1,id2,id3 (FOR POLLING)
+router.get('/multi-source/enhance', authMiddlewareOptional, fetchMultiSourceNewsEnhancedController);    // /api/v1/news/multi-source/enhanced?q=tesla&category=technology&sources=techcrunch&pageSize=10&page=1 (RECOMMENDED FOR HOME SCREEN)
+router.get('/multi-source/enhancement-status', authMiddlewareOptional, fetchMultiSourceNewsEnhancementStatusController);    // /api/v1/news/multi-source/enhancement-status?articleIds=id1,id2,id3 (FOR POLLING)
+// router.post('/article/enhance', authMiddleware, aiRateLimiter, newsScrapingRateLimiter, fetchArticleDetailsEnhancedController);    // /api/v1/news/article/enhance (FOR ARTICLE DETAILS SCREEN)
+// router.get('/article/enhancement-status', authMiddleware, fetchArticleDetailsEnhancementStatusController);    // /api/v1/news/article/enhance-status?articleId=id (FOR ARTICLE DETAILS POLLING)
 router.post('/scrape', newsScrapingRateLimiter, scrapeWebsiteController); // /api/v1/news/scrape
 router.get('/explore/:topic', exploreTopicController); // /api/v1/news/explore/:topic
 

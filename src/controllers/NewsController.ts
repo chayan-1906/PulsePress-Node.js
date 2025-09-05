@@ -9,6 +9,7 @@ import {COUNTRY_KEYWORDS, TOPIC_METADATA, TOPIC_QUERIES} from "../utils/constant
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {
     IExploreTopicParams,
+    IFetchMultisourceNewsEnhancementStatusParams,
     IGuardianSearchParams,
     IMultisourceFetchNewsParams,
     INewsApiOrgEverythingParams,
@@ -468,12 +469,12 @@ const fetchMultiSourceNewsEnhancedController = async (req: Request, res: Respons
     }
 }
 
-const fetchEnhancementStatusController = async (req: Request, res: Response) => {
+const fetchMultiSourceNewsEnhancementStatusController = async (req: Request, res: Response) => {
     console.info('Controller: fetchEnhancementStatusController started'.bgBlue.white.bold);
 
     try {
         const email = (req as IAuthRequest).email;
-        const {articleIds}: { articleIds?: string } = req.query;
+        const {articleIds}: Partial<IFetchMultisourceNewsEnhancementStatusParams> = req.query;
 
         if (!articleIds) {
             res.status(400).send(new ApiResponse({
@@ -545,7 +546,7 @@ export {
     fetchAllRssFeedsController,
     fetchMultiSourceNewsController,
     fetchMultiSourceNewsEnhancedController,
-    fetchEnhancementStatusController,
+    fetchMultiSourceNewsEnhancementStatusController,
     scrapeWebsiteController,
     exploreTopicController,
 };

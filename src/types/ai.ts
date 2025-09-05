@@ -1,5 +1,5 @@
-import {IArticle, TArticleComplexities, TEnhancementStatus} from "./news";
 import {IArticleEnhancement} from "../models/ArticleEnhancementSchema";
+import {IArticle, TArticleComplexities, TEnhancementStatus} from "./news";
 
 /*export const SUMMARIZATION_STYLES: SummarizationStyle[] = ['concise', 'standard', 'detailed'];
 export type SummarizationStyle = 'concise' | 'standard' | 'detailed';*/
@@ -34,7 +34,7 @@ export type TImpactLevel = typeof IMPACT_LEVELS[number];
 export const STAKEHOLDER_TYPES = ['consumers', 'businesses', 'government', 'investors', 'workers', 'environment', 'technology'] as const;
 export type TStakeholderType = typeof STAKEHOLDER_TYPES[number];
 
-export const AI_ARTICLE_ENHANCEMENT_TYPES = ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'geoExtraction'];
+export const AI_ARTICLE_ENHANCEMENT_TYPES = ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'geoExtraction', 'questions', 'newsInsights'];
 export type TAIArticleEnhancement = typeof AI_ARTICLE_ENHANCEMENT_TYPES[number];
 
 export const LANGUAGE_NAMES: Record<TSupportedLanguage, string> = {
@@ -309,6 +309,21 @@ export interface ICombinedAIResponse {
         reasoning: string;
     };
     locations?: string[];
+    questions?: string[];
+    newsInsights?: {
+        keyThemes: string[];
+        impactAssessment: {
+            level: TImpactLevel;
+            description: string;
+        };
+        contextConnections: string[];
+        stakeholderAnalysis: {
+            winners: string[];
+            losers: string[];
+            affected: string[];
+        };
+        timelineContext: string[];
+    };
     powered_by?: string;
     error?: string;
 }
@@ -438,6 +453,11 @@ export interface INewsInsightsParams {
 export interface ICombinedAIParams {
     content: string;
     tasks: TAIArticleEnhancement[];
+}
+
+export interface ICombinedAIDetailsParams {
+    email?: string;
+    url: string;
 }
 
 export interface IGetProcessingStatusParams {

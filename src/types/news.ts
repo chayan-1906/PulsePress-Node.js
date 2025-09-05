@@ -338,6 +338,14 @@ export interface IMultisourceFetchNewsParams {
     page?: number;
 }
 
+export interface IFetchMultisourceNewsEnhancementStatusParams {
+    articleIds: string;
+}
+
+export interface IFetchArticleDetailsEnhancementStatusParams {
+    articleId: string;
+}
+
 export interface IScrapeWebsiteParams {
     url?: string;
 }
