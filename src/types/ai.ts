@@ -1,3 +1,6 @@
+import {Article, ArticleComplexities, EnhancementStatus} from "./news";
+import {IArticleEnhancement} from "../models/ArticleEnhancementSchema";
+
 /*export const SUMMARIZATION_STYLES: SummarizationStyle[] = ['concise', 'standard', 'detailed'];
 export type SummarizationStyle = 'concise' | 'standard' | 'detailed';*/
 
@@ -6,35 +9,33 @@ export type SummarizationStyle = typeof SUMMARIZATION_STYLES[number];
 
 export const SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'pt', 'ru', 'ja', 'ko', 'zh', 'ar', 'hi', 'bn', 'te', 'ta', 'mr', 'gu', 'kn', 'ml', 'pa', 'or', 'as', 'ur', 'ne', 'si', 'my'];
 export type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
-/*export type SupportedLanguage =
-// English
-    | 'en'
-    // Major International
-    | 'es'    // Spanish
-    | 'fr'    // French
-    | 'de'    // German
-    | 'pt'    // Portuguese
-    | 'ru'    // Russian
-    | 'ja'    // Japanese
-    | 'ko'    // Korean
-    | 'zh'    // Chinese (Simplified)
-    | 'ar'    // Arabic
-    // Indian Languages
-    | 'hi'    // Hindi
-    | 'bn'    // Bengali
-    | 'te'    // Telugu
-    | 'ta'    // Tamil
-    | 'mr'    // Marathi
-    | 'gu'    // Gujarati
-    | 'kn'    // Kannada
-    | 'ml'    // Malayalam
-    | 'pa'    // Punjabi
-    | 'or'    // Odia
-    | 'as'    // Assamese
-    | 'ur'    // Urdu
-    | 'ne'    // Nepali
-    | 'si'    // Sinhala
-    | 'my';   // Myanmar*/
+
+export const USER_STRIKE_BLOCK = ['cooldown', 'long_block'] as const;
+export type UserStrikeBlock = typeof USER_STRIKE_BLOCK[number];
+
+export const CLASSIFICATION_TYPES = ['news', 'non_news', 'error'] as const;
+export type ClassificationResult = typeof CLASSIFICATION_TYPES[number];
+
+export const SENTIMENT_TYPES = ['positive', 'negative', 'neutral'] as const;
+export type SentimentResult = typeof SENTIMENT_TYPES[number];
+
+export const COMPLEXITY_LEVELS = ['easy', 'medium', 'hard'] as const;
+export type ComplexityLevel = typeof COMPLEXITY_LEVELS[number];
+
+export const SOCIAL_MEDIA_PLATFORMS = ['twitter', 'instagram', 'linkedin', 'facebook'] as const;
+export type SocialMediaPlatform = typeof SOCIAL_MEDIA_PLATFORMS[number];
+
+export const SOCIAL_MEDIA_CAPTION_STYLES = ['professional', 'casual', 'engaging', 'viral'] as const;
+export type SocialMediaCaptionStyle = typeof SOCIAL_MEDIA_CAPTION_STYLES[number];
+
+export const IMPACT_LEVELS = ['local', 'regional', 'national', 'global'] as const;
+export type ImpactLevel = typeof IMPACT_LEVELS[number];
+
+export const STAKEHOLDER_TYPES = ['consumers', 'businesses', 'government', 'investors', 'workers', 'environment', 'technology'] as const;
+export type StakeholderType = typeof STAKEHOLDER_TYPES[number];
+
+export const AI_ARTICLE_ENHANCEMENT_TYPES = ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'geoExtraction', 'questions', 'newsInsights'];
+export type AIArticleEnhancement = typeof AI_ARTICLE_ENHANCEMENT_TYPES[number];
 
 export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
     'en': 'English',
@@ -49,8 +50,8 @@ export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
     'ar': 'العربية',
     'hi': 'हिंदी',
     'bn': 'বাংলা',
-    'te': 'తెలుగు',
-    'ta': 'தமிழ்',
+    'te': 'తెলుగు',
+    'ta': 'தமিழ்',
     'mr': 'मराठी',
     'gu': 'ગુજરાતી',
     'kn': 'ಕನ್ನಡ',
@@ -64,13 +65,144 @@ export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
     'my': 'မြန်မာ'
 };
 
+export interface EnrichedArticleWithSentiment {
+    source: {
+        id: string | null;
+        name: string | null;
+    };
+    author: string | null;
+    title: string | null;
+    description: string | null;
+    url: string | null;
+    urlToImage: string | null;
+    publishedAt: string | null;
+    content: string | null;
+    qualityScore?: {
+        score: number;
+        reasons: string[];
+        isRelevant: boolean;
+        isProfessional: boolean;
+    };
+    sentimentData?: {
+        sentiment: SentimentResult;
+        confidence: number;
+        emoji: string;
+        color: string;
+    };
+}
+
+export interface StrikeHistoryEvent {
+    strikeNumber: number;
+    appliedAt: Date;
+    reason: string;
+    blockType?: UserStrikeBlock;
+    blockDuration?: string;
+}
+
+export interface StrikeResult {
+    success: boolean;
+    newStrikeCount: number;
+    isBlocked: boolean;
+    blockType?: UserStrikeBlock;
+    blockedUntil?: Date;
+    message: string;
+    wasReset?: boolean;
+}
+
+export interface StrikeCheckResult {
+    isBlocked: boolean;
+    blockType?: UserStrikeBlock;
+    blockedUntil?: Date;
+    message?: string;
+    wasReset?: boolean;
+}
+
+export interface UserStrikeStatus {
+    currentStrikes: number;
+    maxStrikes: number;
+    isBlocked: boolean;
+    blockType?: UserStrikeBlock;
+    blockedUntil?: Date;
+    lastStrikeAt?: Date;
+    timeUntilReset?: string;
+    blockTimeRemaining?: string;
+    nextStrikePenalty: string;
+}
+
+export interface UserStrikeHistory {
+    date: Date;
+    strikeNumber: number;
+    reason: string;
+    blockType?: UserStrikeBlock;
+    blockDuration?: string;
+}
+
+
+/** ------------- AI Service JSON Parse Interfaces ------------- */
+
+export interface AISentiment {
+    sentiment: SentimentResult;
+    confidence?: number;
+}
+
+export interface AIClassification {
+    classification: ClassificationResult;
+}
+
+export interface AIKeyPoints {
+    keyPoints: string[];
+}
+
+export interface AIComplexityMeter {
+    complexityMeter: {
+        level: ComplexityLevel;
+        reasoning?: string;
+    };
+}
+
+export interface AIQuestionGeneration {
+    questions: string[];
+}
+
+export interface AIQuestionAnswering {
+    answer: string;
+}
+
+export interface AIGeographicExtraction {
+    locations: string[];
+}
+
+export interface AISocialMediaCaption {
+    caption: string;
+    hashtags: string[];
+    platform: SocialMediaPlatform;
+    style: SocialMediaCaptionStyle;
+}
+
+export interface AINewsInsights {
+    keyThemes: string[];
+    impactAssessment: {
+        level: ImpactLevel;
+        description: string;
+    };
+    contextConnections: string[];
+    stakeholderAnalysis: {
+        winners: string[];
+        losers: string[];
+        affected: string[];
+    };
+    timelineContext: string[];
+}
+
 
 /** ------------- API response types ------------- */
 
 export interface SummarizeArticleResponse {
     summary?: string;
+    wasClassified?: 'news' | 'non_news' | 'classification_skipped';
     powered_by?: string;
     error?: string;
+    errorMsg?: string;
 }
 
 export interface GenerateContentHashResponse {
@@ -78,12 +210,148 @@ export interface GenerateContentHashResponse {
     error?: string;
 }
 
+export interface TagGenerationResponse {
+    tags?: string[];
+    powered_by?: string;
+    error?: string;
+}
+
+export interface SentimentAnalysisResponse {
+    sentiment?: SentimentResult;
+    confidence?: number;
+    // TODO: Add powered_by
+    error?: string;
+}
+
+export interface KeyPointsExtractionResponse {
+    keyPoints?: string[];
+    // TODO: Add powered_by
+    error?: string;
+}
+
+export interface ComplexityMeterResponse {
+    complexityMeter?: {
+        level: ComplexityLevel;
+        reasoning: string;
+    };
+    // TODO: Add powered_by
+    error?: string;
+}
+
+export interface ReadingTimeComplexityResponse {
+    level: ArticleComplexities;
+    readingTimeMinutes: number;
+    wordCount: number;
+}
+
+export interface QuestionGenerationResponse {
+    questions?: string[];
+    // TODO: Add powered_by
+    error?: string;
+}
+
+export interface QuestionAnsweringResponse {
+    answer?: string;
+    // TODO: Add powered_by
+    error?: string;
+}
+
+export interface GeographicExtractionResponse {
+    locations?: string[];
+    // TODO: Add powered_by
+    error?: string;
+}
+
+export interface SocialMediaCaptionResponse {
+    caption?: string;
+    hashtags?: string[];
+    platform?: SocialMediaPlatform;
+    style?: SocialMediaCaptionStyle;
+    characterCount?: number;
+    powered_by?: string;
+    error?: string;
+}
+
+export interface NewsInsightsResponse {
+    keyThemes?: string[];
+    impactAssessment?: {
+        level: ImpactLevel;
+        description: string;
+    };
+    contextConnections?: string[];
+    stakeholderAnalysis?: {
+        winners?: string[];
+        losers?: string[];
+        affected?: string[];
+    };
+    timelineContext?: string[];
+    powered_by?: string;
+    error?: string;
+}
+
+export interface CombinedAIResponse {
+    tags?: string[],
+    sentiment?: {
+        type: SentimentResult;
+        confidence: number;
+        emoji: string;
+        color: string;
+    };
+    keyPoints?: string[];
+    complexityMeter?: {
+        level: ComplexityLevel;
+        reasoning: string;
+    };
+    locations?: string[];
+    questions?: string[];
+    newsInsights?: {
+        keyThemes: string[];
+        impactAssessment: {
+            level: ImpactLevel;
+            description: string;
+        };
+        contextConnections: string[];
+        stakeholderAnalysis: {
+            winners: string[];
+            losers: string[];
+            affected: string[];
+        };
+        timelineContext: string[];
+    };
+    // TODO: Add powered_by
+    error?: string;
+}
+
+export interface GetProcessingStatusResponse {
+    status: EnhancementStatus;
+    progress: number;
+}
+
+export interface GetEnhancementStatusByIdsResponse {
+    status?: EnhancementStatus;
+    progress?: number;
+    articles?: Partial<Article>[];
+    error?: string;
+}
+
+export interface GetUserStrikeStatusResponse {
+    strikeStatus?: UserStrikeStatus;
+    error?: string;
+}
+
+export interface GetUserStrikeHistoryResponse {
+    strikeHistory?: UserStrikeHistory[];
+    totalStrikes?: number;
+    error?: string;
+}
+
+
 /** ------------- function params ------------- */
 
 export interface SummarizeArticleParams {
-    email: string;  // for authMiddleware
+    email: string;
     content?: string;
-    urls?: string[];
+    url?: string;
     language?: SupportedLanguage;
     style?: SummarizationStyle;
 }
@@ -108,4 +376,100 @@ export interface GetCachedSummaryParams {
 export interface TranslateTextParams {
     text: string;
     targetLanguage: SupportedLanguage;
+}
+
+export interface TagGenerationParams {
+    content?: string;
+    url?: string;
+}
+
+export interface SentimentAnalysisParams {
+    url?: string;
+    content?: string;
+}
+
+export interface KeyPointsExtractionParams {
+    url?: string;
+    content?: string;
+}
+
+export interface ComplexityMeterParams {
+    url?: string;
+    content?: string;
+}
+
+export interface ReadingTimeComplexityParams {
+    // article: Article;
+    content?: string;
+    description?: string;
+}
+
+export interface QuestionGenerationParams {
+    content: string;
+}
+
+export interface QuestionAnsweringParams {
+    content: string;
+    question: string;
+}
+
+export interface GeographicExtractionParams {
+    url?: string;
+    content?: string;
+}
+
+export interface SocialMediaCaptionParams {
+    url?: string;
+    content?: string;
+    platform?: SocialMediaPlatform;
+    style?: SocialMediaCaptionStyle;
+}
+
+export interface NewsInsightsParams {
+    url?: string;
+    content?: string;
+}
+
+export interface CombinedAIParams {
+    content: string;
+    tasks: AIArticleEnhancement[];
+}
+
+export interface CombinedAIDetailsParams {
+    email?: string;
+    url: string;
+}
+
+export interface GetProcessingStatusParams {
+    articles: Article[];
+}
+
+export interface EnhanceArticlesInBackgroundParams {
+    email: string;
+    articles: Article[];
+}
+
+export interface GetEnhancementForArticlesParams {
+    articles: Article[];
+}
+
+export interface GetEnhancementStatusByIdsParams {
+    email: string;
+    articleIds: string[];
+}
+
+export interface MergeEnhancementsWithArticlesParams {
+    articles: Article[];
+    enhancements: {
+        [articleId: string]: IArticleEnhancement;
+    };
+}
+
+export interface GetUserStrikeStatusParams {
+    email: string;
+}
+
+export interface GetUserStrikeHistoryParams {
+    email: string;
+    limit?: number;
 }

@@ -41,34 +41,6 @@ export interface GetTopPerformingSourcesParams {
 }
 
 
-/** ------------- utility types ------------- */
-
-export interface SourceEngagementMetrics {
-    source: string;
-    views: number;
-    bookmarks: number;
-    completedReads: number;
-    totalReadingTime: number;
-    averageReadingTime: number;
-    bookmarkConversionRate: number;
-    completionRate: number;
-    engagementScore: number;
-    lastActivity: Date;
-}
-
-export interface AnalyticsUpdate {
-    totalViews?: number;
-    totalBookmarks?: number;
-    totalCompletedReads?: number;
-    totalReadingTime?: number;
-    averageReadingTime?: number;
-    bookmarkConversionRate?: number;
-    completionRate?: number;
-    engagementScore?: number;
-    lastUpdated: Date;
-}
-
-
 /** ------------- analytics calculation helpers ------------- */
 
 export interface EngagementScoreWeights {

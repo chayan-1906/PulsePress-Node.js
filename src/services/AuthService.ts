@@ -1,10 +1,13 @@
 import "colors";
+import mongoose from "mongoose";
 import bcryptjs from "bcryptjs";
 import jwt, {SignOptions} from "jsonwebtoken";
 import {getOAuth2Client} from "../utils/OAuth";
+import {generateMagicLink} from "./MagicLinkService";
 import BookmarkModel from "../models/BookmarkSchema";
 import UserModel, {IUser} from "../models/UserSchema";
-import {modifyUserPreference} from "./UserPreferenceService";
+import MagicLinkModel from "../models/MagicLinkSchema";
+import UserPreferenceService from "./UserPreferenceService";
 import ReadingHistoryModel from "../models/ReadingHistorySchema";
 import UserPreferenceModel from "../models/UserPreferenceSchema";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
@@ -23,12 +26,14 @@ import {
     RefreshTokenResponse,
     RegisterParams,
     RegisterResponse,
+    ResetPasswordParams,
+    ResetPasswordResponse,
     UpdateUserParams,
     UpdateUserResponse
 } from "../types/auth";
-import mongoose from "mongoose";
 
-const registerUser = async ({name, email, password, confirmPassword}: RegisterParams): Promise<RegisterResponse> => {
+class AuthService {
+    static async registerUser({name, email, password, confirmPassword}: RegisterParams): Promise<RegisterResponse> {
     try {
         if (!name) {
             return {error: generateMissingCode('name')};
@@ -43,13 +48,13 @@ const registerUser = async ({name, email, password, confirmPassword}: RegisterPa
             return {error: generateInvalidCode('password')};
         }
 
-        const hashedPassword = await hashPassword(password);
-        const isMatched = comparePassword(password, confirmPassword);
+        const hashedPassword = await this.hashPassword(password);
+        const isMatched = this.comparePassword(password, confirmPassword);
         if (!isMatched) {
             return {error: 'PASSWORD_MISMATCH'};
         }
 
-        const {user} = await getUserByEmail({email});
+        const {user} = await this.getUserByEmail({email});
         if (user) {
             console.info('user exists'.bgMagenta.white.italic);
             return {error: 'ALREADY_REGISTERED'};
@@ -59,11 +64,10 @@ const registerUser = async ({name, email, password, confirmPassword}: RegisterPa
         session.startTransaction();
 
         try {
-            const [newUser] = await UserModel.create([{name, email, password: hashedPassword}], {session});
-            const {accessToken, refreshToken} = await generateJWT(newUser);
+            const [newUser] = await UserModel.create([{name, email, password: hashedPassword, authProvider: 'email'}], {session});
             console.log('user created:'.cyan.italic, newUser);
 
-            const {userPreference, error} = await modifyUserPreference({
+            const {userPreference, error} = await UserPreferenceService.modifyUserPreference({
                 email,
                 user: newUser,
                 preferredLanguage: 'en',
@@ -81,7 +85,10 @@ const registerUser = async ({name, email, password, confirmPassword}: RegisterPa
             console.log('user preference created:'.cyan.italic, userPreference);
 
             await session.commitTransaction();
-            return {user: newUser, accessToken, refreshToken};
+
+            await generateMagicLink({email});
+            console.log('verification magic link sent:'.cyan.italic, {email});
+            return {user: newUser};
         } catch (error: any) {
             console.error('ERROR: inside catch of registerUser > userPreference:'.red.bold, error);
             await session.abortTransaction();
@@ -95,27 +102,35 @@ const registerUser = async ({name, email, password, confirmPassword}: RegisterPa
     }
 }
 
-const loginUser = async ({email, password}: LoginParams): Promise<LoginResponse> => {
+    static async loginUser({email, password}: LoginParams): Promise<LoginResponse> {
     try {
         if (!password) {
             return {error: generateMissingCode('password')};
         }
 
-        const {user} = await getUserByEmail({email});
+        const {user} = await this.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
-
-        if (user.googleId && !user.password) {
-            return {error: 'GOOGLE_USER_USE_OAUTH'};
+        if (!user.isVerified) {
+            return {error: 'USER_NOT_VERIFIED'};
         }
 
-        const isMatched = await verifyPassword(password, user.password!);
+        if (!user.password) {
+            if (user.authProvider === 'google') {
+                return {error: 'GOOGLE_OAUTH_USER'};
+            }
+            if (user.authProvider === 'magic-link') {
+                return {error: 'MAGIC_LINK_USER'};
+            }
+        }
+
+        const isMatched = await this.verifyPassword(password, user.password!);
         if (!isMatched) {
             return {error: generateInvalidCode('credentials')};
         }
 
-        const {accessToken, refreshToken} = await generateJWT(user);
+        const {accessToken, refreshToken} = await this.generateJWT(user);
 
         return {user, accessToken, refreshToken};
     } catch (error: any) {
@@ -124,7 +139,67 @@ const loginUser = async ({email, password}: LoginParams): Promise<LoginResponse>
     }
 }
 
-const refreshToken = async ({refreshToken: rawRefreshToken}: RefreshTokenParams): Promise<RefreshTokenResponse> => {
+    static async resetPassword({email, currentPassword, newPassword}: ResetPasswordParams): Promise<ResetPasswordResponse> {
+    try {
+        const {user} = await this.getUserByEmail({email});
+        if (!user) {
+            return {error: generateNotFoundCode('user')};
+        }
+
+        /**
+         * {
+         *   success: false,
+         *   errorCode: 'NO_PASSWORD_SET',
+         *   errorMsg: 'You don\'t have a password yet. Choose how you\'d like to continue:',
+         *   options: [
+         *     {
+         *       action: 'SET_PASSWORD',
+         *       text: 'Create a password for your account',
+         *       description: 'We\'ll send you a secure link to set up a password'
+         *     },
+         *     {
+         *       action: 'USE_EXISTING_METHOD',
+         *       text: 'Continue with your usual login method',
+         *       description: 'Use Google sign-in or email link like before'
+         *     }
+         *   ]
+         * }
+         * */
+        if (!user.password) {
+            return {error: 'NO_PASSWORD_SET'};
+        }
+
+        if (!currentPassword) {
+            return {error: generateMissingCode('current_password')};
+        }
+        if (!newPassword) {
+            return {error: generateMissingCode('new_password')};
+        }
+
+        const isMatched = await this.verifyPassword(currentPassword, user.password!);
+        if (!isMatched) {
+            return {error: generateInvalidCode('credentials')};
+        }
+
+        if (currentPassword === newPassword) {
+            return {error: 'SAME_PASSWORD'};
+        }
+
+        if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*])(?=.{6,})/.test(newPassword)) {
+            return {error: generateInvalidCode('new_password')};
+        }
+        user.password = await this.hashPassword(newPassword);
+        await user.save();
+        console.log('password reset:'.cyan.italic);
+
+        return {user};
+    } catch (error: any) {
+        console.error('ERROR: inside catch of loginUser:'.red.bold, error);
+        throw error;
+    }
+}
+
+    static async refreshToken({refreshToken: rawRefreshToken}: RefreshTokenParams): Promise<RefreshTokenResponse> {
     try {
         if (!rawRefreshToken) {
             return {error: generateMissingCode('refreshToken')};
@@ -137,9 +212,9 @@ const refreshToken = async ({refreshToken: rawRefreshToken}: RefreshTokenParams)
         }
 
         const newAccessToken = jwt.sign(
-            {userExternalId: user.userExternalId},
+            {userExternalId: user.userExternalId, email: user.email},
             ACCESS_TOKEN_SECRET!,
-            {expiresIn: ACCESS_TOKEN_EXPIRY as SignOptions['expiresIn']}
+            {expiresIn: ACCESS_TOKEN_EXPIRY as SignOptions['expiresIn']},
         );
 
         return {accessToken: newAccessToken};
@@ -149,7 +224,7 @@ const refreshToken = async ({refreshToken: rawRefreshToken}: RefreshTokenParams)
     }
 }
 
-const loginWithGoogle = async ({code}: LoginWithGoogleParams): Promise<LoginResponse> => {
+    static async loginWithGoogle({code}: LoginWithGoogleParams): Promise<LoginResponse> {
     try {
         if (!code) {
             return {error: generateInvalidCode('code')};
@@ -166,10 +241,14 @@ const loginWithGoogle = async ({code}: LoginWithGoogleParams): Promise<LoginResp
 
         const {id: googleId, name, email, picture: profilePicture} = userInfoResponse.data;
 
-        const {user} = await getUserByEmail({email});
+        const {user} = await this.getUserByEmail({email});
         if (user) {
             console.info('user exists'.bgMagenta.white.italic);
-            const {accessToken, refreshToken} = await generateJWT(user);
+            user.authProvider = 'google';
+            user.isVerified = true;
+            user.googleId = googleId || '';
+            await user.save();
+            const {accessToken, refreshToken} = await this.generateJWT(user);
             return {user, accessToken, refreshToken};
         }
 
@@ -177,11 +256,17 @@ const loginWithGoogle = async ({code}: LoginWithGoogleParams): Promise<LoginResp
         session.startTransaction();
 
         try {
-            const [newUser] = await UserModel.create([{googleId, name, email, profilePicture}], {session});
-            const {accessToken, refreshToken} = await generateJWT(newUser);
+            if (!email) {
+                await session.abortTransaction();
+                return {error: generateInvalidCode('email')};
+            }
+
+            const [newUser] = await UserModel.create([{googleId, name, email, profilePicture, isVerified: true, authProvider: 'google'}], {session});
+
+            const {accessToken, refreshToken} = await this.generateJWT(newUser);
             console.log('user created:'.cyan.italic, newUser);
 
-            const {userPreference, error} = await modifyUserPreference({
+            const {userPreference, error} = await UserPreferenceService.modifyUserPreference({
                 email: email || '',
                 user: newUser,
                 preferredLanguage: 'en',
@@ -213,9 +298,9 @@ const loginWithGoogle = async ({code}: LoginWithGoogleParams): Promise<LoginResp
     }
 }
 
-const updateUser = async ({email, name, password, profilePicture}: UpdateUserParams): Promise<UpdateUserResponse> => {
+    static async updateUser({email, name, password, profilePicture}: UpdateUserParams): Promise<UpdateUserResponse> {
     try {
-        const {user} = await getUserByEmail({email});
+        const {user} = await this.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
@@ -227,7 +312,7 @@ const updateUser = async ({email, name, password, profilePicture}: UpdateUserPar
             if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*])(?=.{6,})/.test(password)) {
                 return {error: generateInvalidCode('password')};
             }
-            user.password = await hashPassword(password);
+            user.password = await this.hashPassword(password);
         }
         user.profilePicture = profilePicture;   // user can remove profile picture
         const updatedUser: IUser | null = await user.save();
@@ -242,7 +327,7 @@ const updateUser = async ({email, name, password, profilePicture}: UpdateUserPar
     }
 }
 
-const hashPassword = async (password: string): Promise<string> => {
+    private static async hashPassword(password: string): Promise<string> {
     try {
         const hashedPassword = await bcryptjs.hash(password, 10);
         console.info('hashPassword:'.bgMagenta.white.italic, hashedPassword);
@@ -253,7 +338,7 @@ const hashPassword = async (password: string): Promise<string> => {
     }
 }
 
-const comparePassword = (password1: string, password2: string): boolean => {
+    private static comparePassword(password1: string, password2: string): boolean {
     try {
         const isMatched = password1 === password2;
         if (!isMatched) {
@@ -268,7 +353,7 @@ const comparePassword = (password1: string, password2: string): boolean => {
     }
 }
 
-const verifyPassword = async (password: string, hashedPassword: string): Promise<boolean> => {
+    private static async verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
     try {
         const isMatched = await bcryptjs.compare(password, hashedPassword);
         if (!isMatched) {
@@ -283,7 +368,7 @@ const verifyPassword = async (password: string, hashedPassword: string): Promise
     }
 }
 
-const generateJWT = async (user: IUser): Promise<GenerateJWTResponse> => {
+    static async generateJWT(user: IUser): Promise<GenerateJWTResponse> {
     try {
         const accessToken = jwt.sign(
             {userExternalId: user.userExternalId, email: user.email},
@@ -310,7 +395,7 @@ const generateJWT = async (user: IUser): Promise<GenerateJWTResponse> => {
     }
 }
 
-const getUserByEmail = async ({email}: GetUserByEmailParams): Promise<GetUserByEmailResponse> => {
+    static async getUserByEmail({email}: GetUserByEmailParams): Promise<GetUserByEmailResponse> {
     try {
         if (!email) {
             return {error: generateMissingCode('email')};
@@ -320,7 +405,8 @@ const getUserByEmail = async ({email}: GetUserByEmailParams): Promise<GetUserByE
             return {error: generateNotFoundCode('user')};
         }
 
-        console.log('userByEmail:'.cyan.italic, {user})
+        // console.log('userByEmail:'.cyan.italic, {user});
+        console.log('userByEmail -- user found'.cyan.italic);
         return {user};
     } catch (error: any) {
         console.error('ERROR: inside catch of getUserByEmail:'.red.bold, error);
@@ -328,7 +414,7 @@ const getUserByEmail = async ({email}: GetUserByEmailParams): Promise<GetUserByE
     }
 }
 
-const deleteAccount = async ({email}: DeleteAccountByEmailParams): Promise<DeleteAccountByEmailResponse> => {
+    static async deleteAccount({email}: DeleteAccountByEmailParams): Promise<DeleteAccountByEmailResponse> {
     const session = await mongoose.startSession();
     session.startTransaction();
 
@@ -342,6 +428,7 @@ const deleteAccount = async ({email}: DeleteAccountByEmailParams): Promise<Delet
         }
 
         // Delete in dependency order
+        await MagicLinkModel.deleteMany({email}, {session});
         await ReadingHistoryModel.deleteMany({userExternalId: user.userExternalId}, {session});
         await BookmarkModel.deleteMany({userExternalId: user.userExternalId}, {session});
         await UserPreferenceModel.deleteMany({userExternalId: user.userExternalId}, {session});
@@ -362,5 +449,6 @@ const deleteAccount = async ({email}: DeleteAccountByEmailParams): Promise<Delet
         await session.endSession();               // Clean up the session
     }
 }
+}
 
-export {registerUser, loginUser, refreshToken, loginWithGoogle, updateUser, hashPassword, comparePassword, getUserByEmail, deleteAccount};
+export default AuthService;

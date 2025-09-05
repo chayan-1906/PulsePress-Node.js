@@ -1,10 +1,10 @@
 import "colors";
-import {getUserByEmail} from "./AuthService";
+import AuthService from "./AuthService";
+import NewsService from "./NewsService";
 import {RSS_SOURCES} from "../utils/constants";
+import AnalyticsService from "./AnalyticsService";
 import BookmarkModel from "../models/BookmarkSchema";
 import {sourceMap, SupportedSource} from "../types/news";
-import {getTopPerformingSources} from "./AnalyticsService";
-import {fetchRSSFeed, fetchTopHeadlines} from "./NewsService";
 import ReadingHistoryModel from "../models/ReadingHistorySchema";
 import UserPreferenceModel from "../models/UserPreferenceSchema";
 import {NODE_ENV, RECOMMENDATION_CACHE_DURATION} from "../config/config";
@@ -13,13 +13,24 @@ import {GetContentRecommendationsParams, GetContentRecommendationsResponse, Reco
 
 const RECOMMENDATION_CACHE = new Map<string, { data: GetContentRecommendationsResponse, timestamp: number }>();
 
+const CATEGORY_MAPPING: { [key: string]: { guardian?: string, nytimes?: string } } = {
+    'business': {guardian: 'business', nytimes: 'business'},
+    'entertainment': {guardian: 'culture', nytimes: 'arts'},
+    'general': {guardian: 'world', nytimes: 'world'},
+    'health': {guardian: 'lifeandstyle', nytimes: 'health'},
+    'science': {guardian: 'science', nytimes: 'science'},
+    'sports': {guardian: 'sport', nytimes: 'sports'},
+    'technology': {guardian: 'technology', nytimes: 'technology'},
+    'country': {guardian: 'world', nytimes: 'world'},
+};
+
 const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecommendationsParams): Promise<GetContentRecommendationsResponse> => {
     try {
         if (!email) {
             return {error: generateMissingCode('email')};
         }
 
-        const {user} = await getUserByEmail({email});
+        const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
@@ -38,7 +49,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
             ReadingHistoryModel.find({userExternalId: user.userExternalId}),
             BookmarkModel.find({userExternalId: user.userExternalId}),
             UserPreferenceModel.findOne({userExternalId: user.userExternalId}),
-            getTopPerformingSources({limit: 5, minViews: 5}),
+            AnalyticsService.getTopPerformingSources({limit: 5, minViews: 5}),
         ]);
 
         // Determine preferred languages (fallback to English if none set)
@@ -59,10 +70,11 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
         const fetchMultiplier = Math.max(2, Math.ceil(pageSize / 5));
         const rssFetchSize = Math.ceil(pageSize * fetchMultiplier / preferredLanguages.length);
         const categoryFetchSize = Math.ceil(pageSize * fetchMultiplier * 0.75);
+        const apiSourceFetchSize = Math.ceil(pageSize * fetchMultiplier * 0.5); // For Guardian and NYTimes
 
         // Fetch from each preferred language
         preferredLanguages.forEach(language => {
-            newsPromises.push(fetchRSSFeed({
+            newsPromises.push(NewsService.fetchAllRSSFeeds({
                 languages: language,
                 pageSize: rssFetchSize,
             }));
@@ -71,7 +83,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
         // Prioritize top performing sources
         const topSourcesToFetch = topPerformingSources.slice(0, 3);
         if (topSourcesToFetch.length > 0) {
-            newsPromises.push(fetchRSSFeed({
+            newsPromises.push(NewsService.fetchAllRSSFeeds({
                 sources: topSourcesToFetch.join(','),
                 languages: preferredLanguages.join(','),
                 pageSize: rssFetchSize,
@@ -82,18 +94,71 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
         const topUserSources = Object.keys(sourceFrequency).slice(0, 3);
         const uniqueUserSources = topUserSources.filter(s => !topSourcesToFetch.includes(s));
         if (uniqueUserSources.length > 0) {
-            newsPromises.push(fetchRSSFeed({
+            newsPromises.push(NewsService.fetchAllRSSFeeds({
                 sources: uniqueUserSources.join(','),
                 languages: preferredLanguages.join(','),
                 pageSize: rssFetchSize,
             }));
         }
 
-        // Fetch from preferred categories (NewsAPI fallback)
+        // Fetch from preferred categories across all news sources
         if (preferences?.preferredCategories?.length) {
-            newsPromises.push(fetchTopHeadlines({
-                category: preferences.preferredCategories[0],
+            const primaryCategory = preferences.preferredCategories[0];
+
+            // NewsAPI
+            newsPromises.push(NewsService.fetchNEWSORGTopHeadlines({
+                category: primaryCategory,
                 pageSize: categoryFetchSize,
+            }));
+
+            // Guardian - map category and fetch
+            const guardianSection = CATEGORY_MAPPING[primaryCategory]?.guardian;
+            if (guardianSection) {
+                newsPromises.push(NewsService.fetchGuardianNews({
+                    section: guardianSection,
+                    pageSize: apiSourceFetchSize,
+                    orderBy: 'newest',
+                }));
+            }
+
+            // NYTimes - map category and fetch top stories
+            const nytimesSection = CATEGORY_MAPPING[primaryCategory]?.nytimes;
+            if (nytimesSection) {
+                newsPromises.push(NewsService.fetchNYTimesTopStories({
+                    section: nytimesSection,
+                }));
+            }
+
+            // If there's a second preferred category, fetch from Guardian and NYTimes for that too
+            if (preferences.preferredCategories.length > 1) {
+                const secondaryCategory = preferences.preferredCategories[1];
+
+                const guardianSecondarySection = CATEGORY_MAPPING[secondaryCategory]?.guardian;
+                if (guardianSecondarySection) {
+                    newsPromises.push(NewsService.fetchGuardianNews({
+                        section: guardianSecondarySection,
+                        pageSize: Math.ceil(apiSourceFetchSize * 0.5),
+                        orderBy: 'relevance',
+                    }));
+                }
+
+                const nytimesSecondarySection = CATEGORY_MAPPING[secondaryCategory]?.nytimes;
+                if (nytimesSecondarySection) {
+                    newsPromises.push(NewsService.fetchNYTimesTopStories({
+                        section: nytimesSecondarySection,
+                    }));
+                }
+            }
+        } else {
+            // If no preferred categories, fetch general/world news from Guardian and NYTimes
+            newsPromises.push(NewsService.fetchGuardianNews({
+                section: 'world',
+                pageSize: apiSourceFetchSize,
+                orderBy: 'newest',
+            }));
+
+            newsPromises.push(NewsService.fetchNYTimesTopStories({
+                section: 'world',
             }));
         }
 
@@ -108,22 +173,34 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
             .map(article => {
                 let score = 0;
                 const source: SupportedSource | null = extractSourceFromUrl(article.url);
+
+                // For Guardian and NYTimes, use domain as source identifier
+                let effectiveSource = source;
                 if (!source) {
+                    const domain = new URL(article.url).hostname.replace('www.', '');
+                    if (domain.includes('guardian')) {
+                        effectiveSource = 'guardian' as SupportedSource;
+                    } else if (domain.includes('nytimes')) {
+                        effectiveSource = 'nytimes' as SupportedSource;
+                    }
+                }
+
+                if (!effectiveSource) {
                     return null;
                 }
 
                 // Major boost for top performing sources (analytics-driven)
-                if (topPerformingSources.includes(source)) {
+                if (topPerformingSources.includes(effectiveSource)) {
                     score += 5;
                 }
 
                 // Boost score for frequently read sources
-                if (sourceFrequency[source]) {
-                    score += sourceFrequency[source] * 2;
+                if (sourceFrequency[effectiveSource]) {
+                    score += sourceFrequency[effectiveSource] * 2;
                 }
 
                 // Boost score for preferred sources
-                if (preferences?.preferredSources?.includes(source)) {
+                if (preferences?.preferredSources?.includes(effectiveSource)) {
                     score += 3;
                 }
 
@@ -137,7 +214,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
                 const bookmarkedSources: SupportedSource[] = bookmarks
                     .map(b => extractSourceFromUrl(b.articleUrl))
                     .filter((s): s is SupportedSource => s !== null);
-                if (bookmarkedSources.includes(source)) {
+                if (bookmarkedSources.includes(effectiveSource)) {
                     score += 2;
                 }
 
@@ -149,7 +226,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
                 return {
                     ...article,
                     recommendationScore: score,
-                    recommendationReason: getRecommendationReason(source, sourceFrequency, preferences, bookmarkedSources, articleLanguage, preferredLanguages, topPerformingSources),
+                    recommendationReason: getRecommendationReason(effectiveSource, sourceFrequency, preferences, bookmarkedSources, articleLanguage, preferredLanguages, topPerformingSources),
                 };
             })
             .filter((article): article is RecommendedArticle => article !== null)
@@ -202,12 +279,28 @@ const extractSourceFromUrl = (url: string): SupportedSource | null => {
     const domain = urlObj.hostname.replace('www.', '');
     const path = urlObj.pathname;
 
-    // bbc_news
+    // Guardian
+    if (domain.includes('theguardian.com') || domain.includes('guardian.co.uk')) {
+        return 'guardian' as SupportedSource;
+    }
+
+    // NYTimes
+    if (domain.includes('nytimes.com')) {
+        return 'nytimes' as SupportedSource;
+    }
+
+    // bbc_news and bbc_tech
     if (domain === 'feeds.bbci.co.uk') {
         if (path.includes('/bengali')) return 'bbc_news_bengali';
         if (path.includes('/hindi')) return 'bbc_news_hindi';
         if (path.includes('/technology')) return 'bbc_tech';
-        return 'bbc_tech'; // Default fallback
+        if (path.includes('/news/rss.xml') || path === '/news/rss.xml') return 'bbc_news';
+        return 'bbc_news'; // Default fallback for general BBC news
+    }
+
+    // espn
+    if (domain === 'espn.com' || domain === 'www.espn.com') {
+        return 'espn';
     }
 
     // zeenews
@@ -248,6 +341,29 @@ const extractSourceFromUrl = (url: string): SupportedSource | null => {
         if (path.includes('/sport/cricket/')) return 'the_hindu_cricket';
         if (path.includes('/business/Economy/')) return 'the_hindu_economy';
         return 'the_hindu_india'; // Default fallback
+    }
+
+    // NYTimes RSS
+    if (domain === 'rss.nytimes.com') {
+        if (path.includes('/World.xml')) return 'nytWorld';
+        if (path.includes('/Americas.xml')) return 'nytAmerica';
+        if (path.includes('/US.xml')) return 'nytUS';
+        if (path.includes('/AsiaPacific.xml')) return 'nytAsiaPacific';
+        if (path.includes('/Business.xml')) return 'nytBusiness';
+        if (path.includes('/Technology.xml')) return 'nytTechnology';
+        if (path.includes('/PersonalTech.xml')) return 'nytPersonalTech';
+        if (path.includes('/Sports.xml')) return 'nytSports';
+        if (path.includes('/tmagazine.xml')) return 'nytTMagazine';
+        return 'nytWorld'; // Default fallback
+    }
+
+// Economic Times B2B
+    if (domain === 'b2b.economictimes.indiatimes.com') {
+        if (path.includes('/topstories')) return 'b2bTopStories';
+        if (path.includes('/recentstories')) return 'b2bRecentStories';
+        if (path.includes('/government')) return 'b2bGovt';
+        if (path.includes('/retail')) return 'b2bRetail';
+        return 'b2bTopStories'; // Default fallback
     }
 
     // prothomalo
@@ -302,13 +418,6 @@ const extractSourceFromUrl = (url: string): SupportedSource | null => {
         if (path.includes('west-bengal')) return 'amar_ujala_wb';
         if (path.includes('delhi')) return 'amar_ujala_delhi';
         return 'amar_ujala_breaking'; // Default fallback
-    }
-
-    // bbcnews
-    if (domain === 'feeds.bbci.co.uk') {
-        if (path.includes('/bengali')) return 'bbc_news_bengali';
-        if (path.includes('/hindi')) return 'bbc_news_hindi';
-        return 'bbc_news_bengali';
     }
 
     return sourceMap[domain] ?? null;

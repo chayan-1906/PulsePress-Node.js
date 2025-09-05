@@ -1,4 +1,5 @@
-import {RSS_SOURCES} from "../utils/constants";
+import {SentimentResult} from "./ai";
+import {COUNTRY_KEYWORDS, RSS_SOURCES, TOPIC_QUERIES} from "../utils/constants";
 
 export const SUPPORTED_CATEGORIES = ['business', 'entertainment', 'general', 'health', 'science', 'sports', 'technology', 'country'];
 export type SupportedCategory = typeof SUPPORTED_CATEGORIES[number];
@@ -8,6 +9,27 @@ export type SupportedSource = string;
 
 export const SUPPORTED_NEWS_LANGUAGES = ['english', 'bengali', 'hindi', 'multilingual'];
 export type SupportedNewsLanguage = typeof SUPPORTED_NEWS_LANGUAGES[number];
+
+export const VALID_NYTIMES_SECTIONS = [
+    'home', 'arts', 'automobiles', 'books', 'business', 'fashion', 'food', 'health',
+    'insider', 'magazine', 'movies', 'nyregion', 'obituaries', 'opinion', 'politics',
+    'realestate', 'science', 'sports', 'sundayreview', 'technology', 'theater',
+    't-magazine', 'travel', 'upshot', 'us', 'world'
+];
+export type ValidNYTimesSection = typeof VALID_NYTIMES_SECTIONS[number];
+
+export type Topic = keyof typeof TOPIC_QUERIES;
+export type Country = keyof typeof COUNTRY_KEYWORDS;
+
+export const ARTICLE_COMPLEXITIES = ['easy', 'medium', 'hard'];
+export type ArticleComplexities = typeof ARTICLE_COMPLEXITIES[number];
+
+export const PROCESSING_STATUSES = ['pending', 'completed', 'failed'];
+export type ProcessingStatus = typeof PROCESSING_STATUSES[number];
+
+export const ENHANCEMENT_STATUSES = ['processing', 'complete', 'failed'];
+export type EnhancementStatus = typeof ENHANCEMENT_STATUSES[number];
+
 
 export const sourceMap: Record<string, SupportedSource> = {
     // english
@@ -27,6 +49,9 @@ export const sourceMap: Record<string, SupportedSource> = {
     'feeds.feedburner.com': 'ndtv_top',
     'thehindu.com': 'the_hindu_india',
     'prod-qt-images.s3.amazonaws.com': 'prothom_alo_english',
+    'espn.com': 'espn',
+    'rss.nytimes.com': 'nytWorld',
+    'b2b.economictimes.indiatimes.com': 'b2bTopStories',
 
     // bengali
     'prothomalo.com': 'prothom_alo',
@@ -43,18 +68,41 @@ export const sourceMap: Record<string, SupportedSource> = {
     'abplive.com': 'abp_live_hindi_home',
 };
 
-interface Article {
+export interface QualityScore {
+    score: number; // 0-1, higher is better
+    reasons: string[];
+    isRelevant: boolean;
+    isProfessional: boolean;
+}
+
+interface SentimentData {
+    sentiment: SentimentResult;
+    confidence: number;
+    emoji: string;
+    color: string;
+}
+
+export interface Article {
     source: {
         id: string | null;
         name: string | null;
     };
     author: string | null;
+    articleId: string | null;
     title: string | null;
     description: string | null;
     url: string | null;
     urlToImage: string | null;
     publishedAt: string | null;
     content: string | null;
+    qualityScore?: QualityScore;
+    sentimentData?: SentimentData;
+    complexity?: {
+        level: ArticleComplexities;
+        readingTimeMinutes: number;
+        wordCount: number;
+    };
+    enhanced?: boolean;
 }
 
 export interface RSSFeed {
@@ -73,18 +121,156 @@ export interface RSSFeed {
     // isoDate: string;
 }
 
+export interface GuardianArticle {
+    id: string;
+    type: string;
+    sectionId: string;
+    sectionName: string;
+    webPublicationDate: string;
+    webTitle: string;
+    webUrl: string;
+    apiUrl: string;
+    fields?: {
+        headline?: string;
+        byline?: string;
+        thumbnail?: string;
+        shortUrl?: string;
+        bodyText?: string;
+    };
+}
+
+export interface NYTimesArticle {
+    _id: string;
+    web_url: string;
+    snippet: string;
+    lead_paragraph: string;
+    abstract: string;
+    print_page: number;
+    source: string;
+    multimedia: Array<{
+        url: string;
+        format: string;
+        height: number;
+        width: number;
+        type: string;
+        subtype: string;
+        caption: string;
+        copyright: string;
+    }>;
+    headline: {
+        main: string;
+        kicker?: string;
+        content_kicker?: string;
+        print_headline?: string;
+        name?: string;
+        seo?: string;
+        sub?: string;
+    };
+    keywords: Array<{
+        name: string;
+        value: string;
+        rank: number;
+        major: string;
+    }>;
+    pub_date: string;
+    document_type: string;
+    news_desk: string;
+    section_name: string;
+    byline: {
+        original: string;
+        person: Array<{
+            firstname: string;
+            middlename?: string;
+            lastname: string;
+            qualifier?: string;
+            title?: string;
+            role: string;
+            organization: string;
+            rank: number;
+        }>;
+        organization?: string;
+    };
+    type_of_material: string;
+    word_count: number;
+}
+
 
 /** ------------- API response types ------------- */
 
-export interface TopHeadlinesAPIResponse {
+export interface NEWSORGTopHeadlinesAPIResponse {
     status: string;
     totalResults: number;
     articles: Article[];
 }
 
+export interface GuardianResponse {
+    response: {
+        status: string;
+        userTier: string;
+        total: number;
+        startIndex: number;
+        pageSize: number;
+        currentPage: number;
+        pages: number;
+        results: GuardianArticle[];
+    };
+}
+
+export interface NYTimesSearchResponse {
+    status: string;
+    copyright: string;
+    response: {
+        docs: NYTimesArticle[];
+        metadata: {
+            hits: number;
+            offset: number;
+            time: number;
+        };
+    };
+}
+
+export interface NYTimesTopStoriesResponse {
+    status: string;
+    copyright: string;
+    section: string;
+    last_updated: string;
+    num_results: number;
+    results: Array<{
+        section: string;
+        subsection: string;
+        title: string;
+        abstract: string;
+        url: string;
+        uri: string;
+        byline: string;
+        item_type: string;
+        updated_date: string;
+        created_date: string;
+        published_date: string;
+        material_type_facet: string;
+        kicker: string;
+        des_facet: string[];
+        org_facet: string[];
+        per_facet: string[];
+        geo_facet: string[];
+        multimedia: Array<{
+            url: string;
+            format: string;
+            height: number;
+            width: number;
+            type: string;
+            subtype: string;
+            caption: string;
+            copyright: string;
+        }>;
+        short_url: string;
+    }>;
+}
+
+
 /** ------------- function params ------------- */
 
-export interface TopHeadlinesParams {
+export interface NEWSORGTopHeadlinesParams {
     country?: string;
     category?: string;
     sources?: string
@@ -93,14 +279,7 @@ export interface TopHeadlinesParams {
     page?: number;
 }
 
-export interface RSSFeedParams {
-    sources?: string;
-    languages?: SupportedNewsLanguage;
-    pageSize?: number;
-    page?: number;
-}
-
-export interface FetchEverythingParams {
+export interface NEWSORGEverythingParams {
     sources?: string;
     from?: string;
     to?: string
@@ -111,10 +290,72 @@ export interface FetchEverythingParams {
     page?: number;
 }
 
+export interface GuardianSearchParams {
+    q?: string;
+    section?: string;
+    fromDate?: string;
+    toDate?: string;
+    orderBy?: string;
+    pageSize?: number;
+    page?: number;
+}
+
+export interface NYTimesSearchParams {
+    q?: string;
+    section?: string;
+    sort?: string;
+    fromDate?: string;
+    toDate?: string;
+    pageSize?: number;
+    page?: number;
+}
+
+export interface NYTimesTopStoriesParams {
+    section?: string;
+}
+
+export interface RSSFeedParams {
+    q?: string;
+    sources?: string;
+    languages?: SupportedNewsLanguage;
+    pageSize?: number;
+    page?: number;
+}
+
+export interface FetchMultisourceNewsParams {
+    email?: string;
+    q?: string;
+    category?: string;
+    sources?: string;
+    pageSize?: number;
+    page?: number;
+}
+
+export interface FetchMultisourceNewsEnhancementStatusParams {
+    articleIds: string;
+}
+
+export interface FetchArticleDetailsEnhancementStatusParams {
+    articleId: string;
+}
+
 export interface ScrapeWebsiteParams {
     url?: string;
 }
 
 export interface ScrapeMultipleWebsitesParams {
     urls?: string[];
+}
+
+export interface ExploreTopicParams {
+    email?: string;
+    country?: Country;
+    page?: number;
+    pageSize?: number;
+}
+
+export interface GenerateArticleIdParams {
+    article?: Partial<Article>;
+    title?: string;
+    url?: string;
 }

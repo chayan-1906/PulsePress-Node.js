@@ -2,13 +2,15 @@ import "colors";
 import {createHash} from 'crypto';
 import {GoogleGenerativeAI} from "@google/generative-ai";
 import {Translate} from '@google-cloud/translate/build/src/v2';
+import AuthService from "./AuthService";
+import NewsService from "./NewsService";
 import {isListEmpty} from "../utils/list";
-import {AI_MODELS} from "../utils/constants";
-import {getUserByEmail} from "./AuthService";
-import {scrapeMultipleArticles} from "./NewsService";
+import StrikeService from "./StrikeService";
+import {AI_PROMPTS} from "../utils/prompts";
+import {AI_SUMMARIZATION_MODELS} from "../utils/constants";
 import CachedSummaryModel, {ICachedSummary} from "../models/CachedSummarySchema";
-import {GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY, NODE_ENV} from "../config/config";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
+import {GEMINI_API_KEY, GEMINI_QUOTA_MS, GEMINI_QUOTA_REQUESTS, GOOGLE_TRANSLATE_API_KEY, NODE_ENV} from "../config/config";
 import {
     GenerateContentHashParams,
     GenerateContentHashResponse,
@@ -25,19 +27,22 @@ export const genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
 export const AI_MODEL = 'gemini-1.5-flash';
 const translate = new Translate({key: GOOGLE_TRANSLATE_API_KEY});
 
-const summarizeArticle = async ({email, content, urls, language = 'en', style = 'standard'}: SummarizeArticleParams): Promise<SummarizeArticleResponse> => {
-    console.info('summarizeArticle called'.bgMagenta.white.italic, {content, urls});
-    try {
-        if (!email) {
-            return {error: generateMissingCode('email')};
-        }
+let geminiRequestCount = 0;
 
-        if (!content && isListEmpty(urls)) {
-            console.error('content and urls both invalid:'.yellow.italic, {content, urls});
+setInterval(() => {
+    geminiRequestCount = 0;
+    console.log('Daily Gemini API counter reset'.cyan.italic);
+}, Number.parseInt(GEMINI_QUOTA_MS!));
+
+const summarizeArticle = async ({email, content, url, language = 'en', style = 'standard'}: SummarizeArticleParams): Promise<SummarizeArticleResponse> => {
+    console.info('summarizeArticle called'.bgMagenta.white.italic, {content, url});
+    try {
+        if (!content && !url) {
+            console.error('content and url both invalid:'.yellow.italic, {content, url});
             return {error: 'CONTENT_OR_URL_REQUIRED'};
         }
-        if (content && !isListEmpty(urls)) {
-            console.error('content and urls both valid:'.yellow.italic, {content, urls});
+        if (content && url) {
+            console.error('content and url both valid:'.yellow.italic, {content, url});
             return {error: 'CONTENT_AND_URL_CONFLICT'};
         }
         if (style && !SUMMARIZATION_STYLES.includes(style)) {
@@ -45,10 +50,24 @@ const summarizeArticle = async ({email, content, urls, language = 'en', style = 
             return {error: generateInvalidCode('style')};
         }
 
+        const {isBlocked, message, blockedUntil, blockType} = await StrikeService.checkUserBlock(email);
+        if (isBlocked) {
+            console.log('User blocked from AI summarization:'.yellow.italic, {message, blockedUntil, blockType});
+            return {
+                error: 'USER_BLOCKED_FROM_AI_FEATURES',
+                errorMsg: message || 'You are temporarily blocked from using AI features due to non-news queries',
+            };
+        }
+
+        if (geminiRequestCount >= Number.parseInt(GEMINI_QUOTA_REQUESTS!)) {
+            console.log('Gemini API daily limit reached'.yellow.italic);
+            return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
+        }
+
         let articleContent = content || '';
-        if (!content && !isListEmpty(urls)) {
-            console.info('inside !content && !isListEmpty(urls)'.bgMagenta.white.italic);
-            const scrapedArticles = await scrapeMultipleArticles({urls});
+        if (!content && url) {
+            console.info('inside !content && url'.bgMagenta.white.italic);
+            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
                 console.error('Scraping failed:'.red.bold, {count: scrapedArticles.length}, {error: scrapedArticles[0].error})
                 return {error: 'SCRAPING_FAILED'};
@@ -63,7 +82,7 @@ const summarizeArticle = async ({email, content, urls, language = 'en', style = 
         }
         console.info('articleContent'.bgMagenta.white.italic, articleContent);
 
-        const {user} = await getUserByEmail({email});
+        const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
@@ -82,29 +101,29 @@ const summarizeArticle = async ({email, content, urls, language = 'en', style = 
             };
         }
 
-        let summarizedArticleResponse;
-        let usedModel;
+        let usedModel, summarizedArticleResponse;
 
         let prompt = '';
         if (style === 'concise') {
-            prompt = `Summarize the following news article in 20% of its original length. Focus only on the key facts and avoid unnecessary details.\n Content: ${articleContent}`;
+            prompt = AI_PROMPTS.SUMMARIZATION.CONCISE(articleContent);
         } else if (style === 'standard') {
-            prompt = `Provide a balanced summary of the following news article in 40% of its original length. Include the main points while keeping the core context intact.\n Content: ${articleContent}`;
+            prompt = AI_PROMPTS.SUMMARIZATION.STANDARD(articleContent);
         } else if (style === 'detailed') {
-            prompt = `Summarize the following news article in 60% of its original length. Include more context and background to preserve the depth of the article.\n Content: ${articleContent}`;
+            prompt = AI_PROMPTS.SUMMARIZATION.DETAILED(articleContent);
         }
 
-        for (const modelName of AI_MODELS) {
+        for (const modelName of AI_SUMMARIZATION_MODELS) {
             try {
                 const model = genAI.getGenerativeModel({model: modelName});
                 summarizedArticleResponse = await model.generateContent(prompt);
                 usedModel = modelName;
+                geminiRequestCount++;
+                console.log(`Gemini API request ${geminiRequestCount}/1500:`.cyan.italic, 'summarization');
                 break; // Success - exit loop
             } catch (error) {
-                if (modelName === AI_MODELS[AI_MODELS.length - 1]) {
+                if (modelName === AI_SUMMARIZATION_MODELS[AI_SUMMARIZATION_MODELS.length - 1]) {
                     throw error; // Last attempt failed
                 }
-                // continue; // Try next model
             }
         }
 
@@ -119,13 +138,13 @@ const summarizeArticle = async ({email, content, urls, language = 'en', style = 
         }
 
         // After AI generates summary, save to cache:
-        if (NODE_ENV === 'production') {
-            await saveSummaryToCache({contentHash: hash, summary: finalSummary, language, style});
-        }
+        // if (NODE_ENV === 'production') {
+        await saveSummaryToCache({contentHash: hash, summary: finalSummary, language, style});
+        // }
 
         return {
             summary: finalSummary,
-            powered_by: `Google Gemini AI (${usedModel})` + (language !== 'en' ? ' + Translate' : ''),
+            powered_by: usedModel + (language !== 'en' ? ' + Translate' : ''),
         };
     } catch (error: any) {
         console.error('ERROR: inside catch of summarizeArticle:'.red.bold, error);
@@ -140,9 +159,7 @@ const generateContentHash = async ({articleContent, language = 'en', style = 'st
         }
 
         const data = `${articleContent}::${language}::${style}`;
-        const contentHash = createHash('sha256')
-            .update(data)
-            .digest('hex');
+        const contentHash = createHash('sha256').update(data).digest('hex');
         console.log('content hash generated:'.cyan.italic, contentHash);
 
         return {hash: contentHash};
@@ -164,10 +181,7 @@ const saveSummaryToCache = async ({contentHash, summary, language, style}: SaveS
 }
 
 const getCachedSummary = async ({contentHash}: GetCachedSummaryParams): Promise<ICachedSummary | null> => {
-    const cachedSummary: ICachedSummary | null = await CachedSummaryModel.findOne({
-        contentHash,
-        expiresAt: {$gt: new Date()}, // not expired
-    });
+    const cachedSummary: ICachedSummary | null = await CachedSummaryModel.findOne({contentHash});
     console.log('cachedSummary'.cyan.italic, cachedSummary);
     return cachedSummary;
 }

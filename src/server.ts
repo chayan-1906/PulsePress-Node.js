@@ -11,6 +11,7 @@ import {getLocalIP} from "./utils/getLocalIP";
 import healthRoutes from "./routes/HealthRoutes";
 import bookmarkRoutes from "./routes/BookmarkRoutes";
 import analyticsRoutes from "./routes/AnalyticsRoutes";
+import userStrikeRoutes from "./routes/UserStrikeRoutes";
 import readingHistoryRoutes from "./routes/ReadingHistoryRoutes";
 import userPreferenceRoutes from "./routes/UserPreferenceRoutes";
 import contentRecommendationRoutes from "./routes/ContentRecommendationRoutes";
@@ -21,7 +22,7 @@ const app = express();
 // middlewares
 app.use(cors({
     origin: [
-        'http://localhost:3000',                // Development
+        'http://localhost:4000',                // Development
         'https://pulsepress.vercel.app',        // Production web - yet to be decided
         'exp://192.168.1.100:8081',             // Expo development
     ],
@@ -41,6 +42,7 @@ app.use('/api/v1/preferences', userPreferenceRoutes);
 app.use('/api/v1/recommendation', contentRecommendationRoutes);
 app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
+app.use('/api/v1/strikes', userStrikeRoutes);
 
 app.get('/', function (req, res) {
     return res.status(200).send('<h1>Welcome to PulsePress Server</h1>');
@@ -54,6 +56,7 @@ const start = async () => {
         app.listen(port, '0.0.0.0', (error?: Error, address?: string) => {
             if (error) {
                 console.log('Error in starting server'.red.bold, error.message);
+                process.exit(1);
             } else {
                 console.log(`Server started on ${PORT}`.blue.italic.bold);
                 console.log(`\t- Local:        http://localhost:${PORT}`.blue.bold);
@@ -61,7 +64,9 @@ const start = async () => {
             }
         });
     } catch (error: any) {
-        console.log(`Error during server setup:`.red.bold, error);
+        console.log(`Error during server setup:`.red.bold, error.message || error);
+        console.log('Failed to connect to database. Exiting...'.red.bold);
+        process.exit(1);
     }
 }
 

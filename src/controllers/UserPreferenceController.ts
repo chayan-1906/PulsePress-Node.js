@@ -4,9 +4,9 @@ import {AuthRequest} from "../types/auth";
 import {hasInvalidItems} from "../utils/list";
 import {ApiResponse} from "../utils/ApiResponse";
 import {ModifyUserPreferenceParams} from "../types/user-preference";
-import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
-import {getUserPreference, modifyUserPreference, resetUserPreference} from "../services/UserPreferenceService";
+import UserPreferenceService from "../services/UserPreferenceService";
 import {SUPPORTED_CATEGORIES, SUPPORTED_NEWS_LANGUAGES, SUPPORTED_SOURCES} from "../types/news";
+import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 
 const modifyUserPreferenceController = async (req: Request, res: Response) => {
     console.log('modifyUserPreferenceController called');
@@ -66,7 +66,7 @@ const modifyUserPreferenceController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {userPreference, error} = await modifyUserPreference({email, preferredLanguage, preferredCategories, preferredSources, summaryStyle, newsLanguages});
+        const {userPreference, error} = await UserPreferenceService.modifyUserPreference({email, preferredLanguage, preferredCategories, preferredSources, summaryStyle, newsLanguages});
         if (error === generateMissingCode('email')) {
             console.error('Email is missing'.yellow.italic);
             res.status(400).send(new ApiResponse({
@@ -124,7 +124,7 @@ const getUserPreferenceController = async (req: Request, res: Response) => {
     try {
         const email = (req as AuthRequest).email;
 
-        const {userPreference, error} = await getUserPreference({email});
+        const {userPreference, error} = await UserPreferenceService.getUserPreference({email});
         if (error === generateMissingCode('email')) {
             console.error('Email is missing'.yellow.italic);
             res.status(400).send(new ApiResponse({
@@ -173,7 +173,7 @@ const resetUserPreferenceController = async (req: Request, res: Response) => {
     try {
         const email = (req as AuthRequest).email;
 
-        const {isReset, error} = await resetUserPreference({email});
+        const {isReset, error} = await UserPreferenceService.resetUserPreference({email});
         if (error === generateMissingCode('email')) {
             console.error('Email is missing'.yellow.italic);
             res.status(400).send(new ApiResponse({

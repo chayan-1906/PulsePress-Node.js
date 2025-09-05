@@ -15,6 +15,18 @@ const RSS_SOURCES = {
         techradar: 'https://www.techradar.com/rss',
         gizmodo: 'https://gizmodo.com/rss',
 
+        bbc_news: "https://feeds.bbci.co.uk/news/rss.xml",
+        nbc_news: "https://feeds.nbcnews.com/nbcnews/public/news",
+        sky_news: "https://feeds.skynews.com/feeds/rss/home.xml",
+        al_jazeera: "https://www.aljazeera.com/xml/rss/all.xml",
+        marketwatch_top: "https://feeds.content.dowjones.io/public/rss/mw_topstories",
+        indian_express: "https://indianexpress.com/feed",
+        economic_times: "https://economictimes.indiatimes.com/rssfeedstopstories.cms",
+        business_standard: "https://www.business-standard.com/rss/home_page_top_stories.rss",
+        livemint: "https://www.livemint.com/rss/news",
+        moneycontrol: "https://www.moneycontrol.com/rss/latestnews.xml",
+        espn: "https://www.espn.com/espn/rss/news",
+
         timesofindia_top: 'https://timesofindia.indiatimes.com/rssfeedstopstories.cms',
         timesofindia_recent: 'https://timesofindia.indiatimes.com/rssfeedmostrecent.cms',
         timesofindia_india: 'https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms',
@@ -36,6 +48,23 @@ const RSS_SOURCES = {
         the_hindu_economy: 'https://www.thehindu.com/business/Economy/feeder/default.rss',
 
         prothom_alo_english: 'https://prod-qt-images.s3.amazonaws.com/production/prothomalo-english/feed.xml',
+
+        // https://www.nytimes.com/rss
+        nytWorld: 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml',
+        nytAmerica: 'https://rss.nytimes.com/services/xml/rss/nyt/Americas.xml',
+        nytUS: 'https://rss.nytimes.com/services/xml/rss/nyt/US.xml',
+        nytAsiaPacific: 'https://rss.nytimes.com/services/xml/rss/nyt/AsiaPacific.xml',
+        nytBusiness: 'https://rss.nytimes.com/services/xml/rss/nyt/Business.xml',
+        nytTechnology: 'https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml',
+        nytPersonalTech: 'https://rss.nytimes.com/services/xml/rss/nyt/PersonalTech.xml',
+        nytSports: 'https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml',
+        nytTMagazine: 'https://rss.nytimes.com/services/xml/rss/nyt/tmagazine.xml',
+
+        // https://b2b.economictimes.indiatimes.com/rss
+        b2bTopStories: 'https://b2b.economictimes.indiatimes.com/rss/topstories',
+        b2bRecentStories: 'https://b2b.economictimes.indiatimes.com/rss/recentstories',
+        b2bGovt: 'https://b2b.economictimes.indiatimes.com/rss/government',
+        b2bRetail: 'https://b2b.economictimes.indiatimes.com/rss/retail',
     },
     bengali: {
         prothom_alo: 'https://www.prothomalo.com/feed/',
@@ -101,12 +130,89 @@ const RSS_SOURCES = {
     },
 };
 
-export const AI_MODELS = [
-    'gemini-2.5-flash',           // Primary: Best balance, higher limits
-    'gemini-2.0-flash-lite',      // Fallback 1: Highest RPM (30/min), good for news
-    'gemini-2.0-flash',           // Fallback 2: Latest features, 1M context
-    'gemini-2.5-flash-lite-preview-06-17', // Fallback 3: Highest daily limit (1,000)
-    'gemini-1.5-flash'            // Last resort: Your current (deprecated)
+export const AI_SUMMARIZATION_MODELS = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-2.5-flash-lite-preview-06-17',
+    'gemini-1.5-flash',
+
+    // HuggingFace fallbacks (reliable and tested models)
+    // 'huggingface:sshleifer/distilbart-cnn-12-6',
+    // 'huggingface:sshleifer/distilbart-cnn-6-6',
+    // 'huggingface:facebook/bart-large-cnn',
+];
+
+export const AI_TAG_GENERATION_MODELS = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-2.5-flash-lite-preview-06-17',
+    'gemini-1.5-flash',
+];
+
+export const AI_SENTIMENT_ANALYSIS_MODELS = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-2.5-flash-lite-preview-06-17',
+    'gemini-1.5-flash',
+];
+
+export const AI_KEY_POINTS_EXTRACTOR_MODELS = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-2.5-flash-lite-preview-06-17',
+    'gemini-1.5-flash',
+];
+
+export const AI_COMPLEXITY_METER__MODELS = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-2.5-flash-lite-preview-06-17',
+    'gemini-1.5-flash',
+];
+
+export const QUESTION_ANSWER_MODELS = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-2.5-flash-lite-preview-06-17',
+    'gemini-1.5-flash',
+];
+
+export const AI_GEOGRAPHIC_EXTRACTION_MODELS = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-2.5-flash-lite-preview-06-17',
+    'gemini-1.5-flash',
+];
+
+export const AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-2.5-flash-lite-preview-06-17',
+    'gemini-1.5-flash',
+];
+
+export const AI_NEWS_INSIGHTS_MODELS = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-2.5-flash-lite-preview-06-17',
+    'gemini-1.5-flash',
+];
+
+export const AI_ENHANCEMENT_MODELS = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-2.5-flash-lite-preview-06-17',
+    'gemini-1.5-flash',
 ];
 
 const USER_AGENTS = [
@@ -124,4 +230,202 @@ const DEFAULT_ENGAGEMENT_WEIGHTS: EngagementScoreWeights = {
     readingTimeWeight: 0.1,
 };
 
-export {RSS_SOURCES, USER_AGENTS, DEFAULT_ENGAGEMENT_WEIGHTS};
+const LOW_QUALITY_CONTENT_INDICATORS = [
+    // Puzzles & Games
+    'crossword', 'puzzle', 'sudoku', 'word game', 'quiz', 'riddle', 'trivia',
+
+    // Opinion/Letters (not hard news)
+    'letter to editor', 'letters to the editor', 'dear editor', 'opinion piece',
+    'reader mail', 'your letters', 'readers write', 'op-ed', 'editorial',
+
+    // Social/Personal content
+    'horoscope', 'astrology', 'daily forecast', 'wedding announcement',
+    'birth announcement', 'anniversary', 'obituary', 'death notice',
+
+    // Non-news content
+    'recipe', 'cooking tips', 'fashion tips', 'lifestyle advice', 'how to',
+    'think out loud', 'briefing', 'newsletter', 'recap', 'roundup',
+
+    // Low-quality indicators
+    'click here', 'you won\'t believe', 'shocking truth', 'celebrities hate',
+    'doctors hate this', 'one weird trick', 'amazing secret', 'must see',
+];
+
+const TRUSTED_NEWS_SOURCES = {
+    // Tier 1: Premium sources (highest credibility)
+    tier1: [
+        'bbc', 'guardian', 'nytimes', 'reuters', 'associated press', 'ap news',
+        'wall street journal', 'financial times', 'washington post', 'the times',
+        'npr', 'pbs', 'abc news', 'cbs news', 'nbc news', 'cnn',
+        'the hindu', 'times of india', 'indian express', 'ndtv',
+    ],
+
+    // Tier 2: Reliable sources (good credibility)
+    tier2: [
+        'sky news', 'bloomberg', 'cnbc', 'al jazeera', 'axios',
+        'politico', 'the hill', 'usa today', 'la times', 'reuters',
+        'economic times', 'business standard', 'livemint', 'moneycontrol',
+        'espn', 'bbc sport', 'sky sports', 'atlantic', 'new yorker',
+    ],
+
+    // Tier 3: Acceptable sources (moderate credibility)
+    tier3: [
+        'techcrunch', 'wired', 'ars technica', 'engadget', 'the verge',
+        'cnet', 'zdnet', 'mashable', 'gizmodo', 'techradar',
+        'prothom alo', 'zeenews', 'abp live', 'news18', 'variety',
+    ],
+};
+
+const TOPIC_SPECIFIC_SOURCES = {
+    // Sports
+    sports: ['espn', 'bbc-sport', 'sky-sports', 'the-sport-bible', 'talksport', 'ndtv_sports', 'ndtv_cricket', 'the_hindu_cricket', 'timesofindia_sports', 'sporting-news', 'sportsnet'],
+
+    // Technology
+    technology: ['techcrunch', 'ars-technica', 'the-verge', 'wired', 'engadget', 'cnet', 'zdnet', 'mashable', 'gizmodo', 'techradar', 'recode', 'ndtv_tech', 'hacker-news'],
+
+    // Business & Finance
+    business: ['bloomberg', 'financial-times', 'the-wall-street-journal', 'cnbc', 'business-insider', 'marketwatch', 'fortune', 'forbes'],
+
+    // Health & Science
+    health: ['bbc-news', 'cnn', 'reuters', 'associated-press', 'medical-news-today', 'webmd', 'healthline', 'new-scientist', 'nature', 'science-magazine'],
+
+    // Politics
+    politics: ['bbc-news', 'cnn', 'reuters', 'associated-press', 'politico', 'the-hill', 'axios', 'washington-post', 'nytimes'],
+
+    // Entertainment
+    entertainment: ['entertainment-weekly', 'variety', 'hollywood-reporter', 'deadline', 'tmz', 'enews', 'people', 'rolling-stone', 'billboard'],
+
+    // General News
+    general: ['bbc-news', 'cnn', 'reuters', 'associated-press', 'al-jazeera', 'sky-news'],
+};
+
+const COMPREHENSIVE_TOPIC_KEYWORDS = {
+    // News & Politics
+    politics: [
+        'election', 'government', 'parliament', 'congress', 'senate', 'voting', 'campaign', 'policy', 'law', 'legislation', 'minister', 'president', 'prime minister', 'diplomacy',
+        'international relations', 'summit', 'treaty', 'sanctions',
+    ],
+
+    crime: ['crime', 'arrest', 'investigation', 'police', 'court', 'trial', 'verdict', 'murder', 'robbery', 'fraud', 'corruption', 'lawsuit', 'justice'],
+
+    // Business & Finance
+    business: [
+        'economy', 'market', 'stock', 'finance', 'earnings', 'revenue', 'profit', 'merger', 'acquisition', 'ipo', 'investment', 'venture capital', 'startup', 'inflation', 'gdp', 'recession', 'growth',
+        'employment', 'jobs',
+    ],
+
+    finance: ['banking', 'cryptocurrency', 'bitcoin', 'trading', 'forex', 'bonds', 'interest rates', 'federal reserve', 'monetary policy', 'fiscal policy'],
+
+    // Technology
+    technology: [
+        'tech', 'software', 'hardware', 'artificial intelligence', 'ai', 'machine learning', 'blockchain', 'cybersecurity', 'data breach', 'privacy', 'innovation', 'smartphone', 'app',
+        'cloud computing', 'internet', 'digital',
+    ],
+
+    social_media: ['facebook', 'twitter', 'instagram', 'tiktok', 'youtube', 'social media', 'platform', 'content moderation', 'algorithm', 'influencer'],
+
+    // Science & Health
+    health: [
+        'health', 'medicine', 'medical', 'disease', 'treatment', 'vaccine', 'clinical trial', 'drug', 'hospital', 'doctor', 'patient', 'healthcare', 'pandemic', 'epidemic', 'virus', 'bacteria',
+        'mental health',
+    ],
+
+    science: ['research', 'study', 'discovery', 'experiment', 'scientist', 'laboratory', 'physics', 'chemistry', 'biology', 'genetics', 'dna', 'evolution'],
+
+    environment: [
+        'climate change', 'global warming', 'environment', 'pollution', 'renewable energy', 'solar', 'wind power', 'carbon emissions', 'sustainability', 'conservation', 'wildlife', 'extinction',
+        'deforestation', 'recycling',
+    ],
+
+    space: ['space', 'nasa', 'rocket', 'satellite', 'mars', 'moon', 'astronaut', 'space station', 'telescope', 'planet', 'galaxy', 'universe'],
+
+    // Sports
+    sports: ['sport', 'game', 'match', 'tournament', 'championship', 'league', 'team', 'player', 'athlete', 'coach', 'score', 'win', 'lose'],
+
+    cricket: ['cricket', 'test match', 'odi', 't20', 'ipl', 'world cup', 'series', 'innings', 'wicket', 'runs', 'bowler', 'batsman', 'captain'],
+
+    football: ['football', 'soccer', 'premier league', 'champions league', 'fifa', 'uefa', 'goal', 'penalty', 'referee', 'transfer', 'world cup'],
+
+    basketball: ['basketball', 'nba', 'playoff', 'finals', 'draft', 'trade', 'mvp', 'championship', 'coach', 'player'],
+
+    // Entertainment
+    entertainment: ['movie', 'film', 'cinema', 'actor', 'actress', 'director', 'producer', 'box office', 'premiere', 'festival', 'award', 'oscar', 'emmy'],
+
+    music: ['music', 'song', 'album', 'artist', 'singer', 'concert', 'tour', 'grammy', 'chart', 'streaming', 'spotify', 'billboard'],
+
+    celebrity: ['celebrity', 'star', 'fame', 'gossip', 'relationship', 'marriage', 'divorce', 'scandal', 'red carpet', 'paparazzi'],
+
+    // Lifestyle & Society
+    travel: ['travel', 'tourism', 'vacation', 'destination', 'flight', 'hotel', 'cruise', 'airline', 'airport', 'visa', 'passport'],
+
+    food: ['food', 'restaurant', 'chef', 'cuisine', 'recipe', 'nutrition', 'diet', 'cooking', 'farming', 'agriculture'],
+
+    fashion: ['fashion', 'style', 'designer', 'brand', 'model', 'runway', 'clothing', 'trend', 'luxury', 'retail'],
+
+    education: ['education', 'school', 'university', 'college', 'student', 'teacher', 'graduation', 'degree', 'scholarship', 'exam', 'curriculum'],
+
+    // Weather & Disasters
+    weather: ['weather', 'storm', 'hurricane', 'typhoon', 'tornado', 'flood', 'drought', 'earthquake', 'tsunami', 'volcano', 'wildfire', 'natural disaster', 'emergency', 'evacuation'],
+
+    // Transportation
+    automotive: ['car', 'vehicle', 'electric vehicle', 'tesla', 'automotive', 'driving', 'accident', 'traffic', 'fuel', 'engine'],
+
+    aviation: ['aviation', 'aircraft', 'airline', 'flight', 'pilot', 'airport', 'boeing', 'airbus', 'crash', 'safety'],
+
+    // Energy
+    energy: ['energy', 'oil', 'gas', 'petroleum', 'coal', 'nuclear', 'renewable', 'solar', 'wind', 'hydroelectric', 'battery']
+};
+
+const TOPIC_QUERIES = {
+    technology: 'artificial intelligence technology innovation software cybersecurity',
+    business: 'stock market earnings economy corporate finance',
+    world: 'international politics government diplomacy world news',
+    health: 'medical research healthcare public health wellness',
+    sports: 'sports games tournaments athletics championship',
+    science: 'scientific research climate space discovery',
+    entertainment: 'movies music celebrities entertainment industry',
+    climate: 'climate change global warming environmental sustainability',
+    crypto: 'cryptocurrency bitcoin blockchain digital assets',
+    ai: 'artificial intelligence machine learning ChatGPT automation',
+    space: 'space exploration NASA SpaceX astronomy satellites',
+    auto: 'electric vehicles Tesla automotive industry transportation',
+    food: 'food industry agriculture nutrition restaurant chains',
+} as const;
+
+const TOPIC_METADATA = {
+    technology: {name: 'Technology', description: 'Software, gadgets, cybersecurity, innovation'},
+    business: {name: 'Business', description: 'Markets, finance, corporate news'},
+    world: {name: 'World Affairs', description: 'Politics, international news, diplomacy'},
+    health: {name: 'Health', description: 'Medical research, healthcare, wellness'},
+    sports: {name: 'Sports', description: 'Games, tournaments, athletics'},
+    science: {name: 'Science', description: 'Research, discoveries, studies'},
+    entertainment: {name: 'Entertainment', description: 'Movies, music, celebrities'},
+    climate: {name: 'Climate', description: 'Environment, sustainability, global warming'},
+    crypto: {name: 'Crypto', description: 'Bitcoin, blockchain, digital assets'},
+    ai: {name: 'AI', description: 'Machine learning, ChatGPT, automation'},
+    space: {name: 'Space', description: 'NASA, SpaceX, astronomy, satellites'},
+    auto: {name: 'Automotive', description: 'Electric vehicles, Tesla, transportation'},
+    food: {name: 'Food', description: 'Agriculture, nutrition, food industry'}
+} as const;
+
+const COUNTRY_KEYWORDS = {
+    india: 'India Indian Mumbai Delhi Bangalore Kolkata',
+    china: 'China Chinese Beijing Shanghai',
+    usa: 'United States American US',
+    uk: 'United Kingdom British UK London',
+    germany: 'Germany German Berlin',
+    japan: 'Japan Japanese Tokyo',
+} as const;
+
+export {
+    RSS_SOURCES,
+    USER_AGENTS,
+    DEFAULT_ENGAGEMENT_WEIGHTS,
+    LOW_QUALITY_CONTENT_INDICATORS,
+    TRUSTED_NEWS_SOURCES,
+    TOPIC_SPECIFIC_SOURCES,
+    COMPREHENSIVE_TOPIC_KEYWORDS,
+    TOPIC_QUERIES,
+    TOPIC_METADATA,
+    COUNTRY_KEYWORDS,
+};

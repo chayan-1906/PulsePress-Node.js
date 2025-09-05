@@ -1,5 +1,5 @@
-import {getUserByEmail} from "./AuthService";
-import {updateSourceAnalytics} from "./AnalyticsService";
+import AuthService from "./AuthService";
+import AnalyticsService from "./AnalyticsService";
 import ReadingHistoryModel, {IReadingHistory} from "../models/ReadingHistorySchema";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {
@@ -23,7 +23,7 @@ import {
 const modifyReadingHistory = async (
     {email, title, articleUrl, source, description, readAt, readDuration, completed, publishedAt}: ModifyReadingHistoryParams): Promise<ModifyReadingHistoryResponse> => {
     try {
-        const {user, error} = await getUserByEmail({email});
+        const {user, error} = await AuthService.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
@@ -56,7 +56,7 @@ const modifyReadingHistory = async (
 
             // Update analytics if reading time changed
             if (readDuration && readDuration !== existingArticleHistory.readDuration) {
-                await updateSourceAnalytics({source, action: 'view', readingTime: readDuration})
+                await AnalyticsService.updateSourceAnalytics({source, action: 'view', readingTime: readDuration})
                     .catch((error: any) => console.error('Analytics update failed:'.red.bold, error));
             }
 
@@ -82,9 +82,8 @@ const modifyReadingHistory = async (
 
         // Track analytics for new reading history
         if (savedReadingHistory) {
-            await updateSourceAnalytics({
-                source, action: 'view', readingTime: readDuration || 0,
-            }).catch((error: any) => console.error('Analytics update failed:'.red.bold, error));
+            await AnalyticsService.updateSourceAnalytics({source, action: 'view', readingTime: readDuration || 0})
+                .catch((error: any) => console.error('Analytics update failed:'.red.bold, error));
         }
 
         return {isModified: savedReadingHistory !== null};
@@ -96,7 +95,7 @@ const modifyReadingHistory = async (
 
 const getReadingHistories = async ({email, pageSize = 10, page = 1}: GetReadingHistoryParams): Promise<GetReadingHistoryResponse> => {
     try {
-        const {user, error} = await getUserByEmail({email});
+        const {user, error} = await AuthService.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
@@ -120,7 +119,7 @@ const getReadingHistories = async ({email, pageSize = 10, page = 1}: GetReadingH
 
 const completeArticle = async ({email, articleUrl}: CompleteArticleParams): Promise<CompleteArticleResponse> => {
     try {
-        const {user, error} = await getUserByEmail({email});
+        const {user, error} = await AuthService.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
@@ -140,7 +139,7 @@ const completeArticle = async ({email, articleUrl}: CompleteArticleParams): Prom
         console.log('completedArticle:'.cyan.italic, updatedArticleHistory);
 
         // Track completion analytics
-        await updateSourceAnalytics({source: updatedArticleHistory.source, action: 'complete', readingTime: updatedArticleHistory.readDuration || 0})
+        await AnalyticsService.updateSourceAnalytics({source: updatedArticleHistory.source, action: 'complete', readingTime: updatedArticleHistory.readDuration || 0})
             .catch((error: any) => console.error('Analytics update failed:'.red.bold, error));
 
         return {isCompleted: true};
@@ -152,7 +151,7 @@ const completeArticle = async ({email, articleUrl}: CompleteArticleParams): Prom
 
 const clearReadingHistories = async ({email}: ClearReadingHistoryParams): Promise<ClearReadingHistoryResponse> => {
     try {
-        const {user, error} = await getUserByEmail({email});
+        const {user, error} = await AuthService.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
@@ -170,7 +169,7 @@ const clearReadingHistories = async ({email}: ClearReadingHistoryParams): Promis
 
 const getReadingAnalytics = async ({email}: GetReadingAnalyticsParams): Promise<GetReadingAnalyticsResponse> => {
     try {
-        const {user, error} = await getUserByEmail({email});
+        const {user, error} = await AuthService.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
@@ -252,7 +251,7 @@ const searchReadingHistories = async (
      * */
 
     try {
-        const {user} = await getUserByEmail({email});
+        const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }
@@ -303,7 +302,7 @@ const searchReadingHistories = async (
 
 const deleteReadingHistory = async ({email, readingHistoryExternalId}: DeleteReadingHistoryParams): Promise<DeleteReadingHistoryResponse> => {
     try {
-        const {user, error} = await getUserByEmail({email});
+        const {user, error} = await AuthService.getUserByEmail({email});
         if (!user) {
             return {error: generateNotFoundCode('user')};
         }

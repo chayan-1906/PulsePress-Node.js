@@ -1,15 +1,74 @@
 import {Document, Model, model, Schema} from "mongoose";
 import generateNanoIdWithAlphabet from "../utils/generateUUID";
+import {SUPPORTED_AUTH__PROVIDERS, SupportedAuthProvider} from "../types/auth";
+import {StrikeHistoryEvent, USER_STRIKE_BLOCK, UserStrikeBlock} from "../types/ai";
+
+export interface IUserStrike {
+    count: number;
+    lastStrikeAt?: Date;
+    blockedUntil?: Date;
+    blockType?: UserStrikeBlock; // 15-30min vs 2-day block
+    history: StrikeHistoryEvent[];
+}
+
+const StrikeHistoryEventSchema = new Schema<StrikeHistoryEvent>({
+    strikeNumber: {
+        type: Number,
+        required: true,
+        min: 1,
+    },
+    appliedAt: {
+        type: Date,
+        required: true,
+        default: Date.now,
+    },
+    reason: {
+        type: String,
+        required: true,
+    },
+    blockType: {
+        type: String,
+        enum: USER_STRIKE_BLOCK,
+    },
+    blockDuration: {
+        type: String,
+    },
+}, {_id: false});
+
+const UserStrikeSchema = new Schema<IUserStrike>({
+    count: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
+    lastStrikeAt: {
+        type: Date,
+    },
+    blockedUntil: {
+        type: Date,
+    },
+    blockType: {
+        type: String,
+        enum: USER_STRIKE_BLOCK,
+    },
+    history: {
+        type: [StrikeHistoryEventSchema],
+        default: [],
+    },
+}, {_id: false});
 
 export interface IUser extends Document {
     userId: string;
     userExternalId: string;
+    authProvider: SupportedAuthProvider;
     googleId?: string;
+    isVerified: boolean;
     name?: string;
     email?: string;
     password?: string;
     profilePicture?: string;
     refreshToken?: string;
+    newsClassificationStrikes?: IUserStrike;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -24,8 +83,17 @@ const UserSchema = new Schema<IUser>({
         required: true,
         default: () => generateNanoIdWithAlphabet(),
     },
+    authProvider: {
+        type: String,
+        required: true,
+        enum: SUPPORTED_AUTH__PROVIDERS,
+    },
     googleId: {
         type: String,
+    },
+    isVerified: {
+        type: Boolean,
+        default: false,
     },
     name: {
         type: String,
@@ -40,8 +108,9 @@ const UserSchema = new Schema<IUser>({
     password: {
         type: String,
         required() {
-            return !this.googleId;
-        }, // Only required if not Google user
+            // return !this.googleId && !this.isVerified;
+            return this.authProvider === 'email';
+        }, // Only required for Email/Password auth
         trim: true,
     },
     profilePicture: {
@@ -51,7 +120,14 @@ const UserSchema = new Schema<IUser>({
     refreshToken: {
         type: String,
         select: false  // Don't return in queries
-    }
+    },
+    newsClassificationStrikes: {
+        type: UserStrikeSchema,
+        default: () => ({
+            count: 0,
+            history: [],
+        }),
+    },
 }, {
     timestamps: true,
     toJSON: {
