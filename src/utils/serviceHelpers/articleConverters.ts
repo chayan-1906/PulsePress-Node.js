@@ -105,7 +105,7 @@ export const convertRSSFeedToArticle = (rss: IRssFeed): IArticle => {
     };
     console.log('convertRSSFeedToArticle:'.cyan, article);
     return article;
-};
+}
 
 /**
  * Merge enhancement data with original articles
@@ -130,4 +130,4 @@ export const mergeEnhancementsWithArticles = (articles: IArticle[], enhancements
 
         return {...article, enhanced: false};
     });
-};
+}

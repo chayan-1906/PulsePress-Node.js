@@ -16,7 +16,7 @@ import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceH
 import {
     ICombinedAIParams,
     ICombinedAIResponse,
-    IEnhanceArticlesInBackgroundParams,
+    IEnhanceArticlesParams,
     IGetEnhancementForArticlesParams,
     IGetEnhancementStatusByIdsParams,
     IGetEnhancementStatusByIdsResponse,
@@ -160,37 +160,10 @@ class ArticleEnhancementService {
     }
 
     /**
-     * Get processing status and progress for article enhancements
+     * Process article enhancements with AI analysis (progressive)
      */
-    static async getProcessingStatus({articles}: IGetProcessingStatusParams): Promise<IGetProcessingStatusResponse> {
-        console.log('Service: ArticleEnhancementService.getProcessingStatus called'.cyan.italic, {articleCount: articles.length});
-
-        const articleIds = articles.map((article: IArticle) => generateArticleId({article}));
-
-        const hasActiveJobs = articleIds.some((id: string) => this.activeJobs.has(id));
-
-        const enhancements: IArticleEnhancement[] = await ArticleEnhancementModel.find({
-            articleId: {$in: articleIds},
-        });
-
-        const completedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'completed').length;
-        const failedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'failed').length;
-        const processedCount = completedCount + failedCount;
-
-        const progress = articles.length > 0 ? Math.round((processedCount / articles.length) * 100) : 0;
-
-        if (hasActiveJobs || processedCount < articles.length) {
-            return {status: 'processing', progress};
-        } else {
-            return {status: 'complete', progress: 100};
-        }
-    }
-
-    /**
-     * Process article enhancements in background with AI analysis
-     */
-    static async enhanceArticlesInBackground({email, articles}: IEnhanceArticlesInBackgroundParams): Promise<void> {
-        console.log('Service: ArticleEnhancementService.enhanceArticlesInBackground called'.cyan.italic, {email, articleCount: articles.length});
+    static async enhanceArticles({email, articles}: IEnhanceArticlesParams): Promise<void> {
+        console.log('Service: ArticleEnhancementService.enhanceArticles called'.cyan.italic, {email, articleCount: articles.length});
 
         if (email) {
             try {
@@ -308,7 +281,7 @@ class ArticleEnhancementService {
             }
 
             articleIds.forEach((id: string) => this.activeJobs.delete(id));
-            console.log('Background enhancement processing completed'.green.bold);
+            console.log('Enhancement processing completed'.green.bold);
         }, 500);
     }
 
@@ -333,6 +306,33 @@ class ArticleEnhancementService {
         } catch (error: any) {
             console.error('Service Error: ArticleEnhancementService.getEnhancementsForArticles failed'.red.bold, error);
             return {};
+        }
+    }
+
+    /**
+     * Get processing status and progress for article enhancements
+     */
+    static async getProcessingStatus({articles}: IGetProcessingStatusParams): Promise<IGetProcessingStatusResponse> {
+        console.log('Service: ArticleEnhancementService.getProcessingStatus called'.cyan.italic, {articleCount: articles.length});
+
+        const articleIds = articles.map((article: IArticle) => generateArticleId({article}));
+
+        const hasActiveJobs = articleIds.some((id: string) => this.activeJobs.has(id));
+
+        const enhancements: IArticleEnhancement[] = await ArticleEnhancementModel.find({
+            articleId: {$in: articleIds},
+        });
+
+        const completedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'completed').length;
+        const failedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'failed').length;
+        const processedCount = completedCount + failedCount;
+
+        const progress = articles.length > 0 ? Math.round((processedCount / articles.length) * 100) : 0;
+
+        if (hasActiveJobs || processedCount < articles.length) {
+            return {status: 'processing', progress};
+        } else {
+            return {status: 'complete', progress: 100};
         }
     }
 

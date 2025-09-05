@@ -444,7 +444,7 @@ export interface IGetProcessingStatusParams {
     articles: IArticle[];
 }
 
-export interface IEnhanceArticlesInBackgroundParams {
+export interface IEnhanceArticlesParams {
     email: string;  // for authMiddleware
     articles: IArticle[];
 }

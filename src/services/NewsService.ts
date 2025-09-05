@@ -1073,7 +1073,7 @@ class NewsService {
 
         // Start background enhancement (fire and forget)
         if (sortedResults.length > 0) {
-            ArticleEnhancementService.enhanceArticlesInBackground({email: email || '', articles: sortedResults}).then(() => {
+            ArticleEnhancementService.enhanceArticles({email: email || '', articles: sortedResults}).then(() => {
             });
         }
 
