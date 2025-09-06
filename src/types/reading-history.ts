@@ -1,18 +1,18 @@
-import {SupportedSource} from "./news";
+import {TSupportedSource} from "./news";
 import {IReadingHistory} from "../models/ReadingHistorySchema";
 
 export const SUPPORTED_READING_HISTORY_SORTINGS = ['title', 'articleUrl', 'source', 'readAt', 'readDuration', 'createdAt', 'publishedAt'];
-type SupportedReadingHistorySorting = typeof SUPPORTED_READING_HISTORY_SORTINGS[number];
+type TSupportedReadingHistorySorting = typeof SUPPORTED_READING_HISTORY_SORTINGS[number];
 
 
 /** ------------- API response types ------------- */
 
-export interface ModifyReadingHistoryResponse {
+export interface IModifyReadingHistoryResponse {
     isModified?: boolean;
     error?: string;
 }
 
-export interface GetReadingHistoryResponse {
+export interface IGetReadingHistoryResponse {
     readingHistories?: IReadingHistory[] | null;
     totalCount?: number;
     currentPage?: number;
@@ -20,17 +20,17 @@ export interface GetReadingHistoryResponse {
     error?: string;
 }
 
-export interface CompleteArticleResponse {
+export interface ICompleteArticleResponse {
     isCompleted?: boolean;
     error?: string;
 }
 
-export interface ClearReadingHistoryResponse {
+export interface IClearReadingHistoryResponse {
     isCleared?: boolean;
     error?: string;
 }
 
-export interface GetReadingAnalyticsResponse {
+export interface IGetReadingAnalyticsResponse {
     analytics?: {
         articlesReadToday: number;
         articlesReadThisWeek: number;
@@ -44,7 +44,7 @@ export interface GetReadingAnalyticsResponse {
     error?: string;
 }
 
-export interface SearchReadingHistoryResponse {
+export interface ISearchReadingHistoryResponse {
     readingHistories?: IReadingHistory[] | null;
     totalCount?: number;
     currentPage?: number;
@@ -52,7 +52,7 @@ export interface SearchReadingHistoryResponse {
     error?: string;
 }
 
-export interface DeleteReadingHistoryResponse {
+export interface IDeleteReadingHistoryResponse {
     isDeleted?: boolean;
     error?: string;
 }
@@ -60,8 +60,8 @@ export interface DeleteReadingHistoryResponse {
 
 /** ------------- function params ------------- */
 
-export interface ModifyReadingHistoryParams {
-    email: string;
+export interface IModifyReadingHistoryParams {
+    email: string;  // for authMiddleware
     title: string;
     articleUrl: string;
     source: string;
@@ -72,36 +72,36 @@ export interface ModifyReadingHistoryParams {
     publishedAt: Date;
 }
 
-export interface GetReadingHistoryParams {
-    email: string;
+export interface IGetReadingHistoryParams {
+    email: string;  // for authMiddleware
     pageSize?: number;
     page?: number;
 }
 
-export interface CompleteArticleParams {
-    email: string;
+export interface ICompleteArticleParams {
+    email: string;  // for authMiddleware
     articleUrl: string;
 }
 
-export interface ClearReadingHistoryParams {
-    email: string;
+export interface IClearReadingHistoryParams {
+    email: string;  // for authMiddleware
 }
 
-export interface GetReadingAnalyticsParams {
-    email: string;
+export interface IGetReadingAnalyticsParams {
+    email: string;  // for authMiddleware
 }
 
-export interface SearchReadingHistoryParams {
-    email: string;
+export interface ISearchReadingHistoryParams {
+    email: string;  // for authMiddleware
     q?: string;
-    sources?: SupportedSource;
-    sortBy?: SupportedReadingHistorySorting;
+    sources?: TSupportedSource;
+    sortBy?: TSupportedReadingHistorySorting;
     sortOrder?: 'asc' | 'desc';
     pageSize?: number;
     page?: number;
 }
 
-export interface DeleteReadingHistoryParams {
-    email: string;
+export interface IDeleteReadingHistoryParams {
+    email: string;  // for authMiddleware
     readingHistoryExternalId: string;
 }

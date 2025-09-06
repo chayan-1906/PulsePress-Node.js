@@ -1,37 +1,41 @@
 import "colors";
-import {genAI} from "./AIService";
+import {GoogleGenerativeAI} from "@google/generative-ai";
 import NewsService from "./NewsService";
 import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
-import {AI_NEWS_INSIGHTS_MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
-import {AINewsInsights, IMPACT_LEVELS, ImpactLevel, NewsInsightsParams, NewsInsightsResponse} from "../types/ai";
+import {AI_NEWS_INSIGHTS_MODELS, API_CONFIG} from "../utils/constants";
+import {cleanArray, cleanStakeholderAnalysis} from "../utils/serviceHelpers/dataCleaners";
+import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
+import {IAINewsInsights, IMPACT_LEVELS, INewsInsightsParams, INewsInsightsResponse, TImpactLevel} from "../types/ai";
 
 class NewsInsightsService {
+    static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
+
     /**
      * Generate comprehensive news insights and analysis using Gemini AI
      */
-    static async generateInsights({content, url}: NewsInsightsParams): Promise<NewsInsightsResponse> {
-        console.log('Generating news insights and analysis...'.cyan.italic);
+    static async generateInsights({content, url}: INewsInsightsParams): Promise<INewsInsightsResponse> {
+        console.log('Service: NewsInsightsService.generateInsights called'.cyan.italic, {contentLength: content?.length, url});
 
         if (!content && !url) {
-            console.error('Content and url both invalid:'.yellow.italic, {content, url});
+            console.warn('Client Error: Both content and URL missing'.yellow, {content, url});
             return {error: 'CONTENT_OR_URL_REQUIRED'};
         }
 
         if (content && url) {
-            console.error('Content and url both valid:'.yellow.italic, {content, url});
+            console.warn('Client Error: Both content and URL provided'.yellow, {contentLength: content.length, url});
             return {error: 'CONTENT_AND_URL_CONFLICT'};
         }
 
         let articleContent = content || '';
         if (!content && url) {
-            console.info('Scraping URL for news insights analysis:'.cyan.italic, url);
+            console.log('Content scraping required for URL'.cyan, url);
             const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
-                console.error('Scraping failed:'.red.bold, scrapedArticles[0]?.error);
+                console.error('Service Error: Article scraping failed'.red.bold, scrapedArticles[0]?.error);
                 return {error: 'SCRAPING_FAILED'};
             }
 
@@ -39,104 +43,90 @@ class NewsInsightsService {
         }
 
         if (!articleContent || articleContent.trim().length === 0) {
-            console.log('Empty content provided for news insights analysis'.yellow.italic);
+            console.warn('Client Error: Empty content provided for news insights analysis'.yellow);
             return {error: generateMissingCode('content')};
         }
 
         // Truncate content to avoid token limits
-        const truncatedContent = articleContent.substring(0, 4000);
+        const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
         for (let i = 0; i < AI_NEWS_INSIGHTS_MODELS.length; i++) {
-            const model = AI_NEWS_INSIGHTS_MODELS[i];
-            console.log(`Trying news insights analysis with model ${i + 1}/${AI_NEWS_INSIGHTS_MODELS.length}:`.cyan, model);
+            const modelName = AI_NEWS_INSIGHTS_MODELS[i];
+            console.log(`Trying news insights analysis with model ${i + 1}/${AI_NEWS_INSIGHTS_MODELS.length}:`.cyan, modelName);
 
             try {
-                const result = await this.generateWithGemini(model, truncatedContent);
+                const result = await this.generateWithGemini(modelName, truncatedContent);
 
                 if (result.keyThemes && result.keyThemes.length > 0) {
-                    console.log(`✅ News insights analysis successful with model:`.green, model);
-                    console.log('Generated insights:'.green, {
+                    console.log(`✅ News insights analysis successful with model:`.cyan, modelName);
+                    console.log('Generated insights:'.cyan, {
                         themes: result.keyThemes,
                         impact: result.impactAssessment?.level,
                         stakeholders: Object.keys(result.stakeholderAnalysis || {}).length
                     });
-                    return result;
+                    console.log('News insights analysis completed successfully'.green.bold);
+                    return {...result, powered_by: modelName};
                 }
 
-                console.log(`❌ Model failed:`.yellow.bold, model, 'Error:'.yellow.italic, result.error);
+                console.error('Service Error: News insights analysis model failed'.red.bold, {model: modelName, error: result.error});
             } catch (error: any) {
-                console.error(`❌ Model failed:`.yellow.bold, model, 'Error:'.red.bold, error.message);
+                console.error('Service Error: News insights analysis model failed'.red.bold, {model: modelName, error: error.message});
             }
         }
 
-        console.error('🚨 All news insights analysis models failed'.red.bold);
+        console.error('Service Error: All news insights analysis models failed'.red.bold);
         return {error: 'NEWS_INSIGHTS_ANALYSIS_FAILED'};
     }
 
     /**
      * Generate news insights using Gemini AI
      */
-    private static async generateWithGemini(modelName: string, content: string): Promise<NewsInsightsResponse> {
+    private static async generateWithGemini(modelName: string, content: string): Promise<INewsInsightsResponse> {
+        console.log('Service: NewsInsightsService.generateWithGemini called'.cyan.italic, {modelName, content});
+
         if (!GEMINI_API_KEY) {
-            console.error('Gemini API key not configured'.red.bold);
+            console.warn('Config Warning: Gemini API key not configured'.yellow.italic);
             return {error: generateMissingCode('gemini_api_key')};
         }
 
-        const model = genAI.getGenerativeModel({model: modelName});
+        console.log('External API: Generating news insights with Gemini'.magenta, {model: modelName});
+        const model = this.genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.NEWS_INSIGHTS_ANALYSIS(content);
 
         const result = await model.generateContent(prompt);
         let responseText = result.response.text().trim();
 
-        console.log('Gemini news insights analysis response:'.cyan, responseText);
+        console.log('External API: Gemini response received'.magenta, responseText);
 
-        if (responseText.startsWith('```json')) {
-            responseText = responseText.substring(7);
-        }
-        if (responseText.startsWith('```')) {
-            responseText = responseText.substring(3);
-        }
-        if (responseText.endsWith('```')) {
-            responseText = responseText.substring(0, responseText.length - 3);
-        }
-        responseText = responseText.trim();
+        responseText = cleanJsonResponseMarkdown(responseText);
 
-        if (responseText !== result.response.text().trim()) {
-            console.log('Stripped markdown, clean JSON:'.yellow, responseText);
-        }
-
-        const parsed: AINewsInsights = JSON.parse(responseText);
+        const parsed: IAINewsInsights = JSON.parse(responseText);
 
         if (!parsed.keyThemes || !Array.isArray(parsed.keyThemes) || parsed.keyThemes.length === 0) {
-            console.error('Invalid keyThemes array in response:'.red, parsed.keyThemes);
+            console.error('Service Error: Invalid keyThemes array in response'.red.bold, parsed.keyThemes);
             return {error: 'NEWS_INSIGHTS_PARSE_ERROR'};
         }
 
-        const normalizedLevel = parsed.impactAssessment?.level?.toLowerCase() as ImpactLevel;
-        if (!parsed.impactAssessment || !normalizedLevel || !IMPACT_LEVELS.includes(normalizedLevel as ImpactLevel)) {
-            console.error('Invalid impactAssessment in response:'.red, parsed.impactAssessment);
+        const normalizedLevel = parsed.impactAssessment?.level?.toLowerCase() as TImpactLevel;
+        if (!parsed.impactAssessment || !normalizedLevel || !IMPACT_LEVELS.includes(normalizedLevel as TImpactLevel)) {
+            console.error('Service Error: Invalid impactAssessment in response'.red.bold, parsed.impactAssessment);
             return {error: 'NEWS_INSIGHTS_PARSE_ERROR'};
         }
 
-        const cleanArray = (arr: any) => Array.isArray(arr) ? arr.filter(item => item && item.trim().length > 0) : [];
+        console.log('Processing and cleaning insights data'.cyan);
 
         const keyThemes = cleanArray(parsed.keyThemes);
         const contextConnections = cleanArray(parsed.contextConnections || []);
         const timelineContext = cleanArray(parsed.timelineContext || []);
-
-        const stakeholderAnalysis = parsed.stakeholderAnalysis || {};
-        const cleanedStakeholderAnalysis = {
-            winners: cleanArray(stakeholderAnalysis.winners || []),
-            losers: cleanArray(stakeholderAnalysis.losers || []),
-            affected: cleanArray(stakeholderAnalysis.affected || []),
-        };
+        const cleanedStakeholderAnalysis = cleanStakeholderAnalysis(parsed.stakeholderAnalysis);
 
         if (keyThemes.length === 0) {
-            console.error('No valid themes found in response'.red);
+            console.error('Service Error: No valid themes found in response'.red.bold);
             return {error: 'NO_VALID_THEMES'};
         }
 
+        console.log('News insights processed successfully'.cyan, {themes: keyThemes.length, impact: normalizedLevel});
         return {
             keyThemes,
             impactAssessment: {

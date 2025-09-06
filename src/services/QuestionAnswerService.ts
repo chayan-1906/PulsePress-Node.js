@@ -1,144 +1,148 @@
 import "colors";
-import crypto from "crypto";
-import {genAI} from "./AIService";
+import {GoogleGenerativeAI} from "@google/generative-ai";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY, NODE_ENV} from "../config/config";
-import {QUESTION_ANSWER_MODELS} from "../utils/constants";
+import {API_CONFIG, QUESTION_ANSWER_MODELS} from "../utils/constants";
+import {generateContentHash} from "../utils/serviceHelpers/contentHashing";
 import CachedQuestionAnswerModel from "../models/CachedQuestionAnswerSchema";
+import {cacheAnswer, cacheQuestions} from "../utils/serviceHelpers/cacheHelpers";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
-import {AIQuestionAnswering, AIQuestionGeneration, QuestionAnsweringParams, QuestionAnsweringResponse, QuestionGenerationParams, QuestionGenerationResponse} from "../types/ai";
+import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
+import {IAIQuestionAnswering, IAIQuestionGeneration, IQuestionAnsweringParams, IQuestionAnsweringResponse, IQuestionGenerationParams, IQuestionGenerationResponse} from "../types/ai";
 
 class QuestionAnswerService {
+    static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
+
     /**
      * Generate relevant questions for news article content using Gemini AI with caching
      */
-    static async generateQuestions({content}: QuestionGenerationParams): Promise<QuestionGenerationResponse> {
-        console.log('Generating questions for content...'.cyan.italic);
+    static async generateQuestions({content}: IQuestionGenerationParams): Promise<IQuestionGenerationResponse> {
+        console.log('Service: QuestionAnswerService.generateQuestions called'.cyan.italic, {content});
 
         if (!content || content.trim().length === 0) {
-            console.log('Empty content provided for question generation'.yellow.italic);
+            console.warn('Client Error: Empty content provided for question generation'.yellow);
             return {error: generateInvalidCode('content')};
         }
 
-        const contentHash = crypto.createHash('md5').update(content.trim()).digest('hex');
-        console.log('Content hash for caching:'.cyan.italic, contentHash);
+        const contentHash = generateContentHash(content);
 
         if (NODE_ENV === 'production') {
             try {
                 const cachedResult = await CachedQuestionAnswerModel.findOne({contentHash});
                 if (cachedResult && cachedResult.questions.length > 0) {
-                    console.log('✅ Found cached questions:'.green.italic, cachedResult.questions.length);
+                    console.log('Cache: Found cached questions'.green.bold, cachedResult.questions.length);
                     return {questions: cachedResult.questions};
                 }
             } catch (error) {
-                console.log('Cache lookup failed, proceeding with AI generation:'.yellow.italic, error);
+                console.warn('Service Warning: Cache lookup failed, proceeding with AI generation'.yellow, error);
             }
         }
-        console.log('No cached questions found for this article'.yellow.italic);
+        console.log('Cache: No cached questions found for this article'.cyan);
 
         // Truncate content to avoid token limits
-        const truncatedContent = content.substring(0, 4000);
+        const truncatedContent = truncateContentForAI(content, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
         for (let i = 0; i < QUESTION_ANSWER_MODELS.length; i++) {
-            const model = QUESTION_ANSWER_MODELS[i];
-            console.log(`Trying question generation with model ${i + 1}/${QUESTION_ANSWER_MODELS.length}:`.cyan, model);
+            const modelName = QUESTION_ANSWER_MODELS[i];
+            console.log(`Trying question generation with model ${i + 1}/${QUESTION_ANSWER_MODELS.length}:`.cyan, modelName);
 
             try {
-                const result = await this.generateQuestionsWithGemini(model, truncatedContent);
+                const result = await this.generateQuestionsWithGemini(modelName, truncatedContent);
 
                 if (result.questions && result.questions.length > 0) {
-                    console.log(`✅ Question generation successful with model:`.green, model);
-                    console.log('Generated questions:'.green, result.questions);
+                    console.log(`Question generation successful with model:`.cyan, modelName);
+                    console.log('Generated questions:'.green.bold, result.questions);
 
-                    // if (NODE_ENV === 'production') {
-                    await this.cacheQuestions(contentHash, result.questions);
-                    // }
+                    if (NODE_ENV === 'production') {
+                        await cacheQuestions(contentHash, result.questions);
+                    }
 
-                    return result;
+                    return {...result, powered_by: modelName};
                 }
 
-                console.error(`❌ Model failed:`.red.bold, model, 'Error:'.yellow.italic, result.error);
+                console.error(`Service Error: Model failed:`.red.bold, modelName, 'Error:', result.error);
             } catch (error: any) {
-                console.error(`❌ Model failed:`.red.bold, model, 'Error:'.yellow.italic, error.message);
+                console.error(`Service Error: Model failed:`.red.bold, modelName, 'Error:', error.message);
             }
         }
 
-        console.error('🚨 All question generation models failed'.red.bold);
+        console.error('Service Error: All question generation models failed'.red.bold);
         return {error: 'QUESTION_GENERATION_FAILED'};
     }
 
     /**
      * Answer a specific question based on article content using Gemini AI with caching
      */
-    static async answerQuestion({content, question}: QuestionAnsweringParams): Promise<QuestionAnsweringResponse> {
-        console.log('Answering question for content...'.cyan.italic);
+    static async answerQuestion({content, question}: IQuestionAnsweringParams): Promise<IQuestionAnsweringResponse> {
+        console.log('Service: QuestionAnswerService.answerQuestion called'.cyan.italic, {content, question});
 
         if (!content || content.trim().length === 0) {
-            console.log('Empty content provided for question answering'.yellow.italic);
+            console.warn('Client Error: Empty content provided for question answering'.yellow);
             return {error: generateInvalidCode('content')};
         }
 
         if (!question || question.trim().length === 0) {
-            console.log('Empty question provided for answering'.yellow.italic);
+            console.warn('Client Error: Empty question provided for answering'.yellow);
             return {error: generateInvalidCode('question')};
         }
 
-        const contentHash = crypto.createHash('md5').update(content.trim()).digest('hex');
-        console.log('Content hash for caching:'.cyan.italic, contentHash);
+        const contentHash = generateContentHash(content);
 
         if (NODE_ENV === 'production') {
             try {
                 const cachedResult = await CachedQuestionAnswerModel.findOne({contentHash});
                 if (cachedResult && cachedResult.answers.has(question)) {
                     const cachedAnswer = cachedResult.answers.get(question);
-                    console.log('✅ Found cached answer for question:'.green.italic, question);
+                    console.log('Cache: Found cached answer for question:'.green.bold, question);
                     return {answer: cachedAnswer};
                 }
             } catch (error) {
-                console.log('Cache lookup failed, proceeding with AI generation:'.yellow.italic, error);
+                console.warn('Service Warning: Cache lookup failed, proceeding with AI generation'.yellow, error);
             }
         }
-        console.log('No cached answer found for this question'.yellow.italic);
+        console.log('Cache: No cached answer found for this question'.cyan);
 
         // Truncate content to avoid token limits
-        const truncatedContent = content.substring(0, 4000);
+        const truncatedContent = truncateContentForAI(content, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
         for (let i = 0; i < QUESTION_ANSWER_MODELS.length; i++) {
-            const model = QUESTION_ANSWER_MODELS[i];
-            console.log(`Trying question answering with model ${i + 1}/${QUESTION_ANSWER_MODELS.length}:`.cyan, model);
+            const modelName = QUESTION_ANSWER_MODELS[i];
+            console.log(`Trying question answering with model ${i + 1}/${QUESTION_ANSWER_MODELS.length}:`.cyan, modelName);
 
             try {
-                const result = await this.answerQuestionWithGemini(model, truncatedContent, question);
+                const result = await this.answerQuestionWithGemini(modelName, truncatedContent, question);
 
                 if (result.answer && result.answer.trim().length > 0) {
-                    console.log(`✅ Question answering successful with model:`.green, model);
-                    console.log('Generated answer:'.green, result.answer);
+                    console.log(`Question answering successful with model:`.cyan, modelName);
+                    console.log('Generated answer:'.green.bold, result.answer);
 
-                    await this.cacheAnswer(contentHash, question, result.answer);
+                    await cacheAnswer(contentHash, question, result.answer);
 
-                    return result;
+                    return {...result, powered_by: modelName};
                 }
 
-                console.error(`❌ Model failed:`.red.bold, model, 'Error:'.yellow.italic, result.error);
+                console.error(`Service Error: Model failed:`.red.bold, modelName, 'Error:', result.error);
             } catch (error: any) {
-                console.error(`❌ Model failed:`.red.bold, model, 'Error:'.yellow.italic, error.message);
+                console.error(`Service Error: Model failed:`.red.bold, modelName, 'Error:', error.message);
             }
         }
 
-        console.error('🚨 All question answering models failed'.red.bold);
+        console.error('Service Error: All question answering models failed'.red.bold);
         return {error: 'QUESTION_ANSWERING_FAILED'};
     }
 
     /**
      * Generate questions using Gemini AI
      */
-    private static async generateQuestionsWithGemini(modelName: string, content: string): Promise<QuestionGenerationResponse> {
+    private static async generateQuestionsWithGemini(modelName: string, content: string): Promise<IQuestionGenerationResponse> {
+        console.log('Service: QuestionAnswerService.generateQuestionsWithGemini called'.cyan.italic, {modelName, content});
+
         if (!GEMINI_API_KEY) {
-            console.error('Gemini API key not configured'.red.bold);
+            console.warn('Config Warning: Gemini API key not configured'.yellow.italic);
             return {error: generateMissingCode('gemini_api_key')};
         }
 
-        const model = genAI.getGenerativeModel({model: modelName});
+        const model = this.genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.QUESTION_GENERATION(content);
 
@@ -147,32 +151,19 @@ class QuestionAnswerService {
 
         console.log('Gemini question generation response:'.cyan, responseText);
 
-        if (responseText.startsWith('```json')) {
-            responseText = responseText.substring(7);
-        }
-        if (responseText.startsWith('```')) {
-            responseText = responseText.substring(3);
-        }
-        if (responseText.endsWith('```')) {
-            responseText = responseText.substring(0, responseText.length - 3);
-        }
-        responseText = responseText.trim();
+        responseText = cleanJsonResponseMarkdown(responseText);
 
-        if (responseText !== result.response.text().trim()) {
-            console.log('Stripped markdown, clean JSON:'.yellow, responseText);
-        }
-
-        const parsed: AIQuestionGeneration = JSON.parse(responseText);
+        const parsed: IAIQuestionGeneration = JSON.parse(responseText);
 
         if (!parsed.questions || !Array.isArray(parsed.questions) || parsed.questions.length === 0) {
-            console.error('Invalid questions array in response:'.red, parsed.questions);
+            console.error('Service Error: Invalid questions array in response:'.red.bold, parsed.questions);
             return {error: 'QUESTION_PARSE_ERROR'};
         }
 
         const validQuestions = parsed.questions.filter(q => q && q.trim().length > 0);
 
         if (validQuestions.length === 0) {
-            console.error('No valid questions found in response'.red);
+            console.error('Service Error: No valid questions found in response'.red.bold);
             return {error: 'NO_VALID_QUESTIONS'};
         }
 
@@ -182,13 +173,15 @@ class QuestionAnswerService {
     /**
      * Answer question using Gemini AI
      */
-    private static async answerQuestionWithGemini(modelName: string, content: string, question: string): Promise<QuestionAnsweringResponse> {
+    private static async answerQuestionWithGemini(modelName: string, content: string, question: string): Promise<IQuestionAnsweringResponse> {
+        console.log('Service: QuestionAnswerService.answerQuestionWithGemini called'.cyan.italic, {modelName, content, question});
+
         if (!GEMINI_API_KEY) {
-            console.error('Gemini API key not configured'.red.bold);
+            console.warn('Config Warning: Gemini API key not configured'.yellow.italic);
             return {error: generateMissingCode('gemini_api_key')};
         }
 
-        const model = genAI.getGenerativeModel({model: modelName});
+        const model = this.genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.QUESTION_ANSWERING(content, question);
 
@@ -197,76 +190,18 @@ class QuestionAnswerService {
 
         console.log('Gemini question answering response:'.cyan, responseText);
 
-        if (responseText.startsWith('```json')) {
-            responseText = responseText.substring(7);
-        }
-        if (responseText.startsWith('```')) {
-            responseText = responseText.substring(3);
-        }
-        if (responseText.endsWith('```')) {
-            responseText = responseText.substring(0, responseText.length - 3);
-        }
-        responseText = responseText.trim();
+        responseText = cleanJsonResponseMarkdown(responseText);
 
-        if (responseText !== result.response.text().trim()) {
-            console.log('Stripped markdown, clean JSON:'.yellow, responseText);
-        }
-
-        const parsed: AIQuestionAnswering = JSON.parse(responseText);
+        const parsed: IAIQuestionAnswering = JSON.parse(responseText);
 
         if (!parsed.answer || parsed.answer.trim().length === 0) {
-            console.error('Invalid answer in response:'.red, parsed.answer);
+            console.error('Service Error: Invalid answer in response:'.red.bold, parsed.answer);
             return {error: 'ANSWER_PARSE_ERROR'};
         }
 
         return {answer: parsed.answer};
     }
 
-    /**
-     * Cache generated questions
-     */
-    private static async cacheQuestions(contentHash: string, questions: string[]): Promise<void> {
-        try {
-            await CachedQuestionAnswerModel.findOneAndUpdate(
-                {contentHash},
-                {
-                    $set: {questions},
-                    $setOnInsert: {
-                        createdAt: new Date(),
-                        answers: new Map(),
-                    },
-                },
-                {upsert: true, new: true},
-            );
-            console.log('✅ Questions cached successfully'.green.italic);
-        } catch (error) {
-            console.error('❌ ERROR: Failed to cache questions:'.red.bold, error);
-        }
-    }
-
-    /**
-     * Cache generated answer
-     */
-    private static async cacheAnswer(contentHash: string, question: string, answer: string): Promise<void> {
-        try {
-            await CachedQuestionAnswerModel.findOneAndUpdate(
-                {contentHash},
-                {
-                    $set: {
-                        [`answers.${question}`]: answer
-                    },
-                    $setOnInsert: {
-                        createdAt: new Date(),
-                        questions: [],
-                    },
-                },
-                {upsert: true, new: true},
-            );
-            console.log('✅ Answer cached successfully'.green.italic);
-        } catch (error) {
-            console.error('❌ ERROR: Failed to cache answer:'.red.bold, error);
-        }
-    }
 }
 
 export default QuestionAnswerService;

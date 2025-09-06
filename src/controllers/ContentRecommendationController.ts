@@ -1,8 +1,8 @@
 import "colors";
 import {Request, Response} from "express";
-import {AuthRequest} from "../types/auth";
+import {IAuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
-import {GetContentRecommendationsParams} from "../types/content-recommendation";
+import {IGetContentRecommendationsParams} from "../types/content-recommendation";
 import {getContentRecommendation} from "../services/ContentRecommendationService";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 
@@ -10,8 +10,8 @@ const getContentRecommendationController = async (req: Request, res: Response) =
     console.info('getContentRecommendationController called'.bgMagenta.white.italic);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {pageSize}: Partial<GetContentRecommendationsParams> = req.query;
+        const email = (req as IAuthRequest).email;
+        const {pageSize}: Partial<IGetContentRecommendationsParams> = req.query;
 
         let pageSizeNumber;
         if (pageSize && !isNaN(pageSize)) {
@@ -19,21 +19,23 @@ const getContentRecommendationController = async (req: Request, res: Response) =
         }
 
         const {recommendations, totalRecommendations, error} = await getContentRecommendation({email, pageSize: pageSizeNumber});
-        if (error === generateMissingCode('email')) {
-            console.error('Email is missing'.yellow.italic);
-            res.status(400).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to get content recommendations';
+            let statusCode = 500;
+
+            if (error === generateMissingCode('email')) {
+                errorMsg = 'Email is missing';
+                statusCode = 400;
+            } else if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateMissingCode('email'),
-                errorMsg: 'Email is missing',
-            }));
-            return;
-        }
-        if (error === generateNotFoundCode('user')) {
-            console.error('User not found'.yellow.italic);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }

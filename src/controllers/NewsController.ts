@@ -1,34 +1,34 @@
 import "colors";
 import {Request, Response} from "express";
 import {isListEmpty} from "../utils/list";
-import {AuthRequest} from "../types/auth";
+import {IAuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
 import NewsService from "../services/NewsService";
 import ArticleEnhancementService from "../services/ArticleEnhancementService";
 import {COUNTRY_KEYWORDS, TOPIC_METADATA, TOPIC_QUERIES} from "../utils/constants";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {
-    Country,
-    ExploreTopicParams,
-    FetchArticleDetailsEnhancementStatusParams,
-    FetchMultisourceNewsEnhancementStatusParams,
-    FetchMultisourceNewsParams,
-    GuardianSearchParams,
-    NEWSORGEverythingParams,
-    NEWSORGTopHeadlinesParams,
-    NYTimesSearchParams,
-    NYTimesTopStoriesParams,
-    RSSFeedParams,
-    ScrapeMultipleWebsitesParams,
+    IExploreTopicParams,
+    IFetchMultisourceNewsEnhancementStatusParams,
+    IGuardianSearchParams,
+    IMultisourceFetchNewsParams,
+    INewsApiOrgEverythingParams,
+    INewsApiOrgTopHeadlinesParams,
+    INewYorkTimesSearchParams,
+    INewYorkTimesTopStoriesParams,
+    IRssFeedParams,
+    IScrapeMultipleWebsitesParams,
     SUPPORTED_NEWS_LANGUAGES,
-    Topic,
+    TCountry,
+    TTopic,
     VALID_NYTIMES_SECTIONS,
 } from "../types/news";
 
-const fetchNEWSORGTopHeadlinesController = async (req: Request, res: Response) => {
-    console.info('fetchNEWSORGTopHeadlinesController called'.bgMagenta.white.italic);
+const fetchNewsApiOrgTopHeadlinesController = async (req: Request, res: Response) => {
+    console.info('Controller: fetchNewsApiOrgTopHeadlinesController started'.bgBlue.white.bold);
+
     try {
-        const {country, category, sources, q, pageSize, page}: Partial<NEWSORGTopHeadlinesParams> = req.query;
+        const {country, category, sources, q, pageSize, page}: Partial<INewsApiOrgTopHeadlinesParams> = req.query;
 
         let pageSizeNumber, pageNumber;
         if (pageSize && !isNaN(pageSize)) {
@@ -37,31 +37,32 @@ const fetchNEWSORGTopHeadlinesController = async (req: Request, res: Response) =
         if (page && !isNaN(page)) {
             pageNumber = Number(page);
         }
-        const topHeadlines = await NewsService.fetchNEWSORGTopHeadlines({country, category, sources, q, pageSize: pageSizeNumber, page: pageNumber});
-        console.log('top headlines:'.cyan.italic, topHeadlines);
+        const topHeadlines = await NewsService.fetchNewsApiOrgTopHeadlines({country, category, sources, q, pageSize: pageSizeNumber, page: pageNumber});
+        console.log('SUCCESS: Top headlines fetched'.bgGreen.bold, {count: topHeadlines?.totalResults || 0});
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Top headlines have been found 🎉',
+            message: 'Top headlines have been fetched 🎉',
             topHeadlines,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of fetchNEWSORGTopHeadlinesController:'.red.bold, error);
+        console.error('Controller Error: fetchNewsApiOrgTopHeadlinesController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong while loading News API Org top headlines',
         }));
     }
 }
 
-const fetchNEWSORGEverythingController = async (req: Request, res: Response) => {
-    console.info('fetchEverythingController called'.bgMagenta.white.italic);
+const fetchNewsApiOrgEverythingController = async (req: Request, res: Response) => {
+    console.info('Controller: fetchNewsApiOrgEverythingController started'.bgBlue.white.bold);
+
     try {
-        const {sources, from, to, sortBy, language, q, pageSize, page}: Partial<NEWSORGEverythingParams> = req.query;
+        const {sources, from, to, sortBy, language, q, pageSize, page}: Partial<INewsApiOrgEverythingParams> = req.query;
 
         if (!sources && !q) {
-            console.error('sources and q both are missing'.red.italic);
+            console.warn('Client Error: Missing required search parameters'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: 'MISSING_SEARCH_PARAMS',
@@ -77,8 +78,8 @@ const fetchNEWSORGEverythingController = async (req: Request, res: Response) => 
         if (page && !isNaN(page)) {
             pageNumber = Number(page);
         }
-        const everything = await NewsService.fetchNEWSORGEverything({sources, from, to, sortBy, language, q, pageSize: pageSizeNumber, page: pageNumber});
-        console.log('everything:'.cyan.italic, everything);
+        const everything = await NewsService.fetchNewsApiOrgEverything({sources, from, to, sortBy, language, q, pageSize: pageSizeNumber, page: pageNumber});
+        console.log('SUCCESS: Everything search completed'.bgGreen.bold, {count: everything?.totalResults || 0});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -86,19 +87,20 @@ const fetchNEWSORGEverythingController = async (req: Request, res: Response) => 
             searchResults: everything,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of fetchEverythingController:'.red.bold, error);
+        console.error('Controller Error: fetchNewsAPIOrgEverythingController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong while loading News API Org news articles',
         }));
     }
 }
 
 const fetchGuardianNewsController = async (req: Request, res: Response) => {
-    console.info('fetchGuardianNewsController called'.bgMagenta.white.italic);
+    console.info('Controller: fetchGuardianNewsController started'.bgBlue.white.bold);
+
     try {
-        const {q, section, fromDate, toDate, orderBy, pageSize, page}: Partial<GuardianSearchParams> = req.query;
+        const {q, section, fromDate, toDate, orderBy, pageSize, page}: Partial<IGuardianSearchParams> = req.query;
 
         let pageSizeNumber, pageNumber;
         if (pageSize && !isNaN(pageSize)) {
@@ -112,27 +114,28 @@ const fetchGuardianNewsController = async (req: Request, res: Response) => {
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Guardian news articles found 🎉',
+            message: 'Guardian news articles have been found 🎉',
             searchResults: guardianResults,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of fetchGuardianNewsController:'.red.bold, error);
+        console.error('Controller Error: fetchGuardianNewsController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong while loading Guardian news',
         }));
     }
 }
 
-const fetchNYTimesNewsController = async (req: Request, res: Response) => {
-    console.info('fetchNYTimesNewsController called'.bgMagenta.white.italic);
+const fetchNewYorkTimesNewsController = async (req: Request, res: Response) => {
+    console.info('Controller: fetchNewYorkTimesNewsController started'.bgBlue.white.bold);
+
     try {
-        const {q, section, sort, fromDate, toDate, pageSize, page}: Partial<NYTimesSearchParams> = req.query;
-        console.log('q:'.bgMagenta.white.italic, q);
+        const {q, section, sort, fromDate, toDate, pageSize, page}: Partial<INewYorkTimesSearchParams> = req.query;
+        console.debug('Debug: NYTimes query parameter'.gray, {q});
 
         if (section && !VALID_NYTIMES_SECTIONS.includes(section)) {
-            console.error('Invalid NYTimes section:'.yellow.italic, section);
+            console.warn('Client Error: Invalid NYTimes section'.yellow, {section});
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateInvalidCode('nytimes_section'),
@@ -150,30 +153,31 @@ const fetchNYTimesNewsController = async (req: Request, res: Response) => {
             pageNumber = Number(page);
         }
 
-        const nytResults = await NewsService.fetchNYTimesNews({q, section, sort, fromDate, toDate, pageSize: pageSizeNumber, page: pageNumber});
+        const nytResults = await NewsService.fetchNewYorkTimesNews({q, section, sort, fromDate, toDate, pageSize: pageSizeNumber, page: pageNumber});
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'NYTimes news articles found 🎉',
+            message: 'NYTimes news articles have been found 🎉',
             searchResults: nytResults,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of fetchNYTimesNewsController:'.red.bold, error);
+        console.error('Controller Error: fetchNewYorkTimesNewsController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong while loading New York Times news',
         }));
     }
 }
 
-const fetchNYTimesTopStoriesController = async (req: Request, res: Response) => {
-    console.info('fetchNYTimesTopStoriesController called'.bgMagenta.white.italic);
+const fetchNewYorkTimesTopStoriesController = async (req: Request, res: Response) => {
+    console.info('Controller: fetchNewYorkTimesTopStoriesController started'.bgBlue.white.bold);
+
     try {
-        const {section}: Partial<NYTimesTopStoriesParams> = req.query;
+        const {section}: Partial<INewYorkTimesTopStoriesParams> = req.query;
 
         if (section && !VALID_NYTIMES_SECTIONS.includes(section)) {
-            console.error('Invalid NYTimes section:'.yellow.italic, section);
+            console.warn('Client Error: Invalid NYTimes section'.yellow, {section});
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateInvalidCode('nytimes_section'),
@@ -183,31 +187,32 @@ const fetchNYTimesTopStoriesController = async (req: Request, res: Response) => 
             return;
         }
 
-        const nytTopStories = await NewsService.fetchNYTimesTopStories({section});
+        const nytTopStories = await NewsService.fetchNewYorkTimesTopStories({section});
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'NYTimes top stories found 🎉',
+            message: 'NYTimes top stories have been found 🎉',
             searchResults: nytTopStories,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of fetchNYTimesTopStoriesController:'.red.bold, error);
+        console.error('Controller Error: fetchNewYorkTimesTopStoriesController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong while loading NYTimes top stories',
         }));
     }
 }
 
-const fetchAllRSSFeedsController = async (req: Request, res: Response) => {
-    console.info('getAllRSSFeedsController called'.bgMagenta.white.italic);
+const fetchAllRssFeedsController = async (req: Request, res: Response) => {
+    console.info('Controller: fetchAllRssFeedsController started'.bgBlue.white.bold);
+
     try {
-        const {q, sources, languages, pageSize, page}: Partial<RSSFeedParams> = req.query;
+        const {q, sources, languages, pageSize, page}: Partial<IRssFeedParams> = req.query;
 
         const sourceList = sources ? sources.split(',').map((source: string) => source.trim().toLowerCase()).filter(Boolean) : [];
         if (!isListEmpty(sourceList) && sourceList.every(lang => !SUPPORTED_NEWS_LANGUAGES.includes(lang))) {
-            console.error('Sources not supported:'.yellow.italic, sources);
+            console.warn('Client Error: Unsupported news sources'.yellow, {sources});
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: 'SOURCES_NOT_SUPPORTED',
@@ -218,7 +223,7 @@ const fetchAllRSSFeedsController = async (req: Request, res: Response) => {
 
         const languageList = languages ? languages.split(',').map((lang: string) => lang.trim().toLowerCase()).filter(Boolean) : [];
         if (!isListEmpty(languageList) && languageList.every(lang => !SUPPORTED_NEWS_LANGUAGES.includes(lang))) {
-            console.error('Languages not supported:'.yellow.italic, languageList);
+            console.warn('Client Error: Unsupported news languages'.yellow, {languages: languageList});
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: 'LANGUAGES_NOT_SUPPORTED',
@@ -235,13 +240,13 @@ const fetchAllRSSFeedsController = async (req: Request, res: Response) => {
             pageNumber = Number(page);
         }
 
-        console.time('RSS_FETCH_TIME'.bgMagenta.white.italic);
-        const rssFeeds = await NewsService.fetchAllRSSFeeds({q, sources, languages, pageSize: pageSizeNumber, page: pageNumber});
-        console.timeEnd('RSS_FETCH_TIME'.bgMagenta.white.italic);
-        console.log('rss feeds:'.green.bold, rssFeeds.length);
+        console.time('Performance: RSS_FETCH_TIME'.cyan);
+        const rssFeeds = await NewsService.fetchAllRssFeeds({q, sources, languages, pageSize: pageSizeNumber, page: pageNumber});
+        console.timeEnd('Performance: RSS_FETCH_TIME'.cyan);
+        console.log('SUCCESS: RSS feeds fetched'.bgGreen.bold, {count: rssFeeds.length});
 
         const message = q
-            ? `RSS search completed for "${q}" 🔍`
+            ? `RSS search has been completed for "${q}" 🔍`
             : 'RSS Feeds have been found 🎉';
 
         res.status(200).send(new ApiResponse({
@@ -252,20 +257,21 @@ const fetchAllRSSFeedsController = async (req: Request, res: Response) => {
             rssFeeds,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of getAllRSSFeedsController:'.red.bold, error);
+        console.error('Controller Error: fetchAllRssFeedsController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong while loading RSS feeds',
         }));
     }
 }
 
 const fetchMultiSourceNewsController = async (req: Request, res: Response) => {
-    console.info('fetchMultiSourceNewsController called'.bgMagenta.white.italic);
+    console.info('Controller: fetchMultiSourceNewsController started'.bgBlue.white.bold);
+
     try {
-        const email = (req as AuthRequest).email;
-        const {q, category, sources, pageSize, page}: Partial<FetchMultisourceNewsParams> = req.query;
+        const email = (req as IAuthRequest).email;
+        const {q, category, sources, pageSize, page}: Partial<IMultisourceFetchNewsParams> = req.query;
 
         if (!q && !category && !sources) {
             res.status(400).send(new ApiResponse({
@@ -284,7 +290,7 @@ const fetchMultiSourceNewsController = async (req: Request, res: Response) => {
             pageNumber = Number(page);
         }
 
-        console.time('MULTISOURCE_FETCH_TIME'.bgMagenta.white.italic);
+        console.time('Performance: MULTISOURCE_FETCH_TIME'.cyan);
         const multisourceResults = await NewsService.fetchMultiSourceNews({
             email,
             q,
@@ -293,30 +299,31 @@ const fetchMultiSourceNewsController = async (req: Request, res: Response) => {
             pageSize: pageSizeNumber,
             page: pageNumber,
         });
-        console.timeEnd('MULTISOURCE_FETCH_TIME'.bgMagenta.white.italic);
+        console.timeEnd('Performance: MULTISOURCE_FETCH_TIME'.cyan);
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Multisource news search completed 🎉',
+            message: 'Multisource news search has been completed 🎉',
             searchResults: multisourceResults,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of fetchMultiSourceNewsController:'.red.bold, error);
+        console.error('Controller Error: fetchMultiSourceNewsController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong while loading news from multiple sources',
         }));
     }
 }
 
 const scrapeWebsiteController = async (req: Request, res: Response) => {
-    console.info('scrapeWebsiteController called'.bgMagenta.white.italic);
+    console.info('Controller: scrapeWebsiteController started'.bgBlue.white.bold);
+
     try {
-        const {urls}: Partial<ScrapeMultipleWebsitesParams> = req.body;
+        const {urls}: Partial<IScrapeMultipleWebsitesParams> = req.body;
 
         if (isListEmpty(urls)) {
-            console.error('URLs is missing'.yellow.italic);
+            console.warn('Client Error: Missing URLs parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateMissingCode('urls'),
@@ -326,11 +333,11 @@ const scrapeWebsiteController = async (req: Request, res: Response) => {
         }
 
         const scrapedArticles = await NewsService.scrapeMultipleArticles({urls});
-        console.log('scraped contents:'.cyan.italic, scrapedArticles);
 
         const total = urls.length;
         const successCount = scrapedArticles.filter(scrapedArticle => scrapedArticle.status === 200).length;
         const failureCount = total - successCount;
+        console.log('SUCCESS: Website scraping completed'.bgGreen.bold, {successCount, total});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -341,20 +348,21 @@ const scrapeWebsiteController = async (req: Request, res: Response) => {
             contents: scrapedArticles,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of scrapeWebsiteController:'.red.bold, error);
+        console.error('Controller Error: scrapeWebsiteController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong while scraping website',
         }));
     }
 }
 
 const exploreTopicController = async (req: Request, res: Response) => {
-    console.info('exploreTopicController called'.bgMagenta.white.italic);
+    console.info('Controller: exploreTopicController started'.bgBlue.white.bold);
+
     try {
-        const {topic}: { topic?: Topic } = req.params;
-        const {country, pageSize, page}: Partial<ExploreTopicParams> = req.query;
+        const {topic}: { topic?: TTopic } = req.params;
+        const {country, pageSize, page}: Partial<IExploreTopicParams> = req.query;
 
         if (!topic || !TOPIC_QUERIES[topic]) {
             res.status(400).send(new ApiResponse({
@@ -378,7 +386,7 @@ const exploreTopicController = async (req: Request, res: Response) => {
         let countryTerms: string | undefined;
         const countryStr = Array.isArray(country) ? country[0] : country;
         if (countryStr) {
-            const key = countryStr.toLowerCase() as Country;
+            const key = countryStr.toLowerCase() as TCountry;
             countryTerms = COUNTRY_KEYWORDS[key];
         }
 
@@ -386,36 +394,37 @@ const exploreTopicController = async (req: Request, res: Response) => {
             predefinedQuery = `${predefinedQuery} ${countryTerms}`;
         }
 
-        console.time('TOPIC_EXPLORATION_TIME'.bgMagenta.white.italic);
+        console.time('Performance: TOPIC_EXPLORATION_TIME'.cyan);
         const topicResults = await NewsService.fetchMultiSourceNews({
             q: predefinedQuery,
             category: topic,
             pageSize: pageSizeNumber,
             page: pageNumber,
         });
-        console.timeEnd('TOPIC_EXPLORATION_TIME'.bgMagenta.white.italic);
+        console.timeEnd('Performance: TOPIC_EXPLORATION_TIME'.cyan);
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: `${TOPIC_METADATA[topic].name} news found 🎉`,
+            message: `${TOPIC_METADATA[topic].name} news have been found 🎉`,
             topic: TOPIC_METADATA[topic],
             searchResults: topicResults,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of exploreTopicController:'.red.bold, error);
+        console.error('Controller Error: exploreTopicController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during topic exploration',
         }));
     }
 }
 
 const fetchMultiSourceNewsEnhancedController = async (req: Request, res: Response) => {
-    console.info('fetchMultiSourceNewsEnhancedController called'.bgMagenta.white.italic);
+    console.info('Controller: fetchMultiSourceNewsEnhancedController started'.bgBlue.white.bold);
+
     try {
-        const email = (req as AuthRequest).email;
-        const {q, category, sources, pageSize, page}: Partial<FetchMultisourceNewsParams> = req.query;
+        const email = (req as IAuthRequest).email;
+        const {q, category, sources, pageSize, page}: Partial<IMultisourceFetchNewsParams> = req.query;
 
         if (!q && !category && !sources) {
             res.status(400).send(new ApiResponse({
@@ -434,7 +443,7 @@ const fetchMultiSourceNewsEnhancedController = async (req: Request, res: Respons
             pageNumber = Number(page);
         }
 
-        console.time('ENHANCED_MULTISOURCE_FETCH_TIME'.bgGreen.white.italic);
+        console.time('Performance: ENHANCED_MULTISOURCE_FETCH_TIME'.cyan);
         const enhancedResults = await NewsService.fetchMultiSourceNewsEnhanced({
             email,
             q,
@@ -443,28 +452,29 @@ const fetchMultiSourceNewsEnhancedController = async (req: Request, res: Respons
             pageSize: pageSizeNumber,
             page: pageNumber,
         });
-        console.timeEnd('ENHANCED_MULTISOURCE_FETCH_TIME'.bgGreen.white.italic);
+        console.timeEnd('Performance: ENHANCED_MULTISOURCE_FETCH_TIME'.cyan);
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: `Enhanced multisource news completed! ${enhancedResults.metadata.enhancedCount}/${enhancedResults.metadata.totalArticles} articles have AI insights ✨`,
+            message: `Enhanced multisource news have been completed! ${enhancedResults.metadata.enhancedCount}/${enhancedResults.metadata.totalArticles} articles have AI insights ✨`,
             searchResults: enhancedResults,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of fetchMultiSourceNewsEnhancedController:'.red.bold, error);
+        console.error('Controller Error: fetchMultiSourceNewsEnhancedController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong while loading enhanced news articles',
         }));
     }
 }
 
 const fetchMultiSourceNewsEnhancementStatusController = async (req: Request, res: Response) => {
-    console.info('fetchEnhancementStatusController called'.bgMagenta.white.italic);
+    console.info('Controller: fetchEnhancementStatusController started'.bgBlue.white.bold);
+
     try {
-        const email = (req as AuthRequest).email;
-        const {articleIds}: Partial<FetchMultisourceNewsEnhancementStatusParams> = req.query;
+        const email = (req as IAuthRequest).email;
+        const {articleIds}: Partial<IFetchMultisourceNewsEnhancementStatusParams> = req.query;
 
         if (!articleIds) {
             res.status(400).send(new ApiResponse({
@@ -486,43 +496,31 @@ const fetchMultiSourceNewsEnhancementStatusController = async (req: Request, res
             return;
         }
 
-        console.time('ENHANCEMENT_STATUS_CHECK_TIME'.bgGreen.white.italic);
+        console.time('Performance: ENHANCEMENT_STATUS_CHECK_TIME'.cyan);
         const statusResults = await ArticleEnhancementService.getEnhancementStatusByIds({email, articleIds: articleIdArray});
         const {status, progress, articles, error} = statusResults;
+
         if (error) {
+            let errorMsg = 'Failed to fetch status';
+            let statusCode = 500;
+
             if (error === generateNotFoundCode('user')) {
-                console.error('User not found'.yellow.italic);
-                res.status(404).send(new ApiResponse({
-                    success: false,
-                    errorCode: generateNotFoundCode('user'),
-                    errorMsg: 'User not found',
-                }));
-                return;
+                errorMsg = 'User not found';
+                statusCode = 404;
             }
 
-            if (error === generateMissingCode('email')) {
-                console.error('Email is missing'.yellow.italic);
-                res.status(400).send(new ApiResponse({
-                    success: false,
-                    errorCode: generateMissingCode('email'),
-                    errorMsg: 'Email is missing',
-                }));
-                return;
-            }
-
-            console.error('error in getEnhancementStatusByIds:'.yellow.italic, error);
-            res.status(404).send(new ApiResponse({
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
                 errorCode: error,
-                errorMsg: 'Failed to fetch status',
+                errorMsg,
             }));
             return;
         }
-        console.timeEnd('ENHANCEMENT_STATUS_CHECK_TIME'.bgGreen.white.italic);
+        console.timeEnd('Performance: ENHANCEMENT_STATUS_CHECK_TIME'.cyan);
 
         const message = status === 'complete'
-            ? `All enhancements completed! ${articles?.length}/${articleIdArray.length} articles enhanced ✨`
-            : `Enhancement in progress: ${progress}% complete (${articles?.length}/${articleIdArray.length} articles)`;
+            ? `All enhancements have been completed! ${articles?.length}/${articleIdArray.length} articles enhanced ✨`
+            : `Enhancement is in progress: ${progress}% complete (${articles?.length}/${articleIdArray.length} articles)`;
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -530,194 +528,25 @@ const fetchMultiSourceNewsEnhancementStatusController = async (req: Request, res
             statusResults,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of fetchEnhancementStatusController:'.red.bold, error);
+        console.error('Controller Error: fetchEnhancementStatusController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
-        }));
-    }
-}
-
-const fetchArticleDetailsEnhancedController = async (req: Request, res: Response) => {
-    console.info('fetchArticleDetailsEnhancedController called'.bgMagenta.white.italic);
-    try {
-        const email = (req as AuthRequest).email;
-        const {url} = req.body;
-
-        if (!url || !url.trim()) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('url'),
-                errorMsg: 'URL is required for article enhancement',
-            }));
-            return;
-        }
-
-        console.time('ARTICLE_DETAILS_ENHANCEMENT_TIME'.bgGreen.white.italic);
-        const {articleId, article, status, error} = await ArticleEnhancementService.enhanceArticleForDetails({email, url});
-        console.timeEnd('ARTICLE_DETAILS_ENHANCEMENT_TIME'.bgGreen.white.italic);
-
-        if (error) {
-            if (error === generateNotFoundCode('user')) {
-                console.error('User not found'.yellow.italic);
-                res.status(404).send(new ApiResponse({
-                    success: false,
-                    errorCode: generateNotFoundCode('user'),
-                    errorMsg: 'User not found',
-                }));
-                return;
-            }
-
-            if (error === generateMissingCode('email')) {
-                console.error('Email is missing'.yellow.italic);
-                res.status(400).send(new ApiResponse({
-                    success: false,
-                    errorCode: generateMissingCode('email'),
-                    errorMsg: 'Email is missing',
-                }));
-                return;
-            }
-
-            if (error === generateMissingCode('url')) {
-                console.error('URL is missing'.yellow.italic);
-                res.status(400).send(new ApiResponse({
-                    success: false,
-                    errorCode: generateMissingCode('url'),
-                    errorMsg: 'URL is required for article enhancement',
-                }));
-                return;
-            }
-
-            if (error === 'SCRAPING_FAILED') {
-                console.error('Article scraping failed'.yellow.italic);
-                res.status(400).send(new ApiResponse({
-                    success: false,
-                    errorCode: 'SCRAPING_FAILED',
-                    errorMsg: 'Failed to scrape article content from the provided URL',
-                }));
-                return;
-            }
-
-            console.error('Enhancement failed:'.yellow.italic, error);
-            res.status(500).send(new ApiResponse({
-                success: false,
-                errorCode: 'ENHANCEMENT_FAILED',
-                errorMsg: 'Failed to enhance article',
-            }));
-            return;
-        }
-
-        const message = status === 'complete'
-            ? 'Article enhancement completed! All AI insights are ready ✨'
-            : 'Article enhancement started! Processing AI insights in background 🚀';
-
-        res.status(200).send(new ApiResponse({
-            success: true,
-            message,
-            article,
-            status,
-            articleId: article?.articleId || articleId,
-        }));
-    } catch (error: any) {
-        console.error('ERROR: inside catch of fetchArticleDetailsEnhancedController:'.red.bold, error);
-        res.status(500).send(new ApiResponse({
-            success: false,
-            error,
-            errorMsg: error.message || 'Something went wrong during article enhancement',
-        }));
-    }
-}
-
-const fetchArticleDetailsEnhancementStatusController = async (req: Request, res: Response) => {
-    console.info('fetchArticleDetailsEnhancementStatusController called'.bgMagenta.white.italic);
-    try {
-        const email = (req as AuthRequest).email;
-        const {articleId}: Partial<FetchArticleDetailsEnhancementStatusParams> = req.query;
-
-        if (!articleId) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('articleId'),
-                errorMsg: 'ArticleId parameter is required',
-            }));
-            return;
-        }
-
-        console.time('ARTICLE_DETAILS_ENHANCEMENT_STATUS_CHECK_TIME'.bgGreen.white.italic);
-        const statusResult = await ArticleEnhancementService.getEnhancementStatusByIds({
-            email,
-            articleIds: [articleId],
-        });
-        const {status, progress, articles, error} = statusResult;
-        console.timeEnd('ARTICLE_DETAILS_ENHANCEMENT_STATUS_CHECK_TIME'.bgGreen.white.italic);
-
-        if (error) {
-            if (error === generateNotFoundCode('user')) {
-                console.error('User not found'.yellow.italic);
-                res.status(404).send(new ApiResponse({
-                    success: false,
-                    errorCode: generateNotFoundCode('user'),
-                    errorMsg: 'User not found',
-                }));
-                return;
-            }
-
-            if (error === generateMissingCode('email')) {
-                console.error('Email is missing'.yellow.italic);
-                res.status(400).send(new ApiResponse({
-                    success: false,
-                    errorCode: generateMissingCode('email'),
-                    errorMsg: 'Email is missing',
-                }));
-                return;
-            }
-
-            console.error('error in getEnhancementStatusByIds:'.yellow.italic, error);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: error,
-                errorMsg: 'Failed to fetch article enhancement status',
-            }));
-            return;
-        }
-
-        const article = articles && articles.length > 0 ? articles[0] : null;
-
-        const message = status === 'complete' && article
-            ? 'Article enhancement completed! All AI insights are ready ✨'
-            : `Article enhancement in progress: ${progress}% complete`;
-
-        res.status(200).send(new ApiResponse({
-            success: true,
-            message,
-            articleId,
-            article,
-            status,
-            progress,
-        }));
-    } catch (error: any) {
-        console.error('ERROR: inside catch of fetchArticleDetailsEnhancementStatusController:'.red.bold, error);
-        res.status(500).send(new ApiResponse({
-            success: false,
-            error,
-            errorMsg: error.message || 'Something went wrong while checking enhancement status',
+            errorMsg: error.message || 'Something went wrong while checking AI enhancement status',
         }));
     }
 }
 
 export {
-    fetchNEWSORGTopHeadlinesController,
-    fetchNEWSORGEverythingController,
+    fetchNewsApiOrgTopHeadlinesController,
+    fetchNewsApiOrgEverythingController,
     fetchGuardianNewsController,
-    fetchNYTimesNewsController,
-    fetchNYTimesTopStoriesController,
-    fetchAllRSSFeedsController,
+    fetchNewYorkTimesNewsController,
+    fetchNewYorkTimesTopStoriesController,
+    fetchAllRssFeedsController,
     fetchMultiSourceNewsController,
     fetchMultiSourceNewsEnhancedController,
     fetchMultiSourceNewsEnhancementStatusController,
     scrapeWebsiteController,
     exploreTopicController,
-    fetchArticleDetailsEnhancedController,
-    fetchArticleDetailsEnhancementStatusController,
 };

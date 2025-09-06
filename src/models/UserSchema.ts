@@ -1,17 +1,17 @@
 import {Document, Model, model, Schema} from "mongoose";
 import generateNanoIdWithAlphabet from "../utils/generateUUID";
-import {SUPPORTED_AUTH__PROVIDERS, SupportedAuthProvider} from "../types/auth";
-import {StrikeHistoryEvent, USER_STRIKE_BLOCK, UserStrikeBlock} from "../types/ai";
+import {SUPPORTED_AUTH__PROVIDERS, TSupportedAuthProvider} from "../types/auth";
+import {IStrikeHistoryEvent, USER_STRIKE_BLOCK, TUserStrikeBlock} from "../types/ai";
 
 export interface IUserStrike {
     count: number;
     lastStrikeAt?: Date;
     blockedUntil?: Date;
-    blockType?: UserStrikeBlock; // 15-30min vs 2-day block
-    history: StrikeHistoryEvent[];
+    blockType?: TUserStrikeBlock; // 15-30min vs 2-day block
+    history: IStrikeHistoryEvent[];
 }
 
-const StrikeHistoryEventSchema = new Schema<StrikeHistoryEvent>({
+const StrikeHistoryEventSchema = new Schema<IStrikeHistoryEvent>({
     strikeNumber: {
         type: Number,
         required: true,
@@ -60,7 +60,7 @@ const UserStrikeSchema = new Schema<IUserStrike>({
 export interface IUser extends Document {
     userId: string;
     userExternalId: string;
-    authProvider: SupportedAuthProvider;
+    authProvider: TSupportedAuthProvider;
     googleId?: string;
     isVerified: boolean;
     name?: string;

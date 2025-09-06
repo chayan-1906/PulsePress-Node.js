@@ -1,25 +1,25 @@
 import {Document, model, Model, Schema} from 'mongoose';
-import {COMPLEXITY_LEVELS, ComplexityLevel, SentimentResult, ImpactLevel, IMPACT_LEVELS} from "../types/ai";
-import {ARTICLE_COMPLEXITIES, ArticleComplexities, PROCESSING_STATUSES, ProcessingStatus} from "../types/news";
+import {COMPLEXITY_LEVELS, IMPACT_LEVELS, TComplexityLevel, TImpactLevel, TSentimentResult} from "../types/ai";
+import {ARTICLE_COMPLEXITIES, PROCESSING_STATUSES, TArticleComplexities, TProcessingStatus} from "../types/news";
 
 export interface IArticleEnhancement extends Document {
     articleId: string;
     url: string;
     tags?: string[];
     sentiment?: {
-        sentiment: SentimentResult;
+        sentiment: TSentimentResult;
         confidence: number;
         emoji: string;
         color: string;
     };
     complexity?: {
-        level: ArticleComplexities;
+        level: TArticleComplexities;
         readingTimeMinutes: number;
         wordCount: number;
     };
     keyPoints?: string[];
     complexityMeter?: {
-        level: ComplexityLevel;
+        level: TComplexityLevel;
         reasoning: string;
     };
     locations?: string[];
@@ -27,7 +27,7 @@ export interface IArticleEnhancement extends Document {
     newsInsights?: {
         keyThemes: string[];
         impactAssessment: {
-            level: ImpactLevel;
+            level: TImpactLevel;
             description: string;
         };
         contextConnections: string[];
@@ -38,7 +38,7 @@ export interface IArticleEnhancement extends Document {
         };
         timelineContext: string[];
     };
-    processingStatus: ProcessingStatus;
+    processingStatus: TProcessingStatus;
     createdAt: Date;
     updatedAt: Date;
 }

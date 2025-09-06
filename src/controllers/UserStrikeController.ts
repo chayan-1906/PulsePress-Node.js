@@ -1,38 +1,40 @@
 import "colors";
 import {Request, Response} from "express";
-import {AuthRequest} from "../types/auth";
+import {IAuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
-import {GetUserStrikeHistoryParams} from "../types/ai";
+import {IGetUserStrikeHistoryParams} from "../types/ai";
+import UserStrikeService from "../services/UserStrikeService";
 import {generateNotFoundCode} from "../utils/generateErrorCodes";
-import {getUserStrikeHistory, getUserStrikeStatus} from "../services/UserStrikeService";
 
 const getUserStrikeStatusController = async (req: Request, res: Response) => {
-    console.info('getUserStrikeStatusController called'.bgMagenta.white.italic);
+    console.info('Controller: getUserStrikeStatusController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
+        const email = (req as IAuthRequest).email;
 
-        const {strikeStatus, error} = await getUserStrikeStatus({email});
-        if (error === 'USER_NOT_FOUND') {
-            console.error('User not found'.yellow.italic);
-            res.status(404).send(new ApiResponse({
+        const {strikeStatus, error} = await UserStrikeService.getUserStrikeStatus({email});
+
+        if (error) {
+            let errorMsg = 'Failed to get user strike status';
+            let statusCode = 500;
+
+            if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            } else if (error === 'STRIKE_DATA_UNAVAILABLE') {
+                errorMsg = 'Strike data unavailable';
+                statusCode = 404;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
-        if (error === 'STRIKE_DATA_UNAVAILABLE') {
-            console.error('Strike data unavailable'.yellow.italic);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: 'STRIKE_DATA_UNAVAILABLE',
-                errorMsg: 'Strike data unavailable',
-            }));
-            return;
-        }
 
-        console.log('user strike status:'.cyan.italic, strikeStatus);
+        console.log('SUCCESS: User strike status fetched'.bgGreen.bold, {strikeStatus});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -40,48 +42,50 @@ const getUserStrikeStatusController = async (req: Request, res: Response) => {
             strikeStatus,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of getUserStrikeStatusController:'.red.bold, error);
+        console.error('Controller Error: getUserStrikeStatusController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during user strike status retrieval!',
         }));
     }
 }
 
 const getUserStrikeHistoryController = async (req: Request, res: Response) => {
-    console.info('getUserStrikeHistoryController called'.bgMagenta.white.italic);
+    console.info('Controller: getUserStrikeHistoryController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {limit}: Partial<GetUserStrikeHistoryParams> = req.query;
+        const email = (req as IAuthRequest).email;
+        const {limit}: Partial<IGetUserStrikeHistoryParams> = req.query;
 
         let limitNumber = 10;
         if (limit && !isNaN(Number(limit))) {
             limitNumber = Number(limit);
         }
 
-        const {strikeHistory, totalStrikes, error} = await getUserStrikeHistory({email, limit: limitNumber});
-        if (error === 'USER_NOT_FOUND') {
-            console.error('User not found'.yellow.italic);
-            res.status(404).send(new ApiResponse({
+        const {strikeHistory, totalStrikes, error} = await UserStrikeService.getUserStrikeHistory({email, limit: limitNumber});
+
+        if (error) {
+            let errorMsg = 'Failed to get user strike history';
+            let statusCode = 500;
+
+            if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            } else if (error === 'STRIKE_DATA_UNAVAILABLE') {
+                errorMsg = 'Strike data unavailable';
+                statusCode = 404;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
-        if (error === 'STRIKE_DATA_UNAVAILABLE') {
-            console.error('Strike data unavailable'.yellow.italic);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: 'STRIKE_DATA_UNAVAILABLE',
-                errorMsg: 'Strike data unavailable',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
 
-        console.log('user strike history:'.cyan.italic, {strikeHistory, totalStrikes});
+        console.log('SUCCESS: User strike history fetched'.bgGreen.bold, {totalStrikes});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -90,11 +94,11 @@ const getUserStrikeHistoryController = async (req: Request, res: Response) => {
             totalStrikes,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of getUserStrikeHistoryController:'.red.bold, error);
+        console.error('Controller Error: getUserStrikeHistoryController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during user strike history retrieval!',
         }));
     }
 }

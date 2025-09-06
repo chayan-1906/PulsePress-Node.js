@@ -3,29 +3,29 @@ import {Request, Response} from "express";
 import {getAuthUrl} from "../utils/OAuth";
 import {ApiResponse} from "../utils/ApiResponse";
 import AuthService from "../services/AuthService";
+import MagicLinkService from "../services/MagicLinkService";
 import {verifyTokenErrorHTML} from "../templates/verifyTokenErrorHTML";
 import {verifyTokenSuccessHTML} from "../templates/verifyTokenSuccessHTML";
-import {checkAuthStatus, generateMagicLink, verifyMagicLink} from "../services/MagicLinkService";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {
-    AuthRequest,
-    CheckAuthStatusParams,
-    GenerateMagicLinkParams,
-    LoginParams,
-    RefreshTokenParams,
-    RegisterParams,
-    ResetPasswordParams,
-    UpdateUserParams,
-    VerifyMagicLinkParams
+    IAuthRequest,
+    ICheckAuthStatusParams,
+    IGenerateMagicLinkParams,
+    ILoginParams,
+    IRefreshTokenParams,
+    IRegisterParams,
+    IResetPasswordParams,
+    IUpdateUserParams,
+    IVerifyMagicLinkParams
 } from "../types/auth";
 
 const registerUserController = async (req: Request, res: Response) => {
-    console.info('registerUserController called'.bgMagenta.white.italic);
+    console.info('Controller: registerUserController started'.bgBlue.white.bold);
 
     try {
-        const {name, email, password, confirmPassword}: RegisterParams = req.body;
+        const {name, email, password, confirmPassword}: IRegisterParams = req.body;
         if (!name) {
-            console.error('Name is missing'.yellow.italic);
+            console.warn('Client Error: Missing name parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateMissingCode('name'),
@@ -34,7 +34,7 @@ const registerUserController = async (req: Request, res: Response) => {
             return;
         }
         if (!email) {
-            console.error('Email is missing'.yellow.italic);
+            console.warn('Client Error: Missing email parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateMissingCode('email'),
@@ -43,7 +43,7 @@ const registerUserController = async (req: Request, res: Response) => {
             return;
         }
         if (!password) {
-            console.error('Password is missing'.yellow.italic);
+            console.warn('Client Error: Missing password parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateMissingCode('password'),
@@ -52,7 +52,7 @@ const registerUserController = async (req: Request, res: Response) => {
             return;
         }
         if (!confirmPassword) {
-            console.error('Confirm password is missing'.yellow.italic);
+            console.warn('Client Error: Missing confirm password parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateMissingCode('confirm_password'),
@@ -62,65 +62,55 @@ const registerUserController = async (req: Request, res: Response) => {
         }
 
         const {user, error} = await AuthService.registerUser({name, email, password, confirmPassword});
-        if (error === generateInvalidCode('password')) {
-            console.error('Password does not follow regex'.yellow.italic);
-            res.status(400).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to register user';
+            let statusCode = 500;
+
+            if (error === generateInvalidCode('password')) {
+                errorMsg = 'Password must contain lowercase, uppercase, special character, minimum 6 characters';
+                statusCode = 400;
+            } else if (error === 'PASSWORD_MISMATCH') {
+                errorMsg = 'Passwords don\'t match';
+                statusCode = 400;
+            } else if (error === 'ALREADY_REGISTERED') {
+                errorMsg = 'User already exists';
+                statusCode = 400;
+            } else if (error === 'CREATE_USER_PREFERENCE_FAILED') {
+                errorMsg = 'Failed to create user preference';
+                statusCode = 400;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateInvalidCode('password'),
-                errorMsg: 'Password must contain lowercase, uppercase, special character, minimum 6 characters',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
-        if (error === 'PASSWORD_MISMATCH') {
-            console.error('Password mismatch'.yellow.italic);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'PASSWORD_MISMATCH',
-                errorMsg: 'Passwords don\'t match',
-            }));
-            return;
-        }
-        if (error === 'ALREADY_REGISTERED') {
-            console.error('User already exists'.yellow.italic);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'ALREADY_REGISTERED',
-                errorMsg: 'User already exists',
-            }));
-            return;
-        }
-        if (error === 'CREATE_USER_PREFERENCE_FAILED') {
-            console.error('Failed to create user preference while creating user'.yellow.italic, error);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'CREATE_USER_PREFERENCE_FAILED',
-                errorMsg: 'Failed to create user preference',
-            }));
-            return;
-        }
-        console.log('new user created:'.cyan.italic, {user});
+        console.log('SUCCESS: User registration completed'.bgGreen.bold, {user});
 
         res.status(201).send(new ApiResponse({
             success: true,
             message: 'Registration successful! Check your email to verify your account',
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of registerUserController:'.red.bold, error);
+        console.error('Controller Error: registerUserController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during user registration',
         }));
     }
 }
 
 const loginController = async (req: Request, res: Response) => {
-    console.info('loginController called'.bgMagenta.white.italic);
+    console.info('Controller: loginController started'.bgBlue.white.bold);
 
     try {
-        const {email, password}: LoginParams = req.body;
+        const {email, password}: ILoginParams = req.body;
         if (!email) {
-            console.error('Email address is missing'.yellow.italic);
+            console.warn('Client Error: Missing email parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateMissingCode('email'),
@@ -129,7 +119,7 @@ const loginController = async (req: Request, res: Response) => {
             return;
         }
         if (!password) {
-            console.error('Password is missing'.yellow.italic);
+            console.warn('Client Error: Missing password parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateMissingCode('password'),
@@ -139,54 +129,36 @@ const loginController = async (req: Request, res: Response) => {
         }
 
         const {user, accessToken, refreshToken, error} = await AuthService.loginUser({email, password});
-        if (error === generateNotFoundCode('user')) {
-            console.error('User not found'.yellow.italic);
-            res.status(404).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to login user';
+            let statusCode = 500;
+
+            if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            } else if (error === 'USER_NOT_VERIFIED') {
+                errorMsg = 'User not verified';
+                statusCode = 400;
+            } else if (error === generateInvalidCode('credentials')) {
+                errorMsg = 'Invalid credentials';
+                statusCode = 400;
+            } else if (error === 'GOOGLE_OAUTH_USER') {
+                errorMsg = 'This account uses Google Sign-In. Please use Google authentication';
+                statusCode = 400;
+            } else if (error === 'MAGIC_LINK_USER') {
+                errorMsg = 'This account uses Magic Link Sign-In. Please use Magic Link Authentication';
+                statusCode = 400;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
-        if (error === 'USER_NOT_VERIFIED') {
-            console.error('User not verified'.yellow.italic);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'USER_NOT_VERIFIED',
-                errorMsg: 'User not verified',
-            }));
-            return;
-        }
-        if (error === generateInvalidCode('credentials')) {
-            console.error('Password mismatch'.yellow.italic);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateInvalidCode('credentials'),
-                errorMsg: 'Invalid credentials',
-            }));
-            return;
-        }
-        if (error === 'GOOGLE_OAUTH_USER') {
-            console.error('Google user trying email login'.yellow.italic);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'GOOGLE_OAUTH_USER',
-                errorMsg: 'This account uses Google Sign-In. Please use Google authentication',
-                // errorMsg: 'Please sign in with Google instead. Use the "Continue with Google" button',
-            }));
-            return;
-        }
-        if (error === 'MAGIC_LINK_USER') {
-            console.error('Magic link user trying email login'.yellow.italic);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'MAGIC_LINK_USER',
-                errorMsg: 'This account uses Magic Link Sign-In. Please use Magic Link Authentication',
-                // errorMsg: 'Please sign in with Magic Link instead. Use the "Continue with Magic Link" button',
-            }));
-            return;
-        }
-        console.log('user loggedIn:'.cyan.italic, {user, accessToken, refreshToken});
+        console.log('SUCCESS: User login completed'.bgGreen.bold, {user});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -196,23 +168,23 @@ const loginController = async (req: Request, res: Response) => {
             refreshToken,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of loginController:'.red.bold, error);
+        console.error('Controller Error: loginController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during user login',
         }));
     }
 }
 
 const resetPasswordController = async (req: Request, res: Response) => {
-    console.info('resetPasswordController called'.bgMagenta.white.italic);
+    console.info('Controller: resetPasswordController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {currentPassword, newPassword}: ResetPasswordParams = req.body;
+        const email = (req as IAuthRequest).email;
+        const {currentPassword, newPassword}: IResetPasswordParams = req.body;
         if (!email) {
-            console.error('Email address is missing'.yellow.italic);
+            console.warn('Client Error: Missing email parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateMissingCode('email'),
@@ -222,93 +194,65 @@ const resetPasswordController = async (req: Request, res: Response) => {
         }
 
         const {user, error} = await AuthService.resetPassword({email, currentPassword, newPassword});
-        if (error === generateNotFoundCode('user')) {
-            console.error('User not found'.yellow.italic);
-            res.status(404).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to reset password';
+            let statusCode = 500;
+
+            if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            } else if (error === 'NO_PASSWORD_SET') {
+                errorMsg = 'No password has been set';
+                statusCode = 400;
+            } else if (error === generateMissingCode('current_password')) {
+                errorMsg = 'Current password is missing';
+                statusCode = 400;
+            } else if (error === generateMissingCode('new_password')) {
+                errorMsg = 'New password is missing';
+                statusCode = 400;
+            } else if (error === generateInvalidCode('credentials')) {
+                errorMsg = 'Wrong current password';
+                statusCode = 400;
+            } else if (error === 'SAME_PASSWORD') {
+                errorMsg = 'Current and new password can\'t be same';
+                statusCode = 400;
+            } else if (error === generateInvalidCode('new_password')) {
+                errorMsg = 'Password must contain lowercase, uppercase, special character, minimum 6 characters';
+                statusCode = 400;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
-        if (error === 'NO_PASSWORD_SET') {
-            console.error('No password set'.yellow.italic);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'NO_PASSWORD_SET',
-                errorMsg: 'No password has been set',
-            }));
-            return;
-        }
-        if (error === generateMissingCode('current_password')) {
-            console.error('Current password is missing'.yellow.italic);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('current_password'),
-                errorMsg: 'Current password is missing',
-            }));
-            return;
-        }
-        if (error === generateMissingCode('new_password')) {
-            console.error('New password is missing'.yellow.italic);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('new_password'),
-                errorMsg: 'New password is missing',
-            }));
-            return;
-        }
-        if (error === generateInvalidCode('credentials')) {
-            console.error('Password mismatch'.yellow.italic);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateInvalidCode('credentials'),
-                errorMsg: 'Wrong current password',
-            }));
-            return;
-        }
-        if (error === 'SAME_PASSWORD') {
-            console.error('Current and new password are same'.yellow.italic);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'SAME_PASSWORD',
-                errorMsg: 'Current and new password can\'t be same',
-            }));
-            return;
-        }
-        if (error === generateInvalidCode('new_password')) {
-            console.error('New password does not follow regex'.yellow.italic);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateInvalidCode('password'),
-                errorMsg: 'Password must contain lowercase, uppercase, special character, minimum 6 characters',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
 
-        console.log('user loggedIn:'.cyan.italic, {user});
+        console.log('SUCCESS: Password reset completed'.bgGreen.bold, {user});
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Password reset successful 🎉',
+            message: 'Password reset has been successful 🎉',
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of loginController:'.red.bold, error);
+        console.error('Controller Error: resetPasswordController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during password reset',
         }));
     }
 }
 
 const refreshTokenController = async (req: Request, res: Response) => {
-    console.info('refreshTokenController called'.bgMagenta.white.italic);
+    console.info('Controller: refreshTokenController started'.bgBlue.white.bold);
 
     try {
-        const {refreshToken: rawRefreshToken}: RefreshTokenParams = req.body;
+        const {refreshToken: rawRefreshToken}: IRefreshTokenParams = req.body;
         if (!rawRefreshToken) {
-            console.error('Refresh token is missing'.yellow.italic);
+            console.warn('Client Error: Missing refresh token parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateMissingCode('refreshToken'),
@@ -318,7 +262,7 @@ const refreshTokenController = async (req: Request, res: Response) => {
         }
 
         const {accessToken} = await AuthService.refreshToken({refreshToken: rawRefreshToken});
-        console.log('token refreshed:'.cyan.italic, {accessToken});
+        console.log('SUCCESS: Access token refreshed'.bgGreen.bold);
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -326,11 +270,11 @@ const refreshTokenController = async (req: Request, res: Response) => {
             accessToken,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of refreshTokenController:'.red.bold, error);
+        console.error('Controller Error: refreshTokenController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during token refresh',
         }));
     }
 }
@@ -340,12 +284,12 @@ const redirectToGoogle = async (req: Request, res: Response) => {
 }
 
 const loginWithGoogleController = async (req: Request, res: Response) => {
-    console.info('loginWithGoogleController called'.bgMagenta.white.italic);
+    console.info('Controller: loginWithGoogleController started'.bgBlue.white.bold);
 
     try {
         const code = req.query.code as string;
         if (!code) {
-            console.error('No code provided'.yellow.italic);
+            console.warn('Client Error: Missing OAuth code parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateInvalidCode('code'),
@@ -355,12 +299,20 @@ const loginWithGoogleController = async (req: Request, res: Response) => {
         }
 
         const {error, user, accessToken, refreshToken} = await AuthService.loginWithGoogle({code});
-        if (error === generateInvalidCode('email_address')) {
-            console.error('Invalid email address'.yellow.italic);
-            res.status(400).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to login with Google';
+            let statusCode = 500;
+
+            if (error === generateInvalidCode('email_address')) {
+                errorMsg = 'Invalid email address';
+                statusCode = 400;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateInvalidCode('email_address'),
-                errorMsg: 'Invalid email address',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
@@ -373,22 +325,22 @@ const loginWithGoogleController = async (req: Request, res: Response) => {
             refreshToken,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of loginWithGoogleController:'.red.bold, error);
+        console.error('Controller Error: loginWithGoogleController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during google login',
         }));
     }
 }
 
 const generateMagicLinkController = async (req: Request, res: Response) => {
-    console.info('generateMagicLinkController called'.bgMagenta.white.italic);
+    console.info('Controller: generateMagicLinkController started'.bgBlue.white.bold);
 
     try {
-        const {email}: GenerateMagicLinkParams = req.body;
+        const {email}: IGenerateMagicLinkParams = req.body;
         if (!email) {
-            console.error('Email is missing'.yellow.italic);
+            console.warn('Client Error: Missing email parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateMissingCode('email'),
@@ -397,64 +349,66 @@ const generateMagicLinkController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {success, message} = await generateMagicLink({email});
-        console.log('magic link:'.cyan.italic, message);
+        const {success, message} = await MagicLinkService.generateMagicLink({email});
+        console.log('SUCCESS: Magic link generated'.bgGreen.bold, {success});
         res.status(200).send(new ApiResponse({
             success,
             message,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of generateMagicLinkController:'.red.bold, error);
+        console.error('Controller Error: generateMagicLinkController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during magic link login',
         }));
     }
 }
 
 const verifyMagicLinkController = async (req: Request, res: Response) => {
-    console.info('verifyMagicLinkController called'.bgMagenta.white.italic);
+    console.info('Controller: verifyMagicLinkController started'.bgBlue.white.bold);
 
     try {
-        const {token}: Partial<VerifyMagicLinkParams> = req.query;
+        const {token}: Partial<IVerifyMagicLinkParams> = req.query;
         if (!token) {
-            console.error('Token is missing'.yellow.italic);
+            console.warn('Client Error: Missing token parameter'.yellow);
             res.send(verifyTokenErrorHTML);
             return;
         }
 
-        const {user, accessToken, refreshToken, error} = await verifyMagicLink({token});
-        if (error === 'CREATE_USER_PREFERENCE_FAILED') {
-            console.error('Failed to create user preference while creating user'.yellow.italic, error);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'CREATE_USER_PREFERENCE_FAILED',
-                errorMsg: 'Failed to create user preference',
-            }));
-            return;
-        }
+        const {user, accessToken, refreshToken, error} = await MagicLinkService.verifyMagicLink({token});
+
         if (error) {
-            console.error('Magic link verification failed:'.yellow.italic, error);
-            res.send(verifyTokenErrorHTML);
-            return;
+            if (error === 'CREATE_USER_PREFERENCE_FAILED') {
+                console.warn('Client Error: User preference creation failed during registration'.yellow, {error});
+                res.status(400).send(new ApiResponse({
+                    success: false,
+                    errorCode: 'CREATE_USER_PREFERENCE_FAILED',
+                    errorMsg: 'Failed to create user preference',
+                }));
+                return;
+            } else {
+                console.warn('Client Error: Magic link verification failed'.yellow, {error});
+                res.send(verifyTokenErrorHTML);
+                return;
+            }
         }
 
-        console.log('Magic link verified successfully:'.cyan.italic, {user, accessToken, refreshToken});
+        console.log('SUCCESS: Magic link verification completed'.bgGreen.bold, {user});
         res.send(verifyTokenSuccessHTML);
     } catch (error: any) {
-        console.error('ERROR: inside catch of verifyMagicLinkController:', error);
+        console.error('Controller Error: verifyMagicLinkController failed'.red.bold, error);
         res.send(verifyTokenErrorHTML);
     }
 }
 
 const checkAuthStatusController = async (req: Request, res: Response) => {
-    console.info('checkAuthStatusController called'.bgMagenta.white.italic);
+    console.info('Controller: checkAuthStatusController started'.bgBlue.white.bold);
 
     try {
-        const {email}: CheckAuthStatusParams = req.body;
+        const {email}: ICheckAuthStatusParams = req.body;
         if (!email) {
-            console.error('Email address is missing'.yellow.italic);
+            console.warn('Client Error: Missing email parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateMissingCode('email'),
@@ -463,54 +417,53 @@ const checkAuthStatusController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {authenticated, user, accessToken, refreshToken, error} = await checkAuthStatus({email});
-        if (error === generateNotFoundCode('user')) {
-            console.error('User not found'.yellow.italic);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
+        const {authenticated, user, accessToken, refreshToken, error} = await MagicLinkService.checkAuthStatus({email});
+
         if (error) {
-            console.error('Checking auth status failed:'.yellow.italic, error);
-            res.status(400).send(new ApiResponse({
+            let errorMsg = 'Failed to check auth status';
+            let statusCode = 500;
+
+            if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: 'AUTH_STATUS_CHECK_FAILED',
-                errorMsg: 'Authentication failed, please try again',
+                errorCode: error === generateNotFoundCode('user') ? error : 'AUTH_STATUS_CHECK_FAILED',
+                errorMsg,
             }));
             return;
         }
 
-        console.log('Auth status checked:'.cyan.italic, {authenticated, user, accessToken, refreshToken});
+        console.log('SUCCESS: Auth status verified'.bgGreen.bold, {authenticated, user});
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Auth status checked 🎉',
+            message: 'Auth status has been checked 🎉',
             authenticated,
             user,
             accessToken,
             refreshToken,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of checkAuthStatusController:', error);
+        console.error('Controller Error: checkAuthStatusController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong while checking authentication status',
         }));
     }
 }
 
 const getUserProfileController = async (req: Request, res: Response) => {
-    console.info('getUserProfileController called'.bgMagenta.white.italic);
+    console.info('Controller: getUserProfileController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
+        const email = (req as IAuthRequest).email;
 
         const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
-            console.error('User not found'.yellow.italic);
+            console.warn('Client Error: User not found'.yellow);
             res.status(404).send(new ApiResponse({
                 success: false,
                 errorCode: generateNotFoundCode('user'),
@@ -519,30 +472,30 @@ const getUserProfileController = async (req: Request, res: Response) => {
             return;
         }
 
-        console.log('user profile:'.cyan.italic, {user});
+        console.log('SUCCESS: User profile fetched'.bgGreen.bold, {userEmail: user?.email});
         res.status(200).send(new ApiResponse({
             success: true,
             message: 'User profile has been fetched 🎉',
             user,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of getUserProfileController:'.red.bold, error);
+        console.error('Controller Error: getUserProfileController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during user profile retrieval',
         }));
     }
 }
 
 const updateUserController = async (req: Request, res: Response) => {
-    console.info('updateUserController called'.bgMagenta.white.italic);
+    console.info('Controller: updateUserController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {name, password, profilePicture}: UpdateUserParams = req.body;
+        const email = (req as IAuthRequest).email;
+        const {name, password, profilePicture}: IUpdateUserParams = req.body;
         if ('name' in req.body && (typeof name !== 'string' || !name.trim() || name.trim() === 'null')) {
-            console.error('Invalid name'.yellow.italic);
+            console.warn('Client Error: Invalid name parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateInvalidCode('name'),
@@ -551,7 +504,7 @@ const updateUserController = async (req: Request, res: Response) => {
             return;
         }
         if ('password' in req.body && (typeof password !== 'string' || !password.trim() || password.trim() === 'null')) {
-            console.error('Invalid password'.yellow.italic);
+            console.warn('Client Error: Invalid password parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateInvalidCode('password'),
@@ -561,34 +514,30 @@ const updateUserController = async (req: Request, res: Response) => {
         }
 
         const {user, error} = await AuthService.updateUser({email, name, password, profilePicture});
-        if (error === generateNotFoundCode('user')) {
-            console.error('User not found'.yellow.italic);
-            res.status(404).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to update user';
+            let statusCode = 500;
+
+            if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            } else if (error === generateInvalidCode('password')) {
+                errorMsg = 'Password must contain lowercase, uppercase, special character, minimum 6 characters';
+                statusCode = 400;
+            } else if (error === 'UPDATE_USER_FAILED') {
+                errorMsg = 'Couldn\'t update user';
+                statusCode = 400;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
-        if (error === generateInvalidCode('password')) {
-            console.error('Invalid password'.yellow.italic);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateInvalidCode('password'),
-                errorMsg: 'Password must contain lowercase, uppercase, special character, minimum 6 characters',
-            }));
-            return;
-        }
-        if (error === 'UPDATE_USER_FAILED') {
-            console.error('Update user failed'.yellow.italic);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'UPDATE_USER_FAILED',
-                errorMsg: 'Couldn\'t update user',
-            }));
-            return;
-        }
-        console.log('user updated:'.cyan.italic, {user});
+        console.log('SUCCESS: User profile updated'.bgGreen.bold, {user});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -596,52 +545,54 @@ const updateUserController = async (req: Request, res: Response) => {
             // user,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of updateUserController:'.red.bold, error);
+        console.error('Controller Error: updateUserController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong while updating user profile',
         }));
     }
 }
 
 const deleteAccountController = async (req: Request, res: Response) => {
-    console.info('deleteAccountController called'.bgMagenta.white.italic);
+    console.info('Controller: deleteAccountController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
+        const email = (req as IAuthRequest).email;
 
         const {isDeleted, error} = await AuthService.deleteAccount({email});
-        if (error === generateNotFoundCode('user')) {
-            console.error('User not found'.yellow.italic);
-            res.status(404).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to delete account';
+            let statusCode = 500;
+
+            if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            } else if (error === 'DELETE_ACCOUNT_FAILED') {
+                errorMsg = 'Couldn\'t delete account';
+                statusCode = 400;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
-        if (error === 'DELETE_ACCOUNT_FAILED') {
-            console.error('Delete account failed'.yellow.italic);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'DELETE_ACCOUNT_FAILED',
-                errorMsg: 'Couldn\'t delete account',
-            }));
-            return;
-        }
-        console.log('account deleted:'.cyan.italic, isDeleted);
+        console.log('SUCCESS: User account deleted'.bgGreen.bold, {deleted: isDeleted});
 
         res.status(200).send(new ApiResponse({
             success: true,
             message: 'Account has been deleted 🎉',
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of deleteAccountController:'.red.bold, error);
+        console.error('Controller Error: deleteAccountController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during account deletion',
         }));
     }
 }

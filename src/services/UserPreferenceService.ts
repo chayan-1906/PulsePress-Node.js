@@ -1,61 +1,50 @@
 import "colors";
-import {ClientSession} from "mongoose";
 import AuthService from "./AuthService";
-import {hasInvalidItems} from "../utils/list";
 import {clearRecommendationCache} from "./ContentRecommendationService";
 import UserPreferenceModel, {IUserPreference} from "../models/UserPreferenceSchema";
-import {SUPPORTED_CATEGORIES, SUPPORTED_NEWS_LANGUAGES, SUPPORTED_SOURCES} from "../types/news";
-import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
+import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
+import {buildUserPreferenceDbOptions, buildUserPreferenceUpdateFields, validateUserPreferenceArrays} from "../utils/serviceHelpers/userPreferenceHelpers";
 import {
-    GetUserPreferenceParams,
-    GetUserPreferenceResponse,
-    ModifyUserPreferenceParams,
-    ModifyUserPreferenceResponse,
-    ResetUserPreferenceParams,
-    ResetUserPreferenceResponse,
+    IGetUserPreferenceParams,
+    IGetUserPreferenceResponse,
+    IModifyUserPreferenceParams,
+    IModifyUserPreferenceResponse,
+    IResetUserPreferenceParams,
+    IResetUserPreferenceResponse,
 } from "../types/user-preference";
 
 class UserPreferenceService {
+    /**
+     * Create or update user preferences with validation and cache invalidation
+     */
     static async modifyUserPreference(
-        {email, user, preferredLanguage, preferredCategories, preferredSources, summaryStyle, newsLanguages, session}: ModifyUserPreferenceParams): Promise<ModifyUserPreferenceResponse> {
+        {email, user, preferredLanguage, preferredCategories, preferredSources, summaryStyle, newsLanguages, session}: IModifyUserPreferenceParams): Promise<IModifyUserPreferenceResponse> {
+        console.log('Service: UserPreferenceService.modifyUserPreference called'.cyan.italic, {
+            email,
+            user,
+            preferredLanguage,
+            preferredCategories,
+            preferredSources,
+            summaryStyle,
+            newsLanguages,
+            session,
+        });
+
         try {
             const targetUser = user || (await AuthService.getUserByEmail({email})).user;
             if (!targetUser) {
                 return {error: generateNotFoundCode('user')};
             }
 
-            if (preferredCategories && !Array.isArray(preferredCategories)) {
-                return {error: generateInvalidCode('preferred_categories')};
-            }
-            if (preferredCategories && hasInvalidItems(preferredCategories, SUPPORTED_CATEGORIES)) {
-                return {error: generateInvalidCode('preferred_categories')};
-            }
-
-            if (preferredSources && !Array.isArray(preferredSources)) {
-                return {error: generateInvalidCode('preferred_sources')};
-            }
-            if (preferredSources && hasInvalidItems(preferredSources, SUPPORTED_SOURCES)) {
-                return {error: generateInvalidCode('preferred_sources')};
+            // Validate array inputs
+            const validation = validateUserPreferenceArrays(preferredCategories, preferredSources, newsLanguages);
+            if (!validation.isValid) {
+                return {error: validation.error!};
             }
 
-            if (newsLanguages && !Array.isArray(newsLanguages)) {
-                return {error: generateInvalidCode('news_languages')};
-            }
-            if (newsLanguages && hasInvalidItems(newsLanguages, SUPPORTED_NEWS_LANGUAGES)) {
-                return {error: generateInvalidCode('news_languages')};
-            }
+            const updateFields = buildUserPreferenceUpdateFields(preferredLanguage, preferredCategories, preferredSources, summaryStyle, newsLanguages);
 
-            const updateFields: Partial<IUserPreference> = {};
-            if (typeof preferredLanguage !== 'undefined') updateFields.preferredLanguage = preferredLanguage;
-            if (typeof preferredCategories !== 'undefined') updateFields.preferredCategories = preferredCategories;
-            if (typeof preferredSources !== 'undefined') updateFields.preferredSources = preferredSources;
-            if (typeof summaryStyle !== 'undefined') updateFields.summaryStyle = summaryStyle;
-            if (typeof newsLanguages !== 'undefined') updateFields.newsLanguages = newsLanguages;
-
-            const options: { upsert: boolean; new: boolean; runValidators: boolean; session?: ClientSession; } = {upsert: true, new: true, runValidators: true};
-            if (session) {
-                options.session = session;
-            }
+            const options = buildUserPreferenceDbOptions(session);
 
             const modifiedUserPreference: IUserPreference | null = await UserPreferenceModel.findOneAndUpdate(
                 {userExternalId: targetUser.userExternalId},
@@ -68,16 +57,23 @@ class UserPreferenceService {
 
             clearRecommendationCache(targetUser.userExternalId);
 
+            console.log('User preference modification completed successfully'.green.bold, {userPreference: modifiedUserPreference});
             return {userPreference: modifiedUserPreference};
         } catch (error: any) {
-            console.error('ERROR: inside catch of modifyUserPreference:'.red.bold, error);
+            console.error('Service Error: UserPreferenceService.modifyUserPreference failed:'.red.bold, error);
             throw error;
         }
     }
 
-    static async getUserPreference({email}: GetUserPreferenceParams): Promise<GetUserPreferenceResponse> {
+    /**
+     * Retrieve user preferences by email
+     */
+    static async getUserPreference({email}: IGetUserPreferenceParams): Promise<IGetUserPreferenceResponse> {
+        console.log('Service: UserPreferenceService.getUserPreference called'.cyan.italic, {email});
+
         try {
             if (!email) {
+                console.warn('Client Error: Missing email parameter'.yellow);
                 return {error: generateMissingCode('email')};
             }
 
@@ -91,16 +87,23 @@ class UserPreferenceService {
                 return {error: 'GET_USER_PREFERENCE_FAILED'};
             }
 
+            console.log('User preference retrieval completed successfully'.green.bold, {userPreference});
             return {userPreference};
         } catch (error: any) {
-            console.error('ERROR: inside catch of getUserPreference:'.red.bold, error);
+            console.error('Service Error: UserPreferenceService.getUserPreference failed:'.red.bold, error);
             throw error;
         }
     }
 
-    static async resetUserPreference({email}: ResetUserPreferenceParams): Promise<ResetUserPreferenceResponse> {
+    /**
+     * Reset user preferences to default values
+     */
+    static async resetUserPreference({email}: IResetUserPreferenceParams): Promise<IResetUserPreferenceResponse> {
+        console.log('Service: UserPreferenceService.resetUserPreference called'.cyan.italic, {email});
+
         try {
             if (!email) {
+                console.warn('Client Error: Missing email parameter'.yellow);
                 return {error: generateMissingCode('email')};
             }
 
@@ -121,9 +124,11 @@ class UserPreferenceService {
                 return {error: generateNotFoundCode('user_preference')};
             }
 
-            return {isReset: modifiedCount === 1};
+            const isReset = modifiedCount === 1;
+            console.log('User preference reset completed successfully'.green.bold, {isReset});
+            return {isReset};
         } catch (error: any) {
-            console.error('ERROR: inside catch of resetUserPreference:'.red.bold, error);
+            console.error('Service Error: UserPreferenceService.resetUserPreference failed:'.red.bold, error);
             throw error;
         }
     }

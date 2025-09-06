@@ -1,195 +1,238 @@
 import "colors";
 import axios from "axios";
 import mongoose from "mongoose";
+import {GoogleGenerativeAI} from "@google/generative-ai";
 import {Translate} from "@google-cloud/translate/build/src/v2";
 import {apis} from "../utils/apis";
 import {parseRSS} from "../utils/parseRSS";
-import {AI_MODEL, genAI} from "./AIService";
-import {RSS_SOURCES} from "../utils/constants";
 import {getOAuth2Client} from "../utils/OAuth";
 import {buildHeader} from "../utils/buildHeader";
-import {HealthCheckResponse} from "../types/health-check";
-import {GOOGLE_TRANSLATE_API_KEY} from "../config/config";
+import {IHealthCheckResponse} from "../types/health-check";
+import {GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY} from "../config/config";
 import {getDatabaseHealth} from "../utils/databaseHealth";
+import {AI_SUMMARIZATION_MODELS, RSS_SOURCES} from "../utils/constants";
 
-const checkNewsAPIHealth = async (): Promise<HealthCheckResponse> => {
-    console.info('checkNewsAPIHealth called:'.bgMagenta.white.italic);
+class HealthService {
+    static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
 
-    try {
-        const start = Date.now();
-        const {data: topHeadlines} = await axios.get(apis.topHeadlinesApi({country: 'us', pageSize: 1}), {
-            headers: buildHeader(),
-            timeout: 5000,
-        });
-        const responseTime = Date.now() - start;
-        return {status: 'healthy', responseTime: `${responseTime}ms`, data: topHeadlines};
-    } catch (error: any) {
-        console.error('ERROR: inside catch of checkNewsAPIHealth:'.red.bold, error);
-        return {status: 'unhealthy', error: {message: error.message}};
+    /**
+     * Check health status of NewsAPI.org service
+     */
+    static async checkNewsApiOrgHealth(): Promise<IHealthCheckResponse> {
+        console.log('Service: HealthService.checkNewsApiOrgHealth called'.cyan.italic);
+
+        try {
+            const start = Date.now();
+            console.log('External API: Testing NewsAPI health'.magenta);
+            const {data: topHeadlines} = await axios.get(apis.topHeadlinesApi({country: 'us', pageSize: 1}), {
+                headers: buildHeader(),
+                timeout: 5000,
+            });
+            const responseTime = Date.now() - start;
+            console.log('External API: NewsAPI health check successful'.magenta, {responseTime});
+            console.log('NewsAPI health check completed successfully'.green.bold);
+            return {status: 'healthy', responseTime: `${responseTime}ms`, data: topHeadlines};
+        } catch (error: any) {
+            console.error('Service Error: HealthService.checkNewsApiOrgHealth failed'.red.bold, error);
+            return {status: 'unhealthy', error: {message: error.message}};
+        }
     }
-}
 
-const checkRSSFeedsHealth = async (): Promise<HealthCheckResponse> => {
-    console.info('checkRSSFeedsHealth called:'.bgMagenta.white.italic);
+    /**
+     * Check health status of all RSS feeds with success rate reporting
+     */
+    static async checkRssFeedsHealth(): Promise<IHealthCheckResponse> {
+        console.log('Service: HealthService.checkRssFeedsHealth called'.cyan.italic);
 
-    try {
-        const start = Date.now();
+        try {
+            const start = Date.now();
 
-        const testFeeds = Object.values(RSS_SOURCES)
-            .flatMap(languageSources => Object.values(languageSources));
+            const testFeeds = Object.values(RSS_SOURCES)
+                .flatMap(languageSources => Object.values(languageSources));
 
-        console.log('DEBUG - Total feeds to test:'.cyan.italic, testFeeds.length);
+            console.debug('Debug: Total RSS feeds to test'.gray, testFeeds.length);
 
-        const results = await Promise.allSettled(
-            testFeeds.map(url => parseRSS(url)),
-        );
+            const results = await Promise.allSettled(
+                testFeeds.map(url => parseRSS(url)),
+            );
 
-        console.log('DEBUG - Results breakdown:'.cyan.italic);
-        results.forEach((result, index) => {
-            const feedUrl = testFeeds[index];
-            if (result.status === 'fulfilled') {
-                console.log(`✅ SUCCESS: ${feedUrl}`.green.bold);
-            } else {
-                console.error(`❌ FAILED: ${feedUrl} - Error:`.red.bold, result.reason?.message || result.reason);
+            console.debug('Debug: RSS feed test results breakdown'.gray);
+            results.forEach((result, index) => {
+                const feedUrl = testFeeds[index];
+                if (result.status === 'fulfilled') {
+                    console.log(`External API: RSS feed healthy - ${feedUrl}`.magenta);
+                } else {
+                    console.error(`External API: RSS feed failed - ${feedUrl}`.red.bold, result.reason?.message || result.reason);
+                }
+            });
+
+            const successful = results.filter(r => r.status === 'fulfilled').length;
+            const total = testFeeds.length;
+
+            console.log(`RSS feed health summary: ${successful}/${total} feeds successful`.cyan);
+
+            if (successful === 0) {
+                return {status: 'unhealthy', error: {message: 'All RSS feeds failed'}};
+            } else if (successful < total) {
+                console.log('RSS feeds health check completed with degraded status'.green.bold);
+                return {
+                    status: 'degraded',
+                    responseTime: `${Date.now() - start}ms`,
+                    message: `${successful}/${total} RSS feeds working`,
+                };
             }
-        });
 
-        const successful = results.filter(r => r.status === 'fulfilled').length;
-        const total = testFeeds.length;
+            console.log('RSS feeds health check completed successfully'.green.bold);
+            return {status: 'healthy', responseTime: `${Date.now() - start}ms`};
+        } catch (error: any) {
+            console.error('Service Error: HealthService.checkRssFeedsHealth failed'.red.bold, error);
+            return {status: 'unhealthy', error: {message: error.message}};
+        }
+    }
 
-        console.log(`DEBUG - Summary: ${successful}/${total} feeds successful`.green.bold);
+    /**
+     * Check health status of Google services (OAuth and Translate API)
+     */
+    static async checkGoogleServicesHealth(): Promise<IHealthCheckResponse> {
+        console.log('Service: HealthService.checkGoogleServicesHealth called'.cyan.italic);
 
-        if (successful === 0) {
-            return {status: 'unhealthy', error: {message: 'All RSS feeds failed'}};
-        } else if (successful < total) {
+        try {
+            const start = Date.now();
+            console.log('External API: Testing Google services health'.magenta);
+            const translate = new Translate({key: GOOGLE_TRANSLATE_API_KEY});
+            const results = await Promise.allSettled([
+                getOAuth2Client(),  // Test OAuth
+                translate.translate('test', {to: 'es'}),    // Test Translate API with a simple translation
+            ]);
+
+            const failures = results.filter(r => r.status === 'rejected');
+            if (failures.length > 0) {
+                console.error('External API: Google services health check failed'.red.bold, {failures: failures.length});
+                return {status: 'unhealthy', error: {message: `${failures.length} Google service(s) failed`, details: failures}};
+            }
+
+            console.log('External API: Google services health check successful'.magenta);
+            console.log('Google services health check completed successfully'.green.bold);
+            return {status: 'healthy', responseTime: `${Date.now() - start}ms`};
+        } catch (error: any) {
+            console.error('Service Error: HealthService.checkGoogleServicesHealth failed'.red.bold, error);
+            return {status: 'unhealthy', error: {message: error.message}};
+        }
+    }
+
+    /**
+     * Check health status of Gemini AI service
+     */
+    static async checkGeminiAiHealth(): Promise<IHealthCheckResponse> {
+        console.log('Service: HealthService.checkGeminiAiHealth called'.cyan.italic);
+
+        try {
+            const start = Date.now();
+            console.log('External API: Testing Gemini AI health'.magenta, {model: AI_SUMMARIZATION_MODELS[0]});
+            const model = this.genAI.getGenerativeModel({model: AI_SUMMARIZATION_MODELS[0]});
+            await model.generateContent('test');
+            console.log('External API: Gemini AI health check successful'.magenta);
+            console.log('Gemini AI health check completed successfully'.green.bold);
+            return {status: 'healthy', responseTime: `${Date.now() - start}ms`};
+        } catch (error: any) {
+            console.error('Service Error: HealthService.checkGeminiAiHealth failed'.red.bold, error);
+            return {status: 'unhealthy', error: {message: error.message}};
+        }
+    }
+
+    /**
+     * Check health status of MongoDB database connection
+     */
+    static async checkDatabaseHealth(): Promise<IHealthCheckResponse> {
+        console.log('Service: HealthService.checkDatabaseHealth called'.cyan.italic);
+
+        try {
+            const start = Date.now();
+            console.log('Database: Checking MongoDB connection health'.cyan);
+            const dbHealth = getDatabaseHealth();
+
+            if (!dbHealth.connected) {
+                console.error('Database: MongoDB not connected'.red.bold, {readyState: dbHealth.readyState});
+                return {
+                    status: 'unhealthy',
+                    error: {message: `Database not connected. State: ${dbHealth.readyState}`},
+                    data: dbHealth,
+                };
+            }
+
+            await mongoose.connection.db!.admin().ping();
+            console.log('Database: MongoDB ping successful'.cyan);
+
+            const responseTime = Date.now() - start;
+            console.log('Database health check completed successfully'.green.bold);
             return {
-                status: 'degraded',
-                responseTime: `${Date.now() - start}ms`,
-                message: `${successful}/${total} RSS feeds working`,
+                status: 'healthy',
+                responseTime: `${responseTime}ms`,
+                data: {
+                    ...dbHealth,
+                    poolInfo: {
+                        maxPoolSize: 10,
+                        configured: true,
+                    },
+                },
             };
-        }
-
-        return {status: 'healthy', responseTime: `${Date.now() - start}ms`};
-    } catch (error: any) {
-        console.log('DEBUG - Exception in checkRSSFeedsHealth:'.red.bold, error);
-        return {status: 'unhealthy', error: {message: error.message}};
-    }
-}
-
-const checkGoogleServicesHealth = async (): Promise<HealthCheckResponse> => {
-    console.info('checkGoogleServicesHealth called:'.bgMagenta.white.italic);
-
-    try {
-        const start = Date.now();
-        const translate = new Translate({key: GOOGLE_TRANSLATE_API_KEY});
-        const results = await Promise.allSettled([
-            getOAuth2Client(),  // Test OAuth
-            translate.translate('test', {to: 'es'}),    // Test Translate API with a simple translation
-        ]);
-
-        const failures = results.filter(r => r.status === 'rejected');
-        if (failures.length > 0) {
-            return {status: 'unhealthy', error: {message: `${failures.length} Google service(s) failed`, details: failures}};
-        }
-
-        return {status: 'healthy', responseTime: `${Date.now() - start}ms`};
-    } catch (error: any) {
-        return {status: 'unhealthy', error: {message: error.message}};
-    }
-}
-
-const checkGeminiAIHealth = async (): Promise<HealthCheckResponse> => {
-    console.info('checkGeminiAIHealth called:'.bgMagenta.white.italic);
-
-    try {
-        const start = Date.now();
-        const model = genAI.getGenerativeModel({model: AI_MODEL});
-        await model.generateContent('test');
-        return {status: 'healthy', responseTime: `${Date.now() - start}ms`};
-    } catch (error: any) {
-        console.error('ERROR: inside catch of checkGeminiAIHealth:'.red.bold, error);
-        return {status: 'unhealthy', error: {message: error.message}};
-    }
-}
-
-const checkDatabaseHealth = async (): Promise<HealthCheckResponse> => {
-    console.info('checkDatabaseHealth called:'.bgMagenta.white.italic);
-
-    try {
-        const start = Date.now();
-
-        const dbHealth = getDatabaseHealth();
-
-        if (!dbHealth.connected) {
+        } catch (error: any) {
+            console.error('Service Error: HealthService.checkDatabaseHealth failed'.red.bold, error);
             return {
                 status: 'unhealthy',
-                error: {message: `Database not connected. State: ${dbHealth.readyState}`},
-                data: dbHealth,
+                error: {message: error.message},
+                data: getDatabaseHealth(),
             };
         }
+    }
 
-        await mongoose.connection.db!.admin().ping();
+    /**
+     * Check comprehensive health status of all system services
+     */
+    static async checkOverallSystemHealth(): Promise<IHealthCheckResponse> {
+        console.log('Service: HealthService.checkOverallSystemHealth called'.cyan.italic);
 
-        const responseTime = Date.now() - start;
-        return {
-            status: 'healthy',
-            responseTime: `${responseTime}ms`,
-            data: {
-                ...dbHealth,
-                poolInfo: {
-                    maxPoolSize: 10,
-                    configured: true,
-                },
-            },
-        };
-    } catch (error: any) {
-        console.error('ERROR: inside catch of checkDatabaseHealth:'.red.bold, error);
-        return {
-            status: 'unhealthy',
-            error: {message: error.message},
-            data: getDatabaseHealth(),
-        };
+        try {
+            const start = Date.now();
+            console.log('Running comprehensive system health checks'.cyan);
+
+            const [newsHealth, rssHealth, googleHealth, aiHealth, dbHealth] = await Promise.allSettled([
+                this.checkNewsApiOrgHealth(),
+                this.checkRssFeedsHealth(),
+                this.checkGoogleServicesHealth(),
+                this.checkGeminiAiHealth(),
+                this.checkDatabaseHealth(),
+            ]);
+
+            const results = {
+                newsAPI: newsHealth.status === 'fulfilled' ? newsHealth.value : {status: 'failed'},
+                geminiAI: aiHealth.status === 'fulfilled' ? aiHealth.value : {status: 'failed'},
+                database: dbHealth.status === 'fulfilled' ? dbHealth.value : {status: 'failed'},
+                googleServices: googleHealth.status === 'fulfilled' ? googleHealth.value : {status: 'failed'},
+                rssFeeds: rssHealth.status === 'fulfilled' ? rssHealth.value : {status: 'failed'}
+            };
+
+            const healthyServices = Object.values(results).filter(r => r.status === 'healthy').length;
+            const totalServices = Object.keys(results).length;
+
+            let overallStatus: 'healthy' | 'unhealthy' | 'degraded' = 'healthy';
+
+            if (healthyServices === 0) overallStatus = 'unhealthy';
+            else if (healthyServices < totalServices) overallStatus = 'degraded';
+
+            console.log(`System health summary: ${healthyServices}/${totalServices} services healthy`.cyan, {status: overallStatus});
+            console.log('Overall system health check completed successfully'.green.bold);
+            return {
+                status: overallStatus,
+                responseTime: `${Date.now() - start}ms`,
+                data: results,
+                message: `${healthyServices}/${totalServices} services healthy`,
+            };
+        } catch (error: any) {
+            console.error('Service Error: HealthService.checkOverallSystemHealth failed'.red.bold, error);
+            return {status: 'unhealthy', error: {message: error.message}};
+        }
     }
 }
 
-const checkOverallSystemHealth = async (): Promise<HealthCheckResponse> => {
-    console.info('checkOverallSystemHealth called:'.bgMagenta.white.italic);
-
-    try {
-        const start = Date.now();
-
-        const [newsHealth, rssHealth, googleHealth, aiHealth, dbHealth] = await Promise.allSettled([
-            checkNewsAPIHealth(),
-            checkRSSFeedsHealth(),
-            checkGoogleServicesHealth(),
-            checkGeminiAIHealth(),
-            checkDatabaseHealth(),
-        ]);
-
-        const results = {
-            newsAPI: newsHealth.status === 'fulfilled' ? newsHealth.value : {status: 'failed'},
-            geminiAI: aiHealth.status === 'fulfilled' ? aiHealth.value : {status: 'failed'},
-            database: dbHealth.status === 'fulfilled' ? dbHealth.value : {status: 'failed'},
-            googleServices: googleHealth.status === 'fulfilled' ? googleHealth.value : {status: 'failed'},
-            rssFeeds: rssHealth.status === 'fulfilled' ? rssHealth.value : {status: 'failed'}
-        };
-
-        const healthyServices = Object.values(results).filter(r => r.status === 'healthy').length;
-        const totalServices = Object.keys(results).length;
-
-        let overallStatus: 'healthy' | 'unhealthy' | 'degraded' = 'healthy';
-        if (healthyServices === 0) overallStatus = 'unhealthy';
-        else if (healthyServices < totalServices) overallStatus = 'degraded';
-
-        return {
-            status: overallStatus,
-            responseTime: `${Date.now() - start}ms`,
-            data: results,
-            message: `${healthyServices}/${totalServices} services healthy`,
-        };
-    } catch (error: any) {
-        return {status: 'unhealthy', error: {message: error.message}};
-    }
-}
-
-export {checkNewsAPIHealth, checkRSSFeedsHealth, checkGoogleServicesHealth, checkGeminiAIHealth, checkDatabaseHealth, checkOverallSystemHealth};
+export default HealthService;

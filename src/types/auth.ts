@@ -2,10 +2,10 @@ import {Request} from "express";
 import {IUser} from "../models/UserSchema";
 
 export const SUPPORTED_AUTH__PROVIDERS = ['email', 'google', 'magic-link'];
-export type SupportedAuthProvider = typeof SUPPORTED_AUTH__PROVIDERS[number];
+export type TSupportedAuthProvider = typeof SUPPORTED_AUTH__PROVIDERS[number];
 
 
-export interface AuthRequest extends Request {
+export interface IAuthRequest extends Request {
     userExternalId: string;
     email: string;
 }
@@ -13,36 +13,36 @@ export interface AuthRequest extends Request {
 
 /** ------------- API response types ------------- */
 
-export interface RegisterResponse {
+export interface IRegisterResponse {
     user?: object | null;
     error?: string;
 }
 
-export interface LoginResponse {
+export interface ILoginResponse {
     user?: object | null;
     accessToken?: string;
     refreshToken?: string;
     error?: string;
 }
 
-export interface ResetPasswordResponse {
+export interface IResetPasswordResponse {
     user?: object | null;
     error?: string;
 }
 
-export interface GenerateMagicLinkResponse {
+export interface IGenerateMagicLinkResponse {
     success: boolean;
     message: string;
 }
 
-export interface VerifyMagicLinkResponse {
+export interface IVerifyMagicLinkResponse {
     user?: IUser;
     accessToken?: string;
     refreshToken?: string;
     error?: string;
 }
 
-export interface CheckAuthStatusResponse {
+export interface ICheckAuthStatusResponse {
     authenticated?: boolean;
     user?: IUser;
     accessToken?: string;
@@ -50,27 +50,27 @@ export interface CheckAuthStatusResponse {
     error?: string;
 }
 
-export interface RefreshTokenResponse {
+export interface IRefreshTokenResponse {
     accessToken?: string;
     error?: string;
 }
 
-export interface UpdateUserResponse {
+export interface IUpdateUserResponse {
     user?: object | null;
     error?: string;
 }
 
-export interface GenerateJWTResponse {
+export interface IGenerateJWTResponse {
     accessToken?: string;
     refreshToken?: string;
 }
 
-export interface GetUserByEmailResponse {
+export interface IGetUserByEmailResponse {
     user?: IUser | null;
     error?: string;
 }
 
-export interface DeleteAccountByEmailResponse {
+export interface IDeleteAccountByEmailResponse {
     isDeleted?: boolean;
     error?: string;
 }
@@ -78,55 +78,60 @@ export interface DeleteAccountByEmailResponse {
 
 /** ------------- function params ------------- */
 
-export interface RegisterParams {
+export interface IRegisterParams {
     name: string;
     email: string;
     password: string;
     confirmPassword: string;
 }
 
-export interface LoginParams {
+export interface ILoginParams {
     email: string;
     password: string;
 }
 
-export interface ResetPasswordParams {
-    email: string;
+export interface IResetPasswordParams {
+    email: string;  // for authMiddleware
     currentPassword: string;
     newPassword: string;
 }
 
-export interface RefreshTokenParams {
+export interface IRefreshTokenParams {
     refreshToken: string;
 }
 
-export interface LoginWithGoogleParams {
+export interface ILoginWithGoogleParams {
     code: string;
 }
 
-export interface GenerateMagicLinkParams {
+export interface ISendMagicLinkParams {
     email: string;
-}
-
-export interface VerifyMagicLinkParams {
     token: string;
 }
 
-export interface CheckAuthStatusParams {
+export interface IGenerateMagicLinkParams {
     email: string;
 }
 
-export interface UpdateUserParams {
+export interface IVerifyMagicLinkParams {
+    token: string;
+}
+
+export interface ICheckAuthStatusParams {
     email: string;
+}
+
+export interface IUpdateUserParams {
+    email: string;  // for authMiddleware
     name?: string;
     password?: string;
     profilePicture?: string;
 }
 
-export interface GetUserByEmailParams {
+export interface IGetUserByEmailParams {
     email?: string | null;
 }
 
-export interface DeleteAccountByEmailParams {
+export interface IDeleteAccountByEmailParams {
     email?: string | null;
 }

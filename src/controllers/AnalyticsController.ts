@@ -2,13 +2,13 @@ import "colors";
 import {Request, Response} from "express";
 import {ApiResponse} from "../utils/ApiResponse";
 import AnalyticsService from "../services/AnalyticsService";
-import {GetSourceAnalyticsParams, GetTopPerformingSourcesParams} from "../types/analytics";
+import {IGetSourceAnalyticsParams, IGetTopPerformingSourcesParams} from "../types/analytics";
 
 const getSourceAnalyticsController = async (req: Request, res: Response) => {
-    console.info('getSourceAnalyticsController called'.bgMagenta.white.italic);
+    console.info('Controller: getSourceAnalyticsController started'.bgBlue.white.bold);
 
     try {
-        const {limit, sortBy, sortOrder}: GetSourceAnalyticsParams = req.query;
+        const {limit, sortBy, sortOrder}: IGetSourceAnalyticsParams = req.query;
 
         let limitNumber;
         if (limit && !isNaN(Number(limit))) {
@@ -26,27 +26,29 @@ const getSourceAnalyticsController = async (req: Request, res: Response) => {
             return;
         }
 
+        console.log('SUCCESS: Source analytics fetched'.bgGreen.bold, {totalSources});
+        
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Source analytics fetched successfully 🎉',
+            message: 'Source analytics has been fetched successfully 🎉',
             sourceAnalytics,
             totalSources,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of getSourceAnalyticsController:'.red.bold, error);
+        console.error('Controller Error: getSourceAnalyticsController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during source analytics process',
         }));
     }
 }
 
 const getTopPerformingSourcesController = async (req: Request, res: Response) => {
-    console.info('getTopPerformingSourcesController called'.bgMagenta.white.italic);
+    console.info('Controller: getTopPerformingSourcesController started'.bgBlue.white.bold);
 
     try {
-        const {limit, minViews}: GetTopPerformingSourcesParams = req.query;
+        const {limit, minViews}: IGetTopPerformingSourcesParams = req.query;
 
         let limitNumber, minViewsNumber;
         if (limit && !isNaN(Number(limit))) {
@@ -67,18 +69,20 @@ const getTopPerformingSourcesController = async (req: Request, res: Response) =>
             return;
         }
 
+        console.log('SUCCESS: Top performing sources fetched'.bgGreen.bold, {totalSources});
+        
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Top performing sources fetched successfully 🎉',
+            message: 'Top performing sources have been fetched successfully 🎉',
             topSources,
             totalSources,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of getTopPerformingSourcesController:'.red.bold, error);
+        console.error('Controller Error: getTopPerformingSourcesController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             errorCode: error.errorCode,
-            errorMsg: error.message || 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during top performer retrieval',
         }));
     }
 }

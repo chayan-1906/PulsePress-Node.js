@@ -1,43 +1,43 @@
-import {Article, ArticleComplexities, EnhancementStatus} from "./news";
 import {IArticleEnhancement} from "../models/ArticleEnhancementSchema";
+import {IArticle, TArticleComplexities, TEnhancementStatus} from "./news";
 
 /*export const SUMMARIZATION_STYLES: SummarizationStyle[] = ['concise', 'standard', 'detailed'];
 export type SummarizationStyle = 'concise' | 'standard' | 'detailed';*/
 
 export const SUMMARIZATION_STYLES = ['concise', 'standard', 'detailed'];
-export type SummarizationStyle = typeof SUMMARIZATION_STYLES[number];
+export type TSummarizationStyle = typeof SUMMARIZATION_STYLES[number];
 
 export const SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'pt', 'ru', 'ja', 'ko', 'zh', 'ar', 'hi', 'bn', 'te', 'ta', 'mr', 'gu', 'kn', 'ml', 'pa', 'or', 'as', 'ur', 'ne', 'si', 'my'];
-export type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
+export type TSupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
 
 export const USER_STRIKE_BLOCK = ['cooldown', 'long_block'] as const;
-export type UserStrikeBlock = typeof USER_STRIKE_BLOCK[number];
+export type TUserStrikeBlock = typeof USER_STRIKE_BLOCK[number];
 
 export const CLASSIFICATION_TYPES = ['news', 'non_news', 'error'] as const;
-export type ClassificationResult = typeof CLASSIFICATION_TYPES[number];
+export type TClassificationResult = typeof CLASSIFICATION_TYPES[number];
 
 export const SENTIMENT_TYPES = ['positive', 'negative', 'neutral'] as const;
-export type SentimentResult = typeof SENTIMENT_TYPES[number];
+export type TSentimentResult = typeof SENTIMENT_TYPES[number];
 
 export const COMPLEXITY_LEVELS = ['easy', 'medium', 'hard'] as const;
-export type ComplexityLevel = typeof COMPLEXITY_LEVELS[number];
+export type TComplexityLevel = typeof COMPLEXITY_LEVELS[number];
 
 export const SOCIAL_MEDIA_PLATFORMS = ['twitter', 'instagram', 'linkedin', 'facebook'] as const;
-export type SocialMediaPlatform = typeof SOCIAL_MEDIA_PLATFORMS[number];
+export type TSocialMediaPlatform = typeof SOCIAL_MEDIA_PLATFORMS[number];
 
 export const SOCIAL_MEDIA_CAPTION_STYLES = ['professional', 'casual', 'engaging', 'viral'] as const;
-export type SocialMediaCaptionStyle = typeof SOCIAL_MEDIA_CAPTION_STYLES[number];
+export type TSocialMediaCaptionStyle = typeof SOCIAL_MEDIA_CAPTION_STYLES[number];
 
 export const IMPACT_LEVELS = ['local', 'regional', 'national', 'global'] as const;
-export type ImpactLevel = typeof IMPACT_LEVELS[number];
+export type TImpactLevel = typeof IMPACT_LEVELS[number];
 
 export const STAKEHOLDER_TYPES = ['consumers', 'businesses', 'government', 'investors', 'workers', 'environment', 'technology'] as const;
-export type StakeholderType = typeof STAKEHOLDER_TYPES[number];
+export type TStakeholderType = typeof STAKEHOLDER_TYPES[number];
 
 export const AI_ARTICLE_ENHANCEMENT_TYPES = ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'geoExtraction', 'questions', 'newsInsights'];
-export type AIArticleEnhancement = typeof AI_ARTICLE_ENHANCEMENT_TYPES[number];
+export type TAIArticleEnhancement = typeof AI_ARTICLE_ENHANCEMENT_TYPES[number];
 
-export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
+export const LANGUAGE_NAMES: Record<TSupportedLanguage, string> = {
     'en': 'English',
     'es': 'Español',
     'fr': 'Français',
@@ -65,7 +65,7 @@ export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
     'my': 'မြန်မာ'
 };
 
-export interface EnrichedArticleWithSentiment {
+export interface IEnrichedArticleWithSentiment {
     source: {
         id: string | null;
         name: string | null;
@@ -84,44 +84,44 @@ export interface EnrichedArticleWithSentiment {
         isProfessional: boolean;
     };
     sentimentData?: {
-        sentiment: SentimentResult;
+        sentiment: TSentimentResult;
         confidence: number;
         emoji: string;
         color: string;
     };
 }
 
-export interface StrikeHistoryEvent {
+export interface IStrikeHistoryEvent {
     strikeNumber: number;
     appliedAt: Date;
     reason: string;
-    blockType?: UserStrikeBlock;
+    blockType?: TUserStrikeBlock;
     blockDuration?: string;
 }
 
-export interface StrikeResult {
+export interface IStrikeResult {
     success: boolean;
     newStrikeCount: number;
     isBlocked: boolean;
-    blockType?: UserStrikeBlock;
+    blockType?: TUserStrikeBlock;
     blockedUntil?: Date;
     message: string;
     wasReset?: boolean;
 }
 
-export interface StrikeCheckResult {
+export interface IStrikeCheckResult {
     isBlocked: boolean;
-    blockType?: UserStrikeBlock;
+    blockType?: TUserStrikeBlock;
     blockedUntil?: Date;
     message?: string;
     wasReset?: boolean;
 }
 
-export interface UserStrikeStatus {
+export interface IUserStrikeStatus {
     currentStrikes: number;
     maxStrikes: number;
     isBlocked: boolean;
-    blockType?: UserStrikeBlock;
+    blockType?: TUserStrikeBlock;
     blockedUntil?: Date;
     lastStrikeAt?: Date;
     timeUntilReset?: string;
@@ -129,60 +129,60 @@ export interface UserStrikeStatus {
     nextStrikePenalty: string;
 }
 
-export interface UserStrikeHistory {
+export interface IUserStrikeHistory {
     date: Date;
     strikeNumber: number;
     reason: string;
-    blockType?: UserStrikeBlock;
+    blockType?: TUserStrikeBlock;
     blockDuration?: string;
 }
 
 
 /** ------------- AI Service JSON Parse Interfaces ------------- */
 
-export interface AISentiment {
-    sentiment: SentimentResult;
+export interface IAISentiment {
+    sentiment: TSentimentResult;
     confidence?: number;
 }
 
-export interface AIClassification {
-    classification: ClassificationResult;
+export interface IAIClassification {
+    classification: TClassificationResult;
 }
 
-export interface AIKeyPoints {
+export interface IAIKeyPoints {
     keyPoints: string[];
 }
 
-export interface AIComplexityMeter {
+export interface IAIComplexityMeter {
     complexityMeter: {
-        level: ComplexityLevel;
+        level: TComplexityLevel;
         reasoning?: string;
     };
 }
 
-export interface AIQuestionGeneration {
+export interface IAIQuestionGeneration {
     questions: string[];
 }
 
-export interface AIQuestionAnswering {
+export interface IAIQuestionAnswering {
     answer: string;
 }
 
-export interface AIGeographicExtraction {
+export interface IAIGeographicExtraction {
     locations: string[];
 }
 
-export interface AISocialMediaCaption {
+export interface IAISocialMediaCaption {
     caption: string;
     hashtags: string[];
-    platform: SocialMediaPlatform;
-    style: SocialMediaCaptionStyle;
+    platform: TSocialMediaPlatform;
+    style: TSocialMediaCaptionStyle;
 }
 
-export interface AINewsInsights {
+export interface IAINewsInsights {
     keyThemes: string[];
     impactAssessment: {
-        level: ImpactLevel;
+        level: TImpactLevel;
         description: string;
     };
     contextConnections: string[];
@@ -197,7 +197,7 @@ export interface AINewsInsights {
 
 /** ------------- API response types ------------- */
 
-export interface SummarizeArticleResponse {
+export interface ISummarizeArticleResponse {
     summary?: string;
     wasClassified?: 'news' | 'non_news' | 'classification_skipped';
     powered_by?: string;
@@ -205,77 +205,83 @@ export interface SummarizeArticleResponse {
     errorMsg?: string;
 }
 
-export interface GenerateContentHashResponse {
+export interface ISummarizeContentResponse {
+    summary?: string;
+    powered_by?: string;
+    error?: string;
+}
+
+export interface IGenerateContentHashResponse {
     hash?: string;
     error?: string;
 }
 
-export interface TagGenerationResponse {
+export interface ITagGenerationResponse {
     tags?: string[];
     powered_by?: string;
     error?: string;
 }
 
-export interface SentimentAnalysisResponse {
-    sentiment?: SentimentResult;
+export interface ISentimentAnalysisResponse {
+    sentiment?: TSentimentResult;
     confidence?: number;
-    // TODO: Add powered_by
+    powered_by?: string;
     error?: string;
 }
 
-export interface KeyPointsExtractionResponse {
+export interface IKeyPointsExtractionResponse {
     keyPoints?: string[];
-    // TODO: Add powered_by
+    powered_by?: string;
     error?: string;
 }
 
-export interface ComplexityMeterResponse {
+export interface IComplexityMeterResponse {
     complexityMeter?: {
-        level: ComplexityLevel;
+        level: TComplexityLevel;
         reasoning: string;
     };
-    // TODO: Add powered_by
+    powered_by?: string;
     error?: string;
 }
 
-export interface ReadingTimeComplexityResponse {
-    level: ArticleComplexities;
+export interface IReadingTimeComplexityResponse {
+    level: TArticleComplexities;
     readingTimeMinutes: number;
     wordCount: number;
 }
 
-export interface QuestionGenerationResponse {
+export interface IQuestionGenerationResponse {
     questions?: string[];
-    // TODO: Add powered_by
+    powered_by?: string;
     error?: string;
 }
 
-export interface QuestionAnsweringResponse {
+export interface IQuestionAnsweringResponse {
     answer?: string;
-    // TODO: Add powered_by
+    powered_by?: string;
     error?: string;
 }
 
-export interface GeographicExtractionResponse {
+export interface IGeographicExtractionResponse {
     locations?: string[];
-    // TODO: Add powered_by
+    powered_by?: string;
     error?: string;
 }
 
-export interface SocialMediaCaptionResponse {
+export interface ISocialMediaCaptionResponse {
     caption?: string;
     hashtags?: string[];
-    platform?: SocialMediaPlatform;
-    style?: SocialMediaCaptionStyle;
+    platform?: TSocialMediaPlatform;
+    style?: TSocialMediaCaptionStyle;
     characterCount?: number;
     powered_by?: string;
     error?: string;
 }
 
-export interface NewsInsightsResponse {
+export interface INewsInsightsResponse {
     keyThemes?: string[];
     impactAssessment?: {
-        level: ImpactLevel;
+        level: TImpactLevel;
         description: string;
     };
     contextConnections?: string[];
@@ -289,17 +295,17 @@ export interface NewsInsightsResponse {
     error?: string;
 }
 
-export interface CombinedAIResponse {
+export interface ICombinedAIResponse {
     tags?: string[],
     sentiment?: {
-        type: SentimentResult;
+        type: TSentimentResult;
         confidence: number;
         emoji: string;
         color: string;
     };
     keyPoints?: string[];
     complexityMeter?: {
-        level: ComplexityLevel;
+        level: TComplexityLevel;
         reasoning: string;
     };
     locations?: string[];
@@ -307,7 +313,7 @@ export interface CombinedAIResponse {
     newsInsights?: {
         keyThemes: string[];
         impactAssessment: {
-            level: ImpactLevel;
+            level: TImpactLevel;
             description: string;
         };
         contextConnections: string[];
@@ -318,29 +324,29 @@ export interface CombinedAIResponse {
         };
         timelineContext: string[];
     };
-    // TODO: Add powered_by
+    powered_by?: string;
     error?: string;
 }
 
-export interface GetProcessingStatusResponse {
-    status: EnhancementStatus;
+export interface IGetProcessingStatusResponse {
+    status: TEnhancementStatus;
     progress: number;
 }
 
-export interface GetEnhancementStatusByIdsResponse {
-    status?: EnhancementStatus;
+export interface IGetEnhancementStatusByIdsResponse {
+    status?: TEnhancementStatus;
     progress?: number;
-    articles?: Partial<Article>[];
+    articles?: Partial<IArticle>[];
     error?: string;
 }
 
-export interface GetUserStrikeStatusResponse {
-    strikeStatus?: UserStrikeStatus;
+export interface IGetUserStrikeStatusResponse {
+    strikeStatus?: IUserStrikeStatus;
     error?: string;
 }
 
-export interface GetUserStrikeHistoryResponse {
-    strikeHistory?: UserStrikeHistory[];
+export interface IGetUserStrikeHistoryResponse {
+    strikeHistory?: IUserStrikeHistory[];
     totalStrikes?: number;
     error?: string;
 }
@@ -348,128 +354,142 @@ export interface GetUserStrikeHistoryResponse {
 
 /** ------------- function params ------------- */
 
-export interface SummarizeArticleParams {
-    email: string;
+export interface ISummarizeArticleParams {
+    email: string;  // for authMiddleware
     content?: string;
     url?: string;
-    language?: SupportedLanguage;
-    style?: SummarizationStyle;
+    language?: TSupportedLanguage;
+    style?: TSummarizationStyle;
 }
 
-export interface GenerateContentHashParams {
+export interface ISummarizeContentParams {
+    content?: string;
+    url?: string;
+    style?: TSummarizationStyle;
+}
+
+export interface IGenerateContentHashParams {
     articleContent: string;
-    language?: SupportedLanguage;
-    style?: SummarizationStyle;
+    language?: TSupportedLanguage;
+    style?: TSummarizationStyle;
 }
 
-export interface SaveSummaryToCacheParams {
+export interface ISaveSummaryToCacheParams {
     contentHash: string;
     summary: string;
-    language?: SupportedLanguage;
-    style?: SummarizationStyle;
+    language?: TSupportedLanguage;
+    style?: TSummarizationStyle;
 }
 
-export interface GetCachedSummaryParams {
+export interface IGetCachedSummaryParams {
     contentHash: string;
 }
 
-export interface TranslateTextParams {
+export interface ITranslateTextParams {
     text: string;
-    targetLanguage: SupportedLanguage;
+    targetLanguage: TSupportedLanguage;
 }
 
-export interface TagGenerationParams {
+export interface ITagGenerationParams {
     content?: string;
     url?: string;
 }
 
-export interface SentimentAnalysisParams {
+export interface ISentimentAnalysisParams {
     url?: string;
     content?: string;
 }
 
-export interface KeyPointsExtractionParams {
+export interface IEnrichArticleWithSentimentParams {
+    article: any;
+    shouldAnalyze?: boolean;
+}
+
+export interface IEnrichArticlesWithSentimentParams {
+    articles: any[];
+    shouldAnalyze?: boolean;
+}
+
+export interface IKeyPointsExtractionParams {
     url?: string;
     content?: string;
 }
 
-export interface ComplexityMeterParams {
+export interface IComplexityMeterParams {
     url?: string;
     content?: string;
 }
 
-export interface ReadingTimeComplexityParams {
-    // article: Article;
-    content?: string;
-    description?: string;
+export interface IReadingTimeComplexityParams {
+    article: IArticle;
 }
 
-export interface QuestionGenerationParams {
+export interface IQuestionGenerationParams {
     content: string;
 }
 
-export interface QuestionAnsweringParams {
+export interface IQuestionAnsweringParams {
     content: string;
     question: string;
 }
 
-export interface GeographicExtractionParams {
+export interface IGeographicExtractionParams {
     url?: string;
     content?: string;
 }
 
-export interface SocialMediaCaptionParams {
+export interface ISocialMediaCaptionParams {
     url?: string;
     content?: string;
-    platform?: SocialMediaPlatform;
-    style?: SocialMediaCaptionStyle;
+    platform?: TSocialMediaPlatform;
+    style?: TSocialMediaCaptionStyle;
 }
 
-export interface NewsInsightsParams {
+export interface INewsInsightsParams {
     url?: string;
     content?: string;
 }
 
-export interface CombinedAIParams {
+export interface ICombinedAIParams {
     content: string;
-    tasks: AIArticleEnhancement[];
+    tasks: TAIArticleEnhancement[];
 }
 
-export interface CombinedAIDetailsParams {
+export interface ICombinedAIDetailsParams {
     email?: string;
     url: string;
 }
 
-export interface GetProcessingStatusParams {
-    articles: Article[];
+export interface IGetProcessingStatusParams {
+    articles: IArticle[];
 }
 
-export interface EnhanceArticlesInBackgroundParams {
-    email: string;
-    articles: Article[];
+export interface IEnhanceArticlesParams {
+    email: string;  // for authMiddleware
+    articles: IArticle[];
 }
 
-export interface GetEnhancementForArticlesParams {
-    articles: Article[];
+export interface IGetEnhancementForArticlesParams {
+    articles: IArticle[];
 }
 
-export interface GetEnhancementStatusByIdsParams {
-    email: string;
+export interface IGetEnhancementStatusByIdsParams {
+    email: string;  // for authMiddleware
     articleIds: string[];
 }
 
-export interface MergeEnhancementsWithArticlesParams {
-    articles: Article[];
+export interface IMergeEnhancementsWithArticlesParams {
+    articles: IArticle[];
     enhancements: {
         [articleId: string]: IArticleEnhancement;
     };
 }
 
-export interface GetUserStrikeStatusParams {
-    email: string;
+export interface IGetUserStrikeStatusParams {
+    email: string;  // for authMiddleware
 }
 
-export interface GetUserStrikeHistoryParams {
-    email: string;
+export interface IGetUserStrikeHistoryParams {
+    email: string;  // for authMiddleware
     limit?: number;
 }

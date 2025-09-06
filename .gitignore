@@ -26,3 +26,6 @@ yarn-error.*
 android-credentials.json
 ios-credentials.plist
 web-credentials.json
+
+# claude
+CLAUDE.md

@@ -1,17 +1,17 @@
 import {Document, Model, model, Schema} from "mongoose";
 import generateNanoIdWithAlphabet from "../utils/generateUUID";
-import {SUMMARIZATION_STYLES, SummarizationStyle, SUPPORTED_LANGUAGES, SupportedLanguage} from "../types/ai";
-import {SUPPORTED_CATEGORIES, SUPPORTED_NEWS_LANGUAGES, SUPPORTED_SOURCES, SupportedCategory, SupportedNewsLanguage, SupportedSource} from "../types/news";
+import {SUMMARIZATION_STYLES, TSummarizationStyle, SUPPORTED_LANGUAGES, TSupportedLanguage} from "../types/ai";
+import {SUPPORTED_CATEGORIES, SUPPORTED_NEWS_LANGUAGES, SUPPORTED_SOURCES, TSupportedCategory, TSupportedNewsLanguage, TSupportedSource} from "../types/news";
 
 export interface IUserPreference extends Document {
     userPreferenceId: string;
     userPreferenceExternalId: string;
     userExternalId: string;
-    preferredLanguage: SupportedLanguage;
-    preferredCategories: SupportedCategory[];
-    preferredSources: SupportedSource[];
-    summaryStyle: SummarizationStyle;
-    newsLanguages: SupportedNewsLanguage[];
+    preferredLanguage: TSupportedLanguage;
+    preferredCategories: TSupportedCategory[];
+    preferredSources: TSupportedSource[];
+    summaryStyle: TSummarizationStyle;
+    newsLanguages: TSupportedNewsLanguage[];
     createdAt: Date;
     updatedAt: Date;
 }

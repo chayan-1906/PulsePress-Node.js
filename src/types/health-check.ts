@@ -1,4 +1,4 @@
-export interface DatabaseHealth {
+export interface IDatabaseHealth {
     connected: boolean;
     readyState: string;
     host?: string;
@@ -10,7 +10,7 @@ export interface DatabaseHealth {
 
 /** ------------- API response types ------------- */
 
-export interface HealthCheckResponse {
+export interface IHealthCheckResponse {
     status: 'healthy' | 'unhealthy' | 'degraded';
     responseTime?: string;
     timestamp?: string;

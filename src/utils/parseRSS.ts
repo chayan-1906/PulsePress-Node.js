@@ -1,10 +1,10 @@
 import axios from "axios";
 import Parser from "rss-parser";
-import {RSSFeed} from "../types/news";
+import {IRssFeed} from "../types/news";
 import {USER_AGENTS} from "./constants";
 import {buildHeader} from "./buildHeader";
 
-const parseRSS = async (rssFeedUrl: string): Promise<RSSFeed[]> => {
+const parseRSS = async (rssFeedUrl: string): Promise<IRssFeed[]> => {
     let lastError;
 
     for (const userAgent of USER_AGENTS) {

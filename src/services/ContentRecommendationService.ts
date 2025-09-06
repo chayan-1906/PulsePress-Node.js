@@ -4,14 +4,16 @@ import NewsService from "./NewsService";
 import {RSS_SOURCES} from "../utils/constants";
 import AnalyticsService from "./AnalyticsService";
 import BookmarkModel from "../models/BookmarkSchema";
-import {sourceMap, SupportedSource} from "../types/news";
+import {sourceMap, TSupportedSource} from "../types/news";
 import ReadingHistoryModel from "../models/ReadingHistorySchema";
 import UserPreferenceModel from "../models/UserPreferenceSchema";
 import {NODE_ENV, RECOMMENDATION_CACHE_DURATION} from "../config/config";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
-import {GetContentRecommendationsParams, GetContentRecommendationsResponse, RecommendedArticle} from "../types/content-recommendation";
+import {IGetContentRecommendationsParams, IGetContentRecommendationsResponse, IRecommendedArticle} from "../types/content-recommendation";
 
-const RECOMMENDATION_CACHE = new Map<string, { data: GetContentRecommendationsResponse, timestamp: number }>();
+// TODO: Convert this to class-based
+
+const RECOMMENDATION_CACHE = new Map<string, { data: IGetContentRecommendationsResponse, timestamp: number }>();
 
 const CATEGORY_MAPPING: { [key: string]: { guardian?: string, nytimes?: string } } = {
     'business': {guardian: 'business', nytimes: 'business'},
@@ -24,7 +26,7 @@ const CATEGORY_MAPPING: { [key: string]: { guardian?: string, nytimes?: string }
     'country': {guardian: 'world', nytimes: 'world'},
 };
 
-const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecommendationsParams): Promise<GetContentRecommendationsResponse> => {
+const getContentRecommendation = async ({email, pageSize = 5}: IGetContentRecommendationsParams): Promise<IGetContentRecommendationsResponse> => {
     try {
         if (!email) {
             return {error: generateMissingCode('email')};
@@ -56,9 +58,9 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
         const preferredLanguages = preferences?.newsLanguages?.length ? preferences.newsLanguages : ['english'];
 
         // Analyze reading patterns
-        const readingSources: SupportedSource[] = readingHistory
+        const readingSources: TSupportedSource[] = readingHistory
             .map(h => extractSourceFromUrl(h.articleUrl))
-            .filter((s): s is SupportedSource => s !== null);
+            .filter((s): s is TSupportedSource => s !== null);
         const sourceFrequency = countFrequency(readingSources);
         const readUrls = new Set(readingHistory.map(h => h.articleUrl));
 
@@ -74,7 +76,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
 
         // Fetch from each preferred language
         preferredLanguages.forEach(language => {
-            newsPromises.push(NewsService.fetchAllRSSFeeds({
+            newsPromises.push(NewsService.fetchAllRssFeeds({
                 languages: language,
                 pageSize: rssFetchSize,
             }));
@@ -83,7 +85,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
         // Prioritize top performing sources
         const topSourcesToFetch = topPerformingSources.slice(0, 3);
         if (topSourcesToFetch.length > 0) {
-            newsPromises.push(NewsService.fetchAllRSSFeeds({
+            newsPromises.push(NewsService.fetchAllRssFeeds({
                 sources: topSourcesToFetch.join(','),
                 languages: preferredLanguages.join(','),
                 pageSize: rssFetchSize,
@@ -94,7 +96,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
         const topUserSources = Object.keys(sourceFrequency).slice(0, 3);
         const uniqueUserSources = topUserSources.filter(s => !topSourcesToFetch.includes(s));
         if (uniqueUserSources.length > 0) {
-            newsPromises.push(NewsService.fetchAllRSSFeeds({
+            newsPromises.push(NewsService.fetchAllRssFeeds({
                 sources: uniqueUserSources.join(','),
                 languages: preferredLanguages.join(','),
                 pageSize: rssFetchSize,
@@ -105,8 +107,8 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
         if (preferences?.preferredCategories?.length) {
             const primaryCategory = preferences.preferredCategories[0];
 
-            // NewsAPI
-            newsPromises.push(NewsService.fetchNEWSORGTopHeadlines({
+            // NewsAPI.Org
+            newsPromises.push(NewsService.fetchNewsApiOrgTopHeadlines({
                 category: primaryCategory,
                 pageSize: categoryFetchSize,
             }));
@@ -124,7 +126,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
             // NYTimes - map category and fetch top stories
             const nytimesSection = CATEGORY_MAPPING[primaryCategory]?.nytimes;
             if (nytimesSection) {
-                newsPromises.push(NewsService.fetchNYTimesTopStories({
+                newsPromises.push(NewsService.fetchNewYorkTimesTopStories({
                     section: nytimesSection,
                 }));
             }
@@ -144,7 +146,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
 
                 const nytimesSecondarySection = CATEGORY_MAPPING[secondaryCategory]?.nytimes;
                 if (nytimesSecondarySection) {
-                    newsPromises.push(NewsService.fetchNYTimesTopStories({
+                    newsPromises.push(NewsService.fetchNewYorkTimesTopStories({
                         section: nytimesSecondarySection,
                     }));
                 }
@@ -157,9 +159,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
                 orderBy: 'newest',
             }));
 
-            newsPromises.push(NewsService.fetchNYTimesTopStories({
-                section: 'world',
-            }));
+            newsPromises.push(NewsService.fetchNewYorkTimesTopStories({section: 'world'}));
         }
 
         const newsResults = await Promise.allSettled(newsPromises);
@@ -168,20 +168,20 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
             .flatMap(r => (r as any).value);
 
         // Score and filter articles
-        const scoredArticles: RecommendedArticle[] = allArticles
+        const scoredArticles: IRecommendedArticle[] = allArticles
             .filter(article => !(!article.url || readUrls.has(article.url)))
             .map(article => {
                 let score = 0;
-                const source: SupportedSource | null = extractSourceFromUrl(article.url);
+                const source: TSupportedSource | null = extractSourceFromUrl(article.url);
 
                 // For Guardian and NYTimes, use domain as source identifier
                 let effectiveSource = source;
                 if (!source) {
                     const domain = new URL(article.url).hostname.replace('www.', '');
                     if (domain.includes('guardian')) {
-                        effectiveSource = 'guardian' as SupportedSource;
+                        effectiveSource = 'guardian' as TSupportedSource;
                     } else if (domain.includes('nytimes')) {
-                        effectiveSource = 'nytimes' as SupportedSource;
+                        effectiveSource = 'nytimes' as TSupportedSource;
                     }
                 }
 
@@ -211,9 +211,9 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
                 }
 
                 // Boost score for bookmarked sources
-                const bookmarkedSources: SupportedSource[] = bookmarks
+                const bookmarkedSources: TSupportedSource[] = bookmarks
                     .map(b => extractSourceFromUrl(b.articleUrl))
-                    .filter((s): s is SupportedSource => s !== null);
+                    .filter((s): s is TSupportedSource => s !== null);
                 if (bookmarkedSources.includes(effectiveSource)) {
                     score += 2;
                 }
@@ -229,7 +229,7 @@ const getContentRecommendation = async ({email, pageSize = 10}: GetContentRecomm
                     recommendationReason: getRecommendationReason(effectiveSource, sourceFrequency, preferences, bookmarkedSources, articleLanguage, preferredLanguages, topPerformingSources),
                 };
             })
-            .filter((article): article is RecommendedArticle => article !== null)
+            .filter((article): article is IRecommendedArticle => article !== null)
             .sort((a, b) => b.recommendationScore - a.recommendationScore)
             .slice(0, pageSize);
 
@@ -274,19 +274,19 @@ const clearRecommendationCache = (userExternalId: string) => {
 }
 
 // Helper functions
-const extractSourceFromUrl = (url: string): SupportedSource | null => {
+const extractSourceFromUrl = (url: string): TSupportedSource | null => {
     const urlObj = new URL(url);
     const domain = urlObj.hostname.replace('www.', '');
     const path = urlObj.pathname;
 
     // Guardian
     if (domain.includes('theguardian.com') || domain.includes('guardian.co.uk')) {
-        return 'guardian' as SupportedSource;
+        return 'guardian' as TSupportedSource;
     }
 
     // NYTimes
     if (domain.includes('nytimes.com')) {
-        return 'nytimes' as SupportedSource;
+        return 'nytimes' as TSupportedSource;
     }
 
     // bbc_news and bbc_tech

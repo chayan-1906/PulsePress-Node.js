@@ -1,13 +1,15 @@
 import "colors";
 import UserModel from "../models/UserSchema";
 import {STRIKE_COOLDOWN_COUNT, STRIKE_LONG_BLOCK_DURATION, STRIKE_TEMPORARY_BLOCK_COUNT, STRIKE_TEMPORARY_BLOCK_DURATION} from "../config/config";
-import {StrikeCheckResult, StrikeHistoryEvent, StrikeResult, UserStrikeBlock} from "../types/ai";
+import {IStrikeCheckResult, IStrikeHistoryEvent, IStrikeResult, TUserStrikeBlock} from "../types/ai";
 
 class StrikeService {
     /**
      * Check if user is currently blocked and handle 48-hour reset
      */
-    static async checkUserBlock(email: string): Promise<StrikeCheckResult> {
+    static async checkUserBlock(email: string): Promise<IStrikeCheckResult> {
+        console.log('Service: StrikeService.checkUserBlock called'.cyan.italic, {email});
+
         try {
             const user = await UserModel.findOne({email});
             if (!user) {
@@ -26,7 +28,7 @@ class StrikeService {
                 const hoursSinceLastStrike = (now.getTime() - strikes.lastStrikeAt.getTime()) / (1000 * 60 * 60);
 
                 if (hoursSinceLastStrike >= Number.parseInt(STRIKE_LONG_BLOCK_DURATION!) * 24) {
-                    console.log(`48-hour reset triggered for ${email}, clearing strikes from ${strikes.count} to 0`.green.italic);
+                    console.log(`48-hour reset triggered for ${email}, clearing strikes from ${strikes.count} to 0`.cyan);
 
                     // Reset strikes to 0 and clear history
                     await UserModel.updateOne(
@@ -56,12 +58,14 @@ class StrikeService {
             if (strikes.blockedUntil > now) {
                 // User is still blocked
                 const remainingTime = this.formatRemainingTime(strikes.blockedUntil, now);
-                return {
+                const result = {
                     isBlocked: true,
                     blockType: strikes.blockType,
                     blockedUntil: strikes.blockedUntil,
                     message: `You are temporarily blocked for making non-news queries. Block expires in ${remainingTime}.`,
                 };
+                console.log('User block check completed successfully'.green.bold, result);
+                return result;
             } else {
                 // Block has expired, clear it (but keep strike count and history)
                 await UserModel.updateOne(
@@ -76,7 +80,7 @@ class StrikeService {
                 return {isBlocked: false};
             }
         } catch (error: any) {
-            console.error('Error checking user block:'.red.bold, error);
+            console.error('Service Error: StrikeService.checkUserBlock failed:'.red.bold, error);
             return {isBlocked: false};
         }
     }
@@ -84,7 +88,9 @@ class StrikeService {
     /**
      * Apply a strike to user for non-news query
      */
-    static async applyStrike(email: string): Promise<StrikeResult> {
+    static async applyStrike(email: string): Promise<IStrikeResult> {
+        console.log('Service: StrikeService.applyStrike called'.cyan.italic, {email});
+
         try {
             const blockCheck = await this.checkUserBlock(email);
             const wasReset = blockCheck.wasReset || false;
@@ -110,7 +116,7 @@ class StrikeService {
 
             let message: string;
             let isBlocked = false;
-            let blockType: UserStrikeBlock | undefined;
+            let blockType: TUserStrikeBlock | undefined;
             let blockedUntil: Date | undefined;
             let reason: string;
             let blockDuration: string | undefined;
@@ -154,7 +160,7 @@ class StrikeService {
             }
 
             // Create history event
-            const historyEvent: StrikeHistoryEvent = {
+            const historyEvent: IStrikeHistoryEvent = {
                 strikeNumber: newStrikeCount,
                 appliedAt: now,
                 reason,
@@ -169,27 +175,13 @@ class StrikeService {
 
             await UserModel.updateOne({email}, {$set: updateData, $push: updateData['$push']});
 
-            console.log(`Strike applied to ${email}:`.yellow.italic, {
-                previousCount: currentStrikes,
-                newStrikeCount,
-                isBlocked,
-                blockType,
-                blockedUntil,
-                wasReset,
-                historyEvent,
-            });
+            console.log(`Strike applied to ${email}:`.cyan, {previousCount: currentStrikes, newStrikeCount, isBlocked, blockType, blockedUntil, wasReset, historyEvent});
 
-            return {
-                success: true,
-                newStrikeCount,
-                isBlocked,
-                blockType,
-                blockedUntil,
-                message,
-                wasReset,
-            }
+            const result = {success: true, newStrikeCount, isBlocked, blockType, blockedUntil, message, wasReset};
+            console.log('Strike application completed successfully'.green.bold, result);
+            return result;
         } catch (error: any) {
-            console.error('Error applying strike:'.red.bold, error);
+            console.error('Service Error: StrikeService.applyStrike failed:'.red.bold, error);
             return {
                 success: false,
                 newStrikeCount: 0,
@@ -203,6 +195,8 @@ class StrikeService {
      * Manually reset strikes for user (admin function)
      */
     private static async resetStrikes(email: string): Promise<boolean> {
+        console.log('Service: StrikeService.resetStrikes called'.cyan.italic, {email});
+
         try {
             await UserModel.updateOne(
                 {email},
@@ -218,10 +212,10 @@ class StrikeService {
                     },
                 },
             );
-            console.log(`Strikes manually reset for ${email}`.green.italic);
+            console.log(`Strikes manually reset for ${email}`.cyan);
             return true;
         } catch (error: any) {
-            console.error('Error resetting strikes:'.red.bold, error);
+            console.error('Service Error: StrikeService.resetStrikes failed:'.red.bold, error);
             return false;
         }
     }
@@ -229,16 +223,20 @@ class StrikeService {
     /**
      * Get user's current strike information
      */
-    static async getUserStrikes(email: string): Promise<{ count: number; lastStrikeAt?: Date; blockedUntil?: Date; history?: StrikeHistoryEvent[] } | null> {
+    static async getUserStrikes(email: string): Promise<{ count: number; lastStrikeAt?: Date; blockedUntil?: Date; history?: IStrikeHistoryEvent[] } | null> {
+        console.log('Service: StrikeService.getUserStrikes called'.cyan.italic, {email});
+
         try {
             // Check for reset first
             await this.checkUserBlock(email);
 
             // Get fresh data after potential reset
             const user = await UserModel.findOne({email}, 'newsClassificationStrikes');
-            return user?.newsClassificationStrikes || {count: 0, history: []};
+            const result = user?.newsClassificationStrikes || {count: 0, history: []};
+            console.log('User strikes retrieval completed successfully'.green.bold, result);
+            return result;
         } catch (error: any) {
-            console.error('Error getting user strikes:'.red.bold, error);
+            console.error('Service Error: StrikeService.getUserStrikes failed:'.red.bold, error);
             return null;
         }
     }
@@ -247,6 +245,8 @@ class StrikeService {
      * Check if user strikes should be reset (48 hours since last strike)
      */
     private static async checkForAutoReset(email: string): Promise<boolean> {
+        console.log('Service: StrikeService.checkForAutoReset called'.cyan.italic, {email});
+
         try {
             const user = await UserModel.findOne({email});
             if (!user || !user.newsClassificationStrikes?.lastStrikeAt || user.newsClassificationStrikes.count === 0) {
@@ -256,13 +256,13 @@ class StrikeService {
             const hoursSinceLastStrike = (Date.now() - user.newsClassificationStrikes.lastStrikeAt.getTime()) / (1000 * 60 * 60);
 
             if (hoursSinceLastStrike >= Number.parseInt(STRIKE_LONG_BLOCK_DURATION!) * 24) {
-                console.log(`Auto-reset conditions met for ${email} (${hoursSinceLastStrike.toFixed(1)} hours since last strike)`.cyan.italic);
+                console.log(`Auto-reset conditions met for ${email} (${hoursSinceLastStrike.toFixed(1)} hours since last strike)`.cyan);
                 return true;
             }
 
             return false;
         } catch (error: any) {
-            console.error('Error checking auto-reset conditions:'.red.bold, error);
+            console.error('Service Error: StrikeService.checkForAutoReset failed:'.red.bold, error);
             return false;
         }
     }
@@ -271,6 +271,8 @@ class StrikeService {
      * Format remaining block time in human-readable format
      */
     private static formatRemainingTime(blockedUntil: Date, now: Date): string {
+        console.log('Service: StrikeService.formatRemainingTime called'.cyan.italic, {blockedUntil, now});
+
         const remainingMs = blockedUntil.getTime() - now.getTime();
         const remainingMinutes = Math.ceil(remainingMs / (1000 * 60));
 

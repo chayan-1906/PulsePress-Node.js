@@ -1,21 +1,22 @@
 import "colors";
 import {Request, Response} from "express";
-import {AuthRequest} from "../types/auth";
+import {IAuthRequest} from "../types/auth";
 import {hasInvalidItems} from "../utils/list";
 import {ApiResponse} from "../utils/ApiResponse";
-import {ModifyUserPreferenceParams} from "../types/user-preference";
+import {IModifyUserPreferenceParams} from "../types/user-preference";
 import UserPreferenceService from "../services/UserPreferenceService";
 import {SUPPORTED_CATEGORIES, SUPPORTED_NEWS_LANGUAGES, SUPPORTED_SOURCES} from "../types/news";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 
 const modifyUserPreferenceController = async (req: Request, res: Response) => {
-    console.log('modifyUserPreferenceController called');
+    console.info('Controller: modifyUserPreferenceController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {preferredLanguage, preferredCategories, preferredSources, summaryStyle, newsLanguages}: ModifyUserPreferenceParams = req.body;
+        const email = (req as IAuthRequest).email;
+        const {preferredLanguage, preferredCategories, preferredSources, summaryStyle, newsLanguages}: IModifyUserPreferenceParams = req.body;
 
         if (preferredCategories && !Array.isArray(preferredCategories)) {
+            console.warn('Client Error: Invalid preferred categories format'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateInvalidCode('preferred_categories'),
@@ -24,6 +25,7 @@ const modifyUserPreferenceController = async (req: Request, res: Response) => {
             return;
         }
         if (preferredCategories && hasInvalidItems(preferredCategories, SUPPORTED_CATEGORIES)) {
+            console.warn('Client Error: Unsupported preferred categories'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateInvalidCode('preferred_categories'),
@@ -33,6 +35,7 @@ const modifyUserPreferenceController = async (req: Request, res: Response) => {
         }
 
         if (preferredSources && !Array.isArray(preferredSources)) {
+            console.warn('Client Error: Invalid preferred sources format'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateInvalidCode('preferred_sources'),
@@ -41,6 +44,7 @@ const modifyUserPreferenceController = async (req: Request, res: Response) => {
             return;
         }
         if (preferredSources && hasInvalidItems(preferredSources, SUPPORTED_SOURCES)) {
+            console.warn('Client Error: Unsupported preferred sources'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateInvalidCode('preferred_sources'),
@@ -50,6 +54,7 @@ const modifyUserPreferenceController = async (req: Request, res: Response) => {
         }
 
         if (newsLanguages && !Array.isArray(newsLanguages)) {
+            console.warn('Client Error: Invalid news languages format'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateInvalidCode('news_languages'),
@@ -58,6 +63,7 @@ const modifyUserPreferenceController = async (req: Request, res: Response) => {
             return;
         }
         if (newsLanguages && hasInvalidItems(newsLanguages, SUPPORTED_NEWS_LANGUAGES)) {
+            console.warn('Client Error: Unsupported news languages'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateInvalidCode('news_languages'),
@@ -67,41 +73,34 @@ const modifyUserPreferenceController = async (req: Request, res: Response) => {
         }
 
         const {userPreference, error} = await UserPreferenceService.modifyUserPreference({email, preferredLanguage, preferredCategories, preferredSources, summaryStyle, newsLanguages});
-        if (error === generateMissingCode('email')) {
-            console.error('Email is missing'.yellow.italic);
-            res.status(400).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to modify user preference';
+            let statusCode = 500;
+
+            if (error === generateMissingCode('email')) {
+                errorMsg = 'Email is missing';
+                statusCode = 400;
+            } else if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            } else if (error === 'MODIFY_USER_PREFERENCE_FAILED') {
+                errorMsg = 'Failed to modify user preference';
+                statusCode = 500;
+            } else if (error === generateNotFoundCode('user_preference')) {
+                errorMsg = 'User preference not found';
+                statusCode = 404;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateMissingCode('email'),
-                errorMsg: 'Email is missing',
-            }));
-            return;
-        }
-        if (error === generateNotFoundCode('user')) {
-            console.error('User not found'.yellow.italic);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
 
-        if (error === 'MODIFY_USER_PREFERENCE_FAILED') {
-            res.status(500).send(new ApiResponse({
-                success: false,
-                errorCode: 'MODIFY_USER_PREFERENCE_FAILED',
-                errorMsg: 'Failed to modify user preference',
-            }));
-            return;
-        }
-        if (error === generateNotFoundCode('user_preference')) {
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user_preference'),
-                errorMsg: 'User preference not found',
-            }));
-            return;
-        }
+        console.log('SUCCESS: User preference modified'.bgGreen.bold, {userEmail: email});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -109,49 +108,47 @@ const modifyUserPreferenceController = async (req: Request, res: Response) => {
             userPreference,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of modifyUserPreferenceController:'.red.bold, error);
+        console.error('Controller Error: modifyUserPreferenceController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during user preference modifications',
         }));
     }
 }
 
 const getUserPreferenceController = async (req: Request, res: Response) => {
-    console.log('getUserPreferenceController called');
+    console.info('Controller: getUserPreferenceController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
+        const email = (req as IAuthRequest).email;
 
         const {userPreference, error} = await UserPreferenceService.getUserPreference({email});
-        if (error === generateMissingCode('email')) {
-            console.error('Email is missing'.yellow.italic);
-            res.status(400).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to get user preference';
+            let statusCode = 500;
+
+            if (error === generateMissingCode('email')) {
+                errorMsg = 'Email is missing';
+                statusCode = 400;
+            } else if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            } else if (error === 'GET_USER_PREFERENCE_FAILED') {
+                errorMsg = 'Failed to get user preference';
+                statusCode = 500;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateMissingCode('email'),
-                errorMsg: 'Email is missing',
-            }));
-            return;
-        }
-        if (error === generateNotFoundCode('user')) {
-            console.error('User not found'.yellow.italic);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
 
-        if (error === 'GET_USER_PREFERENCE_FAILED') {
-            res.status(500).send(new ApiResponse({
-                success: false,
-                errorCode: 'GET_USER_PREFERENCE_FAILED',
-                errorMsg: 'Failed to get user preference',
-            }));
-            return;
-        }
+        console.log('SUCCESS: User preference fetched'.bgGreen.bold, {userEmail: email});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -159,56 +156,50 @@ const getUserPreferenceController = async (req: Request, res: Response) => {
             userPreference,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of getUserPreferenceController:'.red.bold, error);
+        console.error('Controller Error: getUserPreferenceController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during user preference retrieval',
         }));
     }
 }
 
 const resetUserPreferenceController = async (req: Request, res: Response) => {
-    console.log('resetUserPreferenceController called');
+    console.info('Controller: resetUserPreferenceController started'.bgBlue.white.bold);
+
     try {
-        const email = (req as AuthRequest).email;
+        const email = (req as IAuthRequest).email;
 
         const {isReset, error} = await UserPreferenceService.resetUserPreference({email});
-        if (error === generateMissingCode('email')) {
-            console.error('Email is missing'.yellow.italic);
-            res.status(400).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to reset user preference';
+            let statusCode = 500;
+
+            if (error === generateMissingCode('email')) {
+                errorMsg = 'Email is missing';
+                statusCode = 400;
+            } else if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            } else if (error === 'RESET_USER_PREFERENCE_FAILED') {
+                errorMsg = 'Failed to reset user preference';
+                statusCode = 500;
+            } else if (error === generateNotFoundCode('user_preference')) {
+                errorMsg = 'User preference not found';
+                statusCode = 404;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateMissingCode('email'),
-                errorMsg: 'Email is missing',
-            }));
-            return;
-        }
-        if (error === generateNotFoundCode('user')) {
-            console.error('User not found'.yellow.italic);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
 
-        if (error === 'RESET_USER_PREFERENCE_FAILED') {
-            res.status(500).send(new ApiResponse({
-                success: false,
-                errorCode: 'RESET_USER_PREFERENCE_FAILED',
-                errorMsg: 'Failed to reset user preference',
-            }));
-            return;
-        }
-        if (error === generateNotFoundCode('user_preference')) {
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user_preference'),
-                errorMsg: 'User preference not found',
-            }));
-            return;
-        }
+        console.log('SUCCESS: User preference reset'.bgGreen.bold, {userEmail: email, isReset});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -216,11 +207,11 @@ const resetUserPreferenceController = async (req: Request, res: Response) => {
             isReset,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of resetUserPreferenceController:'.red.bold, error);
+        console.error('Controller Error: resetUserPreferenceController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during user preference reset',
         }));
     }
 }

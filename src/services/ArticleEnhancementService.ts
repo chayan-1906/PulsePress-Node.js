@@ -1,76 +1,55 @@
 import "colors";
-import {genAI} from "./AIService";
+import {GoogleGenerativeAI} from "@google/generative-ai";
 import AuthService from "./AuthService";
-import NewsService from "./NewsService";
 import {AI_PROMPTS} from "../utils/prompts";
 import StrikeService from "./StrikeService";
-import {Article, EnhancementStatus} from "../types/news";
-import {AI_ENHANCEMENT_MODELS} from "../utils/constants";
+import {GEMINI_API_KEY} from "../config/config";
+import {IArticle, TEnhancementStatus} from "../types/news";
 import {generateArticleId} from "../utils/generateArticleId";
-import SentimentAnalysisService from "./SentimentAnalysisService";
+import {AI_ENHANCEMENT_MODELS, API_CONFIG} from "../utils/constants";
 import ReadingTimeAnalysisService from "./ReadingTimeAnalysisService";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
+import {mergeEnhancementsWithArticles} from "../utils/serviceHelpers/articleConverters";
+import {getSentimentColor, getSentimentEmoji} from "../utils/serviceHelpers/sentimentHelpers";
 import ArticleEnhancementModel, {IArticleEnhancement} from "../models/ArticleEnhancementSchema";
+import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 import {
-    CombinedAIDetailsParams,
-    CombinedAIParams,
-    CombinedAIResponse,
-    EnhanceArticlesInBackgroundParams,
-    GetEnhancementForArticlesParams,
-    GetEnhancementStatusByIdsParams,
-    GetEnhancementStatusByIdsResponse,
-    GetProcessingStatusParams,
-    GetProcessingStatusResponse,
-    MergeEnhancementsWithArticlesParams,
+    ICombinedAIParams,
+    ICombinedAIResponse,
+    IEnhanceArticlesParams,
+    IGetEnhancementForArticlesParams,
+    IGetEnhancementStatusByIdsParams,
+    IGetEnhancementStatusByIdsResponse,
+    IGetProcessingStatusParams,
+    IGetProcessingStatusResponse,
+    IMergeEnhancementsWithArticlesParams,
     SENTIMENT_TYPES,
 } from "../types/ai";
 
 class ArticleEnhancementService {
-    /**
-     * Clean up orphaned jobs that have been stuck in 'pending' status for too long
-     */
-    private static async cleanupOrphanedJobs(): Promise<void> {
-        try {
-            const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-            const result = await ArticleEnhancementModel.updateMany(
-                {
-                    processingStatus: 'pending',
-                    updatedAt: {$lt: tenMinutesAgo},
-                },
-                {
-                    processingStatus: 'failed',
-                    updatedAt: new Date(),
-                },
-            );
-
-            if (result.modifiedCount > 0) {
-                console.log(`🧹 Cleaned up ${result.modifiedCount} orphaned pending jobs`.yellow);
-            }
-        } catch (error: any) {
-            console.error('Failed to cleanup orphaned jobs:'.red, error.message);
-        }
-    }
+    static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
+    private static activeJobs = new Set<string>();
 
     /**
      * Combined AI enhancement method - smart tags, sentiment analysis, key points extractor, complexity meter, geographic entity locations
      */
-    private static async aiEnhanceArticle({content, tasks}: CombinedAIParams): Promise<CombinedAIResponse> {
-        console.log('Running combined AI enhancement:'.cyan.italic, tasks);
+    private static async aiEnhanceArticle({content, tasks}: ICombinedAIParams): Promise<ICombinedAIResponse> {
+        console.log('Service: ArticleEnhancementService.aiEnhanceArticle called'.cyan.italic, {tasks});
 
         if (!content || content.trim().length === 0) {
-            console.log('Empty content provided for AI enhancement'.yellow.italic);
+            console.warn('Service Warning: Empty content provided for AI enhancement'.yellow);
             return {error: generateMissingCode('content')};
         }
 
         // Truncate content to avoid token limits
-        const truncatedContent = content.substring(0, 4000);
+        const truncatedContent = truncateContentForAI(content, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
         for (let i = 0; i < AI_ENHANCEMENT_MODELS.length; i++) {
             const modelName = AI_ENHANCEMENT_MODELS[i];
             console.log(`Trying AI enhancement with model ${i + 1}/${AI_ENHANCEMENT_MODELS.length}:`.cyan, modelName);
 
             try {
-                const model = genAI.getGenerativeModel({model: modelName});
+                const model = this.genAI.getGenerativeModel({model: modelName});
 
                 // Build dynamic prompt based on requested tasks using the same prompt functions
                 let prompt = `Analyze this news article and provide the following information:\n\n`;
@@ -142,25 +121,12 @@ class ArticleEnhancementService {
 
                 console.log('Combined AI response:'.cyan, responseText);
 
-                if (responseText.startsWith('```json')) {
-                    responseText = responseText.substring(7);
-                }
-                if (responseText.startsWith('```')) {
-                    responseText = responseText.substring(3);
-                }
-                if (responseText.endsWith('```')) {
-                    responseText = responseText.substring(0, responseText.length - 3);
-                }
-                responseText = responseText.trim();
+                responseText = cleanJsonResponseMarkdown(responseText);
 
-                if (responseText !== result.response.text().trim()) {
-                    console.log('Stripped markdown, clean JSON:'.yellow, responseText);
-                }
+                const parsed: ICombinedAIResponse = JSON.parse(responseText);
+                console.log('parsed response:'.cyan, parsed);
 
-                const parsed: CombinedAIResponse = JSON.parse(responseText);
-                console.log('parsed response:'.cyan.italic, parsed);
-
-                const response: CombinedAIResponse = {};
+                const response: ICombinedAIResponse = {};
 
                 if (tasks.includes('tags') && parsed.tags) {
                     response.tags = parsed.tags;
@@ -171,8 +137,8 @@ class ArticleEnhancementService {
                         response.sentiment = {
                             type: parsed.sentiment.type,
                             confidence: parsed.sentiment.confidence || 0.5,
-                            emoji: SentimentAnalysisService.getSentimentEmoji(parsed.sentiment.type),
-                            color: SentimentAnalysisService.getSentimentColor(parsed.sentiment.type),
+                            emoji: getSentimentEmoji(parsed.sentiment.type),
+                            color: getSentimentColor(parsed.sentiment.type),
                         };
                     }
                 }
@@ -214,11 +180,11 @@ class ArticleEnhancementService {
                     };
                 }
 
-                console.log(`✅ AI enhancement successful with model:`.green, modelName);
-                console.log('Combined AI enhancement result:'.green, response);
-                return response;
+                console.log(`✅ AI enhancement successful with model:`.green.bold, modelName);
+                console.log('Combined AI enhancement result:'.green.bold, response);
+                return {...response, powered_by: modelName};
             } catch (error: any) {
-                console.log(`❌ Model failed:`.yellow.bold, modelName, 'Error:'.yellow.italic, error.message);
+                console.warn('Service Warning: AI model failed'.yellow, {model: modelName, error: error.message});
                 if (i === AI_ENHANCEMENT_MODELS.length - 1) {
                     console.error('🚨 All AI enhancement models failed'.red.bold);
                     return {error: 'AI_ENHANCEMENT_FAILED'};
@@ -226,229 +192,41 @@ class ArticleEnhancementService {
             }
         }
 
-        console.error('🚨 All AI enhancement models failed'.red.bold);
+        console.error('🚨Service Error: All AI enhancement models failed'.red.bold);
         return {error: 'AI_ENHANCEMENT_FAILED'};
     }
 
     /**
-     * Enhanced method for article details screen - includes all AI enhancements plus questions and news insights
+     * Process article enhancements with AI analysis (progressive)
      */
-    static async enhanceArticleForDetails({email, url}: CombinedAIDetailsParams) {
-        console.log('Enhanced article details processing started'.bgBlue.white.bold);
+    static async enhanceArticles({email, articles}: IEnhanceArticlesParams): Promise<void> {
+        console.log('Service: ArticleEnhancementService.enhanceArticles called'.cyan.italic, {email, articleCount: articles.length});
 
         if (email) {
             try {
                 const {user} = await AuthService.getUserByEmail({email});
                 const {isBlocked} = await StrikeService.checkUserBlock(email);
                 if (!user || isBlocked) {
-                    console.error('User not found or blocked - no AI enhancements'.yellow.italic);
-                    return {error: generateNotFoundCode('user')};
-                }
-            } catch (error: any) {
-                console.error('User verification failed, skipping enhancements'.red.bold);
-                return {error: generateNotFoundCode('user')};
-            }
-        }
-        // TODO: Probably need to remove the else
-        else {
-            console.log('No user email provided - no AI enhancements'.yellow.italic);
-            return {error: generateMissingCode('email')};
-        }
-
-        if (!url || !url.trim()) {
-            return {error: generateMissingCode('url')};
-        }
-
-        const articleId = generateArticleId({article: {url}});
-
-        console.log('Scraping article content:'.cyan.italic, url);
-        const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
-
-        if (!scrapedArticles || scrapedArticles.length === 0 || scrapedArticles[0].error) {
-            console.error('Failed to scrape article:'.red.bold, scrapedArticles?.[0]?.error);
-            return {error: 'SCRAPING_FAILED'};
-        }
-
-        const {url: articleUrl, title, content} = scrapedArticles[0];
-        const article = {url: articleUrl, title, content};
-
-        await this.cleanupOrphanedJobs();
-
-        const existingPendingJob = await ArticleEnhancementModel.findOne({
-            articleId,
-            processingStatus: 'pending',
-        });
-
-        if (existingPendingJob) {
-            console.log(`Article ${articleId} is already being processed`.yellow);
-            return {status: 'processing', articleId};
-        }
-
-        const existingEnhancedArticle: IArticleEnhancement | null = await ArticleEnhancementModel.findOne({articleId});
-
-        if (existingEnhancedArticle && existingEnhancedArticle.processingStatus === 'completed') {
-            const needsDetailsEnhancements = !existingEnhancedArticle.questions || !existingEnhancedArticle.newsInsights;
-            const {url, tags, sentiment: sentimentData, keyPoints, complexityMeter, locations, questions, newsInsights, complexity} = existingEnhancedArticle;
-
-            if (!needsDetailsEnhancements) {
-                console.log(`Article ${articleId} already fully enhanced for details`.green);
-                const enhancedArticleData = {articleId, url, tags, sentimentData, keyPoints, complexityMeter, locations, questions, newsInsights, complexity, enhanced: true};
-                return {article: enhancedArticleData, status: 'complete'};
-            }
-        }
-
-        setTimeout(async () => {
-            try {
-                console.log(`Processing details enhancements for article: ${articleId}`.cyan);
-
-                await ArticleEnhancementModel.findOneAndUpdate(
-                    {articleId},
-                    {articleId, url, processingStatus: 'pending'},
-                    {upsert: true},
-                );
-
-                const content = article.content || article.title || '';
-                const complexity = ReadingTimeAnalysisService.calculateReadingTimeComplexity({content});
-
-                const aiResult: CombinedAIResponse = await this.aiEnhanceArticle({
-                    content,
-                    tasks: ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'geoExtraction', 'questions', 'newsInsights'],
-                });
-
-                let tags = undefined;
-                let sentimentData = undefined;
-                let keyPoints = undefined;
-                let complexityMeter = undefined;
-                let locations = undefined;
-                let questions = undefined;
-                let newsInsights = undefined;
-
-                if (!aiResult.error) {
-                    tags = aiResult.tags;
-                    sentimentData = aiResult.sentiment;
-                    keyPoints = aiResult.keyPoints;
-                    complexityMeter = aiResult.complexityMeter;
-                    locations = aiResult.locations;
-                    questions = aiResult.questions;
-                    newsInsights = aiResult.newsInsights;
-                }
-
-                await ArticleEnhancementModel.findOneAndUpdate(
-                    {articleId},
-                    {
-                        tags,
-                        sentiment: sentimentData,
-                        keyPoints,
-                        complexityMeter,
-                        locations,
-                        questions,
-                        newsInsights,
-                        complexity,
-                        processingStatus: 'completed',
-                    }
-                );
-
-                console.log(`✅ Successfully enhanced article for details: ${articleId}`.green);
-            } catch (error: any) {
-                console.error(`Enhancement failed for article ${articleId}:`.red.bold, error.message);
-                await ArticleEnhancementModel.findOneAndUpdate(
-                    {articleId},
-                    {processingStatus: 'failed'},
-                ).catch((error: any) => {
-                    console.error('ERROR: couldn\'t update article enhancement in DB:'.red.bold, error);
-                });
-            }
-        }, 500);
-
-        if (existingEnhancedArticle) {
-            const enhancedArticleData = {
-                articleId,
-                url: existingEnhancedArticle.url,
-                title: article.title,
-                content: article.content,
-                tags: existingEnhancedArticle.tags,
-                sentimentData: existingEnhancedArticle.sentiment,
-                keyPoints: existingEnhancedArticle.keyPoints,
-                complexityMeter: existingEnhancedArticle.complexityMeter,
-                locations: existingEnhancedArticle.locations,
-                questions: existingEnhancedArticle.questions,
-                newsInsights: existingEnhancedArticle.newsInsights,
-                complexity: existingEnhancedArticle.complexity,
-                enhanced: existingEnhancedArticle.processingStatus === 'completed',
-            };
-            return {article: enhancedArticleData, status: 'processing'};
-        }
-
-        const basicArticleData = {
-            articleId,
-            url,
-            title: article.title,
-            content: article.content,
-            enhanced: false,
-        };
-
-        return {article: basicArticleData, status: 'processing'};
-    }
-
-    /*static isBackgroundProcessingActive(articles: Article[]): boolean {
-        const articleIds = articles.map(article => generateArticleId(article));
-        return articleIds.some(id => this.activeJobs.has(id));
-    }*/
-
-    static async getProcessingStatus({articles}: GetProcessingStatusParams): Promise<GetProcessingStatusResponse> {
-        const articleIds = articles.map((article: Article) => generateArticleId({article}));
-
-        // Check for pending jobs in database
-        const pendingJobs = await ArticleEnhancementModel.find({
-            articleId: {$in: articleIds},
-            processingStatus: 'pending'
-        });
-        const hasActiveJobs = pendingJobs.length > 0;
-
-        const enhancements: IArticleEnhancement[] = await ArticleEnhancementModel.find({
-            articleId: {$in: articleIds},
-        });
-
-        const completedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'completed').length;
-        const failedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'failed').length;
-        const processedCount = completedCount + failedCount;
-
-        const progress = articles.length > 0 ? Math.round((processedCount / articles.length) * 100) : 0;
-
-        if (hasActiveJobs || processedCount < articles.length) {
-            return {status: 'processing', progress};
-        } else {
-            return {status: 'complete', progress: 100};
-        }
-    }
-
-    static async enhanceArticlesInBackground({email, articles}: EnhanceArticlesInBackgroundParams): Promise<void> {
-        console.log(`Starting background enhancement for ${articles.length} articles`.cyan.italic);
-
-        if (email) {
-            try {
-                const {user} = await AuthService.getUserByEmail({email});
-                const {isBlocked} = await StrikeService.checkUserBlock(email);
-                if (!user || isBlocked) {
-                    console.error('User not found - no AI enhancements'.yellow.italic);
+                    console.warn('Service Warning: User not found - no AI enhancements'.yellow);
                     return;
                 }
             } catch (error: any) {
-                console.error('User verification failed, skipping enhancements'.red.bold);
+                console.error('Service Error: User verification failed'.red.bold, error);
                 return;
             }
         } else {
-            console.log('No user email provided - no AI enhancements'.yellow.italic);
+            console.warn('Service Warning: No user email provided - no AI enhancements'.yellow);
             return;
         }
 
-        // Database will track processing status for each article
+        const articleIds = articles.map((article: IArticle) => generateArticleId({article}));
+        articleIds.forEach((id: string) => this.activeJobs.add(id));
 
         setTimeout(async () => {
             for (const article of articles) {
                 try {
                     if (!article.url || !article.title) {
-                        console.log('Skipping article with missing URL or title'.yellow);
+                        console.warn('Service Warning: Skipping article with missing URL or title'.yellow);
                         continue;
                     }
 
@@ -456,7 +234,7 @@ class ArticleEnhancementService {
 
                     const existingEnhancedArticle: IArticleEnhancement | null = await ArticleEnhancementModel.findOne({articleId});
                     if (existingEnhancedArticle && existingEnhancedArticle.processingStatus === 'completed') {
-                        console.log(`Article ${articleId} already enhanced`.green);
+                        console.log(`Article ${articleId} already enhanced`.cyan);
                         continue;
                     }
 
@@ -471,9 +249,9 @@ class ArticleEnhancementService {
                     );
                     console.log(`Processing enhancements for article: ${articleId}`.cyan);
 
-                    const complexity = ReadingTimeAnalysisService.calculateReadingTimeComplexity({content: article.content || '', description: article.description || ''});
+                    const complexity = ReadingTimeAnalysisService.calculateReadingTimeComplexity({article});
 
-                    const aiResult: CombinedAIResponse = await this.aiEnhanceArticle({
+                    const aiResult: ICombinedAIResponse = await this.aiEnhanceArticle({
                         content: article.content || article.description || article.title || '',
                         tasks: ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'geoExtraction'],
                     });
@@ -510,7 +288,7 @@ class ArticleEnhancementService {
                             locations = aiResult.locations;
                         }
                     }
-                    console.log('aiResult:'.cyan.italic, aiResult);
+                    console.log('aiResult:'.cyan, aiResult);
 
                     const updatedEnhancedArticle = await ArticleEnhancementModel.findOneAndUpdate(
                         {articleId},
@@ -524,29 +302,34 @@ class ArticleEnhancementService {
                             processingStatus: 'completed',
                         },
                     );
-                    console.log(`Successfully enhanced article: ${articleId}`.green, updatedEnhancedArticle);
+                    console.log(`Successfully enhanced article: ${articleId}`.cyan, updatedEnhancedArticle);
                 } catch (error: any) {
                     const articleId = generateArticleId({article});
-                    console.error(`Enhancement failed for article ${articleId}:`.red.bold, error.message);
+                    console.error('Service Error: Article enhancement failed'.red.bold, {articleId, error: error.message});
 
                     await ArticleEnhancementModel.findOneAndUpdate(
                         {articleId},
                         {processingStatus: 'failed'},
                     ).catch((error: any) => {
-                        console.error('ERROR: couldn\'t update article enhancement in DB:'.red.bold, error);
+                        console.error('Service Error: ArticleEnhancementService database update failed'.red.bold, error);
                         // Silent fail for cleanup
                     });
                 }
             }
 
-            // Database status already updated for all articles
-            console.log('Background enhancement processing completed'.green.bold);
+            articleIds.forEach((id: string) => this.activeJobs.delete(id));
+            console.log('Enhancement processing completed'.green.bold);
         }, 500);
     }
 
-    static async getEnhancementsForArticles({articles}: GetEnhancementForArticlesParams): Promise<{ [articleId: string]: IArticleEnhancement }> {
+    /**
+     * Retrieve completed enhancements for given articles
+     */
+    static async getEnhancementsForArticles({articles}: IGetEnhancementForArticlesParams): Promise<{ [articleId: string]: IArticleEnhancement }> {
+        console.log('Service: ArticleEnhancementService.getEnhancementsForArticles called'.cyan.italic, {articleCount: articles.length});
+
         try {
-            const articleIds = articles.map((article: Article) => generateArticleId({article}));
+            const articleIds = articles.map((article: IArticle) => generateArticleId({article}));
 
             const completedEnhancements: IArticleEnhancement[] = await ArticleEnhancementModel.find({
                 articleId: {$in: articleIds},
@@ -558,12 +341,44 @@ class ArticleEnhancementService {
 
             return enhancementMap;
         } catch (error: any) {
-            console.error('Error fetching enhancements:'.red.bold, error.message);
+            console.error('Service Error: ArticleEnhancementService.getEnhancementsForArticles failed'.red.bold, error);
             return {};
         }
     }
 
-    static async getEnhancementStatusByIds({email, articleIds}: GetEnhancementStatusByIdsParams): Promise<GetEnhancementStatusByIdsResponse> {
+    /**
+     * Get processing status and progress for article enhancements
+     */
+    static async getProcessingStatus({articles}: IGetProcessingStatusParams): Promise<IGetProcessingStatusResponse> {
+        console.log('Service: ArticleEnhancementService.getProcessingStatus called'.cyan.italic, {articleCount: articles.length});
+
+        const articleIds = articles.map((article: IArticle) => generateArticleId({article}));
+
+        const hasActiveJobs = articleIds.some((id: string) => this.activeJobs.has(id));
+
+        const enhancements: IArticleEnhancement[] = await ArticleEnhancementModel.find({
+            articleId: {$in: articleIds},
+        });
+
+        const completedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'completed').length;
+        const failedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'failed').length;
+        const processedCount = completedCount + failedCount;
+
+        const progress = articles.length > 0 ? Math.round((processedCount / articles.length) * 100) : 0;
+
+        if (hasActiveJobs || processedCount < articles.length) {
+            return {status: 'processing', progress};
+        } else {
+            return {status: 'complete', progress: 100};
+        }
+    }
+
+    /**
+     * Get enhancement status and enhanced articles by article IDs
+     */
+    static async getEnhancementStatusByIds({email, articleIds}: IGetEnhancementStatusByIdsParams): Promise<IGetEnhancementStatusByIdsResponse> {
+        console.log('Service: ArticleEnhancementService.getEnhancementStatusByIds called'.cyan.italic, {email, articleCount: articleIds.length});
+
         try {
             if (email) {
                 const {user} = await AuthService.getUserByEmail({email});
@@ -571,19 +386,8 @@ class ArticleEnhancementService {
                     return {error: generateNotFoundCode('user')};
                 }
             }
-            // TODO: Probably need to remove the else, with fetchMultiSourceNewsEnhancementStatusController() 503, fetchArticleDetailsEnhancedController() 572
-            else {
-                console.log('No user email provided - no AI enhancements'.yellow.italic);
-                return {error: generateMissingCode('email')};
-            }
 
-            await this.cleanupOrphanedJobs();
-
-            const pendingJobs = await ArticleEnhancementModel.find({
-                articleId: {$in: articleIds},
-                processingStatus: 'pending',
-            });
-            const hasActiveJobs = pendingJobs.length > 0;
+            const hasActiveJobs = articleIds.some((id: string) => this.activeJobs.has(id));
 
             const enhancements: IArticleEnhancement[] = await ArticleEnhancementModel.find({
                 articleId: {$in: articleIds},
@@ -597,7 +401,7 @@ class ArticleEnhancementService {
 
             const articles = enhancements
                 .filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'completed')
-                .map(({articleId, url, tags, sentiment, complexity, complexityMeter, keyPoints, locations, questions, newsInsights}) => ({
+                .map(({articleId, url, tags, sentiment, complexity, complexityMeter, keyPoints, locations}) => ({
                     articleId,
                     url,
                     tags,
@@ -606,45 +410,26 @@ class ArticleEnhancementService {
                     complexityMeter,
                     keyPoints,
                     locations,
-                    questions,
-                    newsInsights,
                     enhanced: true,
                 }));
 
-            let status: EnhancementStatus = 'processing';
+            let status: TEnhancementStatus = 'processing';
             if (!hasActiveJobs && processedCount >= articleIds.length) {
                 status = 'complete';
             }
 
             return {status, progress, articles};
         } catch (error: any) {
-            console.error('ERROR: getting enhancement status by IDs:'.red.bold, error.message);
+            console.error('Service Error: ArticleEnhancementService.getEnhancementStatusByIds failed'.red.bold, error);
             return {status: 'failed', progress: 0, articles: []};
         }
     }
 
-    static mergeEnhancementsWithArticles({articles, enhancements}: MergeEnhancementsWithArticlesParams): Article[] {
-        return articles.map(article => {
-            const articleId = generateArticleId({article});
-            const enhancement = enhancements[articleId];
-
-            if (enhancement) {
-                return {
-                    ...article,
-                    tags: enhancement.tags,
-                    sentimentData: enhancement.sentiment,
-                    keyPoints: enhancement.keyPoints,
-                    complexityMeter: enhancement.complexityMeter,
-                    locations: enhancement.locations,
-                    questions: enhancement.questions,
-                    newsInsights: enhancement.newsInsights,
-                    complexity: enhancement.complexity,
-                    enhanced: true,
-                };
-            }
-
-            return {...article, enhanced: false};
-        });
+    /**
+     * Merge enhancement data with original articles
+     */
+    static mergeEnhancementsWithArticles({articles, enhancements}: IMergeEnhancementsWithArticlesParams): IArticle[] {
+        return mergeEnhancementsWithArticles(articles, enhancements);
     }
 }
 

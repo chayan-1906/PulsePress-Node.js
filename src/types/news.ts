@@ -1,14 +1,14 @@
-import {SentimentResult} from "./ai";
+import {TSentimentResult} from "./ai";
 import {COUNTRY_KEYWORDS, RSS_SOURCES, TOPIC_QUERIES} from "../utils/constants";
 
 export const SUPPORTED_CATEGORIES = ['business', 'entertainment', 'general', 'health', 'science', 'sports', 'technology', 'country'];
-export type SupportedCategory = typeof SUPPORTED_CATEGORIES[number];
+export type TSupportedCategory = typeof SUPPORTED_CATEGORIES[number];
 
 export const SUPPORTED_SOURCES: string[] = Object.values(RSS_SOURCES).flatMap(langSources => Object.keys(langSources));
-export type SupportedSource = string;
+export type TSupportedSource = string;
 
 export const SUPPORTED_NEWS_LANGUAGES = ['english', 'bengali', 'hindi', 'multilingual'];
-export type SupportedNewsLanguage = typeof SUPPORTED_NEWS_LANGUAGES[number];
+export type TSupportedNewsLanguage = typeof SUPPORTED_NEWS_LANGUAGES[number];
 
 export const VALID_NYTIMES_SECTIONS = [
     'home', 'arts', 'automobiles', 'books', 'business', 'fashion', 'food', 'health',
@@ -16,22 +16,22 @@ export const VALID_NYTIMES_SECTIONS = [
     'realestate', 'science', 'sports', 'sundayreview', 'technology', 'theater',
     't-magazine', 'travel', 'upshot', 'us', 'world'
 ];
-export type ValidNYTimesSection = typeof VALID_NYTIMES_SECTIONS[number];
+export type TValidNewYorkTimesSection = typeof VALID_NYTIMES_SECTIONS[number];
 
-export type Topic = keyof typeof TOPIC_QUERIES;
-export type Country = keyof typeof COUNTRY_KEYWORDS;
+export type TTopic = keyof typeof TOPIC_QUERIES;
+export type TCountry = keyof typeof COUNTRY_KEYWORDS;
 
 export const ARTICLE_COMPLEXITIES = ['easy', 'medium', 'hard'];
-export type ArticleComplexities = typeof ARTICLE_COMPLEXITIES[number];
+export type TArticleComplexities = typeof ARTICLE_COMPLEXITIES[number];
 
 export const PROCESSING_STATUSES = ['pending', 'completed', 'failed'];
-export type ProcessingStatus = typeof PROCESSING_STATUSES[number];
+export type TProcessingStatus = typeof PROCESSING_STATUSES[number];
 
 export const ENHANCEMENT_STATUSES = ['processing', 'complete', 'failed'];
-export type EnhancementStatus = typeof ENHANCEMENT_STATUSES[number];
+export type TEnhancementStatus = typeof ENHANCEMENT_STATUSES[number];
 
 
-export const sourceMap: Record<string, SupportedSource> = {
+export const sourceMap: Record<string, TSupportedSource> = {
     // english
     'techcrunch.com': 'techcrunch',
     'feeds.bbci.co.uk': 'bbc_tech',
@@ -68,21 +68,21 @@ export const sourceMap: Record<string, SupportedSource> = {
     'abplive.com': 'abp_live_hindi_home',
 };
 
-export interface QualityScore {
+export interface IQualityScore {
     score: number; // 0-1, higher is better
     reasons: string[];
     isRelevant: boolean;
     isProfessional: boolean;
 }
 
-interface SentimentData {
-    sentiment: SentimentResult;
+interface ISentimentData {
+    sentiment: TSentimentResult;
     confidence: number;
     emoji: string;
     color: string;
 }
 
-export interface Article {
+export interface IArticle {
     source: {
         id: string | null;
         name: string | null;
@@ -95,17 +95,17 @@ export interface Article {
     urlToImage: string | null;
     publishedAt: string | null;
     content: string | null;
-    qualityScore?: QualityScore;
-    sentimentData?: SentimentData;
+    qualityScore?: IQualityScore;
+    sentimentData?: ISentimentData;
     complexity?: {
-        level: ArticleComplexities;
+        level: TArticleComplexities;
         readingTimeMinutes: number;
         wordCount: number;
     };
     enhanced?: boolean;
 }
 
-export interface RSSFeed {
+export interface IRssFeed {
     source: {
         name: string | undefined;
         creator: string | undefined;
@@ -121,7 +121,7 @@ export interface RSSFeed {
     // isoDate: string;
 }
 
-export interface GuardianArticle {
+export interface IGuardianArticle {
     id: string;
     type: string;
     sectionId: string;
@@ -139,7 +139,7 @@ export interface GuardianArticle {
     };
 }
 
-export interface NYTimesArticle {
+export interface INewYorkTimesArticle {
     _id: string;
     web_url: string;
     snippet: string;
@@ -197,13 +197,13 @@ export interface NYTimesArticle {
 
 /** ------------- API response types ------------- */
 
-export interface NEWSORGTopHeadlinesAPIResponse {
+export interface INewsApiOrgTopHeadlinesAPIResponse {
     status: string;
     totalResults: number;
-    articles: Article[];
+    articles: IArticle[];
 }
 
-export interface GuardianResponse {
+export interface IGuardianResponse {
     response: {
         status: string;
         userTier: string;
@@ -212,15 +212,15 @@ export interface GuardianResponse {
         pageSize: number;
         currentPage: number;
         pages: number;
-        results: GuardianArticle[];
+        results: IGuardianArticle[];
     };
 }
 
-export interface NYTimesSearchResponse {
+export interface INewYorkTimesSearchResponse {
     status: string;
     copyright: string;
     response: {
-        docs: NYTimesArticle[];
+        docs: INewYorkTimesArticle[];
         metadata: {
             hits: number;
             offset: number;
@@ -229,7 +229,7 @@ export interface NYTimesSearchResponse {
     };
 }
 
-export interface NYTimesTopStoriesResponse {
+export interface INewYorkTimesTopStoriesResponse {
     status: string;
     copyright: string;
     section: string;
@@ -270,7 +270,7 @@ export interface NYTimesTopStoriesResponse {
 
 /** ------------- function params ------------- */
 
-export interface NEWSORGTopHeadlinesParams {
+export interface INewsApiOrgTopHeadlinesParams {
     country?: string;
     category?: string;
     sources?: string
@@ -279,7 +279,7 @@ export interface NEWSORGTopHeadlinesParams {
     page?: number;
 }
 
-export interface NEWSORGEverythingParams {
+export interface INewsApiOrgEverythingParams {
     sources?: string;
     from?: string;
     to?: string
@@ -290,7 +290,7 @@ export interface NEWSORGEverythingParams {
     page?: number;
 }
 
-export interface GuardianSearchParams {
+export interface IGuardianSearchParams {
     q?: string;
     section?: string;
     fromDate?: string;
@@ -300,7 +300,7 @@ export interface GuardianSearchParams {
     page?: number;
 }
 
-export interface NYTimesSearchParams {
+export interface INewYorkTimesSearchParams {
     q?: string;
     section?: string;
     sort?: string;
@@ -310,20 +310,27 @@ export interface NYTimesSearchParams {
     page?: number;
 }
 
-export interface NYTimesTopStoriesParams {
+export interface INewYorkTimesTopStoriesParams {
     section?: string;
 }
 
-export interface RSSFeedParams {
+export interface IRssFeedParams {
     q?: string;
     sources?: string;
-    languages?: SupportedNewsLanguage;
+    languages?: TSupportedNewsLanguage;
     pageSize?: number;
     page?: number;
 }
 
-export interface FetchMultisourceNewsParams {
-    email?: string;
+export interface ISmartFetchWithVariationsParams {
+    apiFunction: Function;
+    query: string;
+    params: any;
+    minQualityResults?: number;
+}
+
+export interface IMultisourceFetchNewsParams {
+    email?: string;  // for authMiddleware
     q?: string;
     category?: string;
     sources?: string;
@@ -331,31 +338,31 @@ export interface FetchMultisourceNewsParams {
     page?: number;
 }
 
-export interface FetchMultisourceNewsEnhancementStatusParams {
+export interface IFetchMultisourceNewsEnhancementStatusParams {
     articleIds: string;
 }
 
-export interface FetchArticleDetailsEnhancementStatusParams {
+export interface IFetchArticleDetailsEnhancementStatusParams {
     articleId: string;
 }
 
-export interface ScrapeWebsiteParams {
+export interface IScrapeWebsiteParams {
     url?: string;
 }
 
-export interface ScrapeMultipleWebsitesParams {
+export interface IScrapeMultipleWebsitesParams {
     urls?: string[];
 }
 
-export interface ExploreTopicParams {
-    email?: string;
-    country?: Country;
+export interface IExploreTopicParams {
+    email?: string;  // for authMiddleware
+    country?: TCountry;
     page?: number;
     pageSize?: number;
 }
 
-export interface GenerateArticleIdParams {
-    article?: Partial<Article>;
+export interface IGenerateArticleIdParams {
+    article?: Partial<IArticle>;
     title?: string;
     url?: string;
 }

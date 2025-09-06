@@ -1,19 +1,19 @@
 import "colors";
 import {Request, Response} from "express";
-import {AuthRequest} from "../types/auth";
+import {IAuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
 import BookmarkService from "../services/BookmarkService";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
-import {GetAllBookmarksParams, IsBookmarkedParams, SearchBookmarksParams, ToggleBookmarkParams} from "../types/bookmark";
+import {IGetAllBookmarksParams, IIsBookmarkedParams, ISearchBookmarksParams, IToggleBookmarkParams} from "../types/bookmark";
 
 const toggleBookmarkController = async (req: Request, res: Response) => {
-    console.info('toggleBookmarkController called'.bgMagenta.white.italic);
+    console.info('Controller: toggleBookmarkController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {articleUrl, title, source, description, imageUrl, publishedAt}: Partial<ToggleBookmarkParams> = req.body;
+        const email = (req as IAuthRequest).email;
+        const {articleUrl, title, source, description, imageUrl, publishedAt}: Partial<IToggleBookmarkParams> = req.body;
         if (!articleUrl) {
-            console.error('Article URL is missing'.yellow.italic);
+            console.warn('Client Error: Missing article URL parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateMissingCode('articleUrl'),
@@ -22,7 +22,7 @@ const toggleBookmarkController = async (req: Request, res: Response) => {
             return;
         }
         if (!title) {
-            console.error('Title is missing'.yellow.italic);
+            console.warn('Client Error: Missing title parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateMissingCode('title'),
@@ -31,7 +31,7 @@ const toggleBookmarkController = async (req: Request, res: Response) => {
             return;
         }
         if (!source) {
-            console.error('Source is missing'.yellow.italic);
+            console.warn('Client Error: Missing source parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateMissingCode('source'),
@@ -40,7 +40,7 @@ const toggleBookmarkController = async (req: Request, res: Response) => {
             return;
         }
         if (!publishedAt) {
-            console.error('PublishedAt is missing'.yellow.italic);
+            console.warn('Client Error: Missing publishedAt parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateMissingCode('published_at'),
@@ -50,27 +50,26 @@ const toggleBookmarkController = async (req: Request, res: Response) => {
         }
 
         const {bookmark, added, deleted, error} = await BookmarkService.toggleBookmark({email, articleUrl, title, source, description, imageUrl, publishedAt});
-        if (error === generateMissingCode('email')) {
-            console.error('Email is missing'.yellow.italic);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('email'),
-                errorMsg: 'Email is missing',
-            }));
-            return;
-        }
+
         if (error) {
-            console.error('Toggle bookmark failed'.yellow.italic);
-            res.status(500).send(new ApiResponse({
+            let errorMsg = 'Failed to add/remove bookmark';
+            let statusCode = 500;
+
+            if (error === generateMissingCode('email')) {
+                errorMsg = 'Email is missing';
+                statusCode = 400;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: 'TOGGLE_BOOKMARK_FAILED',
-                errorMsg: 'Failed to add/remove bookmark',
+                errorCode: error === generateMissingCode('email') ? error : 'TOGGLE_BOOKMARK_FAILED',
+                errorMsg,
             }));
             return;
         }
 
         if (added) {
-            // bookmarked
+            console.log('SUCCESS: Article bookmarked'.bgGreen.bold, {articleUrl});
             res.status(201).send(new ApiResponse({
                 success: true,
                 message: 'Article has been bookmarked 🎉',
@@ -79,7 +78,7 @@ const toggleBookmarkController = async (req: Request, res: Response) => {
             }));
             return;
         } else if (deleted) {
-            // bookmark deleted
+            console.log('SUCCESS: Article removed from bookmarks'.bgGreen.bold, {articleUrl});
             res.status(200).send(new ApiResponse({
                 success: true,
                 message: 'Article has been removed from bookmark 🎉',
@@ -96,23 +95,23 @@ const toggleBookmarkController = async (req: Request, res: Response) => {
             }));
         }
     } catch (error: any) {
-        console.error('ERROR: inside catch of toggleBookmarkController:'.red.bold, error);
+        console.error('Controller Error: toggleBookmarkController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during bookmark toggle',
         }));
     }
 }
 
 const isBookmarkedController = async (req: Request, res: Response) => {
-    console.log('isBookmarkedController called'.bgMagenta.white.italic);
+    console.info('Controller: isBookmarkedController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {articleUrl}: Partial<IsBookmarkedParams> = req.query;
+        const email = (req as IAuthRequest).email;
+        const {articleUrl}: Partial<IIsBookmarkedParams> = req.query;
         if (!articleUrl) {
-            console.error('Article URL is missing'.yellow.italic);
+            console.warn('Client Error: Missing article URL parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: generateMissingCode('articleUrl'),
@@ -122,25 +121,27 @@ const isBookmarkedController = async (req: Request, res: Response) => {
         }
 
         const {isBookmarked, error} = await BookmarkService.getBookmarkStatus({email, articleUrl});
-        if (error === generateMissingCode('email')) {
-            console.error('Email is missing'.yellow.italic);
-            res.status(400).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to get bookmark status';
+            let statusCode = 500;
+
+            if (error === generateMissingCode('email')) {
+                errorMsg = 'Email is missing';
+                statusCode = 400;
+            } else if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateMissingCode('email'),
-                errorMsg: 'Email is missing',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
-        if (error === generateNotFoundCode('user')) {
-            console.error('User not found'.yellow.italic);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
-        console.log('isBookmarked:'.cyan.italic, isBookmarked);
+        console.log('SUCCESS: Bookmark status fetched'.bgGreen.bold, {isBookmarked});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -148,21 +149,21 @@ const isBookmarkedController = async (req: Request, res: Response) => {
             isBookmarked,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of isBookmarkedController:'.red.bold, error);
+        console.error('Controller Error: isBookmarkedController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during bookmark status retrieval',
         }));
     }
 }
 
 const getAllBookmarksController = async (req: Request, res: Response) => {
-    console.log('getAllBookmarksController called'.bgMagenta.white.italic);
+    console.info('Controller: getAllBookmarksController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {pageSize, page}: Partial<GetAllBookmarksParams> = req.query;
+        const email = (req as IAuthRequest).email;
+        const {pageSize, page}: Partial<IGetAllBookmarksParams> = req.query;
 
         let pageSizeNumber, pageNumber;
         if (pageSize && !isNaN(pageSize)) {
@@ -173,70 +174,74 @@ const getAllBookmarksController = async (req: Request, res: Response) => {
         }
 
         const {bookmarkedArticles, totalCount, currentPage, totalPages, error} = await BookmarkService.getAllBookmarks({email, pageSize: pageSizeNumber, page: pageNumber});
-        if (error === generateMissingCode('email')) {
-            console.error('Email is missing'.yellow.italic);
-            res.status(400).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to get all bookmarks';
+            let statusCode = 500;
+
+            if (error === generateMissingCode('email')) {
+                errorMsg = 'Email is missing';
+                statusCode = 400;
+            } else if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateMissingCode('email'),
-                errorMsg: 'Email is missing',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
-        if (error === generateNotFoundCode('user')) {
-            console.error('User not found'.yellow.italic);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
-        console.log('bookmarkedArticles:'.cyan.italic, bookmarkedArticles);
+        console.log('SUCCESS: Bookmarked articles fetched'.bgGreen.bold, {totalCount});
 
         res.status(200).send(new ApiResponse({
             success: true,
-            message: 'Bookmarked articles has been fetched 🎉',
+            message: 'Bookmarked articles have been fetched 🎉',
             bookmarks: bookmarkedArticles,
             totalCount,
             currentPage,
             totalPages,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of getAllBookmarksController:'.red.bold, error);
+        console.error('Controller Error: getAllBookmarksController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during bookmark retrieval',
         }));
     }
 }
 
 const getBookmarkCountController = async (req: Request, res: Response) => {
-    console.log('getBookmarkCountController called'.bgMagenta.white.italic);
+    console.info('Controller: getBookmarkCountController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
+        const email = (req as IAuthRequest).email;
 
         const {count, error} = await BookmarkService.getBookmarkCount({email});
-        if (error === generateMissingCode('email')) {
-            console.error('Email is missing'.yellow.italic);
-            res.status(400).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to get bookmark count';
+            let statusCode = 500;
+
+            if (error === generateMissingCode('email')) {
+                errorMsg = 'Email is missing';
+                statusCode = 400;
+            } else if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateMissingCode('email'),
-                errorMsg: 'Email is missing',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
-        if (error === generateNotFoundCode('user')) {
-            console.error('User not found'.yellow.italic);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
-        console.log('bookmark count:'.cyan.italic, count);
+        console.log('SUCCESS: Bookmark count fetched'.bgGreen.bold, {count});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -244,21 +249,21 @@ const getBookmarkCountController = async (req: Request, res: Response) => {
             bookmarkCount: count,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of getBookmarkCountController:'.red.bold, error);
+        console.error('Controller Error: getBookmarkCountController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during bookmark count retrieval',
         }));
     }
 }
 
 const searchBookmarksController = async (req: Request, res: Response) => {
-    console.info('searchBookmarksController called'.bgMagenta.white.italic);
+    console.info('Controller: searchBookmarksController started'.bgBlue.white.bold);
 
     try {
-        const email = (req as AuthRequest).email;
-        const {q, sources, sortBy, sortOrder, pageSize, page}: Partial<SearchBookmarksParams> = req.query;
+        const email = (req as IAuthRequest).email;
+        const {q, sources, sortBy, sortOrder, pageSize, page}: Partial<ISearchBookmarksParams> = req.query;
 
         let pageSizeNumber, pageNumber;
         if (pageSize && !isNaN(pageSize)) {
@@ -269,25 +274,27 @@ const searchBookmarksController = async (req: Request, res: Response) => {
         }
 
         const {bookmarks, totalCount, currentPage, totalPages, error} = await BookmarkService.searchBookmarks({email, q, sources, sortBy, sortOrder, pageSize: pageSizeNumber, page: pageNumber});
-        if (error === generateMissingCode('email')) {
-            console.error('Email is missing'.yellow.italic);
-            res.status(400).send(new ApiResponse({
+
+        if (error) {
+            let errorMsg = 'Failed to search bookmarks';
+            let statusCode = 500;
+
+            if (error === generateMissingCode('email')) {
+                errorMsg = 'Email is missing';
+                statusCode = 400;
+            } else if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateMissingCode('email'),
-                errorMsg: 'Email is missing',
+                errorCode: error,
+                errorMsg,
             }));
             return;
         }
-        if (error === generateNotFoundCode('user')) {
-            console.error('User not found'.yellow.italic);
-            res.status(404).send(new ApiResponse({
-                success: false,
-                errorCode: generateNotFoundCode('user'),
-                errorMsg: 'User not found',
-            }));
-            return;
-        }
-        console.log('searched articles count:'.cyan.italic, totalCount);
+        console.log('SUCCESS: Bookmark search completed'.bgGreen.bold, {totalCount});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -298,11 +305,11 @@ const searchBookmarksController = async (req: Request, res: Response) => {
             totalPages,
         }));
     } catch (error: any) {
-        console.error('ERROR: inside catch of searchBookmarksController:'.red.bold, error);
+        console.error('Controller Error: searchBookmarksController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: 'Something went wrong',
+            errorMsg: error.message || 'Something went wrong during bookmark search',
         }));
     }
 }

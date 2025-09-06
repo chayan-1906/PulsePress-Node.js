@@ -1,62 +1,77 @@
 import "colors";
-import {genAI} from "./AIService";
-import {Article} from "../types/news";
+import {GoogleGenerativeAI} from "@google/generative-ai";
+import {IArticle} from "../types/news";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
-import {AI_SENTIMENT_ANALYSIS_MODELS} from "../utils/constants";
 import {generateMissingCode} from "../utils/generateErrorCodes";
-import {AISentiment, EnrichedArticleWithSentiment, SENTIMENT_TYPES, SentimentAnalysisParams, SentimentAnalysisResponse, SentimentResult} from "../types/ai";
+import {AI_SENTIMENT_ANALYSIS_MODELS, API_CONFIG} from "../utils/constants";
+import {getSentimentColor, getSentimentEmoji} from "../utils/serviceHelpers/sentimentHelpers";
+import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
+import {
+    IAISentiment,
+    IEnrichArticlesWithSentimentParams,
+    IEnrichArticleWithSentimentParams,
+    IEnrichedArticleWithSentiment,
+    ISentimentAnalysisParams,
+    ISentimentAnalysisResponse,
+    SENTIMENT_TYPES,
+    TSentimentResult,
+} from "../types/ai";
 
 class SentimentAnalysisService {
+    static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
+
     /**
      * Analyzes the sentiment of news article content using Gemini AI
      */
-    static async analyzeSentiment({content}: SentimentAnalysisParams): Promise<SentimentAnalysisResponse> {
-        console.log('Analyzing sentiment for content...'.cyan.italic);
+    static async analyzeSentiment({content}: ISentimentAnalysisParams): Promise<ISentimentAnalysisResponse> {
+        console.log('Service: SentimentAnalysisService.analyzeSentiment called'.cyan.italic, {content});
 
         if (!content || content.trim().length === 0) {
-            console.log('Empty content provided for sentiment analysis'.yellow.italic);
+            console.warn('Client Error: Empty content provided for sentiment analysis'.yellow);
             return {error: generateMissingCode('content')};
         }
 
         // Truncate content to avoid token limits
-        const truncatedContent = content.substring(0, 4000);
+        const truncatedContent = truncateContentForAI(content, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
         for (let i = 0; i < AI_SENTIMENT_ANALYSIS_MODELS.length; i++) {
             const model = AI_SENTIMENT_ANALYSIS_MODELS[i];
             console.log(`Trying sentiment analysis with model ${i + 1}/${AI_SENTIMENT_ANALYSIS_MODELS.length}:`.cyan, model);
 
             try {
-                let result: SentimentAnalysisResponse;
+                let result: ISentimentAnalysisResponse;
                 result = await this.analyzeWithGemini(model, truncatedContent);
 
                 if (result.sentiment && result.confidence) {
-                    console.log(`✅ Sentiment analysis successful with model:`.green, model);
-                    console.log('Sentiment analysis result:'.green, {sentiment: result.sentiment, confidence: result.confidence});
+                    console.log(`Sentiment analysis successful with model:`.cyan, model);
+                    console.log('Sentiment analysis completed successfully'.green.bold, {sentiment: result.sentiment, confidence: result.confidence});
 
-                    return result;
+                    return {...result, powered_by: model};
                 }
 
-                console.log(`❌ Model failed:`.yellow.bold, model, 'Error:'.yellow.italic, result.error);
+                console.error(`Service Error: Model failed:`.red.bold, model, 'Error:', result.error);
             } catch (error: any) {
-                console.log(`❌ Model failed:`.yellow.bold, model, 'Error:'.yellow.italic, error.message);
+                console.error(`Service Error: Model failed:`.red.bold, model, 'Error:', error.message);
             }
         }
 
-        console.error('🚨 All sentiment analysis models failed'.red.bold);
+        console.error('Service Error: All sentiment analysis models failed'.red.bold);
         return {error: 'SENTIMENT_ANALYSIS_FAILED'};
     }
 
     /**
      * Analyze sentiment using Gemini AI
      */
-    private static async analyzeWithGemini(modelName: string, content: string): Promise<SentimentAnalysisResponse> {
+    private static async analyzeWithGemini(modelName: string, content: string): Promise<ISentimentAnalysisResponse> {
+        console.log('Service: SentimentAnalysisService.analyzeWithGemini called'.cyan.italic, {modelName, content});
+
         if (!GEMINI_API_KEY) {
-            console.error('Gemini API key not configured'.red.bold);
+            console.warn('Config Warning: Gemini API key not configured'.yellow.italic);
             return {error: generateMissingCode('gemini_api_key')};
         }
 
-        const model = genAI.getGenerativeModel({model: modelName});
+        const model = this.genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.SENTIMENT_ANALYSIS(content);
 
@@ -65,70 +80,27 @@ class SentimentAnalysisService {
 
         console.log('Gemini sentiment analysis response:'.cyan, responseText);
 
-        if (responseText.startsWith('```json')) {
-            responseText = responseText.substring(7);
-        }
-        if (responseText.startsWith('```')) {
-            responseText = responseText.substring(3);
-        }
-        if (responseText.endsWith('```')) {
-            responseText = responseText.substring(0, responseText.length - 3);
-        }
-        responseText = responseText.trim();
+        responseText = cleanJsonResponseMarkdown(responseText);
 
-        if (responseText !== result.response.text().trim()) {
-            console.log('Stripped markdown, clean JSON:'.yellow, responseText);
-        }
-
-        const parsed: AISentiment = JSON.parse(responseText);
+        const parsed: IAISentiment = JSON.parse(responseText);
 
         if (!parsed.sentiment || !SENTIMENT_TYPES.includes(parsed.sentiment)) {
-            console.error('Invalid sentiment value in response:'.red, parsed.sentiment);
+            console.error('Service Error: Invalid sentiment value in response:'.red.bold, parsed.sentiment);
             return {error: 'SENTIMENT_PARSE_ERROR'};
         }
 
-        const sentiment = parsed.sentiment as SentimentResult;
+        const sentiment = parsed.sentiment as TSentimentResult;
         const confidence = typeof parsed.confidence === 'number' ? parsed.confidence : 0.5;
 
         return {sentiment, confidence};
     }
 
     /**
-     * Get emoji representation for sentiment
-     */
-    static getSentimentEmoji(sentiment: SentimentResult): string {
-        switch (sentiment) {
-            case 'positive':
-                return '😊';
-            case 'negative':
-                return '😔';
-            case 'neutral':
-                return '😐';
-            default:
-                return '❓';
-        }
-    }
-
-    /**
-     * Get color indicator for sentiment (for UI styling)
-     */
-    static getSentimentColor(sentiment: SentimentResult): string {
-        switch (sentiment) {
-            case 'positive':
-                return 'green';
-            case 'negative':
-                return 'red';
-            case 'neutral':
-                return 'gray';
-            default:
-                return 'gray';
-        }
-    }
-
-    /**
      * Analyze sentiment for an individual article and add sentiment data
      */
-    private static async enrichArticleWithSentiment(article: any, shouldAnalyze: boolean = true): Promise<EnrichedArticleWithSentiment> {
+    private static async enrichArticleWithSentiment({article, shouldAnalyze = true}: IEnrichArticleWithSentimentParams): Promise<IEnrichedArticleWithSentiment> {
+        console.log('Service: SentimentAnalysisService.enrichArticleWithSentiment called'.cyan.italic, {article, shouldAnalyze});
+
         if (!shouldAnalyze) {
             return article;
         }
@@ -143,7 +115,7 @@ class SentimentAnalysisService {
             const {sentiment, confidence, error} = await this.analyzeSentiment({content: contentForAnalysis});
 
             if (error || !sentiment) {
-                console.log('Sentiment analysis failed for article, returning without sentiment:'.yellow.italic, error);
+                console.warn('Service Warning: Sentiment analysis failed for article, returning without sentiment:'.yellow, error);
                 return article;
             }
 
@@ -152,12 +124,12 @@ class SentimentAnalysisService {
                 sentimentData: {
                     sentiment,
                     confidence,
-                    emoji: this.getSentimentEmoji(sentiment),
-                    color: this.getSentimentColor(sentiment),
+                    emoji: getSentimentEmoji(sentiment),
+                    color: getSentimentColor(sentiment),
                 },
             };
         } catch (error: any) {
-            console.error('Error enriching article with sentiment:'.yellow.italic, error.message);
+            console.error('Service Error: Error enriching article with sentiment:'.red.bold, error.message);
             return article;
         }
     }
@@ -165,19 +137,21 @@ class SentimentAnalysisService {
     /**
      * Analyze sentiment for multiple articles in batches
      */
-    static async enrichArticlesWithSentiment(articles: any[], shouldAnalyze: boolean = true): Promise<Article[]> {
+    static async enrichArticlesWithSentiment({articles, shouldAnalyze = true}: IEnrichArticlesWithSentimentParams): Promise<IArticle[]> {
+        console.log('Service: SentimentAnalysisService.getSentimentColor called'.cyan.italic, {articles, shouldAnalyze});
+
         if (!shouldAnalyze || !articles?.length) {
             return articles;
         }
 
-        console.log(`Enriching ${articles.length} articles with sentiment analysis...`.cyan.italic);
+        console.log('Service: SentimentAnalysisService.enrichArticlesWithSentiment called'.cyan.italic);
 
         const enrichedArticles = [];
         const batchSize = 5;
 
         for (let i = 0; i < articles.length; i += batchSize) {
             const batch = articles.slice(i, i + batchSize);
-            const batchPromises = batch.map(article => this.enrichArticleWithSentiment(article, true));
+            const batchPromises = batch.map(article => this.enrichArticleWithSentiment({article, shouldAnalyze: true}));
 
             try {
                 const batchResults = await Promise.all(batchPromises);
@@ -188,12 +162,12 @@ class SentimentAnalysisService {
                     await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
                 }
             } catch (error: any) {
-                console.error('Error processing sentiment batch:'.red.bold, error.message);
+                console.error('Service Error: Error processing sentiment batch:'.red.bold, error.message);
                 enrichedArticles.push(...batch);
             }
         }
 
-        console.log(`Sentiment enrichment completed for ${enrichedArticles.length} articles`.green);
+        console.log('Sentiment enrichment for articles completed successfully'.green.bold, {totalArticles: enrichedArticles.length});
         return enrichedArticles;
     }
 }
