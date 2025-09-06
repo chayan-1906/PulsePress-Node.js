@@ -61,7 +61,7 @@ class NewsService {
     /**
      * Fetch top headlines from NewsAPI.org with caching
      */
-    static async fetchNewsApiOrgTopHeadlines({country, category, sources, q, pageSize = 10, page = 1}: INewsApiOrgTopHeadlinesParams) {
+    static async fetchNewsApiOrgTopHeadlines({country, category, sources, q, pageSize = 5, page = 1}: INewsApiOrgTopHeadlinesParams) {
         console.log('Service: NewsService.fetchNewsApiOrgTopHeadlines called'.cyan.italic, {country, category, sources, q, pageSize, page});
 
         try {
@@ -114,7 +114,7 @@ class NewsService {
     /**
      * Fetch everything articles from NewsAPI.org with caching
      */
-    static async fetchNewsApiOrgEverything({sources, from, to, sortBy, language, q, pageSize = 10, page = 1}: INewsApiOrgEverythingParams) {
+    static async fetchNewsApiOrgEverything({sources, from, to, sortBy, language, q, pageSize = 5, page = 1}: INewsApiOrgEverythingParams) {
         console.log('Service: NewsService.fetchNewsApiOrgEverything called'.cyan.italic, {sources, from, to, sortBy, language, q, pageSize, page});
 
         try {
@@ -168,7 +168,7 @@ class NewsService {
     /**
      * Fetch news from Guardian API with caching
      */
-    static async fetchGuardianNews({q, section, fromDate, toDate, orderBy = 'newest', pageSize = 10, page = 1}: IGuardianSearchParams) {
+    static async fetchGuardianNews({q, section, fromDate, toDate, orderBy = 'newest', pageSize = 5, page = 1}: IGuardianSearchParams) {
         console.log('Service: NewsService.fetchGuardianNews called'.cyan.italic, {q, section, fromDate, toDate, orderBy, pageSize, page});
 
         try {
@@ -227,7 +227,7 @@ class NewsService {
     /**
      * Fetch news from NY Times search API with caching
      */
-    static async fetchNewYorkTimesNews({q, section, sort = 'newest', fromDate, toDate, pageSize = 10, page = 1}: INewYorkTimesSearchParams) {
+    static async fetchNewYorkTimesNews({q, section, sort = 'newest', fromDate, toDate, pageSize = 5, page = 1}: INewYorkTimesSearchParams) {
         console.log('Service: NewsService.fetchNewYorkTimesNews called'.cyan.italic, {q, section, sort, fromDate, toDate, pageSize, page});
 
         try {
@@ -360,7 +360,7 @@ class NewsService {
     /**
      * Fetch and search RSS feeds from multiple sources with fuzzy matching
      */
-    static async fetchAllRssFeeds({q, sources, languages = 'english', pageSize = 10, page = 1}: IRssFeedParams) {
+    static async fetchAllRssFeeds({q, sources, languages = 'english', pageSize = 5, page = 1}: IRssFeedParams) {
         console.log('Service: NewsService.fetchAllRssFeeds called'.cyan.italic, {q, sources, languages, pageSize, page});
 
         try {
@@ -530,7 +530,7 @@ class NewsService {
     /**
      * Fetch news from multiple sources with quality scoring and sentiment analysis
      */
-    static async fetchMultiSourceNews({email, q, category, sources, pageSize = 10, page = 1}: IMultisourceFetchNewsParams) {
+    static async fetchMultiSourceNews({email, q, category, sources, pageSize = 5, page = 1}: IMultisourceFetchNewsParams) {
         console.log('Service: fetchMultiSourceNews called'.cyan.italic, {q, category, sources, pageSize, page});
 
         const topic = determineTopicFromQuery(q, category);
@@ -905,7 +905,7 @@ class NewsService {
     /**
      * Fast multi-source news fetch with parallel API calls and simple deduplication
      */
-    private static async fetchMultiSourceNewsFast({email, q, category, sources, pageSize = 10, page = 1}: IMultisourceFetchNewsParams) {
+    private static async fetchMultiSourceNewsFast({email, q, category, sources, pageSize = 5, page = 1}: IMultisourceFetchNewsParams) {
         console.log('Service: fetchMultiSourceNewsFast called'.cyan.italic, {q, category, sources, pageSize, page});
 
         const startTime = Date.now();
@@ -1111,7 +1111,7 @@ class NewsService {
     /**
      * Enhanced multi-source news fetch with AI enhancements and progressive loading
      */
-    static async fetchMultiSourceNewsEnhanced({email, q, category, sources, pageSize = 10, page = 1}: IMultisourceFetchNewsParams) {
+    static async fetchMultiSourceNewsEnhanced({email, q, category, sources, pageSize = 5, page = 1}: IMultisourceFetchNewsParams) {
         console.log('Service: fetchMultiSourceNewsEnhanced called'.cyan.italic, {q, category, sources, pageSize, page});
 
         const startTime = Date.now();

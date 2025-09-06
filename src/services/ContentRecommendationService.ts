@@ -26,7 +26,7 @@ const CATEGORY_MAPPING: { [key: string]: { guardian?: string, nytimes?: string }
     'country': {guardian: 'world', nytimes: 'world'},
 };
 
-const getContentRecommendation = async ({email, pageSize = 10}: IGetContentRecommendationsParams): Promise<IGetContentRecommendationsResponse> => {
+const getContentRecommendation = async ({email, pageSize = 5}: IGetContentRecommendationsParams): Promise<IGetContentRecommendationsResponse> => {
     try {
         if (!email) {
             return {error: generateMissingCode('email')};
