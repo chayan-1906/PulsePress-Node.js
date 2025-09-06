@@ -131,11 +131,12 @@ const RSS_SOURCES = {
 };
 
 export const AI_SUMMARIZATION_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite-preview-06-17',
-    'gemini-1.5-flash',
+    'gemini-2.5-flash-lite',                // 1,000 RPD | 15 RPM | 250K TPM - ⭐ PRIMARY (10x quota vs Pro)
+    'gemini-2.5-flash',                     // 250 RPD | 10 RPM | 250K TPM - FALLBACK #1
+    'gemini-2.0-flash',                     // 200 RPD | 15 RPM | 1M TPM - FALLBACK #2  
+    'gemini-2.0-flash-lite',                // 200 RPD | 30 RPM | 1M TPM - FALLBACK #3 (fastest RPM)
+    // 'gemini-2.5-flash-lite-preview-06-17',  // NO FREE TIER - Will cause billing!
+    'gemini-1.5-flash',                     // Legacy model - Keep as final fallback
 
     // HuggingFace fallbacks (reliable and tested models)
     // 'huggingface:sshleifer/distilbart-cnn-12-6',
@@ -144,75 +145,75 @@ export const AI_SUMMARIZATION_MODELS = [
 ];
 
 export const AI_TAG_GENERATION_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite-preview-06-17',
-    'gemini-1.5-flash',
+    'gemini-2.5-flash-lite',  // 1,000 RPD - Primary choice for tag generation
+    'gemini-2.5-flash',       // 250 RPD - Fallback #1
+    'gemini-2.0-flash',       // 200 RPD - Fallback #2  
+    'gemini-2.0-flash-lite',  // 200 RPD - Fallback #3
+    'gemini-1.5-flash',       // Legacy fallback
 ];
 
 export const AI_SENTIMENT_ANALYSIS_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite-preview-06-17',
-    'gemini-1.5-flash',
+    'gemini-2.5-flash-lite',  // 1,000 RPD - Primary for sentiment analysis
+    'gemini-2.5-flash',       // 250 RPD - Fallback #1
+    'gemini-2.0-flash',       // 200 RPD - Fallback #2
+    'gemini-2.0-flash-lite',  // 200 RPD - Fallback #3
+    'gemini-1.5-flash',       // Legacy fallback
 ];
 
 export const AI_KEY_POINTS_EXTRACTOR_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite-preview-06-17',
-    'gemini-1.5-flash',
+    'gemini-2.5-flash-lite',  // 1,000 RPD - Primary for key point extraction
+    'gemini-2.5-flash',       // 250 RPD - Fallback #1
+    'gemini-2.0-flash',       // 200 RPD - Fallback #2
+    'gemini-2.0-flash-lite',  // 200 RPD - Fallback #3
+    'gemini-1.5-flash',       // Legacy fallback
 ];
 
 export const AI_COMPLEXITY_METER__MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite-preview-06-17',
-    'gemini-1.5-flash',
+    'gemini-2.5-flash-lite',  // 1,000 RPD - Primary for complexity analysis
+    'gemini-2.5-flash',       // 250 RPD - Fallback #1
+    'gemini-2.0-flash',       // 200 RPD - Fallback #2
+    'gemini-2.0-flash-lite',  // 200 RPD - Fallback #3
+    'gemini-1.5-flash',       // Legacy fallback
 ];
 
 export const QUESTION_ANSWER_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite-preview-06-17',
-    'gemini-1.5-flash',
+    'gemini-2.5-flash-lite',  // 1,000 RPD - Primary for Q&A
+    'gemini-2.5-flash',       // 250 RPD - Fallback #1
+    'gemini-2.0-flash',       // 200 RPD - Fallback #2
+    'gemini-2.0-flash-lite',  // 200 RPD - Fallback #3
+    'gemini-1.5-flash',       // Legacy fallback
 ];
 
 export const AI_GEOGRAPHIC_EXTRACTION_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite-preview-06-17',
-    'gemini-1.5-flash',
+    'gemini-2.5-flash-lite',  // 1,000 RPD - Primary for geo extraction
+    'gemini-2.5-flash',       // 250 RPD - Fallback #1
+    'gemini-2.0-flash',       // 200 RPD - Fallback #2
+    'gemini-2.0-flash-lite',  // 200 RPD - Fallback #3
+    'gemini-1.5-flash',       // Legacy fallback
 ];
 
 export const AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite-preview-06-17',
-    'gemini-1.5-flash',
+    'gemini-2.5-flash-lite',  // 1,000 RPD - Primary for caption generation
+    'gemini-2.5-flash',       // 250 RPD - Fallback #1
+    'gemini-2.0-flash',       // 200 RPD - Fallback #2
+    'gemini-2.0-flash-lite',  // 200 RPD - Fallback #3
+    'gemini-1.5-flash',       // Legacy fallback
 ];
 
 export const AI_NEWS_INSIGHTS_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite-preview-06-17',
-    'gemini-1.5-flash',
+    'gemini-2.5-flash-lite',  // 1,000 RPD - Primary for news insights
+    'gemini-2.5-flash',       // 250 RPD - Fallback #1
+    'gemini-2.0-flash',       // 200 RPD - Fallback #2
+    'gemini-2.0-flash-lite',  // 200 RPD - Fallback #3
+    'gemini-1.5-flash',       // Legacy fallback
 ];
 
 export const AI_ENHANCEMENT_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite-preview-06-17',
-    'gemini-1.5-flash',
+    'gemini-2.5-flash-lite',  // 1,000 RPD - Primary for article enhancement
+    'gemini-2.5-flash',       // 250 RPD - Fallback #1
+    'gemini-2.0-flash',       // 200 RPD - Fallback #2
+    'gemini-2.0-flash-lite',  // 200 RPD - Fallback #3
+    'gemini-1.5-flash',       // Legacy fallback
 ];
 
 const USER_AGENTS = [
