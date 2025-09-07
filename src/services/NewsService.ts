@@ -5,6 +5,7 @@ import {JSDOM, VirtualConsole} from 'jsdom';
 import {Readability} from "@mozilla/readability";
 import {apis} from "../utils/apis";
 import AuthService from "./AuthService";
+import QuotaService from "./QuotaService";
 import {isListEmpty} from "../utils/list";
 import {parseRSS} from "../utils/parseRSS";
 import {buildHeader} from "../utils/buildHeader";
@@ -12,11 +13,11 @@ import {generateArticleId} from "../utils/generateArticleId";
 import SentimentAnalysisService from "./SentimentAnalysisService";
 import ArticleEnhancementService from "./ArticleEnhancementService";
 import {API_CONFIG, RSS_SOURCES, USER_AGENTS} from "../utils/constants";
+import {GUARDIAN_API_KEY, NODE_ENV, NYTIMES_API_KEY} from "../config/config";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
 import {assessContentQuality, isDuplicateArticle} from "../utils/serviceHelpers/articleQuality";
 import {cleanScrapedText, generateQueryVariations, simplifySearchQuery} from "../utils/serviceHelpers/textProcessing";
 import {determineTopicFromQuery, getOptimizedSourcesForTopic, mapToNewYorkTimesSection} from "../utils/serviceHelpers/topicMapping";
-import {GUARDIAN_API_KEY, GUARDIAN_QUOTA_REQUESTS, NEWSAPI_QUOTA_REQUESTS, NEWSAPIORG_QUOTA_MS, NODE_ENV, NYTIMES_API_KEY, NYTIMES_QUOTA_REQUESTS} from "../config/config";
 import {convertGuardianToArticle, convertNewYorkTimesToArticle, convertNewYorkTimesTopStoryToArticle, convertRSSFeedToArticle} from "../utils/serviceHelpers/articleConverters";
 import {
     IArticle,
@@ -40,24 +41,13 @@ import {
     VALID_NYTIMES_SECTIONS,
 } from "../types/news";
 
-const RSS_CACHE = new Map<string, { data: IRssFeed[], timestamp: number }>();
-const TOPHEADLINES_CACHE = new Map<string, { data: any, timestamp: number }>();
-const EVERYTHING_NEWS_CACHE = new Map<string, { data: any, timestamp: number }>();
-const GUARDIAN_CACHE = new Map<string, { data: any, timestamp: number }>();
-const NYTIMES_CACHE = new Map<string, { data: any, timestamp: number }>();
-
-let newsApiRequestCount = 0;
-let guardianApiRequestCount = 0;
-let nytimesApiRequestCount = 0;
-
-setInterval(() => {
-    newsApiRequestCount = 0;
-    guardianApiRequestCount = 0;
-    nytimesApiRequestCount = 0;
-    console.log('Daily API counters reset'.blue);
-}, Number.parseInt(NEWSAPIORG_QUOTA_MS!));
-
 class NewsService {
+    private static readonly RSS_CACHE = new Map<string, { data: IRssFeed[], timestamp: number }>();
+    private static readonly TOPHEADLINES_CACHE = new Map<string, { data: any, timestamp: number }>();
+    private static readonly EVERYTHING_NEWS_CACHE = new Map<string, { data: any, timestamp: number }>();
+    private static readonly GUARDIAN_CACHE = new Map<string, { data: any, timestamp: number }>();
+    private static readonly NYTIMES_CACHE = new Map<string, { data: any, timestamp: number }>();
+
     /**
      * Fetch top headlines from NewsAPI.org with caching
      */
@@ -74,13 +64,14 @@ class NewsService {
             }
 
             const cacheKey = `${country}-${category}-${sources}-${processedQuery}-${pageSize}-${page}`;
-            const cached = TOPHEADLINES_CACHE.get(cacheKey);
+            const cached = this.TOPHEADLINES_CACHE.get(cacheKey);
             if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 console.log('Cache: returning cached data'.cyan, cached.data);
                 return cached.data;
             }
 
-            if (newsApiRequestCount >= Number.parseInt(NEWSAPI_QUOTA_REQUESTS!)) {
+            const quotaResponse = await QuotaService.reserveQuotaBeforeApiCall('newsapi', 1);
+            if (!quotaResponse.allowed) {
                 console.warn('Rate Limit: NewsApi daily limit reached'.yellow);
                 return {status: 'error', message: 'NewsApi daily limit reached', articles: [], totalResults: 0};
             }
@@ -89,10 +80,8 @@ class NewsService {
                 apis.topHeadlinesApi({country: country || 'us', category, sources, q: processedQuery, pageSize, page}),
                 {headers: buildHeader('newsapi')},
             );
-            newsApiRequestCount++;
             console.log('External API: NewsApi TopHeadlines response'.magenta, topHeadlinesResponse);
 
-            // Add articleId to each article
             if (topHeadlinesResponse.articles) {
                 topHeadlinesResponse.articles = topHeadlinesResponse.articles.map((article: IArticle) => ({
                     ...article,
@@ -101,7 +90,7 @@ class NewsService {
             }
 
             if (NODE_ENV === 'production') {
-                TOPHEADLINES_CACHE.set(cacheKey, {data: topHeadlinesResponse, timestamp: Date.now()});
+                this.TOPHEADLINES_CACHE.set(cacheKey, {data: topHeadlinesResponse, timestamp: Date.now()});
             }
 
             return topHeadlinesResponse;
@@ -129,13 +118,14 @@ class NewsService {
             }
 
             const cacheKey = `${sources}-${from}-${to}-${sortBy}-${language}-${processedQuery}-${pageSize}-${page}`;
-            const cached = EVERYTHING_NEWS_CACHE.get(cacheKey);
+            const cached = this.EVERYTHING_NEWS_CACHE.get(cacheKey);
             if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 console.log('Cache: returning cached data'.cyan, cached.data);
                 return cached.data;
             }
 
-            if (newsApiRequestCount >= Number.parseInt(NEWSAPI_QUOTA_REQUESTS!)) {
+            const quotaResponse = await QuotaService.reserveQuotaBeforeApiCall('newsapi', 1);
+            if (!quotaResponse.allowed) {
                 console.log('NewsApi limit reached'.yellow);
                 return {status: 'error', message: 'NewsApi daily limit reached', articles: [], totalResults: 0};
             }
@@ -144,7 +134,6 @@ class NewsService {
                 apis.fetchEverythingApi({sources, from, to, sortBy, language, q: processedQuery, pageSize, page}),
                 {headers: buildHeader('newsapi')},
             );
-            newsApiRequestCount++;
             console.log('External API: NewsApi Everything response'.magenta, everything);
 
             if (everything.articles) {
@@ -155,7 +144,7 @@ class NewsService {
             }
 
             if (NODE_ENV === 'production') {
-                EVERYTHING_NEWS_CACHE.set(cacheKey, {data: everything, timestamp: Date.now()});
+                this.EVERYTHING_NEWS_CACHE.set(cacheKey, {data: everything, timestamp: Date.now()});
             }
 
             return everything;
@@ -177,12 +166,13 @@ class NewsService {
                 return {articles: [], totalResults: 0};
             }
 
-            if (guardianApiRequestCount >= Number.parseInt(GUARDIAN_QUOTA_REQUESTS!)) {
+            const quotaResponse = await QuotaService.reserveQuotaBeforeApiCall('guardian', 1);
+            if (!quotaResponse.allowed) {
                 console.warn('Rate Limit: Guardian API daily limit reached'.yellow);
                 return {status: 'error', message: 'Guardian API daily limit reached', articles: [], totalResults: 0};
             }
 
-            let processedQuery = q;
+            let processedQuery = q?.replace(/–/g, '-');
 
             if (q && q.trim()) {
                 console.log(`Service: fetchGuardianNews processing query: "${q}"`.cyan);
@@ -193,7 +183,7 @@ class NewsService {
             }
 
             const cacheKey = `guardian-${processedQuery}-${section}-${fromDate}-${toDate}-${orderBy}-${pageSize}-${page}`;
-            const cached = GUARDIAN_CACHE.get(cacheKey);
+            const cached = this.GUARDIAN_CACHE.get(cacheKey);
             if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 console.log('Cache: returning cached Guardian data'.cyan);
                 return cached.data;
@@ -202,8 +192,8 @@ class NewsService {
             const url = apis.guardianSearchApi({q: processedQuery, section, fromDate, toDate, orderBy, pageSize, page}) + `&api-key=${GUARDIAN_API_KEY}`;
             const {data: guardianResponse} = await axios.get<IGuardianResponse>(url, {headers: buildHeader('guardian')});
 
-            guardianApiRequestCount++;
-            console.log(`External API: Guardian request ${guardianApiRequestCount}/${GUARDIAN_QUOTA_REQUESTS}:`.magenta, guardianResponse.response.total, 'results');
+            const currentGuardianCount = await QuotaService.getCurrentCount('guardian');
+            console.log(`External API: Guardian request ${currentGuardianCount}:`.magenta, guardianResponse.response.total, 'results');
 
             const articles = guardianResponse.response.results.map(convertGuardianToArticle);
             const result = {
@@ -214,12 +204,12 @@ class NewsService {
             };
 
             if (NODE_ENV === 'production') {
-                GUARDIAN_CACHE.set(cacheKey, {data: result, timestamp: Date.now()});
+                this.GUARDIAN_CACHE.set(cacheKey, {data: result, timestamp: Date.now()});
             }
 
             return result;
         } catch (error: any) {
-            console.error('Service Error: NewsService.fetchGuardianNews failed:'.red.bold, error.message);
+            console.error('Service Error: NewsService.fetchGuardianNews failed:'.red.bold, error);
             return {articles: [], totalResults: 0};
         }
     }
@@ -241,7 +231,8 @@ class NewsService {
                 return {error: generateInvalidCode('nytimes_section')};
             }
 
-            if (nytimesApiRequestCount >= Number.parseInt(NYTIMES_QUOTA_REQUESTS!)) {
+            const quotaResponse = await QuotaService.reserveQuotaBeforeApiCall('nytimes', 1);
+            if (!quotaResponse.allowed) {
                 console.warn('Rate Limit: NYTimes API daily limit reached'.yellow);
                 return {status: 'error', message: 'NYTimes API daily limit reached', articles: [], totalResults: 0};
             }
@@ -257,7 +248,7 @@ class NewsService {
             }
 
             const cacheKey = `nytimes-${processedQuery}-${section}-${sort}-${fromDate}-${toDate}-${pageSize}-${page}`;
-            const cached = NYTIMES_CACHE.get(cacheKey);
+            const cached = this.NYTIMES_CACHE.get(cacheKey);
             if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 console.log('Cache: returning cached NYTimes data'.cyan);
                 return cached.data;
@@ -273,11 +264,11 @@ class NewsService {
                 metadata: nytResponse.response?.metadata,
             });
 
-            nytimesApiRequestCount++;
-            console.log(`External API: NYTimes request ${nytimesApiRequestCount}/${NYTIMES_QUOTA_REQUESTS}:`.magenta, nytResponse?.response?.metadata?.hits || 0, 'results');
+            const currentNytimesCount = await QuotaService.getCurrentCount('nytimes');
+            console.log(`External API: NYTimes request ${currentNytimesCount}:`.magenta, nytResponse?.response?.metadata?.hits || 0, 'results');
 
             if (!nytResponse.response || !nytResponse.response.docs) {
-                console.warn('Service Error: NYT API returned invalid response structure'.red.bold);
+                console.warn('Service Error: NYT API returned invalid response structure'.red.bold, nytResponse.response);
                 return {articles: [], totalResults: 0};
             }
 
@@ -293,7 +284,7 @@ class NewsService {
             };
 
             if (NODE_ENV === 'production') {
-                NYTIMES_CACHE.set(cacheKey, {data: result, timestamp: Date.now()});
+                this.NYTIMES_CACHE.set(cacheKey, {data: result, timestamp: Date.now()});
             }
 
             return result;
@@ -319,13 +310,14 @@ class NewsService {
                 return {error: generateInvalidCode('nytimes_section')};
             }
 
-            if (nytimesApiRequestCount >= Number.parseInt(NYTIMES_QUOTA_REQUESTS!)) {
+            const quotaResponse = await QuotaService.reserveQuotaBeforeApiCall('nytimes', 1);
+            if (!quotaResponse.allowed) {
                 console.warn('Rate Limit: NYTimes API daily limit reached'.yellow);
                 return {status: 'error', message: 'NYTimes API daily limit reached', articles: [], totalResults: 0};
             }
 
             const cacheKey = `nytimes-top-${section}`;
-            const cached = NYTIMES_CACHE.get(cacheKey);
+            const cached = this.NYTIMES_CACHE.get(cacheKey);
             if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 console.log('Cache: returning cached NYTimes top stories'.cyan);
                 return cached.data;
@@ -334,8 +326,8 @@ class NewsService {
             const url = apis.nytimesTopStoriesApi({section}) + `?api-key=${NYTIMES_API_KEY}`;
             const {data: nytResponse} = await axios.get<INewYorkTimesTopStoriesResponse>(url, {headers: buildHeader('nytimes')});
 
-            nytimesApiRequestCount++;
-            console.log(`External API: NYTimes Top Stories request ${nytimesApiRequestCount}/${NYTIMES_QUOTA_REQUESTS}:`.magenta, nytResponse.num_results, 'results');
+            const currentNytimesCount = await QuotaService.getCurrentCount('nytimes');
+            console.log(`External API: NYTimes Top Stories request ${currentNytimesCount}:`.magenta, nytResponse.num_results, 'results');
 
             const articles: IArticle[] = nytResponse.results?.map(convertNewYorkTimesTopStoryToArticle);
 
@@ -347,7 +339,7 @@ class NewsService {
             };
 
             if (NODE_ENV === 'production') {
-                NYTIMES_CACHE.set(cacheKey, {data: result, timestamp: Date.now()});
+                this.NYTIMES_CACHE.set(cacheKey, {data: result, timestamp: Date.now()});
             }
 
             return result;
@@ -365,7 +357,7 @@ class NewsService {
 
         try {
             const cacheKey = `${q}-${sources}-${languages}-${pageSize}-${page}`;
-            const cached = RSS_CACHE.get(cacheKey);
+            const cached = this.RSS_CACHE.get(cacheKey);
 
             if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 return cached.data;
@@ -462,7 +454,7 @@ class NewsService {
                 console.log(`RSS search completed: found ${searchResults.length} results for "${q}"`.green.bold);
 
                 if (NODE_ENV === 'production') {
-                    RSS_CACHE.set(cacheKey, {data: finalResults, timestamp: Date.now()});
+                    this.RSS_CACHE.set(cacheKey, {data: finalResults, timestamp: Date.now()});
                 }
 
                 return finalResults;
@@ -472,7 +464,7 @@ class NewsService {
             const paginatedResults = allItems.slice(startIndex, startIndex + pageSize);
 
             if (NODE_ENV === 'production') {
-                RSS_CACHE.set(cacheKey, {data: paginatedResults, timestamp: Date.now()});
+                this.RSS_CACHE.set(cacheKey, {data: paginatedResults, timestamp: Date.now()});
             }
 
             return paginatedResults;
@@ -550,7 +542,7 @@ class NewsService {
         // NewsAPIOrg (40% of requested articles) with smart query variations
         const newsApiTargetCount = Math.ceil(pageSize * 0.4);
         try {
-            if (newsApiRequestCount < Number.parseInt(NEWSAPI_QUOTA_REQUESTS!) && simplifiedQuery) {
+            if (await QuotaService.hasQuotaAvailable('newsapi') && simplifiedQuery) {
                 console.log(`Service: Trying NewsAPIOrg with smart query variations (target: ${newsApiTargetCount} articles)...`.cyan);
 
                 const newsApiResult = await this.smartFetchWithVariations({
@@ -614,7 +606,7 @@ class NewsService {
 
         if (remainingSlots > 0) {
             try {
-                if (guardianApiRequestCount < Number.parseInt(GUARDIAN_QUOTA_REQUESTS!) && simplifiedQuery) {
+                if (await QuotaService.hasQuotaAvailable('guardian') && simplifiedQuery) {
                     console.log(`Service: Trying Guardian API with smart variations (target: ${guardianTargetCount} articles)...`.cyan);
 
                     const guardianResult = await this.smartFetchWithVariations({
@@ -666,7 +658,7 @@ class NewsService {
 
         if (remainingSlots2 > 0) {
             try {
-                if (nytimesApiRequestCount < Number.parseInt(NYTIMES_QUOTA_REQUESTS!)) {
+                if (await QuotaService.hasQuotaAvailable('nytimes')) {
                     console.log(`Service: Trying NYTimes API (target: ${nytimesTargetCount} articles)...`.cyan);
 
                     if (simplifiedQuery) {
@@ -785,9 +777,9 @@ class NewsService {
                 usedSources,
                 errors: errors.length > 0 ? errors : undefined,
                 apiRequestCounts: {
-                    newsApi: newsApiRequestCount,
-                    guardian: guardianApiRequestCount,
-                    nytimes: nytimesApiRequestCount,
+                    newsApi: await QuotaService.getCurrentCount('newsapi'),
+                    guardian: await QuotaService.getCurrentCount('guardian'),
+                    nytimes: await QuotaService.getCurrentCount('nytimes'),
                 },
             },
         };
@@ -925,7 +917,7 @@ class NewsService {
 
         // NewsAPI (10% of articles)
         const newsApiCount = Math.ceil(pageSize * 0.1);
-        if (newsApiRequestCount < Number.parseInt(NEWSAPI_QUOTA_REQUESTS!)) {
+        if (await QuotaService.hasQuotaAvailable('newsapi')) {
             if (simplifiedQuery) {
                 apiPromises.push(
                     this.fetchNewsApiOrgEverything({
@@ -953,7 +945,7 @@ class NewsService {
 
         // Guardian (30% of articles)
         const guardianCount = Math.ceil(pageSize * 0.3);
-        if (guardianApiRequestCount < Number.parseInt(GUARDIAN_QUOTA_REQUESTS!)) {
+        if (await QuotaService.hasQuotaAvailable('guardian')) {
             apiPromises.push(
                 this.fetchGuardianNews({
                     q: simplifiedQuery,
@@ -969,7 +961,7 @@ class NewsService {
         // NYTimes (20% of articles)
         const nytimesCount = Math.ceil(pageSize * 0.2);
         const nytSection = mapToNewYorkTimesSection(topic);
-        if (nytimesApiRequestCount < Number.parseInt(NYTIMES_QUOTA_REQUESTS!)) {
+        if (await QuotaService.hasQuotaAvailable('nytimes')) {
             if (simplifiedQuery) {
                 apiPromises.push(
                     this.fetchNewYorkTimesNews({
@@ -1100,9 +1092,9 @@ class NewsService {
                     rss: '40%',
                 },
                 apiRequestCounts: {
-                    newsApi: newsApiRequestCount,
-                    guardian: guardianApiRequestCount,
-                    nytimes: nytimesApiRequestCount,
+                    newsApi: await QuotaService.getCurrentCount('newsapi'),
+                    guardian: await QuotaService.getCurrentCount('guardian'),
+                    nytimes: await QuotaService.getCurrentCount('nytimes'),
                 },
             },
         };

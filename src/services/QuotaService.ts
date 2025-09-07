@@ -232,7 +232,7 @@ class QuotaService {
      * - Guarantees billing safety even with concurrent requests
      * - Uses atomic findOneAndUpdate for thread-safe quota reservation
      */
-    private static async reserveQuotaBeforeApiCall(service: TApiService, count: number = 1): Promise<IQuotaReservationResponse> {
+    static async reserveQuotaBeforeApiCall(service: TApiService, count: number = 1): Promise<IQuotaReservationResponse> {
         console.log('Service: QuotaService.reserveQuotaBeforeApiCall called'.cyan.italic, {service, count});
 
         try {
