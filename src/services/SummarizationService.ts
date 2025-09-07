@@ -3,35 +3,20 @@ import {GoogleGenerativeAI} from "@google/generative-ai";
 import AuthService from "./AuthService";
 import NewsService from "./NewsService";
 import StrikeService from "./StrikeService";
+import QuotaService from "./QuotaService";
 import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
+import {GEMINI_API_KEY} from "../config/config";
 import {AI_SUMMARIZATION_MODELS} from "../utils/constants";
 import {translateText} from "../utils/serviceHelpers/translationHelpers";
 import {truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
-import {GEMINI_API_KEY, GEMINI_QUOTA_MS, GEMINI_QUOTA_REQUESTS} from "../config/config";
 import {generateSummarizationContentHash} from "../utils/serviceHelpers/contentHashing";
 import {getCachedSummary, saveSummaryToCache} from "../utils/serviceHelpers/cacheHelpers";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
-import {ISummarizeArticleParams, ISummarizeArticleResponse, ISummarizeContentParams, ISummarizeContentResponse, SUMMARIZATION_STYLES} from "../types/ai";
+import {ISummarizeArticleParams, ISummarizeArticleResponse, ISummarizeContentParams, ISummarizeContentResponse, ISummarizeContentWithModelParams, SUMMARIZATION_STYLES} from "../types/ai";
 
 class SummarizationService {
     static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
-
-    static geminiRequestCount = 0;
-
-    private static resetInterval = setInterval(() => {
-        this.geminiRequestCount = 0;
-        console.log('Daily Gemini API counter reset'.blue);
-    }, Number.parseInt(GEMINI_QUOTA_MS!));
-
-    /**
-     * Clean up the Gemini API request counter reset interval
-     */
-    static cleanup(): void {
-        if (this.resetInterval) {
-            clearInterval(this.resetInterval);
-        }
-    }
 
     /**
      * Main entry point for article summarization with authentication, rate limiting, caching, and translation support
@@ -55,13 +40,11 @@ class SummarizationService {
                 return {error: generateInvalidCode('style')};
             }
 
-            // Check user authentication
             const {user} = await AuthService.getUserByEmail({email});
             if (!user) {
                 return {error: generateNotFoundCode('user')};
             }
 
-            // Check if user is blocked
             const {isBlocked, message, blockedUntil, blockType} = await StrikeService.checkUserBlock(email);
             if (isBlocked) {
                 console.warn('Service Warning: User blocked from AI summarization'.yellow, {message, blockedUntil, blockType});
@@ -71,16 +54,19 @@ class SummarizationService {
                 };
             }
 
-            // Check rate limits
-            if (this.geminiRequestCount >= Number.parseInt(GEMINI_QUOTA_REQUESTS!)) {
-                console.warn('Rate Limit: Gemini API daily quota reached'.yellow);
+            const quotaReservation = await QuotaService.reserveQuotaForModelFallback(AI_SUMMARIZATION_MODELS[0], AI_SUMMARIZATION_MODELS.slice(1), 1,);
+
+            if (!quotaReservation.allowed) {
+                console.warn('Rate Limit: Gemini API daily quota reached'.yellow, {
+                    selectedModel: quotaReservation.selectedModel,
+                    quotaReserved: quotaReservation.quotaReserved,
+                    service: quotaReservation.service,
+                });
                 return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
             }
 
-            // Determine content to use
             const articleContent = content || '';
 
-            // Generate hash and check cache
             const hash = generateSummarizationContentHash(articleContent, language, style);
             if (!hash) {
                 return {error: 'HASH_FAILED'};
@@ -89,14 +75,10 @@ class SummarizationService {
             const cached = await getCachedSummary(hash);
             if (cached) {
                 console.log('Using cached summarization result'.cyan);
-                return {
-                    summary: cached.summary,
-                    powered_by: 'Cached Result',
-                };
+                return {summary: cached.summary, powered_by: 'Cached Result'};
             }
 
-            // Generate summary using core summarization logic
-            const {summary, powered_by, error} = await this.summarizeContent({content: articleContent, url, style});
+            const {summary, powered_by, error} = await this.summarizeContentWithModel({content: articleContent, url, style, modelName: quotaReservation.selectedModel});
 
             if (error) {
                 console.error('Service Error: Core summarization failed'.red.bold, {error});
@@ -107,29 +89,22 @@ class SummarizationService {
                 return {error: 'SUMMARIZATION_FAILED'};
             }
 
-            // Increment API counter
-            this.geminiRequestCount++;
-            console.log(`Gemini API request ${this.geminiRequestCount}/${GEMINI_QUOTA_REQUESTS}:`.cyan, 'summarization');
+            console.log(`Gemini API request (quota reserved):`.cyan, {model: quotaReservation.selectedModel, quotaReserved: quotaReservation.quotaReserved});
 
             let finalSummary = summary;
             let finalPoweredBy = powered_by;
 
-            // Translate if needed
             if (language !== 'en') {
                 console.log('Translating summary to target language:'.cyan, language);
                 finalSummary = await translateText(summary, language);
                 finalPoweredBy = `${powered_by} + Translate`;
             }
 
-            // Save to cache
             await saveSummaryToCache(hash, finalSummary, language, style);
 
             console.log('Article summarization completed successfully'.green.bold, {summary: finalSummary.substring(0, 50) + '...', powered_by: finalPoweredBy});
 
-            return {
-                summary: finalSummary,
-                powered_by: finalPoweredBy,
-            };
+            return {summary: finalSummary, powered_by: finalPoweredBy};
         } catch (error: any) {
             console.error('Service Error: SummarizationService.summarizeArticle failed'.red.bold, error);
             throw error;
@@ -236,7 +211,49 @@ class SummarizationService {
         return {summary: responseText};
     }
 
+    /**
+     * Core summarization logic using a specific Gemini AI model (for quota-reserved calls)
+     */
+    private static async summarizeContentWithModel({content, url, style = 'standard', modelName}: ISummarizeContentWithModelParams): Promise<ISummarizeContentResponse> {
+        console.log('Service: SummarizationService.summarizeContentWithModel called'.cyan.italic, {content, url, style, modelName});
 
+        let articleContent = content || '';
+        if (!content && url) {
+            console.log('Scraping URL for summarization:'.cyan, url);
+            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
+
+            if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
+                console.error('Service Error: Scraping failed:'.red.bold, scrapedArticles[0]?.error);
+                return {error: 'SCRAPING_FAILED'};
+            }
+
+            articleContent = scrapedArticles[0]?.content || '';
+        }
+
+        if (!articleContent || articleContent.trim().length === 0) {
+            console.warn('Client Error: Empty content provided for summarization'.yellow);
+            return {error: generateMissingCode('content')};
+        }
+
+        const truncatedContent = truncateContentForAI(articleContent, 8000);
+
+        try {
+            console.log(`Using quota-reserved model:`.cyan, modelName);
+            const result = await this.summarizeWithGemini(modelName, truncatedContent, style);
+
+            if (result.summary) {
+                console.log('Content summarization completed successfully with reserved model'.green.bold, {summary: result.summary.substring(0, 50) + '...', model: modelName,});
+                return {...result, powered_by: modelName};
+            }
+
+            console.error(`Service Error: Quota-reserved model failed:`.red.bold, modelName, 'Error:', result.error);
+            return {error: 'SUMMARIZATION_FAILED'};
+
+        } catch (error: any) {
+            console.error(`Service Error: Quota-reserved model failed:`.red.bold, modelName, 'Error:', error.message);
+            return {error: 'SUMMARIZATION_FAILED'};
+        }
+    }
 }
 
 export default SummarizationService;

@@ -1,14 +1,6 @@
 export type TApiService = 'gemini' | 'newsapi' | 'guardian' | 'nytimes' | 'google_translate';
 export const API_SERVICES: TApiService[] = ['gemini', 'newsapi', 'guardian', 'nytimes', 'google_translate'];
 
-export interface IQuotaIncrementResponse {
-    allowed: boolean;
-    currentCount: number;
-    limit: number;
-    service: TApiService;
-    date: string;
-}
-
 export interface IQuotaUsageHistory {
     service: TApiService;
     date: string;
@@ -27,3 +19,34 @@ export interface IQuotaServiceOptions {
 
 /** ------------- API response types ------------- */
 
+export interface IQuotaIncrementResponse {
+    allowed: boolean;
+    currentCount: number;
+    limit: number;
+    service: TApiService;
+    date: string;
+}
+
+export interface IQuotaReservationResponse {
+    allowed: boolean;
+    reservedCount: number;
+    remainingQuota: number;
+    service: TApiService;
+    date: string;
+}
+
+export interface IModelFallbackResponse {
+    allowed: boolean;
+    selectedModel: string;
+    quotaReserved: number;
+    service: TApiService;
+    date: string;
+}
+
+export interface IBatchQuotaCheckResponse {
+    maxProcessable: number;
+    recommendedBatchSize: number;
+    currentQuota: number;
+    requestedCount: number;
+    service: TApiService;
+}

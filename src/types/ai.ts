@@ -368,6 +368,13 @@ export interface ISummarizeContentParams {
     style?: TSummarizationStyle;
 }
 
+export interface ISummarizeContentWithModelParams {
+    content?: string;
+    url?: string;
+    style?: TSummarizationStyle;
+    modelName: string;
+}
+
 export interface IGenerateContentHashParams {
     articleContent: string;
     language?: TSupportedLanguage;
