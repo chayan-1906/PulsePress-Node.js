@@ -226,12 +226,12 @@ export const AI_ENHANCEMENT_MODELS = [
 
 export const GEMINI_QUOTA_LIMITS = {
     // Conservative 90% limits to prevent accidental overruns
-    'gemini-total': 900,                    // special shared pool
-    [AI_MODELS.GEMINI_25_FLASH_LITE]: 900,  // 1000 RPD * 0.9
-    [AI_MODELS.GEMINI_25_FLASH]: 225,       // 250 RPD * 0.9
-    [AI_MODELS.GEMINI_20_FLASH]: 180,       // 200 RPD * 0.9
-    [AI_MODELS.GEMINI_20_FLASH_LITE]: 180,  // 200 RPD * 0.9
-    [AI_MODELS.GEMINI_15_FLASH]: 90,        // 100 RPD * 0.9 (legacy fallback)
+    'gemini-total': 900,                              // special shared pool (sum of all models)
+    'gemini-2.5-flash-lite': 900,                     // 1000 RPD * 0.9
+    'gemini-2.5-flash': 225,                          // 250 RPD * 0.9
+    'gemini-2.0-flash': 180,                          // 200 RPD * 0.9
+    'gemini-2.0-flash-lite': 180,                     // 200 RPD * 0.9
+    'gemini-1.5-flash': 90,                           // 100 RPD * 0.9 (legacy fallback)
 } as const;
 
 export const QUOTA_SAFETY_THRESHOLDS = {

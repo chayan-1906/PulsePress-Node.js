@@ -10,16 +10,22 @@ import {
     IQuotaServiceOptions,
     IQuotaUsageHistory,
     TApiService,
+    TGeminiModel,
+    GEMINI_MODELS,
 } from "../types/quota";
 
 class QuotaService {
     private static readonly DEFAULT_LIMITS: Record<TApiService, number> = {
-        // 'gemini-total': 1000,               // Shared pool across all Gemini models (per planning doc research)
-        gemini: 1000,               // Shared pool across all Gemini models (per planning doc research)
-        newsapi: 100,               // NewsAPI.org free tier (2025: 100 requests/day + 24hr delay)
-        guardian: 5000,             // Guardian API free tier (2025: 5,000 requests/day, 12/second)
-        nytimes: 500,               // NYTimes API free tier (2025: 500 requests/day, 5/minute)
-        google_translate: 16667,    // Google Translate free tier (2025: 500K chars/month ≈ 16,667/day)
+        'gemini-total': 900,                    // Shared pool across all Gemini models
+        'gemini-2.5-flash-lite': 900,           // 1000 RPD * 0.9
+        'gemini-2.5-flash': 225,                // 250 RPD * 0.9
+        'gemini-2.0-flash': 180,                // 200 RPD * 0.9
+        'gemini-2.0-flash-lite': 180,           // 200 RPD * 0.9
+        'gemini-1.5-flash': 90,                 // 100 RPD * 0.9
+        newsapi: 100,                           // NewsAPI.org free tier (2025: 100 requests/day + 24hr delay)
+        guardian: 5000,                         // Guardian API free tier (2025: 5,000 requests/day, 12/second)
+        nytimes: 500,                           // NYTimes API free tier (2025: 500 requests/day, 5/minute)
+        google_translate: 16667,                // Google Translate free tier (2025: 500K chars/month ≈ 16,667/day)
     };
     private static readonly OPTIONS: IQuotaServiceOptions = {
         conservativeThreshold: 0.9, // Block at 90% usage
@@ -149,13 +155,12 @@ class QuotaService {
 
             const records: IApiQuota[] = await ApiQuotaModel.find({date: currentDate});
 
-            const usage: Record<TApiService, number> = {
-                gemini: 0,
-                newsapi: 0,
-                guardian: 0,
-                nytimes: 0,
-                google_translate: 0,
-            };
+            const usage: Record<TApiService, number> = {} as Record<TApiService, number>;
+            
+            // Initialize all API services to 0
+            for (const service of API_SERVICES) {
+                usage[service] = 0;
+            }
 
             records.forEach(record => {
                 usage[record.service] = record.requestCount;
@@ -165,7 +170,11 @@ class QuotaService {
             return usage;
         } catch (error) {
             console.error('Service Error: QuotaService.getTodaysTotalUsage failed'.red.bold, {error});
-            return {gemini: 0, newsapi: 0, guardian: 0, nytimes: 0, google_translate: 0};
+            const fallbackUsage: Record<TApiService, number> = {} as Record<TApiService, number>;
+            for (const service of API_SERVICES) {
+                fallbackUsage[service] = 0;
+            }
+            return fallbackUsage;
         }
     }
 
@@ -329,50 +338,108 @@ class QuotaService {
     }
 
     /**
-     * Handle Gemini model fallback scenarios with different RPD limits
+     * DUAL-LEVEL QUOTA ENFORCEMENT for Gemini Models
+     * 
+     * Enforces TWO constraints simultaneously:
+     * 1. Global Pool: gemini-total ≤ 900 (sum of all individual model usage)
+     * 2. Individual Model: each model ≤ its specific limit
+     * 
+     * This ensures billing safety by preventing any model from exceeding Google's free tier limits
+     */
+    static async reserveQuotaForGeminiModel(modelName: TGeminiModel, count: number = 1): Promise<IModelFallbackResponse> {
+        console.log('Service: QuotaService.reserveQuotaForGeminiModel called'.cyan.italic, {modelName, count});
+
+        try {
+            const currentDate = this.getCurrentDatePacific();
+
+            // Step 1: Check individual model limit
+            const modelLimit = this.DEFAULT_LIMITS[modelName];
+            if (!modelLimit) {
+                console.error('Service Error: Unknown Gemini model'.red.bold, {modelName});
+                return {allowed: false, selectedModel: '', quotaReserved: 0, service: modelName, date: currentDate};
+            }
+
+            const modelQuotaResult = await this.reserveQuotaBeforeApiCall(modelName, count);
+            if (!modelQuotaResult.allowed) {
+                console.warn('Rate Limit: Individual model quota exhausted'.yellow, {modelName, remainingQuota: modelQuotaResult.remainingQuota, modelLimit});
+                return {allowed: false, selectedModel: '', quotaReserved: 0, service: modelName, date: currentDate};
+            }
+
+            // Step 2: Check global Gemini pool
+            const totalQuotaResult = await this.reserveQuotaBeforeApiCall('gemini-total', count);
+            if (!totalQuotaResult.allowed) {
+                console.warn('Rate Limit: Total Gemini quota exhausted'.yellow, {remainingQuota: totalQuotaResult.remainingQuota});
+                
+                // ROLLBACK: If global quota fails, we need to rollback the individual model reservation
+                await this.rollbackQuotaReservation(modelName, count);
+                
+                return {allowed: false, selectedModel: '', quotaReserved: 0, service: 'gemini-total', date: currentDate};
+            }
+
+            console.log('Database: Dual-level quota reserved successfully'.green.bold, {
+                selectedModel: modelName,
+                quotaReserved: count,
+                modelRemaining: modelQuotaResult.remainingQuota,
+                totalRemaining: totalQuotaResult.remainingQuota
+            });
+
+            return {allowed: true, selectedModel: modelName, quotaReserved: count, service: modelName, date: currentDate};
+        } catch (error: any) {
+            console.error('Service Error: QuotaService.reserveQuotaForGeminiModel failed'.red.bold, {modelName, count, error});
+            return {allowed: false, selectedModel: '', quotaReserved: 0, service: modelName, date: this.getCurrentDatePacific()};
+        }
+    }
+
+    /**
+     * Handle Gemini model fallback scenarios with dual-level quota enforcement
      * Tries primary model first, then fallbacks in order based on available quota
      */
     static async reserveQuotaForModelFallback(primaryModel: string, fallbackModels: string[], count: number = 1): Promise<IModelFallbackResponse> {
         console.log('Service: QuotaService.reserveQuotaForModelFallback called'.cyan.italic, {primaryModel, fallbackModels, count});
 
+        const modelsToTry: string[] = [primaryModel, ...fallbackModels];
+
+        for (const modelName of modelsToTry) {
+            if (!GEMINI_MODELS.includes(modelName as TGeminiModel)) {
+                console.warn('Config Warning: Unknown Gemini model'.yellow.italic, {modelName});
+                continue;
+            }
+
+            const result = await this.reserveQuotaForGeminiModel(modelName as TGeminiModel, count);
+            if (result.allowed) {
+                console.log('Model fallback: Successfully reserved quota'.cyan, {selectedModel: modelName, quotaReserved: count});
+                return result;
+            }
+
+            console.log('Model fallback: Model unavailable, trying next'.cyan, {modelName, reason: result.service});
+        }
+
+        console.error('Service Error: All Gemini models exhausted'.red.bold, {primaryModel, fallbackModels});
+        return {allowed: false, selectedModel: '', quotaReserved: 0, service: 'gemini-total', date: this.getCurrentDatePacific()};
+    }
+
+    /**
+     * Rollback quota reservation in case of partial failure
+     * Used when individual model quota succeeds but global quota fails
+     */
+    private static async rollbackQuotaReservation(service: TApiService, count: number): Promise<void> {
+        console.log('Service: QuotaService.rollbackQuotaReservation called'.cyan.italic, {service, count});
+
         try {
             const currentDate = this.getCurrentDatePacific();
+            
+            await ApiQuotaModel.findOneAndUpdate(
+                {service, date: currentDate},
+                {
+                    $inc: {requestCount: -count},
+                    $set: {lastResetAt: new Date()},
+                },
+                {new: true}
+            );
 
-            const totalQuotaResult = await this.reserveQuotaBeforeApiCall('gemini', count);
-            if (!totalQuotaResult.allowed) {
-                console.warn('Rate Limit: Total Gemini quota exhausted'.yellow, {remainingQuota: totalQuotaResult.remainingQuota});
-
-                return {allowed: false, selectedModel: '', quotaReserved: 0, service: 'gemini', date: currentDate};
-            }
-
-            const modelsToTry: string[] = [primaryModel, ...fallbackModels];
-
-            for (const modelName of modelsToTry) {
-                const modelLimit: number = GEMINI_QUOTA_LIMITS[modelName as keyof typeof GEMINI_QUOTA_LIMITS];
-
-                if (!modelLimit) {
-                    console.warn('Config Warning: Unknown model limit'.yellow.italic, {modelName});
-                    continue;
-                }
-
-                const currentCount = await this.getCurrentCount('gemini');
-
-                if (currentCount <= modelLimit) {
-                    console.log('Database: Model selected for API call'.cyan, {selectedModel: modelName, modelLimit, currentCount, quotaReserved: count});
-
-                    return {allowed: true, selectedModel: modelName, quotaReserved: count, service: 'gemini', date: currentDate};
-                }
-
-                console.log('Model quota check: Model limit exceeded, trying next'.cyan, {modelName, currentCount, modelLimit});
-            }
-
-            console.error('Service Error: All Gemini models exhausted despite available total quota'.red.bold, {primaryModel, fallbackModels, totalQuotaAvailable: totalQuotaResult.remainingQuota});
-
-            return {allowed: false, selectedModel: '', quotaReserved: count, service: 'gemini', date: currentDate};
-        } catch (error: any) {
-            console.error('Service Error: QuotaService.reserveQuotaForModelFallback failed'.red.bold, {primaryModel, fallbackModels, error});
-
-            return {allowed: true, selectedModel: primaryModel, quotaReserved: count, service: 'gemini', date: this.getCurrentDatePacific()};
+            console.log('Database: Quota reservation rolled back'.cyan, {service, rolledBackCount: count});
+        } catch (error) {
+            console.error('Service Error: QuotaService.rollbackQuotaReservation failed'.red.bold, {service, count, error});
         }
     }
 

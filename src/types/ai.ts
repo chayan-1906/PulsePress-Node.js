@@ -460,6 +460,7 @@ export interface INewsInsightsParams {
 export interface ICombinedAIParams {
     content: string;
     tasks: TAIArticleEnhancement[];
+    selectedModel?: string;
 }
 
 export interface ICombinedAIDetailsParams {

@@ -34,8 +34,8 @@ class ArticleEnhancementService {
     /**
      * Combined AI enhancement method - smart tags, sentiment analysis, key points extractor, complexity meter, geographic entity locations
      */
-    private static async aiEnhanceArticle({content, tasks}: ICombinedAIParams): Promise<ICombinedAIResponse> {
-        console.log('Service: ArticleEnhancementService.aiEnhanceArticle called'.cyan.italic, {tasks});
+    private static async aiEnhanceArticle({content, tasks, selectedModel}: ICombinedAIParams): Promise<ICombinedAIResponse> {
+        console.log('Service: ArticleEnhancementService.aiEnhanceArticle called'.cyan.italic, {tasks, selectedModel});
 
         if (!content || content.trim().length === 0) {
             console.warn('Service Warning: Empty content provided for AI enhancement'.yellow);
@@ -45,12 +45,12 @@ class ArticleEnhancementService {
         // Truncate content to avoid token limits
         const truncatedContent = truncateContentForAI(content, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
-        for (let i = 0; i < AI_ENHANCEMENT_MODELS.length; i++) {
-            const modelName = AI_ENHANCEMENT_MODELS[i];
-            console.log(`Trying AI enhancement with model ${i + 1}/${AI_ENHANCEMENT_MODELS.length}:`.cyan, modelName);
+        // Use the pre-selected model from quota system instead of fallback loop
+        const modelName = selectedModel || AI_ENHANCEMENT_MODELS[0];
+        console.log(`Using pre-selected AI model for enhancement:`.cyan, modelName);
 
-            try {
-                const model = this.genAI.getGenerativeModel({model: modelName});
+        try {
+            const model = this.genAI.getGenerativeModel({model: modelName});
 
                 // Build dynamic prompt based on requested tasks using the same prompt functions
                 let prompt = `Analyze this news article and provide the following information:\n\n`;
@@ -184,17 +184,10 @@ class ArticleEnhancementService {
                 console.log(`✅ AI enhancement successful with model:`.green.bold, modelName);
                 console.log('Combined AI enhancement result:'.green.bold, response);
                 return {...response, powered_by: modelName};
-            } catch (error: any) {
-                console.warn('Service Warning: AI model failed'.yellow, {model: modelName, error: error.message});
-                if (i === AI_ENHANCEMENT_MODELS.length - 1) {
-                    console.error('🚨 All AI enhancement models failed'.red.bold);
-                    return {error: 'AI_ENHANCEMENT_FAILED'};
-                }
-            }
+        } catch (error: any) {
+            console.error('Service Error: AI enhancement failed with selected model'.red.bold, {model: modelName, error: error.message});
+            return {error: 'AI_ENHANCEMENT_FAILED'};
         }
-
-        console.error('🚨Service Error: All AI enhancement models failed'.red.bold);
-        return {error: 'AI_ENHANCEMENT_FAILED'};
     }
 
     /**
@@ -220,7 +213,7 @@ class ArticleEnhancementService {
             return;
         }
 
-        const batchInfo = await QuotaService.checkQuotaAvailabilityForBatchOperation('gemini', articles.length);
+        const batchInfo = await QuotaService.checkQuotaAvailabilityForBatchOperation('gemini-total', articles.length);
 
         if (batchInfo.maxProcessable === 0) {
             console.warn('Client Error: Insufficient quota for article enhancement - 0 articles can be processed'.yellow);
@@ -265,7 +258,11 @@ class ArticleEnhancementService {
 
                     const complexity = ReadingTimeAnalysisService.calculateReadingTimeComplexity({article});
 
-                    const quotaResult = await QuotaService.reserveQuotaBeforeApiCall('gemini', 1);
+                    const quotaResult = await QuotaService.reserveQuotaForModelFallback(
+                        AI_ENHANCEMENT_MODELS[0], 
+                        AI_ENHANCEMENT_MODELS.slice(1), 
+                        1
+                    );
                     if (!quotaResult.allowed) {
                         console.warn(`Client Error: Quota exhausted - skipping article ${articleId}`.yellow);
                         await ArticleEnhancementModel.findOneAndUpdate(
@@ -275,10 +272,14 @@ class ArticleEnhancementService {
                         this.activeJobs.delete(articleId);
                         continue;
                     }
+                    
+                    // Use the selected model from quota system
+                    const selectedModel = quotaResult.selectedModel;
 
                     const aiResult: ICombinedAIResponse = await this.aiEnhanceArticle({
                         content: article.content || article.description || article.title || '',
                         tasks: ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'geoExtraction'],
+                        selectedModel: selectedModel,
                     });
 
                     let tags = undefined;
