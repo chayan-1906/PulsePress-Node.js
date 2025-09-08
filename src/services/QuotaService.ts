@@ -14,6 +14,7 @@ import {
 
 class QuotaService {
     private static readonly DEFAULT_LIMITS: Record<TApiService, number> = {
+        // 'gemini-total': 1000,               // Shared pool across all Gemini models (per planning doc research)
         gemini: 1000,               // Shared pool across all Gemini models (per planning doc research)
         newsapi: 100,               // NewsAPI.org free tier (2025: 100 requests/day + 24hr delay)
         guardian: 5000,             // Guardian API free tier (2025: 5,000 requests/day, 12/second)

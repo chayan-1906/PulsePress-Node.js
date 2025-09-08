@@ -1,6 +1,7 @@
 import "colors";
 import {GoogleGenerativeAI} from "@google/generative-ai";
 import AuthService from "./AuthService";
+import QuotaService from "./QuotaService";
 import {AI_PROMPTS} from "../utils/prompts";
 import StrikeService from "./StrikeService";
 import {GEMINI_API_KEY} from "../config/config";
@@ -219,11 +220,24 @@ class ArticleEnhancementService {
             return;
         }
 
-        const articleIds = articles.map((article: IArticle) => generateArticleId({article}));
+        const batchInfo = await QuotaService.checkQuotaAvailabilityForBatchOperation('gemini', articles.length);
+
+        if (batchInfo.maxProcessable === 0) {
+            console.warn('Client Error: Insufficient quota for article enhancement - 0 articles can be processed'.yellow);
+            return;
+        }
+
+        const processableArticles = articles.slice(0, batchInfo.maxProcessable);
+
+        if (processableArticles.length < articles.length) {
+            console.log(`Quota limiting: Processing ${processableArticles.length}/${articles.length} articles due to quota constraints`.cyan);
+        }
+
+        const articleIds = processableArticles.map((article: IArticle) => generateArticleId({article}));
         articleIds.forEach((id: string) => this.activeJobs.add(id));
 
         setTimeout(async () => {
-            for (const article of articles) {
+            for (const article of processableArticles) {
                 try {
                     if (!article.url || !article.title) {
                         console.warn('Service Warning: Skipping article with missing URL or title'.yellow);
@@ -250,6 +264,17 @@ class ArticleEnhancementService {
                     console.log(`Processing enhancements for article: ${articleId}`.cyan);
 
                     const complexity = ReadingTimeAnalysisService.calculateReadingTimeComplexity({article});
+
+                    const quotaResult = await QuotaService.reserveQuotaBeforeApiCall('gemini', 1);
+                    if (!quotaResult.allowed) {
+                        console.warn(`Client Error: Quota exhausted - skipping article ${articleId}`.yellow);
+                        await ArticleEnhancementModel.findOneAndUpdate(
+                            {articleId},
+                            {processingStatus: 'quota_exhausted'},
+                        );
+                        this.activeJobs.delete(articleId);
+                        continue;
+                    }
 
                     const aiResult: ICombinedAIResponse = await this.aiEnhanceArticle({
                         content: article.content || article.description || article.title || '',
