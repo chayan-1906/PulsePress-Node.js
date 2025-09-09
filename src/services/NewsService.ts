@@ -70,7 +70,7 @@ class NewsService {
                 return cached.data;
             }
 
-            const quotaResponse = await QuotaService.reserveQuotaBeforeApiCall('newsapi', 1);
+            const quotaResponse = await QuotaService.reserveQuotaBeforeApiCall({service: 'newsapi', count: 1});
             if (!quotaResponse.allowed) {
                 console.warn('Rate Limit: NewsApi daily limit reached'.yellow);
                 return {status: 'error', message: 'NewsApi daily limit reached', articles: [], totalResults: 0};
@@ -124,7 +124,7 @@ class NewsService {
                 return cached.data;
             }
 
-            const quotaResponse = await QuotaService.reserveQuotaBeforeApiCall('newsapi', 1);
+            const quotaResponse = await QuotaService.reserveQuotaBeforeApiCall({service: 'newsapi', count: 1});
             if (!quotaResponse.allowed) {
                 console.log('NewsApi limit reached'.yellow);
                 return {status: 'error', message: 'NewsApi daily limit reached', articles: [], totalResults: 0};
@@ -166,7 +166,7 @@ class NewsService {
                 return {articles: [], totalResults: 0};
             }
 
-            const quotaResponse = await QuotaService.reserveQuotaBeforeApiCall('guardian', 1);
+            const quotaResponse = await QuotaService.reserveQuotaBeforeApiCall({service: 'guardian', count: 1});
             if (!quotaResponse.allowed) {
                 console.warn('Rate Limit: Guardian API daily limit reached'.yellow);
                 return {status: 'error', message: 'Guardian API daily limit reached', articles: [], totalResults: 0};
@@ -192,7 +192,7 @@ class NewsService {
             const url = apis.guardianSearchApi({q: processedQuery, section, fromDate, toDate, orderBy, pageSize, page}) + `&api-key=${GUARDIAN_API_KEY}`;
             const {data: guardianResponse} = await axios.get<IGuardianResponse>(url, {headers: buildHeader('guardian')});
 
-            const currentGuardianCount = await QuotaService.getCurrentCount('guardian');
+            const currentGuardianCount = await QuotaService.getCurrentCount({service: 'guardian'});
             console.log(`External API: Guardian request ${currentGuardianCount}:`.magenta, guardianResponse.response.total, 'results');
 
             const articles = guardianResponse.response.results.map(convertGuardianToArticle);
@@ -231,7 +231,7 @@ class NewsService {
                 return {error: generateInvalidCode('nytimes_section')};
             }
 
-            const quotaResponse = await QuotaService.reserveQuotaBeforeApiCall('nytimes', 1);
+            const quotaResponse = await QuotaService.reserveQuotaBeforeApiCall({service: 'nytimes', count: 1});
             if (!quotaResponse.allowed) {
                 console.warn('Rate Limit: NYTimes API daily limit reached'.yellow);
                 return {status: 'error', message: 'NYTimes API daily limit reached', articles: [], totalResults: 0};
@@ -264,7 +264,7 @@ class NewsService {
                 metadata: nytResponse.response?.metadata,
             });
 
-            const currentNytimesCount = await QuotaService.getCurrentCount('nytimes');
+            const currentNytimesCount = await QuotaService.getCurrentCount({service: 'nytimes'});
             console.log(`External API: NYTimes request ${currentNytimesCount}:`.magenta, nytResponse?.response?.metadata?.hits || 0, 'results');
 
             if (!nytResponse.response || !nytResponse.response.docs) {
@@ -310,7 +310,7 @@ class NewsService {
                 return {error: generateInvalidCode('nytimes_section')};
             }
 
-            const quotaResponse = await QuotaService.reserveQuotaBeforeApiCall('nytimes', 1);
+            const quotaResponse = await QuotaService.reserveQuotaBeforeApiCall({service: 'nytimes', count: 1});
             if (!quotaResponse.allowed) {
                 console.warn('Rate Limit: NYTimes API daily limit reached'.yellow);
                 return {status: 'error', message: 'NYTimes API daily limit reached', articles: [], totalResults: 0};
@@ -326,7 +326,7 @@ class NewsService {
             const url = apis.nytimesTopStoriesApi({section}) + `?api-key=${NYTIMES_API_KEY}`;
             const {data: nytResponse} = await axios.get<INewYorkTimesTopStoriesResponse>(url, {headers: buildHeader('nytimes')});
 
-            const currentNytimesCount = await QuotaService.getCurrentCount('nytimes');
+            const currentNytimesCount = await QuotaService.getCurrentCount({service: 'nytimes'});
             console.log(`External API: NYTimes Top Stories request ${currentNytimesCount}:`.magenta, nytResponse.num_results, 'results');
 
             const articles: IArticle[] = nytResponse.results?.map(convertNewYorkTimesTopStoryToArticle);
@@ -542,7 +542,7 @@ class NewsService {
         // NewsAPIOrg (40% of requested articles) with smart query variations
         const newsApiTargetCount = Math.ceil(pageSize * 0.4);
         try {
-            if (await QuotaService.hasQuotaAvailable('newsapi') && simplifiedQuery) {
+            if (await QuotaService.hasQuotaAvailable({service: 'newsapi'}) && simplifiedQuery) {
                 console.log(`Service: Trying NewsAPIOrg with smart query variations (target: ${newsApiTargetCount} articles)...`.cyan);
 
                 const newsApiResult = await this.smartFetchWithVariations({
@@ -606,7 +606,7 @@ class NewsService {
 
         if (remainingSlots > 0) {
             try {
-                if (await QuotaService.hasQuotaAvailable('guardian') && simplifiedQuery) {
+                if (await QuotaService.hasQuotaAvailable({service: 'guardian'}) && simplifiedQuery) {
                     console.log(`Service: Trying Guardian API with smart variations (target: ${guardianTargetCount} articles)...`.cyan);
 
                     const guardianResult = await this.smartFetchWithVariations({
@@ -658,7 +658,7 @@ class NewsService {
 
         if (remainingSlots2 > 0) {
             try {
-                if (await QuotaService.hasQuotaAvailable('nytimes')) {
+                if (await QuotaService.hasQuotaAvailable({service: 'nytimes'})) {
                     console.log(`Service: Trying NYTimes API (target: ${nytimesTargetCount} articles)...`.cyan);
 
                     if (simplifiedQuery) {
@@ -777,9 +777,9 @@ class NewsService {
                 usedSources,
                 errors: errors.length > 0 ? errors : undefined,
                 apiRequestCounts: {
-                    newsApi: await QuotaService.getCurrentCount('newsapi'),
-                    guardian: await QuotaService.getCurrentCount('guardian'),
-                    nytimes: await QuotaService.getCurrentCount('nytimes'),
+                    newsApi: await QuotaService.getCurrentCount({service: 'newsapi'}),
+                    guardian: await QuotaService.getCurrentCount({service: 'guardian'}),
+                    nytimes: await QuotaService.getCurrentCount({service: 'nytimes'}),
                 },
             },
         };
@@ -917,7 +917,7 @@ class NewsService {
 
         // NewsAPI (10% of articles)
         const newsApiCount = Math.ceil(pageSize * 0.1);
-        if (await QuotaService.hasQuotaAvailable('newsapi')) {
+        if (await QuotaService.hasQuotaAvailable({service: 'newsapi'})) {
             if (simplifiedQuery) {
                 apiPromises.push(
                     this.fetchNewsApiOrgEverything({
@@ -945,7 +945,7 @@ class NewsService {
 
         // Guardian (30% of articles)
         const guardianCount = Math.ceil(pageSize * 0.3);
-        if (await QuotaService.hasQuotaAvailable('guardian')) {
+        if (await QuotaService.hasQuotaAvailable({service: 'guardian'})) {
             apiPromises.push(
                 this.fetchGuardianNews({
                     q: simplifiedQuery,
@@ -961,7 +961,7 @@ class NewsService {
         // NYTimes (20% of articles)
         const nytimesCount = Math.ceil(pageSize * 0.2);
         const nytSection = mapToNewYorkTimesSection(topic);
-        if (await QuotaService.hasQuotaAvailable('nytimes')) {
+        if (await QuotaService.hasQuotaAvailable({service: 'nytimes'})) {
             if (simplifiedQuery) {
                 apiPromises.push(
                     this.fetchNewYorkTimesNews({
@@ -1092,9 +1092,9 @@ class NewsService {
                     rss: '40%',
                 },
                 apiRequestCounts: {
-                    newsApi: await QuotaService.getCurrentCount('newsapi'),
-                    guardian: await QuotaService.getCurrentCount('guardian'),
-                    nytimes: await QuotaService.getCurrentCount('nytimes'),
+                    newsApi: await QuotaService.getCurrentCount({service: 'newsapi'}),
+                    guardian: await QuotaService.getCurrentCount({service: 'guardian'}),
+                    nytimes: await QuotaService.getCurrentCount({service: 'nytimes'}),
                 },
             },
         };

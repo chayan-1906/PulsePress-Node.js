@@ -1,17 +1,20 @@
 import "colors";
-import {GEMINI_QUOTA_LIMITS} from "../utils/constants";
 import ApiQuotaModel, {IApiQuota} from "../models/ApiQuotaSchema";
 import {
-    API_SERVICES,
+    GEMINI_MODELS,
     IBatchQuotaCheckResponse,
+    ICheckQuotaAvailabilityForBatchOperationParams,
+    IGetCurrentCountParams,
+    IHasQuotaAvailableParams,
     IModelFallbackResponse,
-    IQuotaIncrementResponse,
     IQuotaReservationResponse,
     IQuotaServiceOptions,
-    IQuotaUsageHistory,
+    IReserveQuotaBeforeApiCallParams,
+    IReserveQuotaForGeminiModelParams,
+    IReserveQuotaForModelFallbackParams,
+    IRollbackQuotaReservationParams,
     TApiService,
     TGeminiModel,
-    GEMINI_MODELS,
 } from "../types/quota";
 
 class QuotaService {
@@ -42,62 +45,10 @@ class QuotaService {
         return new Date().toLocaleDateString('en-CA', {timeZone: 'America/Los_Angeles'});
     }
 
-    // TODO: Need to remove after NewsService migration
-    /**
-     * Increment API request counter and check if request is allowed
-     * Auto-creates new daily record if date has changed
-     */
-    static async incrementCounter(service: TApiService, incrementBy: number = 1): Promise<IQuotaIncrementResponse> {
-        console.log('Service: QuotaService.incrementCounter called'.cyan.italic, {service, incrementBy});
-
-        try {
-            const currentDate = this.getCurrentDatePacific();
-            const limit = this.DEFAULT_LIMITS[service];
-
-            let quotaRecord = await ApiQuotaModel.findOne({service, date: currentDate});
-
-            if (!quotaRecord) {
-                console.log('Database: Creating new daily quota record'.cyan, {service, date: currentDate});
-                quotaRecord = new ApiQuotaModel({
-                    service,
-                    date: currentDate,
-                    requestCount: 0,
-                    lastResetAt: new Date(),
-                });
-            }
-
-            const potentialCount = quotaRecord.requestCount + incrementBy;
-            const conservativeLimit = Math.floor(limit * this.OPTIONS.conservativeThreshold);
-
-            if (potentialCount > conservativeLimit) {
-                console.warn('Rate Limit: API quota threshold exceeded'.yellow, {service, currentCount: quotaRecord.requestCount, potentialCount, conservativeLimit, limit});
-
-                return {allowed: false, currentCount: quotaRecord.requestCount, limit: conservativeLimit, service, date: currentDate};
-            }
-
-            quotaRecord.requestCount += incrementBy;
-            quotaRecord.lastResetAt = new Date();
-            await quotaRecord.save();
-
-            const warningLimit = Math.floor(limit * this.OPTIONS.warningThreshold);
-            if (quotaRecord.requestCount >= warningLimit) {
-                console.warn('Rate Limit Warning: Approaching API quota limit'.yellow, {service, currentCount: quotaRecord.requestCount, warningLimit, conservativeLimit});
-            }
-
-            console.log('Database: API quota counter incremented'.green.bold, {service, newCount: quotaRecord.requestCount, limit: conservativeLimit});
-
-            return {allowed: true, currentCount: quotaRecord.requestCount, limit: conservativeLimit, service, date: currentDate};
-        } catch (error: any) {
-            console.error('Service Error: QuotaService.incrementCounter failed'.red.bold, {service, error});
-
-            return {allowed: true, currentCount: 0, limit: this.DEFAULT_LIMITS[service], service, date: this.getCurrentDatePacific()};
-        }
-    }
-
     /**
      * Get current usage count for a service today
      */
-    static async getCurrentCount(service: TApiService): Promise<number> {
+    static async getCurrentCount({service}: IGetCurrentCountParams): Promise<number> {
         console.log('Service: QuotaService.getCurrentCount called'.cyan.italic, {service});
 
         try {
@@ -116,72 +67,9 @@ class QuotaService {
     }
 
     /**
-     * Get usage history for a service over the last N days
-     */
-    private static async getUsageHistory(service: TApiService, days: number = 7): Promise<IQuotaUsageHistory[]> {
-        console.log('Service: QuotaService.getUsageHistory called'.cyan.italic, {service, days});
-
-        try {
-            const endDate = new Date();
-            const startDate = new Date();
-            startDate.setDate(startDate.getDate() - days);
-
-            const records: IApiQuota[] = await ApiQuotaModel.find({
-                service,
-                createdAt: {$gte: startDate, $lte: endDate},
-            }).sort({date: -1})
-                .limit(days);
-
-            const history: IQuotaUsageHistory[] = records.map(({service, date, requestCount, lastResetAt}: IApiQuota) => ({
-                service, date, requestCount, lastResetAt,
-            }));
-
-            console.log('Database: Usage history retrieved'.cyan, {service, days, recordCount: history.length});
-            return history;
-        } catch (error) {
-            console.error('Service Error: QuotaService.getUsageHistory failed'.red.bold, {service, days, error});
-            return [];
-        }
-    }
-
-    /**
-     * Get total usage across all services today (for monitoring)
-     */
-    private static async getTodaysTotalUsage(): Promise<Record<TApiService, number>> {
-        console.log('Service: QuotaService.getTodaysTotalUsage called'.cyan.italic);
-
-        try {
-            const currentDate = this.getCurrentDatePacific();
-
-            const records: IApiQuota[] = await ApiQuotaModel.find({date: currentDate});
-
-            const usage: Record<TApiService, number> = {} as Record<TApiService, number>;
-            
-            // Initialize all API services to 0
-            for (const service of API_SERVICES) {
-                usage[service] = 0;
-            }
-
-            records.forEach(record => {
-                usage[record.service] = record.requestCount;
-            });
-
-            console.log('Database: Total daily usage retrieved'.cyan, {date: currentDate, usage});
-            return usage;
-        } catch (error) {
-            console.error('Service Error: QuotaService.getTodaysTotalUsage failed'.red.bold, {error});
-            const fallbackUsage: Record<TApiService, number> = {} as Record<TApiService, number>;
-            for (const service of API_SERVICES) {
-                fallbackUsage[service] = 0;
-            }
-            return fallbackUsage;
-        }
-    }
-
-    /**
      * Check if a service has quota available without incrementing
      */
-    static async hasQuotaAvailable(service: TApiService, requestCount: number = 1): Promise<boolean> {
+    static async hasQuotaAvailable({service, requestCount = 1}: IHasQuotaAvailableParams): Promise<boolean> {
         try {
             const currentDate = this.getCurrentDatePacific();
             const limit = this.DEFAULT_LIMITS[service];
@@ -205,31 +93,6 @@ class QuotaService {
     }
 
     /**
-     * Get quota limits and current usage for all services (for admin/debugging)
-     */
-    private static async getQuotaStatus(): Promise<Record<TApiService, { current: number, limit: number, available: number }>> {
-        console.log('Service: QuotaService.getQuotaStatus called'.cyan.italic);
-
-        const status: Record<TApiService, { current: number, limit: number, available: number }> = {} as any;
-
-        for (const service of API_SERVICES) {
-            try {
-                const current = await this.getCurrentCount(service);
-                const limit = Math.floor(this.DEFAULT_LIMITS[service] * this.OPTIONS.conservativeThreshold);
-                const available = Math.max(0, limit - current);
-
-                status[service] = {current, limit, available};
-            } catch (error) {
-                console.error('Service Error: QuotaService.getQuotaStatus failed for service'.red.bold, {service, error});
-                status[service] = {current: 0, limit: this.DEFAULT_LIMITS[service], available: this.DEFAULT_LIMITS[service]};
-            }
-        }
-
-        console.log('All quota statuses retrieved successfully'.cyan, {status});
-        return status;
-    }
-
-    /**
      * Atomically reserve quota slots before making API calls to prevent race conditions
      *
      * CRITICAL SECTION IMPLEMENTATION:
@@ -242,7 +105,7 @@ class QuotaService {
      * - Guarantees billing safety even with concurrent requests
      * - Uses atomic findOneAndUpdate for thread-safe quota reservation
      */
-    static async reserveQuotaBeforeApiCall(service: TApiService, count: number = 1): Promise<IQuotaReservationResponse> {
+    static async reserveQuotaBeforeApiCall({service, count = 1}: IReserveQuotaBeforeApiCallParams): Promise<IQuotaReservationResponse> {
         console.log('Service: QuotaService.reserveQuotaBeforeApiCall called'.cyan.italic, {service, count});
 
         try {
@@ -339,40 +202,37 @@ class QuotaService {
 
     /**
      * DUAL-LEVEL QUOTA ENFORCEMENT for Gemini Models
-     * 
+     *
      * Enforces TWO constraints simultaneously:
      * 1. Global Pool: gemini-total ≤ 900 (sum of all individual model usage)
      * 2. Individual Model: each model ≤ its specific limit
-     * 
+     *
      * This ensures billing safety by preventing any model from exceeding Google's free tier limits
      */
-    static async reserveQuotaForGeminiModel(modelName: TGeminiModel, count: number = 1): Promise<IModelFallbackResponse> {
+    static async reserveQuotaForGeminiModel({modelName, count = 1}: IReserveQuotaForGeminiModelParams): Promise<IModelFallbackResponse> {
         console.log('Service: QuotaService.reserveQuotaForGeminiModel called'.cyan.italic, {modelName, count});
 
         try {
             const currentDate = this.getCurrentDatePacific();
 
-            // Step 1: Check individual model limit
             const modelLimit = this.DEFAULT_LIMITS[modelName];
             if (!modelLimit) {
                 console.error('Service Error: Unknown Gemini model'.red.bold, {modelName});
                 return {allowed: false, selectedModel: '', quotaReserved: 0, service: modelName, date: currentDate};
             }
 
-            const modelQuotaResult = await this.reserveQuotaBeforeApiCall(modelName, count);
+            const modelQuotaResult = await this.reserveQuotaBeforeApiCall({service: modelName, count});
             if (!modelQuotaResult.allowed) {
                 console.warn('Rate Limit: Individual model quota exhausted'.yellow, {modelName, remainingQuota: modelQuotaResult.remainingQuota, modelLimit});
                 return {allowed: false, selectedModel: '', quotaReserved: 0, service: modelName, date: currentDate};
             }
 
-            // Step 2: Check global Gemini pool
-            const totalQuotaResult = await this.reserveQuotaBeforeApiCall('gemini-total', count);
+            const totalQuotaResult = await this.reserveQuotaBeforeApiCall({service: 'gemini-total', count});
             if (!totalQuotaResult.allowed) {
                 console.warn('Rate Limit: Total Gemini quota exhausted'.yellow, {remainingQuota: totalQuotaResult.remainingQuota});
-                
-                // ROLLBACK: If global quota fails, we need to rollback the individual model reservation
-                await this.rollbackQuotaReservation(modelName, count);
-                
+
+                await this.rollbackQuotaReservation({service: modelName, count});
+
                 return {allowed: false, selectedModel: '', quotaReserved: 0, service: 'gemini-total', date: currentDate};
             }
 
@@ -394,7 +254,7 @@ class QuotaService {
      * Handle Gemini model fallback scenarios with dual-level quota enforcement
      * Tries primary model first, then fallbacks in order based on available quota
      */
-    static async reserveQuotaForModelFallback(primaryModel: string, fallbackModels: string[], count: number = 1): Promise<IModelFallbackResponse> {
+    static async reserveQuotaForModelFallback({primaryModel, fallbackModels, count = 1}: IReserveQuotaForModelFallbackParams): Promise<IModelFallbackResponse> {
         console.log('Service: QuotaService.reserveQuotaForModelFallback called'.cyan.italic, {primaryModel, fallbackModels, count});
 
         const modelsToTry: string[] = [primaryModel, ...fallbackModels];
@@ -405,7 +265,7 @@ class QuotaService {
                 continue;
             }
 
-            const result = await this.reserveQuotaForGeminiModel(modelName as TGeminiModel, count);
+            const result = await this.reserveQuotaForGeminiModel({modelName: modelName as TGeminiModel, count});
             if (result.allowed) {
                 console.log('Model fallback: Successfully reserved quota'.cyan, {selectedModel: modelName, quotaReserved: count});
                 return result;
@@ -422,12 +282,12 @@ class QuotaService {
      * Rollback quota reservation in case of partial failure
      * Used when individual model quota succeeds but global quota fails
      */
-    private static async rollbackQuotaReservation(service: TApiService, count: number): Promise<void> {
+    private static async rollbackQuotaReservation({service, count}: IRollbackQuotaReservationParams): Promise<void> {
         console.log('Service: QuotaService.rollbackQuotaReservation called'.cyan.italic, {service, count});
 
         try {
             const currentDate = this.getCurrentDatePacific();
-            
+
             await ApiQuotaModel.findOneAndUpdate(
                 {service, date: currentDate},
                 {
@@ -447,11 +307,11 @@ class QuotaService {
      * Pre-filter batch operations to prevent partial processing failures
      * Returns maximum processable items based on available quota
      */
-    static async checkQuotaAvailabilityForBatchOperation(service: TApiService, requestCount: number): Promise<IBatchQuotaCheckResponse> {
+    static async checkQuotaAvailabilityForBatchOperation({service, requestCount}: ICheckQuotaAvailabilityForBatchOperationParams): Promise<IBatchQuotaCheckResponse> {
         console.log('Service: QuotaService.checkQuotaAvailabilityForBatchOperation called'.cyan.italic, {service, requestCount});
 
         try {
-            const currentCount = await this.getCurrentCount(service);
+            const currentCount = await this.getCurrentCount({service});
             const limit = this.DEFAULT_LIMITS[service];
             const conservativeLimit = Math.floor(limit * this.OPTIONS.conservativeThreshold);
             const availableQuota = Math.max(0, conservativeLimit - currentCount);

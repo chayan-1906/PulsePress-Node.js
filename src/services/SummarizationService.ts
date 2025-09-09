@@ -54,7 +54,7 @@ class SummarizationService {
                 };
             }
 
-            const quotaReservation = await QuotaService.reserveQuotaForModelFallback(AI_SUMMARIZATION_MODELS[0], AI_SUMMARIZATION_MODELS.slice(1), 1,);
+            const quotaReservation = await QuotaService.reserveQuotaForModelFallback({primaryModel: AI_SUMMARIZATION_MODELS[0], fallbackModels: AI_SUMMARIZATION_MODELS.slice(1), count: 1});
 
             if (!quotaReservation.allowed) {
                 console.warn('Rate Limit: Gemini API daily quota reached'.yellow, {

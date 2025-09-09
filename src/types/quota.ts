@@ -19,16 +19,43 @@ export interface IQuotaServiceOptions {
 
 /** ------------- function params ------------- */
 
+export interface IGetCurrentCountParams {
+    service: TApiService;
+}
+
+export interface IHasQuotaAvailableParams {
+    service: TApiService;
+    requestCount?: number;
+}
+
+export interface IReserveQuotaBeforeApiCallParams {
+    service: TApiService;
+    count?: number;
+}
+
+export interface IReserveQuotaForGeminiModelParams {
+    modelName: TGeminiModel;
+    count?: number;
+}
+
+export interface IReserveQuotaForModelFallbackParams {
+    primaryModel: string;
+    fallbackModels: string[];
+    count?: number;
+}
+
+export interface IRollbackQuotaReservationParams {
+    service: TApiService;
+    count: number;
+}
+
+export interface ICheckQuotaAvailabilityForBatchOperationParams {
+    service: TApiService;
+    requestCount: number;
+}
+
 
 /** ------------- API response types ------------- */
-
-export interface IQuotaIncrementResponse {
-    allowed: boolean;
-    currentCount: number;
-    limit: number;
-    service: TApiService;
-    date: string;
-}
 
 export interface IQuotaReservationResponse {
     allowed: boolean;
