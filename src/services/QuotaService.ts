@@ -1,6 +1,7 @@
 import "colors";
 import ApiQuotaModel, {IApiQuota} from "../models/ApiQuotaSchema";
 import {
+    API_SERVICES,
     GEMINI_MODELS,
     IBatchQuotaCheckResponse,
     ICheckQuotaAvailabilityForBatchOperationParams,
@@ -42,7 +43,75 @@ class QuotaService {
     private static getCurrentDatePacific(): string {
         console.log('Service: QuotaService.getCurrentDatePacific called'.cyan.italic);
 
-        return new Date().toLocaleDateString('en-CA', {timeZone: 'America/Los_Angeles'});
+        const pacificDate = new Date().toLocaleDateString('en-CA', {timeZone: 'America/Los_Angeles'});
+        console.log('Current Pacific date:'.cyan, pacificDate);
+
+        return pacificDate;
+    }
+
+    /**
+     * Get or reset daily quota record for a service
+     * Resets requestCount to 0 if date has changed (after Pacific midnight)
+     */
+    private static async getOrResetDailyRecord(service: TApiService): Promise<IApiQuota> {
+        const currentDate = this.getCurrentDatePacific();
+
+        let record = await ApiQuotaModel.findOne({service});
+
+        if (!record) {
+            record = new ApiQuotaModel({
+                service,
+                date: currentDate,
+                requestCount: 0,
+                lastResetAt: new Date(),
+            });
+            await record.save();
+            console.log('Database: Created new quota record'.cyan, {service, date: currentDate});
+        } else if (record.date !== currentDate) {
+            record.date = currentDate;
+            record.requestCount = 0;
+            record.lastResetAt = new Date();
+            await record.save();
+            console.log('Database: Reset quota record for new day'.cyan, {service, date: currentDate});
+        }
+
+        return record;
+    }
+
+    /**
+     * Initialize all 10 fixed quota records on application startup
+     * Ensures exactly 10 permanent records exist for all API services
+     */
+    static async initializeQuotaRecords(): Promise<void> {
+        console.log('Service: QuotaService.initializeQuotaRecords called'.cyan.italic);
+
+        try {
+            const currentDate = this.getCurrentDatePacific();
+            const promises: Promise<void>[] = [];
+
+            for (const service of API_SERVICES) {
+                const promise = (async () => {
+                    const existingQuota = await ApiQuotaModel.findOne({service});
+                    if (!existingQuota) {
+                        const newQuota = new ApiQuotaModel({
+                            service,
+                            date: currentDate,
+                            requestCount: 0,
+                            lastResetAt: new Date(),
+                        });
+                        await newQuota.save();
+                        console.log('Database: Initialized quota record'.cyan, {service, date: currentDate});
+                    }
+                })();
+                promises.push(promise);
+            }
+
+            await Promise.all(promises);
+            console.log('Quota records initialization completed successfully'.green.bold, {totalRecords: API_SERVICES.length});
+        } catch (error: any) {
+            console.error('Service Error: QuotaService.initializeQuotaRecords failed'.red.bold, error);
+            throw error;
+        }
     }
 
     /**
@@ -52,14 +121,9 @@ class QuotaService {
         console.log('Service: QuotaService.getCurrentCount called'.cyan.italic, {service});
 
         try {
-            const currentDate = this.getCurrentDatePacific();
-
-            const quotaRecord = await ApiQuotaModel.findOne({service, date: currentDate});
-
-            const currentCount = quotaRecord ? quotaRecord.requestCount : 0;
-            console.log('Database: Current quota count retrieved'.green.bold, {service, currentCount});
-
-            return currentCount;
+            const record = await this.getOrResetDailyRecord(service);
+            console.log('Database: Current quota count retrieved'.green.bold, {service, currentCount: record.requestCount});
+            return record.requestCount;
         } catch (error) {
             console.error('Service Error: QuotaService.getCurrentCount failed'.red.bold, {service, error});
             return 0;
@@ -71,19 +135,13 @@ class QuotaService {
      */
     static async hasQuotaAvailable({service, requestCount = 1}: IHasQuotaAvailableParams): Promise<boolean> {
         try {
-            const currentDate = this.getCurrentDatePacific();
             const limit = this.DEFAULT_LIMITS[service];
             const conservativeLimit = Math.floor(limit * this.OPTIONS.conservativeThreshold);
 
-            const quotaRecord: IApiQuota | null = await ApiQuotaModel.findOne({
-                service,
-                date: currentDate
-            });
+            const record = await this.getOrResetDailyRecord(service);
+            const wouldExceed: boolean = (record.requestCount + requestCount) > conservativeLimit;
 
-            const currentCount = quotaRecord ? quotaRecord.requestCount : 0;
-            const wouldExceed = (currentCount + requestCount) > conservativeLimit;
-
-            console.log('Service: QuotaService.hasQuotaAvailable checked'.green.bold, {service, currentCount, requestCount, conservativeLimit, available: !wouldExceed});
+            console.log('Service: QuotaService.hasQuotaAvailable checked'.green.bold, {service, currentCount: record.requestCount, requestCount, conservativeLimit, available: !wouldExceed});
 
             return !wouldExceed;
         } catch (error) {
@@ -113,11 +171,7 @@ class QuotaService {
             const limit = this.DEFAULT_LIMITS[service];
             const conservativeLimit = Math.floor(limit * this.OPTIONS.conservativeThreshold);
 
-            // CRITICAL SECTION: MongoDB Mutex Implementation
-            // This atomic operation prevents race conditions by implementing mutual exclusion
-            // Only ONE process can successfully reserve quota when multiple compete simultaneously
-
-            // Try atomic update with quota check - separate logic for existing vs new documents
+            // CRITICAL SECTION: Atomic reset + reservation with quota check
             let result: IApiQuota | null = await ApiQuotaModel.findOneAndUpdate(
                 {
                     service,
@@ -132,25 +186,43 @@ class QuotaService {
             );
 
             if (!result) {
-                const existingDoc = await ApiQuotaModel.findOne({service, date: currentDate});
+                const existingQuota = await ApiQuotaModel.findOne({service});
+                console.log('Debug: First query failed, checking existing record'.yellow, {
+                    service,
+                    existingQuota: existingQuota ? {date: existingQuota.date, requestCount: existingQuota.requestCount} : null,
+                    currentDate
+                });
 
-                if (!existingDoc && count <= conservativeLimit) {
-                    try {
+                if (existingQuota && existingQuota.date !== currentDate) {
+                    console.log('Database: Resetting quota record for new day'.cyan, {service, oldDate: existingQuota.date, newDate: currentDate});
+
+                    if (count <= conservativeLimit) {
                         result = await ApiQuotaModel.findOneAndUpdate(
-                            {service, date: currentDate},
+                            {service, date: existingQuota.date},
                             {
-                                $setOnInsert: {
+                                $set: {
+                                    date: currentDate,
                                     requestCount: count,
                                     lastResetAt: new Date(),
                                 },
                             },
-                            {new: true, upsert: true},
+                            {new: true},
                         );
+                    }
+                } else if (!existingQuota && count <= conservativeLimit) {
+                    try {
+                        const newQuota = new ApiQuotaModel({
+                            service,
+                            date: currentDate,
+                            requestCount: count,
+                            lastResetAt: new Date(),
+                        });
+                        result = await newQuota.save();
+                        console.log('Database: Created new quota record'.cyan, {service, date: currentDate});
                     } catch (duplicateError: any) {
                         result = await ApiQuotaModel.findOneAndUpdate(
                             {
                                 service,
-                                date: currentDate,
                                 requestCount: {$lte: conservativeLimit - count},
                             },
                             {
@@ -164,7 +236,7 @@ class QuotaService {
             }
 
             if (!result) {
-                const currentRecord: IApiQuota | null = await ApiQuotaModel.findOne({service, date: currentDate});
+                const currentRecord = await ApiQuotaModel.findOne({service});
                 const currentCount = currentRecord?.requestCount || 0;
 
                 console.warn('Rate Limit: Quota reservation failed - insufficient quota'.yellow, {service, currentCount, requestedCount: count, limit: conservativeLimit});
@@ -180,12 +252,7 @@ class QuotaService {
 
             const remainingQuota = Math.max(0, conservativeLimit - result.requestCount);
 
-            console.log('Database: Quota reserved successfully'.cyan, {
-                service,
-                reservedCount: count,
-                newTotal: result.requestCount,
-                remainingQuota
-            });
+            console.log('Database: Quota reserved successfully'.cyan, {service, reservedCount: count, newTotal: result.requestCount, remainingQuota});
 
             const warningLimit = Math.floor(limit * this.OPTIONS.warningThreshold);
             if (result.requestCount >= warningLimit) {
@@ -286,15 +353,13 @@ class QuotaService {
         console.log('Service: QuotaService.rollbackQuotaReservation called'.cyan.italic, {service, count});
 
         try {
-            const currentDate = this.getCurrentDatePacific();
-
             await ApiQuotaModel.findOneAndUpdate(
-                {service, date: currentDate},
+                {service},
                 {
                     $inc: {requestCount: -count},
                     $set: {lastResetAt: new Date()},
                 },
-                {new: true}
+                {new: true},
             );
 
             console.log('Database: Quota reservation rolled back'.cyan, {service, rolledBackCount: count});

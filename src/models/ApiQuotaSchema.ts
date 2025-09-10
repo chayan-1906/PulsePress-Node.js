@@ -6,7 +6,6 @@ export interface IApiQuota extends Document {
     date: string;
     requestCount: number;
     lastResetAt: Date;
-    expiresAt: Date;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -36,11 +35,6 @@ const ApiQuotaSchema = new Schema<IApiQuota>({
         required: true,
         default: Date.now,
     },
-    expiresAt: {
-        type: Date,
-        default: Date.now,
-        expires: 30 * 24 * 60 * 60,     // 30 days - MongoDB TTL, automatically deletes when expiresAt is reached
-    },
 }, {
     timestamps: true,
     toJSON: {
@@ -53,7 +47,7 @@ const ApiQuotaSchema = new Schema<IApiQuota>({
     },
 });
 
-ApiQuotaSchema.index({service: 1, date: 1}, {unique: true});
+ApiQuotaSchema.index({service: 1}, {unique: true});
 
 const ApiQuotaModel: IApiQuotaModel = model<IApiQuota, IApiQuotaModel>('ApiQuota', ApiQuotaSchema);
 
