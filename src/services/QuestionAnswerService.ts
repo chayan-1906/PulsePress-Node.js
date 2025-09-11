@@ -1,5 +1,6 @@
 import "colors";
 import {GoogleGenerativeAI} from "@google/generative-ai";
+import QuotaService from "./QuotaService";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY, NODE_ENV} from "../config/config";
 import {API_CONFIG, QUESTION_ANSWER_MODELS} from "../utils/constants";
@@ -42,32 +43,43 @@ class QuestionAnswerService {
         // Truncate content to avoid token limits
         const truncatedContent = truncateContentForAI(content, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
-        for (let i = 0; i < QUESTION_ANSWER_MODELS.length; i++) {
-            const modelName = QUESTION_ANSWER_MODELS[i];
-            console.log(`Trying question generation with model ${i + 1}/${QUESTION_ANSWER_MODELS.length}:`.cyan, modelName);
+        const quotaReservation = await QuotaService.reserveQuotaForModelFallback({
+            primaryModel: QUESTION_ANSWER_MODELS[0],
+            fallbackModels: QUESTION_ANSWER_MODELS.slice(1),
+            count: 1,
+        });
 
-            try {
-                const result = await this.generateQuestionsWithGemini(modelName, truncatedContent);
-
-                if (result.questions && result.questions.length > 0) {
-                    console.log(`Question generation successful with model:`.cyan, modelName);
-                    console.log('Generated questions:'.green.bold, result.questions);
-
-                    if (NODE_ENV === 'production') {
-                        await cacheQuestions(contentHash, result.questions);
-                    }
-
-                    return {...result, powered_by: modelName};
-                }
-
-                console.error(`Service Error: Model failed:`.red.bold, modelName, 'Error:', result.error);
-            } catch (error: any) {
-                console.error(`Service Error: Model failed:`.red.bold, modelName, 'Error:', error.message);
-            }
+        if (!quotaReservation.allowed) {
+            console.warn('Rate Limit: Gemini API daily quota reached for question generation'.yellow, {
+                selectedModel: quotaReservation.selectedModel,
+                quotaReserved: quotaReservation.quotaReserved,
+                service: quotaReservation.service,
+            });
+            return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
         }
 
-        console.error('Service Error: All question generation models failed'.red.bold);
-        return {error: 'QUESTION_GENERATION_FAILED'};
+        const selectedModel = quotaReservation.selectedModel;
+        console.log('Quota reserved for question generation'.cyan, {selectedModel, quotaReserved: quotaReservation.quotaReserved});
+
+        try {
+            const result = await this.generateQuestionsWithGemini(selectedModel, truncatedContent);
+
+            if (result.questions && result.questions.length > 0) {
+                console.log('Question generation completed successfully'.green.bold, {questions: result.questions, model: selectedModel});
+
+                if (NODE_ENV === 'production') {
+                    await cacheQuestions(contentHash, result.questions);
+                }
+
+                return {...result, powered_by: selectedModel};
+            }
+
+            console.error('Service Error: Question generation failed with quota-reserved model'.red.bold, {model: selectedModel, error: result.error});
+            return {error: 'QUESTION_GENERATION_FAILED'};
+        } catch (error: any) {
+            console.error('Service Error: Question generation failed with quota-reserved model'.red.bold, {model: selectedModel, error: error.message});
+            return {error: 'QUESTION_GENERATION_FAILED'};
+        }
     }
 
     /**
@@ -105,30 +117,41 @@ class QuestionAnswerService {
         // Truncate content to avoid token limits
         const truncatedContent = truncateContentForAI(content, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
-        for (let i = 0; i < QUESTION_ANSWER_MODELS.length; i++) {
-            const modelName = QUESTION_ANSWER_MODELS[i];
-            console.log(`Trying question answering with model ${i + 1}/${QUESTION_ANSWER_MODELS.length}:`.cyan, modelName);
+        const quotaReservation = await QuotaService.reserveQuotaForModelFallback({
+            primaryModel: QUESTION_ANSWER_MODELS[0],
+            fallbackModels: QUESTION_ANSWER_MODELS.slice(1),
+            count: 1,
+        });
 
-            try {
-                const result = await this.answerQuestionWithGemini(modelName, truncatedContent, question);
-
-                if (result.answer && result.answer.trim().length > 0) {
-                    console.log(`Question answering successful with model:`.cyan, modelName);
-                    console.log('Generated answer:'.green.bold, result.answer);
-
-                    await cacheAnswer(contentHash, question, result.answer);
-
-                    return {...result, powered_by: modelName};
-                }
-
-                console.error(`Service Error: Model failed:`.red.bold, modelName, 'Error:', result.error);
-            } catch (error: any) {
-                console.error(`Service Error: Model failed:`.red.bold, modelName, 'Error:', error.message);
-            }
+        if (!quotaReservation.allowed) {
+            console.warn('Rate Limit: Gemini API daily quota reached for question answering'.yellow, {
+                selectedModel: quotaReservation.selectedModel,
+                quotaReserved: quotaReservation.quotaReserved,
+                service: quotaReservation.service,
+            });
+            return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
         }
 
-        console.error('Service Error: All question answering models failed'.red.bold);
-        return {error: 'QUESTION_ANSWERING_FAILED'};
+        const selectedModel = quotaReservation.selectedModel;
+        console.log('Quota reserved for question answering'.cyan, {selectedModel, quotaReserved: quotaReservation.quotaReserved});
+
+        try {
+            const result = await this.answerQuestionWithGemini(selectedModel, truncatedContent, question);
+
+            if (result.answer && result.answer.trim().length > 0) {
+                console.log('Question answering completed successfully'.green.bold, {answer: result.answer, model: selectedModel});
+
+                await cacheAnswer(contentHash, question, result.answer);
+
+                return {...result, powered_by: selectedModel};
+            }
+
+            console.error('Service Error: Question answering failed with quota-reserved model'.red.bold, {model: selectedModel, error: result.error});
+            return {error: 'QUESTION_ANSWERING_FAILED'};
+        } catch (error: any) {
+            console.error('Service Error: Question answering failed with quota-reserved model'.red.bold, {model: selectedModel, error: error.message});
+            return {error: 'QUESTION_ANSWERING_FAILED'};
+        }
     }
 
     /**

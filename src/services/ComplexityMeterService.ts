@@ -1,5 +1,6 @@
 import "colors";
 import {GoogleGenerativeAI} from "@google/generative-ai";
+import QuotaService from "./QuotaService";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {generateMissingCode} from "../utils/generateErrorCodes";
@@ -24,29 +25,38 @@ class ComplexityMeterService {
         // Truncate content to avoid token limits
         const truncatedContent = truncateContentForAI(content, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
-        for (let i = 0; i < AI_COMPLEXITY_METER__MODELS.length; i++) {
-            const modelName = AI_COMPLEXITY_METER__MODELS[i];
-            console.log(`Trying complexity analysis with model ${i + 1}/${AI_COMPLEXITY_METER__MODELS.length}:`.cyan, modelName);
+        const quotaReservation = await QuotaService.reserveQuotaForModelFallback({
+            primaryModel: AI_COMPLEXITY_METER__MODELS[0],
+            fallbackModels: AI_COMPLEXITY_METER__MODELS.slice(1),
+            count: 1,
+        });
 
-            try {
-                let result: IComplexityMeterResponse;
-                result = await this.analyzeWithGemini(modelName, truncatedContent);
-
-                if (result.complexityMeter) {
-                    console.log(`✅ Complexity analysis successful with model:`.cyan, modelName);
-                    console.log('Complexity analysis result:'.cyan, result.complexityMeter);
-                    console.log('Complexity analysis completed successfully'.green.bold);
-                    return {...result, powered_by: modelName};
-                }
-
-                console.error('Service Error: Complexity analysis model failed'.red.bold, {model: modelName, error: result.error});
-            } catch (error: any) {
-                console.error('Service Error: Complexity analysis model failed'.red.bold, {model: modelName, error: error.message});
-            }
+        if (!quotaReservation.allowed) {
+            console.warn('Rate Limit: Gemini API daily quota reached for complexity analysis'.yellow, {
+                selectedModel: quotaReservation.selectedModel,
+                quotaReserved: quotaReservation.quotaReserved,
+                service: quotaReservation.service,
+            });
+            return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
         }
 
-        console.error('Service Error: All complexity analysis models failed'.red.bold);
-        return {error: 'COMPLEXITY_METER_GENERATION_FAILED'};
+        const selectedModel = quotaReservation.selectedModel;
+        console.log('Quota reserved for complexity analysis'.cyan, {selectedModel, quotaReserved: quotaReservation.quotaReserved});
+
+        try {
+            const result = await this.analyzeWithGemini(selectedModel, truncatedContent);
+
+            if (result.complexityMeter) {
+                console.log('Complexity analysis completed successfully'.green.bold, {complexityMeter: result.complexityMeter, model: selectedModel});
+                return {...result, powered_by: selectedModel};
+            }
+
+            console.error('Service Error: Complexity analysis failed with quota-reserved model'.red.bold, {model: selectedModel, error: result.error});
+            return {error: 'COMPLEXITY_METER_GENERATION_FAILED'};
+        } catch (error: any) {
+            console.error('Service Error: Complexity analysis failed with quota-reserved model'.red.bold, {model: selectedModel, error: error.message});
+            return {error: 'COMPLEXITY_METER_GENERATION_FAILED'};
+        }
     }
 
     /**
