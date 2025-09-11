@@ -1,6 +1,7 @@
 import "colors";
 import {GoogleGenerativeAI} from "@google/generative-ai";
 import {IArticle} from "../types/news";
+import QuotaService from "./QuotaService";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {generateMissingCode} from "../utils/generateErrorCodes";
@@ -35,29 +36,38 @@ class SentimentAnalysisService {
         // Truncate content to avoid token limits
         const truncatedContent = truncateContentForAI(content, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
-        for (let i = 0; i < AI_SENTIMENT_ANALYSIS_MODELS.length; i++) {
-            const model = AI_SENTIMENT_ANALYSIS_MODELS[i];
-            console.log(`Trying sentiment analysis with model ${i + 1}/${AI_SENTIMENT_ANALYSIS_MODELS.length}:`.cyan, model);
+        const quotaReservation = await QuotaService.reserveQuotaForModelFallback({
+            primaryModel: AI_SENTIMENT_ANALYSIS_MODELS[0],
+            fallbackModels: AI_SENTIMENT_ANALYSIS_MODELS.slice(1),
+            count: 1,
+        });
 
-            try {
-                let result: ISentimentAnalysisResponse;
-                result = await this.analyzeWithGemini(model, truncatedContent);
-
-                if (result.sentiment && result.confidence) {
-                    console.log(`Sentiment analysis successful with model:`.cyan, model);
-                    console.log('Sentiment analysis completed successfully'.green.bold, {sentiment: result.sentiment, confidence: result.confidence});
-
-                    return {...result, powered_by: model};
-                }
-
-                console.error(`Service Error: Model failed:`.red.bold, model, 'Error:', result.error);
-            } catch (error: any) {
-                console.error(`Service Error: Model failed:`.red.bold, model, 'Error:', error.message);
-            }
+        if (!quotaReservation.allowed) {
+            console.warn('Rate Limit: Gemini API daily quota reached for sentiment analysis'.yellow, {
+                selectedModel: quotaReservation.selectedModel,
+                quotaReserved: quotaReservation.quotaReserved,
+                service: quotaReservation.service,
+            });
+            return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
         }
 
-        console.error('Service Error: All sentiment analysis models failed'.red.bold);
-        return {error: 'SENTIMENT_ANALYSIS_FAILED'};
+        const selectedModel = quotaReservation.selectedModel;
+        console.log('Quota reserved for sentiment analysis'.cyan, {selectedModel, quotaReserved: quotaReservation.quotaReserved});
+
+        try {
+            const result = await this.analyzeWithGemini(selectedModel, truncatedContent);
+
+            if (result.sentiment && result.confidence) {
+                console.log('Sentiment analysis completed successfully'.green.bold, {sentiment: result.sentiment, confidence: result.confidence, model: selectedModel});
+                return {...result, powered_by: selectedModel};
+            }
+
+            console.error('Service Error: Sentiment analysis failed with quota-reserved model'.red.bold, {model: selectedModel, error: result.error});
+            return {error: 'SENTIMENT_ANALYSIS_FAILED'};
+        } catch (error: any) {
+            console.error('Service Error: Sentiment analysis failed with quota-reserved model'.red.bold, {model: selectedModel, error: error.message});
+            return {error: 'SENTIMENT_ANALYSIS_FAILED'};
+        }
     }
 
     /**

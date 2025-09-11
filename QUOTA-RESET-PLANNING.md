@@ -424,17 +424,16 @@ conditions while maintaining simplicity.
 
 **Problem**: Individual AI services bypass quota when called via direct API endpoints:
 
+- ✅ `/ai/generate-tags` → `TagGenerationService.ts`
+- ✅ `/ai/sentiment-analysis` → `SentimentAnalysisService.ts`
+- ✅ `/ai/key-points-extraction` → `KeyPointsExtractionService.ts`
 - `/ai/complexity-meter` → `ComplexityMeterService.ts`
-- `/ai/generate-tags` → `TagGenerationService.ts`
-- `/ai/sentiment-analysis` → `SentimentAnalysisService.ts`
-- `/ai/key-points-extraction` → `KeyPointsExtractionService.ts`
-- `/ai/news-insights` → `NewsInsightsService.ts`
-- `/ai/question-answer` → `QuestionAnswerService.ts`
-- `/ai/social-media-caption` → `SocialMediaCaptionService.ts`
 - `/ai/geographic-extraction` → `GeographicExtractionService.ts`
-- Direct calls to `NewsClassificationService.ts`
+- `/ai/question-answer` → `QuestionAnswerService.ts`
+- `/ai/news-insights` → `NewsInsightsService.ts`
+- `/ai/social-media-caption` → `SocialMediaCaptionService.ts`
 
-**Risk**: These services can exceed quota limits and cause billing charges when called directly.
+**Risk**: These services can exceed quota limits and cause billing charges when called directly
 
 **Note**: Services are protected when called through:
 

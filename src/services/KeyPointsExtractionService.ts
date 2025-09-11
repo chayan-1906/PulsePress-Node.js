@@ -1,5 +1,6 @@
 import "colors";
 import {GoogleGenerativeAI} from "@google/generative-ai";
+import QuotaService from "./QuotaService";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {generateMissingCode} from "../utils/generateErrorCodes";
@@ -24,29 +25,38 @@ class KeyPointsExtractionService {
         // Truncate content to avoid token limits
         const truncatedContent = truncateContentForAI(content, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
-        for (let i = 0; i < AI_KEY_POINTS_EXTRACTOR_MODELS.length; i++) {
-            const modelName = AI_KEY_POINTS_EXTRACTOR_MODELS[i];
-            console.log(`Trying key points extraction with model ${i + 1}/${AI_KEY_POINTS_EXTRACTOR_MODELS.length}:`.cyan, modelName);
+        const quotaReservation = await QuotaService.reserveQuotaForModelFallback({
+            primaryModel: AI_KEY_POINTS_EXTRACTOR_MODELS[0],
+            fallbackModels: AI_KEY_POINTS_EXTRACTOR_MODELS.slice(1),
+            count: 1,
+        });
 
-            try {
-                let result: IKeyPointsExtractionResponse;
-                result = await this.extractWithGemini(modelName, truncatedContent);
-
-                if (result.keyPoints && result.keyPoints.length > 0) {
-                    console.log(`✅ Key points extraction successful with model:`.cyan, modelName);
-                    console.log('Key points extraction result:'.cyan, result.keyPoints);
-                    console.log('Key points extraction completed successfully'.green.bold);
-                    return {...result, powered_by: modelName};
-                }
-
-                console.error('Service Error: Key points extraction model failed'.red.bold, {model: modelName, error: result.error});
-            } catch (error: any) {
-                console.error('Service Error: Key points extraction model failed'.red.bold, {model: modelName, error: error.message});
-            }
+        if (!quotaReservation.allowed) {
+            console.warn('Rate Limit: Gemini API daily quota reached for key points extraction'.yellow, {
+                selectedModel: quotaReservation.selectedModel,
+                quotaReserved: quotaReservation.quotaReserved,
+                service: quotaReservation.service,
+            });
+            return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
         }
 
-        console.error('Service Error: All key points extraction models failed'.red.bold);
-        return {error: 'KEY_POINTS_EXTRACTION_FAILED'};
+        const selectedModel = quotaReservation.selectedModel;
+        console.log('Quota reserved for key points extraction'.cyan, {selectedModel, quotaReserved: quotaReservation.quotaReserved});
+
+        try {
+            const result = await this.extractWithGemini(selectedModel, truncatedContent);
+
+            if (result.keyPoints && result.keyPoints.length > 0) {
+                console.log('Key points extraction completed successfully'.green.bold, {keyPoints: result.keyPoints, model: selectedModel});
+                return {...result, powered_by: selectedModel};
+            }
+
+            console.error('Service Error: Key points extraction failed with quota-reserved model'.red.bold, {model: selectedModel, error: result.error});
+            return {error: 'KEY_POINTS_EXTRACTION_FAILED'};
+        } catch (error: any) {
+            console.error('Service Error: Key points extraction failed with quota-reserved model'.red.bold, {model: selectedModel, error: error.message});
+            return {error: 'KEY_POINTS_EXTRACTION_FAILED'};
+        }
     }
 
     /**
