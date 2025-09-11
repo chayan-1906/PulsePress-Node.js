@@ -148,13 +148,11 @@ class SentimentAnalysisService {
      * Analyze sentiment for multiple articles in batches
      */
     static async enrichArticlesWithSentiment({articles, shouldAnalyze = true}: IEnrichArticlesWithSentimentParams): Promise<IArticle[]> {
-        console.log('Service: SentimentAnalysisService.getSentimentColor called'.cyan.italic, {articles, shouldAnalyze});
+        console.log('Service: SentimentAnalysisService.enrichArticlesWithSentiment called'.cyan.italic, {articles, shouldAnalyze});
 
         if (!shouldAnalyze || !articles?.length) {
             return articles;
         }
-
-        console.log('Service: SentimentAnalysisService.enrichArticlesWithSentiment called'.cyan.italic);
 
         const enrichedArticles = [];
         const batchSize = 5;
