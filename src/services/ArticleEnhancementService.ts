@@ -217,6 +217,17 @@ class ArticleEnhancementService {
 
         if (batchInfo.maxProcessable === 0) {
             console.warn('Client Error: Insufficient quota for article enhancement - 0 articles can be processed'.yellow);
+            const articleIds = articles.map((article: IArticle) => generateArticleId({article}));
+            for (const articleId of articleIds) {
+                await ArticleEnhancementModel.findOneAndUpdate(
+                    {articleId},
+                    {
+                        url: articles.find(a => generateArticleId({article: a}) === articleId)?.url,
+                        processingStatus: 'failed',
+                    },
+                    {upsert: true},
+                );
+            }
             return;
         }
 
@@ -261,13 +272,13 @@ class ArticleEnhancementService {
                     const quotaResult = await QuotaService.reserveQuotaForModelFallback({
                         primaryModel: AI_ENHANCEMENT_MODELS[0],
                         fallbackModels: AI_ENHANCEMENT_MODELS.slice(1),
-                        count: 1
+                        count: 1,
                     });
                     if (!quotaResult.allowed) {
-                        console.warn(`Client Error: Quota exhausted - skipping article ${articleId}`.yellow);
+                        console.warn(`Client Error: Quota exhausted - marking article ${articleId} as failed`.yellow);
                         await ArticleEnhancementModel.findOneAndUpdate(
                             {articleId},
-                            {processingStatus: 'quota_exhausted'},
+                            {processingStatus: 'failed'},
                         );
                         this.activeJobs.delete(articleId);
                         continue;
@@ -395,7 +406,11 @@ class ArticleEnhancementService {
         if (hasActiveJobs || processedCount < articles.length) {
             return {status: 'processing', progress};
         } else {
-            return {status: 'complete', progress: 100};
+            if (completedCount > 0) {
+                return {status: 'complete', progress: processedCount / articles.length * 100};
+            } else {
+                return {status: 'failed', progress: processedCount / articles.length * 100};
+            }
         }
     }
 
@@ -440,8 +455,13 @@ class ArticleEnhancementService {
                 }));
 
             let status: TEnhancementStatus = 'processing';
+            console.log('hasActiveJobs:'.cyan, 'processedCount:'.cyan, processedCount, 'articleIds.length:'.cyan, articleIds.length);
             if (!hasActiveJobs && processedCount >= articleIds.length) {
-                status = 'complete';
+                if (completedCount > 0) {
+                    status = 'complete';
+                } else {
+                    status = 'failed';
+                }
             }
 
             return {status, progress, articles};
