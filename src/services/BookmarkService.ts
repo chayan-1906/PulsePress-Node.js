@@ -11,9 +11,9 @@ import {
     IIsBookmarkedResponse,
     ISearchBookmarksParams,
     ISearchBookmarksResponse,
-    SUPPORTED_BOOKMARK_SORTINGS,
     IToggleBookmarkParams,
     IToggleBookmarkResponse,
+    SUPPORTED_BOOKMARK_SORTINGS,
 } from "../types/bookmark";
 
 class BookmarkService {
@@ -89,7 +89,7 @@ class BookmarkService {
      */
     static async getBookmarkStatus({email, articleUrl}: IIsBookmarkedParams): Promise<IIsBookmarkedResponse> {
         console.log('Service: BookmarkService.getBookmarkStatus called'.cyan.italic, {email, articleUrl});
-        
+
         try {
             const {user, error} = await AuthService.getUserByEmail({email});
             if (!user) {
@@ -121,7 +121,7 @@ class BookmarkService {
      */
     static async getAllBookmarks({email, pageSize = 10, page = 1}: IGetAllBookmarksParams): Promise<IGetAllBookmarksResponse> {
         console.log('Service: BookmarkService.getAllBookmarks called'.cyan.italic, {email, pageSize, page});
-        
+
         try {
             const {user, error} = await AuthService.getUserByEmail({email});
             if (!user) {
@@ -153,7 +153,7 @@ class BookmarkService {
      */
     static async getBookmarkCount({email}: IGetAllBookmarksParams): Promise<IGetBookmarkCountResponse> {
         console.log('Service: BookmarkService.getBookmarkCount called'.cyan.italic, {email});
-        
+
         try {
             const {user, error} = await AuthService.getUserByEmail({email});
             if (!user) {
@@ -176,7 +176,7 @@ class BookmarkService {
      */
     static async searchBookmarks({email, q, sources, sortBy = 'createdAt', sortOrder = 'desc', pageSize = 10, page = 1}: ISearchBookmarksParams): Promise<ISearchBookmarksResponse> {
         console.log('Service: BookmarkService.searchBookmarks called'.cyan.italic, {email, q, sources, sortBy, sortOrder, pageSize, page});
-        
+
         try {
             const {user, error} = await AuthService.getUserByEmail({email});
             if (!user) {

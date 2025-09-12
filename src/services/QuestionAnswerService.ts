@@ -2,7 +2,7 @@ import "colors";
 import {GoogleGenerativeAI} from "@google/generative-ai";
 import QuotaService from "./QuotaService";
 import {AI_PROMPTS} from "../utils/prompts";
-import {GEMINI_API_KEY, NODE_ENV} from "../config/config";
+import {GEMINI_API_KEY} from "../config/config";
 import {API_CONFIG, QUESTION_ANSWER_MODELS} from "../utils/constants";
 import {generateContentHash} from "../utils/serviceHelpers/contentHashing";
 import CachedQuestionAnswerModel from "../models/CachedQuestionAnswerSchema";
@@ -27,17 +27,17 @@ class QuestionAnswerService {
 
         const contentHash = generateContentHash(content);
 
-        if (NODE_ENV === 'production') {
-            try {
-                const cachedResult = await CachedQuestionAnswerModel.findOne({contentHash});
-                if (cachedResult && cachedResult.questions.length > 0) {
-                    console.log('Cache: Found cached questions'.green.bold, cachedResult.questions.length);
-                    return {questions: cachedResult.questions};
-                }
-            } catch (error) {
-                console.warn('Service Warning: Cache lookup failed, proceeding with AI generation'.yellow, error);
+        // if (NODE_ENV === 'production') {
+        try {
+            const cachedResult = await CachedQuestionAnswerModel.findOne({contentHash});
+            if (cachedResult && cachedResult.questions.length > 0) {
+                console.log('Cache: Found cached questions'.green.bold, cachedResult.questions.length);
+                return {questions: cachedResult.questions};
             }
+        } catch (error) {
+            console.warn('Service Warning: Cache lookup failed, proceeding with AI generation'.yellow, error);
         }
+        // }
         console.log('Cache: No cached questions found for this article'.cyan);
 
         // Truncate content to avoid token limits
@@ -67,9 +67,9 @@ class QuestionAnswerService {
             if (result.questions && result.questions.length > 0) {
                 console.log('Question generation completed successfully'.green.bold, {questions: result.questions, model: selectedModel});
 
-                if (NODE_ENV === 'production') {
-                    await cacheQuestions(contentHash, result.questions);
-                }
+                // if (NODE_ENV === 'production') {
+                await cacheQuestions(contentHash, result.questions);
+                // }
 
                 return {...result, powered_by: selectedModel};
             }
@@ -100,18 +100,18 @@ class QuestionAnswerService {
 
         const contentHash = generateContentHash(content);
 
-        if (NODE_ENV === 'production') {
-            try {
-                const cachedResult = await CachedQuestionAnswerModel.findOne({contentHash});
-                if (cachedResult && cachedResult.answers.has(question)) {
-                    const cachedAnswer = cachedResult.answers.get(question);
-                    console.log('Cache: Found cached answer for question:'.green.bold, question);
-                    return {answer: cachedAnswer};
-                }
-            } catch (error) {
-                console.warn('Service Warning: Cache lookup failed, proceeding with AI generation'.yellow, error);
+        // if (NODE_ENV === 'production') {
+        try {
+            const cachedResult = await CachedQuestionAnswerModel.findOne({contentHash});
+            if (cachedResult && cachedResult.answers.has(question)) {
+                const cachedAnswer = cachedResult.answers.get(question);
+                console.log('Cache: Found cached answer for question:'.green.bold, question);
+                return {answer: cachedAnswer};
             }
+        } catch (error) {
+            console.warn('Service Warning: Cache lookup failed, proceeding with AI generation'.yellow, error);
         }
+        // }
         console.log('Cache: No cached answer found for this question'.cyan);
 
         // Truncate content to avoid token limits

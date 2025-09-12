@@ -32,165 +32,6 @@ class ArticleEnhancementService {
     private static activeJobs = new Set<string>();
 
     /**
-     * Combined AI enhancement method - smart tags, sentiment analysis, key points extractor, complexity meter, geographic entity locations
-     */
-    private static async aiEnhanceArticle({content, tasks, selectedModel}: ICombinedAIParams): Promise<ICombinedAIResponse> {
-        console.log('Service: ArticleEnhancementService.aiEnhanceArticle called'.cyan.italic, {tasks, selectedModel});
-
-        if (!content || content.trim().length === 0) {
-            console.warn('Service Warning: Empty content provided for AI enhancement'.yellow);
-            return {error: generateMissingCode('content')};
-        }
-
-        // Truncate content to avoid token limits
-        const truncatedContent = truncateContentForAI(content, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
-
-        // Use the pre-selected model from quota system instead of fallback loop
-        const modelName = selectedModel || AI_ENHANCEMENT_MODELS[0];
-        console.log(`Using pre-selected AI model for enhancement:`.cyan, modelName);
-
-        try {
-            const model = this.genAI.getGenerativeModel({model: modelName});
-
-            // Build dynamic prompt based on requested tasks using the same prompt functions
-            let prompt = `Analyze this news article and provide the following information:\n\n`;
-
-            if (tasks.includes('tags')) {
-                prompt += `SMART TAGS GENERATION:\n${AI_PROMPTS.TAG_GENERATION()}\n\n`;
-            }
-
-            if (tasks.includes('sentiment')) {
-                prompt += `SENTIMENT ANALYSIS:\n${AI_PROMPTS.SENTIMENT_ANALYSIS()}\n\n`;
-            }
-
-            if (tasks.includes('keyPoints')) {
-                prompt += `KEY POINTS EXTRACTION:\n${AI_PROMPTS.KEY_POINTS_EXTRACTION()}\n\n`;
-            }
-
-            if (tasks.includes('complexityMeter')) {
-                prompt += `COMPLEXITY METER:\n${AI_PROMPTS.COMPLEXITY_METER()}\n\n`;
-            }
-
-            if (tasks.includes('geoExtraction')) {
-                prompt += `GEOGRAPHIC EXTRACTION:\n${AI_PROMPTS.GEOGRAPHIC_EXTRACTION()}\n\n`;
-            }
-
-            if (tasks.includes('questions')) {
-                prompt += `QUESTION GENERATION:\n${AI_PROMPTS.QUESTION_GENERATION(truncatedContent)}\n\n`;
-            }
-
-            if (tasks.includes('newsInsights')) {
-                prompt += `NEWS INSIGHTS ANALYSIS:\n${AI_PROMPTS.NEWS_INSIGHTS_ANALYSIS(truncatedContent)}\n\n`;
-            }
-
-            prompt += `Article content: "${truncatedContent}"\n\n`;
-            prompt += `${AI_PROMPTS.JSON_FORMAT_INSTRUCTIONS}\n\n`;
-            prompt += `Return exactly this format:\n{\n`;
-
-            if (tasks.includes('tags')) {
-                prompt += `  "tags": ["Politics", "Economy", "Breaking"]\n`;
-            }
-            if (tasks.includes('sentiment')) {
-                prompt += `  "sentiment": {"type": "positive", "confidence": 0.85},\n`;
-            }
-            if (tasks.includes('keyPoints')) {
-                prompt += `  "keyPoints": ["Point 1", "Point 2", "Point 3"],\n`;
-            }
-            if (tasks.includes('complexityMeter')) {
-                prompt += `  "complexityMeter": {"level": "medium", "reasoning": "Contains technical terms but accessible language"},\n`;
-            }
-            if (tasks.includes('geoExtraction')) {
-                prompt += `  "locations": ["New York City", "California", "United States"],\n`;
-            }
-            if (tasks.includes('questions')) {
-                prompt += `  "questions": ["What happens next?", "How will this affect people?", "Why is this important?"],\n`;
-            }
-            if (tasks.includes('newsInsights')) {
-                prompt += `  "newsInsights": {
-                        "keyThemes": ["Economic Impact", "Social Change"],
-                        "impactAssessment": {"level": "national", "description": "This will affect the entire country"},
-                        "contextConnections": ["Related to previous policy", "Similar to 2020 event"],
-                        "stakeholderAnalysis": {"winners": ["Tech companies"], "losers": ["Traditional media"], "affected": ["General public"]},
-                        "timelineContext": ["This follows last month's announcement"]
-                      }\n`;
-            }
-
-            prompt += `}`;
-
-            const result = await model.generateContent(prompt);
-            let responseText = result.response.text().trim();
-
-            console.log('Combined AI response:'.cyan, responseText);
-
-            responseText = cleanJsonResponseMarkdown(responseText);
-
-            const parsed: ICombinedAIResponse = JSON.parse(responseText);
-            console.log('parsed response:'.cyan, parsed);
-
-            const response: ICombinedAIResponse = {};
-
-            if (tasks.includes('tags') && parsed.tags) {
-                response.tags = parsed.tags;
-            }
-
-            if (tasks.includes('sentiment') && parsed.sentiment) {
-                if (SENTIMENT_TYPES.includes(parsed.sentiment.type)) {
-                    response.sentiment = {
-                        type: parsed.sentiment.type,
-                        confidence: parsed.sentiment.confidence || 0.5,
-                        emoji: getSentimentEmoji(parsed.sentiment.type),
-                        color: getSentimentColor(parsed.sentiment.type),
-                    };
-                }
-            }
-
-            if (tasks.includes('keyPoints') && parsed.keyPoints && Array.isArray(parsed.keyPoints)) {
-                response.keyPoints = parsed.keyPoints;
-            }
-
-            if (tasks.includes('complexityMeter') && parsed.complexityMeter) {
-                if (['easy', 'medium', 'hard'].includes(parsed.complexityMeter.level)) {
-                    response.complexityMeter = {
-                        level: parsed.complexityMeter.level,
-                        reasoning: parsed.complexityMeter.reasoning || 'AI analysis completed',
-                    };
-                }
-            }
-
-            if (tasks.includes('geoExtraction') && parsed.locations && Array.isArray(parsed.locations)) {
-                const validLocations = parsed.locations.filter(location => location && location.trim().length > 0);
-                if (validLocations.length > 0) {
-                    response.locations = validLocations;
-                }
-            }
-
-            if (tasks.includes('questions') && parsed.questions && Array.isArray(parsed.questions)) {
-                const validQuestions = parsed.questions.filter(question => question && question.trim().length > 0);
-                if (validQuestions.length > 0) {
-                    response.questions = validQuestions;
-                }
-            }
-
-            if (tasks.includes('newsInsights') && parsed.newsInsights) {
-                response.newsInsights = {
-                    keyThemes: Array.isArray(parsed.newsInsights.keyThemes) ? parsed.newsInsights.keyThemes : [],
-                    impactAssessment: parsed.newsInsights.impactAssessment || {level: 'local', description: ''},
-                    contextConnections: Array.isArray(parsed.newsInsights.contextConnections) ? parsed.newsInsights.contextConnections : [],
-                    stakeholderAnalysis: parsed.newsInsights.stakeholderAnalysis || {winners: [], losers: [], affected: []},
-                    timelineContext: Array.isArray(parsed.newsInsights.timelineContext) ? parsed.newsInsights.timelineContext : [],
-                };
-            }
-
-            console.log(`✅ AI enhancement successful with model:`.green.bold, modelName);
-            console.log('Combined AI enhancement result:'.green.bold, response);
-            return {...response, powered_by: modelName};
-        } catch (error: any) {
-            console.error('Service Error: AI enhancement failed with selected model'.red.bold, {model: modelName, error: error.message});
-            return {error: 'AI_ENHANCEMENT_FAILED'};
-        }
-    }
-
-    /**
      * Process article enhancements with AI analysis (progressive)
      */
     static async enhanceArticles({email, articles}: IEnhanceArticlesParams): Promise<void> {
@@ -476,6 +317,165 @@ class ArticleEnhancementService {
      */
     static mergeEnhancementsWithArticles({articles, enhancements}: IMergeEnhancementsWithArticlesParams): IArticle[] {
         return mergeEnhancementsWithArticles(articles, enhancements);
+    }
+
+    /**
+     * Combined AI enhancement method - smart tags, sentiment analysis, key points extractor, complexity meter, geographic entity locations
+     */
+    private static async aiEnhanceArticle({content, tasks, selectedModel}: ICombinedAIParams): Promise<ICombinedAIResponse> {
+        console.log('Service: ArticleEnhancementService.aiEnhanceArticle called'.cyan.italic, {tasks, selectedModel});
+
+        if (!content || content.trim().length === 0) {
+            console.warn('Service Warning: Empty content provided for AI enhancement'.yellow);
+            return {error: generateMissingCode('content')};
+        }
+
+        // Truncate content to avoid token limits
+        const truncatedContent = truncateContentForAI(content, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
+
+        // Use the pre-selected model from quota system instead of fallback loop
+        const modelName = selectedModel || AI_ENHANCEMENT_MODELS[0];
+        console.log(`Using pre-selected AI model for enhancement:`.cyan, modelName);
+
+        try {
+            const model = this.genAI.getGenerativeModel({model: modelName});
+
+            // Build dynamic prompt based on requested tasks using the same prompt functions
+            let prompt = `Analyze this news article and provide the following information:\n\n`;
+
+            if (tasks.includes('tags')) {
+                prompt += `SMART TAGS GENERATION:\n${AI_PROMPTS.TAG_GENERATION()}\n\n`;
+            }
+
+            if (tasks.includes('sentiment')) {
+                prompt += `SENTIMENT ANALYSIS:\n${AI_PROMPTS.SENTIMENT_ANALYSIS()}\n\n`;
+            }
+
+            if (tasks.includes('keyPoints')) {
+                prompt += `KEY POINTS EXTRACTION:\n${AI_PROMPTS.KEY_POINTS_EXTRACTION()}\n\n`;
+            }
+
+            if (tasks.includes('complexityMeter')) {
+                prompt += `COMPLEXITY METER:\n${AI_PROMPTS.COMPLEXITY_METER()}\n\n`;
+            }
+
+            if (tasks.includes('geoExtraction')) {
+                prompt += `GEOGRAPHIC EXTRACTION:\n${AI_PROMPTS.GEOGRAPHIC_EXTRACTION()}\n\n`;
+            }
+
+            if (tasks.includes('questions')) {
+                prompt += `QUESTION GENERATION:\n${AI_PROMPTS.QUESTION_GENERATION(truncatedContent)}\n\n`;
+            }
+
+            if (tasks.includes('newsInsights')) {
+                prompt += `NEWS INSIGHTS ANALYSIS:\n${AI_PROMPTS.NEWS_INSIGHTS_ANALYSIS(truncatedContent)}\n\n`;
+            }
+
+            prompt += `Article content: "${truncatedContent}"\n\n`;
+            prompt += `${AI_PROMPTS.JSON_FORMAT_INSTRUCTIONS}\n\n`;
+            prompt += `Return exactly this format:\n{\n`;
+
+            if (tasks.includes('tags')) {
+                prompt += `  "tags": ["Politics", "Economy", "Breaking"]\n`;
+            }
+            if (tasks.includes('sentiment')) {
+                prompt += `  "sentiment": {"type": "positive", "confidence": 0.85},\n`;
+            }
+            if (tasks.includes('keyPoints')) {
+                prompt += `  "keyPoints": ["Point 1", "Point 2", "Point 3"],\n`;
+            }
+            if (tasks.includes('complexityMeter')) {
+                prompt += `  "complexityMeter": {"level": "medium", "reasoning": "Contains technical terms but accessible language"},\n`;
+            }
+            if (tasks.includes('geoExtraction')) {
+                prompt += `  "locations": ["New York City", "California", "United States"],\n`;
+            }
+            if (tasks.includes('questions')) {
+                prompt += `  "questions": ["What happens next?", "How will this affect people?", "Why is this important?"],\n`;
+            }
+            if (tasks.includes('newsInsights')) {
+                prompt += `  "newsInsights": {
+                        "keyThemes": ["Economic Impact", "Social Change"],
+                        "impactAssessment": {"level": "national", "description": "This will affect the entire country"},
+                        "contextConnections": ["Related to previous policy", "Similar to 2020 event"],
+                        "stakeholderAnalysis": {"winners": ["Tech companies"], "losers": ["Traditional media"], "affected": ["General public"]},
+                        "timelineContext": ["This follows last month's announcement"]
+                      }\n`;
+            }
+
+            prompt += `}`;
+
+            const result = await model.generateContent(prompt);
+            let responseText = result.response.text().trim();
+
+            console.log('Combined AI response:'.cyan, responseText);
+
+            responseText = cleanJsonResponseMarkdown(responseText);
+
+            const parsed: ICombinedAIResponse = JSON.parse(responseText);
+            console.log('parsed response:'.cyan, parsed);
+
+            const response: ICombinedAIResponse = {};
+
+            if (tasks.includes('tags') && parsed.tags) {
+                response.tags = parsed.tags;
+            }
+
+            if (tasks.includes('sentiment') && parsed.sentiment) {
+                if (SENTIMENT_TYPES.includes(parsed.sentiment.type)) {
+                    response.sentiment = {
+                        type: parsed.sentiment.type,
+                        confidence: parsed.sentiment.confidence || 0.5,
+                        emoji: getSentimentEmoji(parsed.sentiment.type),
+                        color: getSentimentColor(parsed.sentiment.type),
+                    };
+                }
+            }
+
+            if (tasks.includes('keyPoints') && parsed.keyPoints && Array.isArray(parsed.keyPoints)) {
+                response.keyPoints = parsed.keyPoints;
+            }
+
+            if (tasks.includes('complexityMeter') && parsed.complexityMeter) {
+                if (['easy', 'medium', 'hard'].includes(parsed.complexityMeter.level)) {
+                    response.complexityMeter = {
+                        level: parsed.complexityMeter.level,
+                        reasoning: parsed.complexityMeter.reasoning || 'AI analysis completed',
+                    };
+                }
+            }
+
+            if (tasks.includes('geoExtraction') && parsed.locations && Array.isArray(parsed.locations)) {
+                const validLocations = parsed.locations.filter(location => location && location.trim().length > 0);
+                if (validLocations.length > 0) {
+                    response.locations = validLocations;
+                }
+            }
+
+            if (tasks.includes('questions') && parsed.questions && Array.isArray(parsed.questions)) {
+                const validQuestions = parsed.questions.filter(question => question && question.trim().length > 0);
+                if (validQuestions.length > 0) {
+                    response.questions = validQuestions;
+                }
+            }
+
+            if (tasks.includes('newsInsights') && parsed.newsInsights) {
+                response.newsInsights = {
+                    keyThemes: Array.isArray(parsed.newsInsights.keyThemes) ? parsed.newsInsights.keyThemes : [],
+                    impactAssessment: parsed.newsInsights.impactAssessment || {level: 'local', description: ''},
+                    contextConnections: Array.isArray(parsed.newsInsights.contextConnections) ? parsed.newsInsights.contextConnections : [],
+                    stakeholderAnalysis: parsed.newsInsights.stakeholderAnalysis || {winners: [], losers: [], affected: []},
+                    timelineContext: Array.isArray(parsed.newsInsights.timelineContext) ? parsed.newsInsights.timelineContext : [],
+                };
+            }
+
+            console.log(`✅ AI enhancement successful with model:`.green.bold, modelName);
+            console.log('Combined AI enhancement result:'.green.bold, response);
+            return {...response, powered_by: modelName};
+        } catch (error: any) {
+            console.error('Service Error: AI enhancement failed with selected model'.red.bold, {model: modelName, error: error.message});
+            return {error: 'AI_ENHANCEMENT_FAILED'};
+        }
     }
 }
 

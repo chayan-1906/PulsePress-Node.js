@@ -40,6 +40,49 @@ class AnalyticsService {
     }
 
     /**
+     * Get source analytics with pagination and sorting options
+     */
+    static async getSourceAnalytics({limit = 20, sortBy = 'engagementScore', sortOrder = 'desc'}: IGetSourceAnalyticsParams): Promise<IGetSourceAnalyticsResponse> {
+        console.log('Service: AnalyticsService.getSourceAnalytics called'.cyan.italic, {limit, sortBy, sortOrder});
+
+        try {
+            const sortDirection = sortOrder === 'asc' ? 1 : -1;
+            const sourceAnalytics = await SourceAnalyticsModel
+                .find({})
+                .sort({[sortBy]: sortDirection})
+                .limit(limit);
+
+            const totalSources = await SourceAnalyticsModel.countDocuments({});
+
+            return {sourceAnalytics, totalSources};
+        } catch (error: any) {
+            console.error('Service Error: AnalyticsService.getSourceAnalytics failed'.red.bold, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get top performing sources by engagement score with minimum view threshold
+     */
+    static async getTopPerformingSources({limit = 10, minViews = 10}: IGetTopPerformingSourcesParams): Promise<IGetTopPerformingSourcesResponse> {
+        console.log('Service: AnalyticsService.getTopPerformingSources called'.cyan.italic, {limit, minViews});
+
+        try {
+            const topSources = await SourceAnalyticsModel
+                .find({totalViews: {$gte: minViews}})
+                .sort({engagementScore: -1})    // descending order
+                .limit(limit);
+
+            const totalSources = await SourceAnalyticsModel.countDocuments({totalViews: {$gte: minViews}});
+
+            return {topSources, totalSources};
+        } catch (error: any) {
+            console.error('Service Error: AnalyticsService.getTopPerformingSources failed'.red.bold, error);
+            throw error;
+        }
+    }
+
+    /**
      * Create initial analytics record for a new source
      */
     private static async createInitialAnalytics({source, action, readingTime}: ICreateInitialAnalyticsParams): Promise<ISourceAnalytics> {
@@ -111,49 +154,6 @@ class AnalyticsService {
             {$set: updates},
             {new: true, runValidators: true},
         ) as ISourceAnalytics;
-    }
-
-    /**
-     * Get source analytics with pagination and sorting options
-     */
-    static async getSourceAnalytics({limit = 20, sortBy = 'engagementScore', sortOrder = 'desc'}: IGetSourceAnalyticsParams): Promise<IGetSourceAnalyticsResponse> {
-        console.log('Service: AnalyticsService.getSourceAnalytics called'.cyan.italic, {limit, sortBy, sortOrder});
-
-        try {
-            const sortDirection = sortOrder === 'asc' ? 1 : -1;
-            const sourceAnalytics = await SourceAnalyticsModel
-                .find({})
-                .sort({[sortBy]: sortDirection})
-                .limit(limit);
-
-            const totalSources = await SourceAnalyticsModel.countDocuments({});
-
-            return {sourceAnalytics, totalSources};
-        } catch (error: any) {
-            console.error('Service Error: AnalyticsService.getSourceAnalytics failed'.red.bold, error);
-            throw error;
-        }
-    }
-
-    /**
-     * Get top performing sources by engagement score with minimum view threshold
-     */
-    static async getTopPerformingSources({limit = 10, minViews = 10}: IGetTopPerformingSourcesParams): Promise<IGetTopPerformingSourcesResponse> {
-        console.log('Service: AnalyticsService.getTopPerformingSources called'.cyan.italic, {limit, minViews});
-
-        try {
-            const topSources = await SourceAnalyticsModel
-                .find({totalViews: {$gte: minViews}})
-                .sort({engagementScore: -1})    // descending order
-                .limit(limit);
-
-            const totalSources = await SourceAnalyticsModel.countDocuments({totalViews: {$gte: minViews}});
-
-            return {topSources, totalSources};
-        } catch (error: any) {
-            console.error('Service Error: AnalyticsService.getTopPerformingSources failed'.red.bold, error);
-            throw error;
-        }
     }
 }
 

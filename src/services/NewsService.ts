@@ -13,7 +13,7 @@ import {generateArticleId} from "../utils/generateArticleId";
 import SentimentAnalysisService from "./SentimentAnalysisService";
 import ArticleEnhancementService from "./ArticleEnhancementService";
 import {API_CONFIG, RSS_SOURCES, USER_AGENTS} from "../utils/constants";
-import {GUARDIAN_API_KEY, NODE_ENV, NYTIMES_API_KEY} from "../config/config";
+import {GUARDIAN_API_KEY, NYTIMES_API_KEY} from "../config/config";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
 import {assessContentQuality, isDuplicateArticle} from "../utils/serviceHelpers/articleQuality";
 import {cleanScrapedText, generateQueryVariations, simplifySearchQuery} from "../utils/serviceHelpers/textProcessing";
@@ -65,7 +65,7 @@ class NewsService {
 
             const cacheKey = `${country}-${category}-${sources}-${processedQuery}-${pageSize}-${page}`;
             const cached = this.TOPHEADLINES_CACHE.get(cacheKey);
-            if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
+            if (/*NODE_ENV === 'production' && */cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 console.log('Cache: returning cached data'.cyan, cached.data);
                 return cached.data;
             }
@@ -89,9 +89,9 @@ class NewsService {
                 }));
             }
 
-            if (NODE_ENV === 'production') {
-                this.TOPHEADLINES_CACHE.set(cacheKey, {data: topHeadlinesResponse, timestamp: Date.now()});
-            }
+            // if (NODE_ENV === 'production') {
+            this.TOPHEADLINES_CACHE.set(cacheKey, {data: topHeadlinesResponse, timestamp: Date.now()});
+            // }
 
             return topHeadlinesResponse;
         } catch (error: any) {
@@ -119,7 +119,7 @@ class NewsService {
 
             const cacheKey = `${sources}-${from}-${to}-${sortBy}-${language}-${processedQuery}-${pageSize}-${page}`;
             const cached = this.EVERYTHING_NEWS_CACHE.get(cacheKey);
-            if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
+            if (/*NODE_ENV === 'production' && */cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 console.log('Cache: returning cached data'.cyan, cached.data);
                 return cached.data;
             }
@@ -143,9 +143,9 @@ class NewsService {
                 }));
             }
 
-            if (NODE_ENV === 'production') {
-                this.EVERYTHING_NEWS_CACHE.set(cacheKey, {data: everything, timestamp: Date.now()});
-            }
+            // if (NODE_ENV === 'production') {
+            this.EVERYTHING_NEWS_CACHE.set(cacheKey, {data: everything, timestamp: Date.now()});
+            // }
 
             return everything;
         } catch (error: any) {
@@ -184,7 +184,7 @@ class NewsService {
 
             const cacheKey = `guardian-${processedQuery}-${section}-${fromDate}-${toDate}-${orderBy}-${pageSize}-${page}`;
             const cached = this.GUARDIAN_CACHE.get(cacheKey);
-            if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
+            if (/*NODE_ENV === 'production' && */cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 console.log('Cache: returning cached Guardian data'.cyan);
                 return cached.data;
             }
@@ -203,9 +203,9 @@ class NewsService {
                 pages: guardianResponse.response.pages,
             };
 
-            if (NODE_ENV === 'production') {
-                this.GUARDIAN_CACHE.set(cacheKey, {data: result, timestamp: Date.now()});
-            }
+            // if (NODE_ENV === 'production') {
+            this.GUARDIAN_CACHE.set(cacheKey, {data: result, timestamp: Date.now()});
+            // }
 
             return result;
         } catch (error: any) {
@@ -249,7 +249,7 @@ class NewsService {
 
             const cacheKey = `nytimes-${processedQuery}-${section}-${sort}-${fromDate}-${toDate}-${pageSize}-${page}`;
             const cached = this.NYTIMES_CACHE.get(cacheKey);
-            if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
+            if (/*NODE_ENV === 'production' && */cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 console.log('Cache: returning cached NYTimes data'.cyan);
                 return cached.data;
             }
@@ -283,9 +283,9 @@ class NewsService {
                 pages: Math.ceil(totalHits / pageSize),
             };
 
-            if (NODE_ENV === 'production') {
-                this.NYTIMES_CACHE.set(cacheKey, {data: result, timestamp: Date.now()});
-            }
+            // if (NODE_ENV === 'production') {
+            this.NYTIMES_CACHE.set(cacheKey, {data: result, timestamp: Date.now()});
+            // }
 
             return result;
         } catch (error: any) {
@@ -318,7 +318,7 @@ class NewsService {
 
             const cacheKey = `nytimes-top-${section}`;
             const cached = this.NYTIMES_CACHE.get(cacheKey);
-            if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
+            if (/*NODE_ENV === 'production' && */cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 console.log('Cache: returning cached NYTimes top stories'.cyan);
                 return cached.data;
             }
@@ -338,9 +338,9 @@ class NewsService {
                 lastUpdated: nytResponse.last_updated,
             };
 
-            if (NODE_ENV === 'production') {
-                this.NYTIMES_CACHE.set(cacheKey, {data: result, timestamp: Date.now()});
-            }
+            // if (NODE_ENV === 'production') {
+            this.NYTIMES_CACHE.set(cacheKey, {data: result, timestamp: Date.now()});
+            // }
 
             return result;
         } catch (error: any) {
@@ -359,7 +359,7 @@ class NewsService {
             const cacheKey = `${q}-${sources}-${languages}-${pageSize}-${page}`;
             const cached = this.RSS_CACHE.get(cacheKey);
 
-            if (NODE_ENV === 'production' && cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
+            if (/*NODE_ENV === 'production' && */cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 return cached.data;
             }
 
@@ -453,9 +453,9 @@ class NewsService {
 
                 console.log(`RSS search completed: found ${searchResults.length} results for "${q}"`.green.bold);
 
-                if (NODE_ENV === 'production') {
-                    this.RSS_CACHE.set(cacheKey, {data: finalResults, timestamp: Date.now()});
-                }
+                // if (NODE_ENV === 'production') {
+                this.RSS_CACHE.set(cacheKey, {data: finalResults, timestamp: Date.now()});
+                // }
 
                 return finalResults;
             }
@@ -463,60 +463,15 @@ class NewsService {
             const startIndex = (page - 1) * pageSize;
             const paginatedResults = allItems.slice(startIndex, startIndex + pageSize);
 
-            if (NODE_ENV === 'production') {
-                this.RSS_CACHE.set(cacheKey, {data: paginatedResults, timestamp: Date.now()});
-            }
+            // if (NODE_ENV === 'production') {
+            this.RSS_CACHE.set(cacheKey, {data: paginatedResults, timestamp: Date.now()});
+            // }
 
             return paginatedResults;
         } catch (error: any) {
             console.error('Service Error: NewsService.fetchAllRssFeeds failed:'.red.bold, error);
             throw error;
         }
-    }
-
-    /**
-     * Smart fetch with query variations and quality filtering
-     */
-    private static async smartFetchWithVariations({apiFunction, query, params, minQualityResults = 3}: ISmartFetchWithVariationsParams): Promise<any> {
-        console.log('Service: NewsService.smartFetchWithVariations called'.cyan.italic, {query, params, minQualityResults});
-
-        const queryVariations = generateQueryVariations(query);
-        console.log(`Service: smartFetchWithVariations trying ${queryVariations.length} query variations:`, queryVariations);
-
-        for (let i = 0; i < queryVariations.length; i++) {
-            const variation = queryVariations[i];
-            console.log(`Attempt ${i + 1}: "${variation}"`.cyan);
-
-            try {
-                const result = await apiFunction({...params, q: variation});
-
-                if (result && result.articles && result.articles.length > 0) {
-                    // Apply quality scoring and filtering
-                    const qualityArticles = result.articles
-                        .map((article: IArticle) => {
-                            article.qualityScore = assessContentQuality(article, query); // Use original query for relevance
-                            return article;
-                        })
-                        .filter((article: IArticle) => article.qualityScore!.isProfessional && article.qualityScore!.isRelevant && article.qualityScore!.score > API_CONFIG.SEARCH.FUSE_THRESHOLD);
-
-                    console.log(`Query variation "${variation}" yielded ${qualityArticles.length} quality articles (from ${result.articles.length} total)`.cyan);
-
-                    if (qualityArticles.length >= minQualityResults) {
-                        return {
-                            ...result,
-                            articles: qualityArticles,
-                            usedQuery: variation,
-                            originalQuery: query,
-                        };
-                    }
-                }
-            } catch (error: any) {
-                console.log(`Service Error: Query variation "${variation}" failed:`.red.bold, error.message);
-            }
-        }
-
-        console.warn(`Service Warning: All query variations failed to produce ${minQualityResults}+ quality results`.yellow);
-        return null;
     }
 
     /**
@@ -786,6 +741,134 @@ class NewsService {
     }
 
     /**
+     * Scrape content from multiple URLs with error handling
+     */
+    static async scrapeMultipleArticles({urls}: IScrapeMultipleWebsitesParams) {
+        console.log('Service: NewsService.scrapeMultipleArticles called'.cyan.italic, {urls});
+
+        const results = [];
+
+        if (isListEmpty(urls)) {
+            return [];
+        }
+
+        const isValidUrl = (url: string) => {
+            try {
+                new URL(url);
+                return true;
+            } catch {
+                return false;
+            }
+        }
+
+        for (const url of urls.filter(isValidUrl)) {
+            try {
+                const article = await this.scrapeArticle({url});
+                results.push(article);
+            } catch (error: any) {
+                results.push({
+                    url,
+                    status: error.status,
+                    error: {
+                        code: error.code,
+                        message: error.message,
+                    },
+                    timestamp: new Date().toISOString(),
+                });
+            }
+        }
+
+        return results;
+    }
+
+    /**
+     * Enhanced multi-source news fetch with AI enhancements and progressive loading
+     */
+    static async fetchMultiSourceNewsEnhanced({email, q, category, sources, pageSize = 5, page = 1}: IMultisourceFetchNewsParams) {
+        console.log('Service: fetchMultiSourceNewsEnhanced called'.cyan.italic, {q, category, sources, pageSize, page});
+
+        const startTime = Date.now();
+
+        const fastResults = await this.fetchMultiSourceNewsFast({email, q, category, sources, pageSize, page});
+
+        console.time('Performance: ENHANCEMENT_CHECK_TIME'.cyan);
+        const existingEnhancements = await ArticleEnhancementService.getEnhancementsForArticles({articles: fastResults.articles});
+        console.timeEnd('Performance: ENHANCEMENT_CHECK_TIME'.cyan);
+
+        const enhancedArticles = ArticleEnhancementService.mergeEnhancementsWithArticles({articles: fastResults.articles, enhancements: existingEnhancements});
+
+        const enhancedCount = enhancedArticles.filter(article => article.enhanced).length;
+        const totalTime = Date.now() - startTime;
+
+        console.log(`Enhanced multisource news fetch completed successfully: ${enhancedCount}/${enhancedArticles.length} articles have AI enhancements (${totalTime}ms)`.green.bold);
+
+        const processingStatus = await ArticleEnhancementService.getProcessingStatus({articles: enhancedArticles});
+
+        const status: TEnhancementStatus = processingStatus.status;
+        const progress: number = processingStatus.progress;
+
+        return {
+            ...fastResults,
+            articles: enhancedArticles,
+            loadTime: `${totalTime}ms`,
+            metadata: {
+                ...fastResults.metadata,
+                enhanced: enhancedCount > 0,
+                enhancedCount,
+                totalArticles: enhancedArticles.length,
+                progressiveLoad: true,
+                status,
+                progress,
+            },
+        };
+    }
+
+    /**
+     * Smart fetch with query variations and quality filtering
+     */
+    private static async smartFetchWithVariations({apiFunction, query, params, minQualityResults = 3}: ISmartFetchWithVariationsParams): Promise<any> {
+        console.log('Service: NewsService.smartFetchWithVariations called'.cyan.italic, {query, params, minQualityResults});
+
+        const queryVariations = generateQueryVariations(query);
+        console.log(`Service: smartFetchWithVariations trying ${queryVariations.length} query variations:`, queryVariations);
+
+        for (let i = 0; i < queryVariations.length; i++) {
+            const variation = queryVariations[i];
+            console.log(`Attempt ${i + 1}: "${variation}"`.cyan);
+
+            try {
+                const result = await apiFunction({...params, q: variation});
+
+                if (result && result.articles && result.articles.length > 0) {
+                    // Apply quality scoring and filtering
+                    const qualityArticles = result.articles
+                        .map((article: IArticle) => {
+                            article.qualityScore = assessContentQuality(article, query); // Use original query for relevance
+                            return article;
+                        })
+                        .filter((article: IArticle) => article.qualityScore!.isProfessional && article.qualityScore!.isRelevant && article.qualityScore!.score > API_CONFIG.SEARCH.FUSE_THRESHOLD);
+
+                    console.log(`Query variation "${variation}" yielded ${qualityArticles.length} quality articles (from ${result.articles.length} total)`.cyan);
+
+                    if (qualityArticles.length >= minQualityResults) {
+                        return {
+                            ...result,
+                            articles: qualityArticles,
+                            usedQuery: variation,
+                            originalQuery: query,
+                        };
+                    }
+                }
+            } catch (error: any) {
+                console.log(`Service Error: Query variation "${variation}" failed:`.red.bold, error.message);
+            }
+        }
+
+        console.warn(`Service Warning: All query variations failed to produce ${minQualityResults}+ quality results`.yellow);
+        return null;
+    }
+
+    /**
      * Scrape article content from URL using Readability
      */
     private static async scrapeArticle({url}: IScrapeWebsiteParams) {
@@ -851,47 +934,6 @@ class NewsService {
             console.error('Service Error: NewsService.scrapeArticle failed:'.red.bold, error);
             throw error;
         }
-    }
-
-    /**
-     * Scrape content from multiple URLs with error handling
-     */
-    static async scrapeMultipleArticles({urls}: IScrapeMultipleWebsitesParams) {
-        console.log('Service: NewsService.scrapeMultipleArticles called'.cyan.italic, {urls});
-
-        const results = [];
-
-        if (isListEmpty(urls)) {
-            return [];
-        }
-
-        const isValidUrl = (url: string) => {
-            try {
-                new URL(url);
-                return true;
-            } catch {
-                return false;
-            }
-        }
-
-        for (const url of urls.filter(isValidUrl)) {
-            try {
-                const article = await this.scrapeArticle({url});
-                results.push(article);
-            } catch (error: any) {
-                results.push({
-                    url,
-                    status: error.status,
-                    error: {
-                        code: error.code,
-                        message: error.message,
-                    },
-                    timestamp: new Date().toISOString(),
-                });
-            }
-        }
-
-        return results;
     }
 
     /**
@@ -1096,48 +1138,6 @@ class NewsService {
                     guardian: await QuotaService.getCurrentCount({service: 'guardian'}),
                     nytimes: await QuotaService.getCurrentCount({service: 'nytimes'}),
                 },
-            },
-        };
-    }
-
-    /**
-     * Enhanced multi-source news fetch with AI enhancements and progressive loading
-     */
-    static async fetchMultiSourceNewsEnhanced({email, q, category, sources, pageSize = 5, page = 1}: IMultisourceFetchNewsParams) {
-        console.log('Service: fetchMultiSourceNewsEnhanced called'.cyan.italic, {q, category, sources, pageSize, page});
-
-        const startTime = Date.now();
-
-        const fastResults = await this.fetchMultiSourceNewsFast({email, q, category, sources, pageSize, page});
-
-        console.time('Performance: ENHANCEMENT_CHECK_TIME'.cyan);
-        const existingEnhancements = await ArticleEnhancementService.getEnhancementsForArticles({articles: fastResults.articles});
-        console.timeEnd('Performance: ENHANCEMENT_CHECK_TIME'.cyan);
-
-        const enhancedArticles = ArticleEnhancementService.mergeEnhancementsWithArticles({articles: fastResults.articles, enhancements: existingEnhancements});
-
-        const enhancedCount = enhancedArticles.filter(article => article.enhanced).length;
-        const totalTime = Date.now() - startTime;
-
-        console.log(`Enhanced multisource news fetch completed successfully: ${enhancedCount}/${enhancedArticles.length} articles have AI enhancements (${totalTime}ms)`.green.bold);
-
-        const processingStatus = await ArticleEnhancementService.getProcessingStatus({articles: enhancedArticles});
-
-        const status: TEnhancementStatus = processingStatus.status;
-        const progress: number = processingStatus.progress;
-
-        return {
-            ...fastResults,
-            articles: enhancedArticles,
-            loadTime: `${totalTime}ms`,
-            metadata: {
-                ...fastResults.metadata,
-                enhanced: enhancedCount > 0,
-                enhancedCount,
-                totalArticles: enhancedArticles.length,
-                progressiveLoad: true,
-                status,
-                progress,
             },
         };
     }

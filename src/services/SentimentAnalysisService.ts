@@ -71,6 +71,41 @@ class SentimentAnalysisService {
     }
 
     /**
+     * Analyze sentiment for multiple articles in batches
+     */
+    static async enrichArticlesWithSentiment({articles, shouldAnalyze = true}: IEnrichArticlesWithSentimentParams): Promise<IArticle[]> {
+        console.log('Service: SentimentAnalysisService.enrichArticlesWithSentiment called'.cyan.italic, {articles, shouldAnalyze});
+
+        if (!shouldAnalyze || !articles?.length) {
+            return articles;
+        }
+
+        const enrichedArticles = [];
+        const batchSize = 5;
+
+        for (let i = 0; i < articles.length; i += batchSize) {
+            const batch = articles.slice(i, i + batchSize);
+            const batchPromises = batch.map(article => this.enrichArticleWithSentiment({article, shouldAnalyze: true}));
+
+            try {
+                const batchResults = await Promise.all(batchPromises);
+                enrichedArticles.push(...batchResults);
+
+                // Delay between batches to respect rate limits
+                if (i + batchSize < articles.length) {
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+                }
+            } catch (error: any) {
+                console.error('Service Error: Error processing sentiment batch:'.red.bold, error.message);
+                enrichedArticles.push(...batch);
+            }
+        }
+
+        console.log('Sentiment enrichment for articles completed successfully'.green.bold, {totalArticles: enrichedArticles.length});
+        return enrichedArticles;
+    }
+
+    /**
      * Analyze sentiment using Gemini AI
      */
     private static async analyzeWithGemini(modelName: string, content: string): Promise<ISentimentAnalysisResponse> {
@@ -142,41 +177,6 @@ class SentimentAnalysisService {
             console.error('Service Error: Error enriching article with sentiment:'.red.bold, error.message);
             return article;
         }
-    }
-
-    /**
-     * Analyze sentiment for multiple articles in batches
-     */
-    static async enrichArticlesWithSentiment({articles, shouldAnalyze = true}: IEnrichArticlesWithSentimentParams): Promise<IArticle[]> {
-        console.log('Service: SentimentAnalysisService.enrichArticlesWithSentiment called'.cyan.italic, {articles, shouldAnalyze});
-
-        if (!shouldAnalyze || !articles?.length) {
-            return articles;
-        }
-
-        const enrichedArticles = [];
-        const batchSize = 5;
-
-        for (let i = 0; i < articles.length; i += batchSize) {
-            const batch = articles.slice(i, i + batchSize);
-            const batchPromises = batch.map(article => this.enrichArticleWithSentiment({article, shouldAnalyze: true}));
-
-            try {
-                const batchResults = await Promise.all(batchPromises);
-                enrichedArticles.push(...batchResults);
-
-                // Delay between batches to respect rate limits
-                if (i + batchSize < articles.length) {
-                    await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
-                }
-            } catch (error: any) {
-                console.error('Service Error: Error processing sentiment batch:'.red.bold, error.message);
-                enrichedArticles.push(...batch);
-            }
-        }
-
-        console.log('Sentiment enrichment for articles completed successfully'.green.bold, {totalArticles: enrichedArticles.length});
-        return enrichedArticles;
     }
 }
 

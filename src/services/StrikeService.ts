@@ -192,6 +192,27 @@ class StrikeService {
     }
 
     /**
+     * Get user's current strike information
+     */
+    static async getUserStrikes(email: string): Promise<{ count: number; lastStrikeAt?: Date; blockedUntil?: Date; history?: IStrikeHistoryEvent[] } | null> {
+        console.log('Service: StrikeService.getUserStrikes called'.cyan.italic, {email});
+
+        try {
+            // Check for reset first
+            await this.checkUserBlock(email);
+
+            // Get fresh data after potential reset
+            const user = await UserModel.findOne({email}, 'newsClassificationStrikes');
+            const result = user?.newsClassificationStrikes || {count: 0, history: []};
+            console.log('User strikes retrieval completed successfully'.green.bold, result);
+            return result;
+        } catch (error: any) {
+            console.error('Service Error: StrikeService.getUserStrikes failed:'.red.bold, error);
+            return null;
+        }
+    }
+
+    /**
      * Manually reset strikes for user (admin function)
      */
     private static async resetStrikes(email: string): Promise<boolean> {
@@ -217,27 +238,6 @@ class StrikeService {
         } catch (error: any) {
             console.error('Service Error: StrikeService.resetStrikes failed:'.red.bold, error);
             return false;
-        }
-    }
-
-    /**
-     * Get user's current strike information
-     */
-    static async getUserStrikes(email: string): Promise<{ count: number; lastStrikeAt?: Date; blockedUntil?: Date; history?: IStrikeHistoryEvent[] } | null> {
-        console.log('Service: StrikeService.getUserStrikes called'.cyan.italic, {email});
-
-        try {
-            // Check for reset first
-            await this.checkUserBlock(email);
-
-            // Get fresh data after potential reset
-            const user = await UserModel.findOne({email}, 'newsClassificationStrikes');
-            const result = user?.newsClassificationStrikes || {count: 0, history: []};
-            console.log('User strikes retrieval completed successfully'.green.bold, result);
-            return result;
-        } catch (error: any) {
-            console.error('Service Error: StrikeService.getUserStrikes failed:'.red.bold, error);
-            return null;
         }
     }
 

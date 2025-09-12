@@ -37,48 +37,6 @@ class QuotaService {
     };
 
     /**
-     * Get current Pacific Time date string (YYYY-MM-DD)
-     * Google's quotas reset at midnight Pacific time
-     */
-    private static getCurrentDatePacific(): string {
-        console.log('Service: QuotaService.getCurrentDatePacific called'.cyan.italic);
-
-        const pacificDate = new Date().toLocaleDateString('en-CA', {timeZone: 'America/Los_Angeles'});
-        console.log('Current Pacific date:'.cyan, pacificDate);
-
-        return pacificDate;
-    }
-
-    /**
-     * Get or reset daily quota record for a service
-     * Resets requestCount to 0 if date has changed (after Pacific midnight)
-     */
-    private static async getOrResetDailyRecord(service: TApiService): Promise<IApiQuota> {
-        const currentDate = this.getCurrentDatePacific();
-
-        let record = await ApiQuotaModel.findOne({service});
-
-        if (!record) {
-            record = new ApiQuotaModel({
-                service,
-                date: currentDate,
-                requestCount: 0,
-                lastResetAt: new Date(),
-            });
-            await record.save();
-            console.log('Database: Created new quota record'.cyan, {service, date: currentDate});
-        } else if (record.date !== currentDate) {
-            record.date = currentDate;
-            record.requestCount = 0;
-            record.lastResetAt = new Date();
-            await record.save();
-            console.log('Database: Reset quota record for new day'.cyan, {service, date: currentDate});
-        }
-
-        return record;
-    }
-
-    /**
      * Initialize all 10 fixed quota records on application startup
      * Ensures exactly 10 permanent records exist for all API services
      */
@@ -346,29 +304,6 @@ class QuotaService {
     }
 
     /**
-     * Rollback quota reservation in case of partial failure
-     * Used when individual model quota succeeds but global quota fails
-     */
-    private static async rollbackQuotaReservation({service, count}: IRollbackQuotaReservationParams): Promise<void> {
-        console.log('Service: QuotaService.rollbackQuotaReservation called'.cyan.italic, {service, count});
-
-        try {
-            await ApiQuotaModel.findOneAndUpdate(
-                {service},
-                {
-                    $inc: {requestCount: -count},
-                    $set: {lastResetAt: new Date()},
-                },
-                {new: true},
-            );
-
-            console.log('Database: Quota reservation rolled back'.cyan, {service, rolledBackCount: count});
-        } catch (error) {
-            console.error('Service Error: QuotaService.rollbackQuotaReservation failed'.red.bold, {service, count, error});
-        }
-    }
-
-    /**
      * Pre-filter batch operations to prevent partial processing failures
      * Returns maximum processable items based on available quota
      */
@@ -395,6 +330,71 @@ class QuotaService {
             console.error('Service Error: QuotaService.checkQuotaAvailabilityForBatchOperation failed'.red.bold, {service, requestCount, error});
 
             return {maxProcessable: requestCount, recommendedBatchSize: Math.min(requestCount, 50), currentQuota: this.DEFAULT_LIMITS[service], requestedCount: requestCount, service};
+        }
+    }
+
+    /**
+     * Get current Pacific Time date string (YYYY-MM-DD)
+     * Google's quotas reset at midnight Pacific time
+     */
+    private static getCurrentDatePacific(): string {
+        console.log('Service: QuotaService.getCurrentDatePacific called'.cyan.italic);
+
+        const pacificDate = new Date().toLocaleDateString('en-CA', {timeZone: 'America/Los_Angeles'});
+        console.log('Current Pacific date:'.cyan, pacificDate);
+
+        return pacificDate;
+    }
+
+    /**
+     * Get or reset daily quota record for a service
+     * Resets requestCount to 0 if date has changed (after Pacific midnight)
+     */
+    private static async getOrResetDailyRecord(service: TApiService): Promise<IApiQuota> {
+        const currentDate = this.getCurrentDatePacific();
+
+        let record = await ApiQuotaModel.findOne({service});
+
+        if (!record) {
+            record = new ApiQuotaModel({
+                service,
+                date: currentDate,
+                requestCount: 0,
+                lastResetAt: new Date(),
+            });
+            await record.save();
+            console.log('Database: Created new quota record'.cyan, {service, date: currentDate});
+        } else if (record.date !== currentDate) {
+            record.date = currentDate;
+            record.requestCount = 0;
+            record.lastResetAt = new Date();
+            await record.save();
+            console.log('Database: Reset quota record for new day'.cyan, {service, date: currentDate});
+        }
+
+        return record;
+    }
+
+    /**
+     * Rollback quota reservation in case of partial failure
+     * Used when individual model quota succeeds but global quota fails
+     */
+    private static async rollbackQuotaReservation({service, count}: IRollbackQuotaReservationParams): Promise<void> {
+        console.log('Service: QuotaService.rollbackQuotaReservation called'.cyan.italic, {service, count});
+
+        try {
+            await ApiQuotaModel.findOneAndUpdate(
+                {service},
+                {
+                    $inc: {requestCount: -count},
+                    $set: {lastResetAt: new Date()},
+                },
+                {new: true},
+            );
+
+            console.log('Database: Quota reservation rolled back'.cyan, {service, rolledBackCount: count});
+        } catch (error) {
+            console.error('Service Error: QuotaService.rollbackQuotaReservation failed'.red.bold, {service, count, error});
         }
     }
 }

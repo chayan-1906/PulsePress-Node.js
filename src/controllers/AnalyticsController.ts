@@ -27,7 +27,7 @@ const getSourceAnalyticsController = async (req: Request, res: Response) => {
         }
 
         console.log('SUCCESS: Source analytics fetched'.bgGreen.bold, {totalSources});
-        
+
         res.status(200).send(new ApiResponse({
             success: true,
             message: 'Source analytics has been fetched successfully 🎉',
@@ -70,7 +70,7 @@ const getTopPerformingSourcesController = async (req: Request, res: Response) =>
         }
 
         console.log('SUCCESS: Top performing sources fetched'.bgGreen.bold, {totalSources});
-        
+
         res.status(200).send(new ApiResponse({
             success: true,
             message: 'Top performing sources have been fetched successfully 🎉',

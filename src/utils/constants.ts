@@ -451,7 +451,8 @@ export const API_CONFIG = {
     SEARCH: {
         FUSE_THRESHOLD: 0.4,
         MIN_QUERY_LENGTH: 3,
-        CACHE_TTL_MS: 300000,
+        // CACHE_TTL_MS: 300000,
+        CACHE_TTL_MS: 1800000, // 30 minutes (30 * 60 * 1000)
     },
 };
 

@@ -1,4 +1,14 @@
-export type TApiService = 'gemini-total' | 'gemini-2.5-flash-lite' | 'gemini-2.5-flash' | 'gemini-2.0-flash' | 'gemini-2.0-flash-lite' | 'gemini-1.5-flash' | 'newsapi' | 'guardian' | 'nytimes' | 'google_translate';
+export type TApiService =
+    'gemini-total'
+    | 'gemini-2.5-flash-lite'
+    | 'gemini-2.5-flash'
+    | 'gemini-2.0-flash'
+    | 'gemini-2.0-flash-lite'
+    | 'gemini-1.5-flash'
+    | 'newsapi'
+    | 'guardian'
+    | 'nytimes'
+    | 'google_translate';
 export const API_SERVICES: TApiService[] = ['gemini-total', 'gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'newsapi', 'guardian', 'nytimes', 'google_translate'];
 
 export type TGeminiModel = 'gemini-2.5-flash-lite' | 'gemini-2.5-flash' | 'gemini-2.0-flash' | 'gemini-2.0-flash-lite' | 'gemini-1.5-flash';
