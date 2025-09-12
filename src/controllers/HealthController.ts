@@ -65,7 +65,7 @@ const checkRssFeedsHealthController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: error.message ||  'Something went wrong during rss feeds health check!',
+            errorMsg: error.message || 'Something went wrong during rss feeds health check!',
         }));
     }
 }
@@ -97,7 +97,7 @@ const checkGoogleServicesHealthController = async (req: Request, res: Response) 
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: error.message ||  'Something went wrong during google services health check!',
+            errorMsg: error.message || 'Something went wrong during google services health check!',
         }));
     }
 }
@@ -129,7 +129,7 @@ const checkGeminiAiHealthController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: error.message ||  'Something went wrong during gemini ai\'s health check!',
+            errorMsg: error.message || 'Something went wrong during gemini ai\'s health check!',
         }));
     }
 }
@@ -161,7 +161,7 @@ const checkDatabaseHealthController = async (req: Request, res: Response) => {
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: error.message ||  'Something went wrong during database health check!',
+            errorMsg: error.message || 'Something went wrong during database health check!',
         }));
     }
 }
@@ -193,7 +193,7 @@ const checkOverallSystemHealthController = async (req: Request, res: Response) =
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: error.message ||  'Something went wrong during overall system health check!',
+            errorMsg: error.message || 'Something went wrong during overall system health check!',
         }));
     }
 }

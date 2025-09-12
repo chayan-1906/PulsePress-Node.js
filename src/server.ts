@@ -9,6 +9,7 @@ import newsRoutes from "./routes/NewsRoutes";
 import authRoutes from "./routes/AuthRoutes";
 import {getLocalIP} from "./utils/getLocalIP";
 import healthRoutes from "./routes/HealthRoutes";
+import QuotaService from "./services/QuotaService";
 import bookmarkRoutes from "./routes/BookmarkRoutes";
 import analyticsRoutes from "./routes/AnalyticsRoutes";
 import userStrikeRoutes from "./routes/UserStrikeRoutes";
@@ -53,6 +54,7 @@ const port = Number(PORT) || 4000;
 const start = async () => {
     try {
         await connectDB();
+        await QuotaService.initializeQuotaRecords();
         app.listen(port, '0.0.0.0', (error?: Error, address?: string) => {
             if (error) {
                 console.error('Service Error: Failed to start server'.red.bold, error);

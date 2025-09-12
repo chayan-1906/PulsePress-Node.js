@@ -1,6 +1,6 @@
 import {Document, Model, model, Schema} from "mongoose";
 import generateNanoIdWithAlphabet from "../utils/generateUUID";
-import {SUMMARIZATION_STYLES, TSummarizationStyle, SUPPORTED_LANGUAGES, TSupportedLanguage} from "../types/ai";
+import {SUMMARIZATION_STYLES, SUPPORTED_LANGUAGES, TSummarizationStyle, TSupportedLanguage} from "../types/ai";
 import {SUPPORTED_CATEGORIES, SUPPORTED_NEWS_LANGUAGES, SUPPORTED_SOURCES, TSupportedCategory, TSupportedNewsLanguage, TSupportedSource} from "../types/news";
 
 export interface IUserPreference extends Document {

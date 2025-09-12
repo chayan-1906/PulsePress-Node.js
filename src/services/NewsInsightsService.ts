@@ -1,6 +1,7 @@
 import "colors";
 import {GoogleGenerativeAI} from "@google/generative-ai";
 import NewsService from "./NewsService";
+import QuotaService from "./QuotaService";
 import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
@@ -50,32 +51,43 @@ class NewsInsightsService {
         // Truncate content to avoid token limits
         const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
-        for (let i = 0; i < AI_NEWS_INSIGHTS_MODELS.length; i++) {
-            const modelName = AI_NEWS_INSIGHTS_MODELS[i];
-            console.log(`Trying news insights analysis with model ${i + 1}/${AI_NEWS_INSIGHTS_MODELS.length}:`.cyan, modelName);
+        const quotaReservation = await QuotaService.reserveQuotaForModelFallback({
+            primaryModel: AI_NEWS_INSIGHTS_MODELS[0],
+            fallbackModels: AI_NEWS_INSIGHTS_MODELS.slice(1),
+            count: 1,
+        });
 
-            try {
-                const result = await this.generateWithGemini(modelName, truncatedContent);
-
-                if (result.keyThemes && result.keyThemes.length > 0) {
-                    console.log(`✅ News insights analysis successful with model:`.cyan, modelName);
-                    console.log('Generated insights:'.cyan, {
-                        themes: result.keyThemes,
-                        impact: result.impactAssessment?.level,
-                        stakeholders: Object.keys(result.stakeholderAnalysis || {}).length
-                    });
-                    console.log('News insights analysis completed successfully'.green.bold);
-                    return {...result, powered_by: modelName};
-                }
-
-                console.error('Service Error: News insights analysis model failed'.red.bold, {model: modelName, error: result.error});
-            } catch (error: any) {
-                console.error('Service Error: News insights analysis model failed'.red.bold, {model: modelName, error: error.message});
-            }
+        if (!quotaReservation.allowed) {
+            console.warn('Rate Limit: Gemini API daily quota reached for news insights analysis'.yellow, {
+                selectedModel: quotaReservation.selectedModel,
+                quotaReserved: quotaReservation.quotaReserved,
+                service: quotaReservation.service,
+            });
+            return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
         }
 
-        console.error('Service Error: All news insights analysis models failed'.red.bold);
-        return {error: 'NEWS_INSIGHTS_ANALYSIS_FAILED'};
+        const selectedModel = quotaReservation.selectedModel;
+        console.log('Quota reserved for news insights analysis'.cyan, {selectedModel, quotaReserved: quotaReservation.quotaReserved});
+
+        try {
+            const result = await this.generateWithGemini(selectedModel, truncatedContent);
+
+            if (result.keyThemes && result.keyThemes.length > 0) {
+                console.log('News insights analysis completed successfully'.green.bold, {
+                    themes: result.keyThemes,
+                    impact: result.impactAssessment?.level,
+                    stakeholders: Object.keys(result.stakeholderAnalysis || {}).length,
+                    model: selectedModel,
+                });
+                return {...result, powered_by: selectedModel};
+            }
+
+            console.error('Service Error: News insights analysis failed with quota-reserved model'.red.bold, {model: selectedModel, error: result.error});
+            return {error: 'NEWS_INSIGHTS_ANALYSIS_FAILED'};
+        } catch (error: any) {
+            console.error('Service Error: News insights analysis failed with quota-reserved model'.red.bold, {model: selectedModel, error: error.message});
+            return {error: 'NEWS_INSIGHTS_ANALYSIS_FAILED'};
+        }
     }
 
     /**

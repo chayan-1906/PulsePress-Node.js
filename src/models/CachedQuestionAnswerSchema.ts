@@ -31,7 +31,8 @@ const CachedQuestionAnswerSchema = new Schema<ICachedQuestionAnswer>({
     expiresAt: {
         type: Date,
         default: Date.now,
-        expires: 7 * 24 * 60 * 60 * 1000,    // 7 days - MongoDB TTL, MongoDB automatically deletes when expiresAt is reached
+        // expires: 7 * 24 * 60 * 60 * 1000,    // 7 days - MongoDB TTL, MongoDB automatically deletes when expiresAt is reached
+        expires: 30 * 24 * 60 * 60 * 1000,    // 30 days - MongoDB TTL, MongoDB automatically deletes when expiresAt is reached
     },
 }, {
     timestamps: true,

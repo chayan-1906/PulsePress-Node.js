@@ -7,7 +7,7 @@ import BookmarkModel from "../models/BookmarkSchema";
 import {sourceMap, TSupportedSource} from "../types/news";
 import ReadingHistoryModel from "../models/ReadingHistorySchema";
 import UserPreferenceModel from "../models/UserPreferenceSchema";
-import {NODE_ENV, RECOMMENDATION_CACHE_DURATION} from "../config/config";
+import {RECOMMENDATION_CACHE_DURATION} from "../config/config";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {IGetContentRecommendationsParams, IGetContentRecommendationsResponse, IRecommendedArticle} from "../types/content-recommendation";
 
@@ -248,9 +248,9 @@ const getContentRecommendation = async ({email, pageSize = 5}: IGetContentRecomm
             totalRecommendations: scoredArticles.length,
         };
 
-        if (NODE_ENV === 'production') {
-            RECOMMENDATION_CACHE.set(cacheKey, {data: result, timestamp: Date.now()});
-        }
+        // if (NODE_ENV === 'production') {
+        RECOMMENDATION_CACHE.set(cacheKey, {data: result, timestamp: Date.now()});
+        // }
         return result;
     } catch (error: any) {
         console.error('ERROR: getRecommendations:', error);

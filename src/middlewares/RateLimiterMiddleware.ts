@@ -52,7 +52,7 @@ const aiRateLimiter = rateLimit({
 const newsScrapingRateLimiter = rateLimit({
     windowMs: Number(NEWS_SCRAPING_WINDOW_MS) || 15 * 60 * 1000,  // Default 15 minutes
     limit: Number(NEWS_SCRAPING_MAX_REQUESTS) || 50,              // Default 50 requests per window
-    
+
     skip: (req: Request) => {
         console.warn('Rate Limit: News scraping request detected'.yellow, {ip: req.ip});
         return false;
@@ -82,7 +82,7 @@ const newsScrapingRateLimiter = rateLimit({
 const authRateLimiter = rateLimit({
     windowMs: Number(AUTH_WINDOW_MS) || 15 * 60 * 1000,  // Default 15 minutes
     limit: Number(AUTH_MAX_REQUESTS) || 5,               // Default 5 attempts per window
-    
+
     skip: (req: Request) => {
         console.warn('Rate Limit: Auth attempt detected'.yellow, {ip: req.ip});
         return false;

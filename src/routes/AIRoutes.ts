@@ -2,12 +2,12 @@ import {Router} from "express";
 import {authMiddleware} from "../middlewares/AuthMiddleware";
 import {aiRateLimiter, newsScrapingRateLimiter} from "../middlewares/RateLimiterMiddleware";
 import {
+    analyzeComplexityController,
     analyzeSentimentController,
     answerQuestionController,
     classifyContentController,
-    extractLocationsController,
-    analyzeComplexityController,
     extractKeyPointsController,
+    extractLocationsController,
     generateNewsInsightsController,
     generateQuestionsController,
     generateSocialMediaCaptionController,

@@ -1,6 +1,7 @@
 import "colors";
 import axios from "axios";
 import {GoogleGenerativeAI} from "@google/generative-ai";
+import QuotaService from "./QuotaService";
 import {AI_PROMPTS} from "../utils/prompts";
 import {buildHeader} from "../utils/buildHeader";
 import {IAIClassification, TClassificationResult} from "../types/ai";
@@ -32,13 +33,31 @@ class NewsClassificationService {
         } catch (error: any) {
             console.warn('External API: HuggingFace classification failed, trying Gemini fallback'.yellow, error.message);
 
+            const quotaReservation = await QuotaService.reserveQuotaForModelFallback({
+                primaryModel: AI_SUMMARIZATION_MODELS[0],
+                fallbackModels: AI_SUMMARIZATION_MODELS.slice(1),
+                count: 1,
+            });
+
+            if (!quotaReservation.allowed) {
+                console.warn('Rate Limit: Gemini API daily quota reached for news classification'.yellow, {
+                    selectedModel: quotaReservation.selectedModel,
+                    quotaReserved: quotaReservation.quotaReserved,
+                    service: quotaReservation.service,
+                });
+                return 'error';
+            }
+
+            const selectedModel = quotaReservation.selectedModel;
+            console.log('Quota reserved for news classification'.cyan, {selectedModel, quotaReserved: quotaReservation.quotaReserved});
+
             try {
-                const result = await this.classifyWithGemini(text);
+                const result = await this.classifyWithGemini(text, selectedModel);
                 console.log('Classification with Gemini successful'.cyan, result);
                 console.log('Content classification completed successfully'.green.bold);
                 return result;
             } catch (geminiError: any) {
-                console.error('Service Error: Both HuggingFace and Gemini classification failed'.red.bold, geminiError.message);
+                console.error('Service Error: Gemini classification failed with quota-reserved model'.red.bold, {model: selectedModel, error: geminiError.message});
                 return 'error';
             }
         }
@@ -87,8 +106,8 @@ class NewsClassificationService {
     /**
      * Gemini-based classification fallback with enhanced prompting
      */
-    private static async classifyWithGemini(text: string): Promise<TClassificationResult> {
-        console.log('Service: NewsClassificationService.classifyWithGemini called'.cyan.italic, {text});
+    private static async classifyWithGemini(text: string, modelName: string): Promise<TClassificationResult> {
+        console.log('Service: NewsClassificationService.classifyWithGemini called'.cyan.italic, {text, modelName});
 
         if (!GEMINI_API_KEY) {
             console.warn('Config Warning: Gemini API key not configured'.yellow.italic);
@@ -98,8 +117,8 @@ class NewsClassificationService {
         // Truncate text for Gemini
         const truncatedText = truncateContentForAI(text, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
-        console.log('External API: Generating classification with Gemini'.magenta, {model: AI_SUMMARIZATION_MODELS[0]});
-        const model = this.genAI.getGenerativeModel({model: AI_SUMMARIZATION_MODELS[0]});
+        console.log('External API: Generating classification with Gemini'.magenta, {model: modelName});
+        const model = this.genAI.getGenerativeModel({model: modelName});
 
         const prompt = AI_PROMPTS.NEWS_CLASSIFICATION(truncatedText);
 

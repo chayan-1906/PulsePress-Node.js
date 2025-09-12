@@ -380,7 +380,7 @@ class AuthService {
                 {refreshToken},
             );
 
-            console.log('JWT tokens generated'.cyan, {accessToken, refreshToken})
+            console.log('JWT tokens generated'.cyan, {accessToken, refreshToken});
             return {accessToken, refreshToken};
         } catch (error: any) {
             console.error('Service Error: AuthService.generateJWT failed'.red.bold, error);
