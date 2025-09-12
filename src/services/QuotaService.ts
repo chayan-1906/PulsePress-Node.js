@@ -1,5 +1,6 @@
 import "colors";
 import ApiQuotaModel, {IApiQuota} from "../models/ApiQuotaSchema";
+import {API_QUOTA_LIMITS} from "../utils/constants";
 import {
     API_SERVICES,
     GEMINI_MODELS,
@@ -19,18 +20,7 @@ import {
 } from "../types/quota";
 
 class QuotaService {
-    private static readonly DEFAULT_LIMITS: Record<TApiService, number> = {
-        'gemini-total': 900,                    // Shared pool across all Gemini models
-        'gemini-2.5-flash-lite': 900,           // 1000 RPD * 0.9
-        'gemini-2.5-flash': 225,                // 250 RPD * 0.9
-        'gemini-2.0-flash': 180,                // 200 RPD * 0.9
-        'gemini-2.0-flash-lite': 180,           // 200 RPD * 0.9
-        'gemini-1.5-flash': 90,                 // 100 RPD * 0.9
-        newsapi: 100,                           // NewsAPI.org free tier (2025: 100 requests/day + 24hr delay)
-        guardian: 5000,                         // Guardian API free tier (2025: 5,000 requests/day, 12/second)
-        nytimes: 500,                           // NYTimes API free tier (2025: 500 requests/day, 5/minute)
-        google_translate: 16667,                // Google Translate free tier (2025: 500K chars/month ≈ 16,667/day)
-    };
+    private static readonly DEFAULT_LIMITS = API_QUOTA_LIMITS;
     private static readonly OPTIONS: IQuotaServiceOptions = {
         conservativeThreshold: 0.9, // Block at 90% usage
         warningThreshold: 0.8,      // Warn at 80% usage

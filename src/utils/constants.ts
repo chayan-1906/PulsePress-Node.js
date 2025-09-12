@@ -135,7 +135,7 @@ export const AI_MODELS = {
     GEMINI_25_FLASH: 'gemini-2.5-flash',
     GEMINI_20_FLASH: 'gemini-2.0-flash',
     GEMINI_20_FLASH_LITE: 'gemini-2.0-flash-lite',
-    GEMINI_15_FLASH: 'gemini-1.5-flash'
+    GEMINI_15_FLASH: 'gemini-1.5-flash',
 } as const;
 
 export const AI_SUMMARIZATION_MODELS = [
@@ -224,20 +224,18 @@ export const AI_ENHANCEMENT_MODELS = [
     AI_MODELS.GEMINI_15_FLASH,       // Legacy fallback
 ];
 
-export const GEMINI_QUOTA_LIMITS = {
+export const API_QUOTA_LIMITS = {
     // Conservative 90% limits to prevent accidental overruns
-    'gemini-total': 900,                              // special shared pool (sum of all models)
-    'gemini-2.5-flash-lite': 900,                     // 1000 RPD * 0.9
-    'gemini-2.5-flash': 225,                          // 250 RPD * 0.9
-    'gemini-2.0-flash': 180,                          // 200 RPD * 0.9
-    'gemini-2.0-flash-lite': 180,                     // 200 RPD * 0.9
-    'gemini-1.5-flash': 90,                           // 100 RPD * 0.9 (legacy fallback)
-} as const;
-
-export const QUOTA_SAFETY_THRESHOLDS = {
-    conservativeLimit: 0.9,                // Block at 90% usage
-    warningThreshold: 0.8,                 // Warn at 80% usage
-    emergencyFallback: 0.95,               // Emergency brake at 95%
+    'gemini-total': 900,                             // Shared pool across all Gemini models
+    [AI_MODELS.GEMINI_25_FLASH_LITE]: 900,           // 1000 RPD * 0.9
+    [AI_MODELS.GEMINI_25_FLASH]: 225,                // 250 RPD * 0.9
+    [AI_MODELS.GEMINI_20_FLASH]: 180,                // 200 RPD * 0.9
+    [AI_MODELS.GEMINI_20_FLASH_LITE]: 180,           // 200 RPD * 0.9
+    [AI_MODELS.GEMINI_15_FLASH]: 90,                 // 100 RPD * 0.9
+    newsapi: 100,                                    // NewsAPI.org free tier (2025: 100 requests/day + 24hr delay)
+    guardian: 5000,                                  // Guardian API free tier (2025: 5,000 requests/day, 12/second)
+    nytimes: 500,                                    // NYTimes API free tier (2025: 500 requests/day, 5/minute)
+    google_translate: 16667,                         // Google Translate free tier (2025: 500K chars/month ≈ 16,667/day)
 } as const;
 
 const USER_AGENTS = [
@@ -254,27 +252,6 @@ const DEFAULT_ENGAGEMENT_WEIGHTS: IEngagementScoreWeights = {
     completionWeight: 2,
     readingTimeWeight: 0.1,
 };
-
-const LOW_QUALITY_CONTENT_INDICATORS = [
-    // Puzzles & Games
-    'crossword', 'puzzle', 'sudoku', 'word game', 'quiz', 'riddle', 'trivia',
-
-    // Opinion/Letters (not hard news)
-    'letter to editor', 'letters to the editor', 'dear editor', 'opinion piece',
-    'reader mail', 'your letters', 'readers write', 'op-ed', 'editorial',
-
-    // Social/Personal content
-    'horoscope', 'astrology', 'daily forecast', 'wedding announcement',
-    'birth announcement', 'anniversary', 'obituary', 'death notice',
-
-    // Non-news content
-    'recipe', 'cooking tips', 'fashion tips', 'lifestyle advice', 'how to',
-    'think out loud', 'briefing', 'newsletter', 'recap', 'roundup',
-
-    // Low-quality indicators
-    'click here', 'you won\'t believe', 'shocking truth', 'celebrities hate',
-    'doctors hate this', 'one weird trick', 'amazing secret', 'must see',
-];
 
 const TRUSTED_NEWS_SOURCES = {
     // Tier 1: Premium sources (highest credibility)
@@ -460,7 +437,6 @@ export {
     RSS_SOURCES,
     USER_AGENTS,
     DEFAULT_ENGAGEMENT_WEIGHTS,
-    LOW_QUALITY_CONTENT_INDICATORS,
     TRUSTED_NEWS_SOURCES,
     TOPIC_SPECIFIC_SOURCES,
     COMPREHENSIVE_TOPIC_KEYWORDS,

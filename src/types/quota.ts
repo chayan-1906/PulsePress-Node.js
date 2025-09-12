@@ -1,25 +1,25 @@
+import {AI_MODELS} from "../utils/constants";
+
 export type TApiService =
     'gemini-total'
-    | 'gemini-2.5-flash-lite'
-    | 'gemini-2.5-flash'
-    | 'gemini-2.0-flash'
-    | 'gemini-2.0-flash-lite'
-    | 'gemini-1.5-flash'
+    | typeof AI_MODELS.GEMINI_25_FLASH_LITE
+    | typeof AI_MODELS.GEMINI_25_FLASH
+    | typeof AI_MODELS.GEMINI_20_FLASH
+    | typeof AI_MODELS.GEMINI_20_FLASH_LITE
+    | typeof AI_MODELS.GEMINI_15_FLASH
     | 'newsapi'
     | 'guardian'
     | 'nytimes'
     | 'google_translate';
-export const API_SERVICES: TApiService[] = ['gemini-total', 'gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'newsapi', 'guardian', 'nytimes', 'google_translate'];
+export const API_SERVICES: TApiService[] = ['gemini-total', AI_MODELS.GEMINI_25_FLASH_LITE, AI_MODELS.GEMINI_25_FLASH, AI_MODELS.GEMINI_20_FLASH, AI_MODELS.GEMINI_20_FLASH_LITE, AI_MODELS.GEMINI_15_FLASH, 'newsapi', 'guardian', 'nytimes', 'google_translate'];
 
-export type TGeminiModel = 'gemini-2.5-flash-lite' | 'gemini-2.5-flash' | 'gemini-2.0-flash' | 'gemini-2.0-flash-lite' | 'gemini-1.5-flash';
-export const GEMINI_MODELS: TGeminiModel[] = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'];
-
-export interface IQuotaUsageHistory {
-    service: TApiService;
-    date: string;
-    requestCount: number;
-    lastResetAt: Date;
-}
+export type TGeminiModel =
+    typeof AI_MODELS.GEMINI_25_FLASH_LITE
+    | typeof AI_MODELS.GEMINI_25_FLASH
+    | typeof AI_MODELS.GEMINI_20_FLASH
+    | typeof AI_MODELS.GEMINI_20_FLASH_LITE
+    | typeof AI_MODELS.GEMINI_15_FLASH;
+export const GEMINI_MODELS: TGeminiModel[] = [AI_MODELS.GEMINI_25_FLASH_LITE, AI_MODELS.GEMINI_25_FLASH, AI_MODELS.GEMINI_20_FLASH, AI_MODELS.GEMINI_20_FLASH_LITE, AI_MODELS.GEMINI_15_FLASH];
 
 export interface IQuotaServiceOptions {
     conservativeThreshold: number;  // e.g., 0.9 for 90% threshold
