@@ -4,16 +4,14 @@ import Fuse from "fuse.js";
 import {JSDOM, VirtualConsole} from 'jsdom';
 import {Readability} from "@mozilla/readability";
 import {apis} from "../utils/apis";
-import AuthService from "./AuthService";
 import {isListEmpty} from "../utils/list";
 import {parseRSS} from "../utils/parseRSS";
 import {buildHeader} from "../utils/buildHeader";
 import {generateArticleId} from "../utils/generateArticleId";
-import SentimentAnalysisService from "./SentimentAnalysisService";
 import ArticleEnhancementService from "./ArticleEnhancementService";
 import {API_CONFIG, RSS_SOURCES, USER_AGENTS} from "../utils/constants";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
-import {assessContentQuality, isDuplicateArticle} from "../utils/serviceHelpers/articleQuality";
+import {assessContentQuality} from "../utils/serviceHelpers/articleQuality";
 import {cleanScrapedText, generateQueryVariations, simplifySearchQuery} from "../utils/serviceHelpers/textProcessing";
 import {determineTopicFromQuery, getOptimizedSourcesForTopic, mapToNewYorkTimesSection} from "../utils/serviceHelpers/topicMapping";
 import {GUARDIAN_API_KEY, GUARDIAN_QUOTA_REQUESTS, NEWSAPI_QUOTA_REQUESTS, NEWSAPIORG_QUOTA_MS, NODE_ENV, NYTIMES_API_KEY, NYTIMES_QUOTA_REQUESTS} from "../config/config";
@@ -50,6 +48,7 @@ let newsApiRequestCount = 0;
 let guardianApiRequestCount = 0;
 let nytimesApiRequestCount = 0;
 
+// TODO: Is this needed?
 setInterval(() => {
     newsApiRequestCount = 0;
     guardianApiRequestCount = 0;
@@ -530,7 +529,8 @@ class NewsService {
     /**
      * Fetch news from multiple sources with quality scoring and sentiment analysis
      */
-    static async fetchMultiSourceNews({email, q, category, sources, pageSize = 5, page = 1}: IMultisourceFetchNewsParams) {
+    // TODO: DELETE
+    /*static async fetchMultiSourceNews({email, q, category, sources, pageSize = 5, page = 1}: IMultisourceFetchNewsParams) {
         console.log('Service: fetchMultiSourceNews called'.cyan.italic, {q, category, sources, pageSize, page});
 
         const topic = determineTopicFromQuery(q, category);
@@ -791,7 +791,7 @@ class NewsService {
                 },
             },
         };
-    }
+    }*/
 
     /**
      * Scrape article content from URL using Readability

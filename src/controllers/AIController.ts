@@ -326,13 +326,19 @@ const generateTagsController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {tags, powered_by, error} = await TagGenerationService.generateTags({content, url});
+        const {tags, powered_by, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await TagGenerationService.generateTags({email, content, url});
 
         if (error) {
-            let errorMsg = 'Failed to generate tags';
+            let errorMsg = message || 'Failed to generate tags';
             let statusCode = 500;
 
-            if (error === 'CONTENT_OR_URL_REQUIRED') {
+            if (error === 'USER_BLOCKED') {
+                errorMsg = message || 'You are temporarily blocked from using AI features';
+                statusCode = 403;
+            } else if (error === 'NON_NEWS_CONTENT') {
+                errorMsg = message || 'Non-news content detected';
+                statusCode = 400;
+            } else if (error === 'CONTENT_OR_URL_REQUIRED') {
                 errorMsg = 'Either content or URL must be provided';
                 statusCode = 400;
             } else if (error === 'CONTENT_AND_URL_CONFLICT') {
@@ -356,6 +362,10 @@ const generateTagsController = async (req: Request, res: Response) => {
                 success: false,
                 errorCode: error,
                 errorMsg,
+                strikeCount,
+                isBlocked,
+                blockedUntil,
+                blockType,
             }));
             return;
         }
@@ -440,22 +450,44 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {sentiment, powered_by, confidence, error} = await SentimentAnalysisService.analyzeSentiment({content: contentToAnalyze});
+        const {sentiment, powered_by, confidence, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await SentimentAnalysisService.analyzeSentiment({
+            email,
+            content: contentToAnalyze,
+            url
+        });
 
         if (error) {
-            let errorMsg = 'Failed to analyze sentiment';
-            if (error === generateMissingCode('content')) {
+            let errorMsg = message || 'Failed to analyze sentiment';
+            let statusCode = 500;
+
+            if (error === 'USER_BLOCKED') {
+                errorMsg = message || 'You are temporarily blocked from using AI features';
+                statusCode = 403;
+            } else if (error === 'NON_NEWS_CONTENT') {
+                errorMsg = message || 'Non-news content detected';
+                statusCode = 400;
+            } else if (error === 'SCRAPING_FAILED') {
+                errorMsg = 'Failed to scrape the provided URL';
+                statusCode = 400;
+            } else if (error === generateMissingCode('content')) {
                 errorMsg = 'No content provided for analysis';
+                statusCode = 400;
             } else if (error === generateMissingCode('gemini_api_key')) {
                 errorMsg = 'Sentiment analysis service is temporarily unavailable';
+                statusCode = 500;
             } else if (error === 'SENTIMENT_ANALYSIS_FAILED') {
                 errorMsg = 'Sentiment analysis failed, please try again';
+                statusCode = 500;
             }
 
-            res.status(500).send(new ApiResponse({
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
                 errorCode: error,
                 errorMsg,
+                strikeCount,
+                isBlocked,
+                blockedUntil,
+                blockType,
             }));
             return;
         }

@@ -1,22 +1,15 @@
 import "colors";
 import {GoogleGenerativeAI} from "@google/generative-ai";
-import {IArticle} from "../types/news";
+import NewsService from "./NewsService";
+import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
+import StrikeService from "./StrikeService";
 import {GEMINI_API_KEY} from "../config/config";
 import {generateMissingCode} from "../utils/generateErrorCodes";
+import NewsClassificationService from "./NewsClassificationService";
 import {AI_SENTIMENT_ANALYSIS_MODELS, API_CONFIG} from "../utils/constants";
-import {getSentimentColor, getSentimentEmoji} from "../utils/serviceHelpers/sentimentHelpers";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
-import {
-    IAISentiment,
-    IEnrichArticlesWithSentimentParams,
-    IEnrichArticleWithSentimentParams,
-    IEnrichedArticleWithSentiment,
-    ISentimentAnalysisParams,
-    ISentimentAnalysisResponse,
-    SENTIMENT_TYPES,
-    TSentimentResult,
-} from "../types/ai";
+import {IAISentiment, ISentimentAnalysisParams, ISentimentAnalysisResponse, SENTIMENT_TYPES, TSentimentResult,} from "../types/ai";
 
 class SentimentAnalysisService {
     static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
@@ -24,16 +17,54 @@ class SentimentAnalysisService {
     /**
      * Analyzes the sentiment of news article content using Gemini AI
      */
-    static async analyzeSentiment({content}: ISentimentAnalysisParams): Promise<ISentimentAnalysisResponse> {
-        console.log('Service: SentimentAnalysisService.analyzeSentiment called'.cyan.italic, {content});
+    static async analyzeSentiment({email, content, url}: ISentimentAnalysisParams): Promise<ISentimentAnalysisResponse> {
+        console.log('Service: SentimentAnalysisService.analyzeSentiment called'.cyan.italic, {email, content, url});
 
-        if (!content || content.trim().length === 0) {
+        const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock(email);
+        if (isBlocked) {
+            console.warn('Client Error: User is blocked from AI features'.yellow, {email, blockType, blockedUntil});
+            return {
+                error: 'USER_BLOCKED',
+                message: blockMessage || 'You are temporarily blocked from using AI features',
+                isBlocked,
+                blockedUntil,
+                blockType,
+            };
+        }
+
+        let articleContent = content || '';
+        if (!content && url) {
+            console.log('External API: Scraping URL for sentiment analysis'.magenta, {url});
+            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
+
+            if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
+                console.error('Service Error: Scraping failed:'.red.bold, scrapedArticles[0]?.error);
+                return {error: 'SCRAPING_FAILED'};
+            }
+
+            articleContent = scrapedArticles[0]?.content || '';
+        }
+
+        if (!articleContent || articleContent.trim().length === 0) {
             console.warn('Client Error: Empty content provided for sentiment analysis'.yellow);
             return {error: generateMissingCode('content')};
         }
 
+        console.log('External API: Validating news content classification'.magenta);
+        const classification = await NewsClassificationService.classifyContent(articleContent);
+
+        if (classification === 'error') {
+            console.warn('Fallback Behavior: Classification failed, proceeding anyway'.yellow);
+        } else if (classification === 'non_news') {
+            console.warn('Client Error: Non-news content detected, applying user strike'.yellow);
+            const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike(email, 'ai_enhancement', articleContent);
+            return {error: 'NON_NEWS_CONTENT', message, strikeCount, isBlocked, blockedUntil};
+        } else {
+            console.log('News content verified, proceeding with sentiment analysis'.cyan);
+        }
+
         // Truncate content to avoid token limits
-        const truncatedContent = truncateContentForAI(content, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
+        const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
         for (let i = 0; i < AI_SENTIMENT_ANALYSIS_MODELS.length; i++) {
             const model = AI_SENTIMENT_ANALYSIS_MODELS[i];
@@ -93,82 +124,6 @@ class SentimentAnalysisService {
         const confidence = typeof parsed.confidence === 'number' ? parsed.confidence : 0.5;
 
         return {sentiment, confidence};
-    }
-
-    /**
-     * Analyze sentiment for an individual article and add sentiment data
-     */
-    private static async enrichArticleWithSentiment({article, shouldAnalyze = true}: IEnrichArticleWithSentimentParams): Promise<IEnrichedArticleWithSentiment> {
-        console.log('Service: SentimentAnalysisService.enrichArticleWithSentiment called'.cyan.italic, {article, shouldAnalyze});
-
-        if (!shouldAnalyze) {
-            return article;
-        }
-
-        try {
-            const contentForAnalysis = [article.title, article.description].filter(Boolean).join('. ');
-
-            if (!contentForAnalysis) {
-                return article;
-            }
-
-            const {sentiment, confidence, error} = await this.analyzeSentiment({content: contentForAnalysis});
-
-            if (error || !sentiment) {
-                console.warn('Service Warning: Sentiment analysis failed for article, returning without sentiment:'.yellow, error);
-                return article;
-            }
-
-            return {
-                ...article,
-                sentimentData: {
-                    sentiment,
-                    confidence,
-                    emoji: getSentimentEmoji(sentiment),
-                    color: getSentimentColor(sentiment),
-                },
-            };
-        } catch (error: any) {
-            console.error('Service Error: Error enriching article with sentiment:'.red.bold, error.message);
-            return article;
-        }
-    }
-
-    /**
-     * Analyze sentiment for multiple articles in batches
-     */
-    static async enrichArticlesWithSentiment({articles, shouldAnalyze = true}: IEnrichArticlesWithSentimentParams): Promise<IArticle[]> {
-        console.log('Service: SentimentAnalysisService.getSentimentColor called'.cyan.italic, {articles, shouldAnalyze});
-
-        if (!shouldAnalyze || !articles?.length) {
-            return articles;
-        }
-
-        console.log('Service: SentimentAnalysisService.enrichArticlesWithSentiment called'.cyan.italic);
-
-        const enrichedArticles = [];
-        const batchSize = 5;
-
-        for (let i = 0; i < articles.length; i += batchSize) {
-            const batch = articles.slice(i, i + batchSize);
-            const batchPromises = batch.map(article => this.enrichArticleWithSentiment({article, shouldAnalyze: true}));
-
-            try {
-                const batchResults = await Promise.all(batchPromises);
-                enrichedArticles.push(...batchResults);
-
-                // Delay between batches to respect rate limits
-                if (i + batchSize < articles.length) {
-                    await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
-                }
-            } catch (error: any) {
-                console.error('Service Error: Error processing sentiment batch:'.red.bold, error.message);
-                enrichedArticles.push(...batch);
-            }
-        }
-
-        console.log('Sentiment enrichment for articles completed successfully'.green.bold, {totalArticles: enrichedArticles.length});
-        return enrichedArticles;
     }
 }
 

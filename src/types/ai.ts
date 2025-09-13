@@ -222,6 +222,11 @@ export interface ITagGenerationResponse {
     tags?: string[];
     powered_by?: string;
     error?: string;
+    message?: string;
+    strikeCount?: number;
+    isBlocked?: boolean;
+    blockedUntil?: Date;
+    blockType?: TUserStrikeBlock;
 }
 
 export interface ISentimentAnalysisResponse {
@@ -229,6 +234,11 @@ export interface ISentimentAnalysisResponse {
     confidence?: number;
     powered_by?: string;
     error?: string;
+    message?: string;
+    strikeCount?: number;
+    isBlocked?: boolean;
+    blockedUntil?: Date;
+    blockType?: TUserStrikeBlock;
 }
 
 export interface IKeyPointsExtractionResponse {
@@ -393,11 +403,13 @@ export interface ITranslateTextParams {
 }
 
 export interface ITagGenerationParams {
+    email: string;
     content?: string;
     url?: string;
 }
 
 export interface ISentimentAnalysisParams {
+    email: string;
     url?: string;
     content?: string;
 }

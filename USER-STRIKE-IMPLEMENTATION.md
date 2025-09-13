@@ -41,17 +41,21 @@ This is a news aggregation app where users can search for news. To prevent misus
 
 ### 4. Implementation Steps ✅
 
-1. ✅ Create NonNewsViolationLog model in `/src/models/`
+1. ✅ Create NonNewsViolationLog model in `/src/models/` (with enum types)
 2. ✅ Install & configure node-cron in main server file
 3. ✅ Update strike functions to log ALL non-news violations (search, summary, etc.)
 4. ✅ Create resetExpiredStrikes() function for cron job
-5. ✅ Test the 1-hour cooling-off period
+5. ✅ Test the 1-hour cooling-off period (TESTED & WORKING)
+6. ✅ Fix missing authentication on /classify endpoint
+7. ✅ Add server downtime handling (auto-reset on API calls)
 
-### 5. Benefits
+### 5. Benefits ✅
 
-- Users get fresh chances after 1 hour of good behavior
-- Admin can track all non-news violations
-- Mimics Claude Pro's time-based reset behavior
+- ✅ Users get fresh chances after 1 hour of good behavior
+- ✅ Admin can track all non-news violations (NonNewsViolationLog collection)
+- ✅ Mimics Claude Pro's time-based reset behavior
+- ✅ Graceful server downtime handling
+- ✅ Dual reset mechanism (1-hour + 2-day backup)
 
 ### 6. Key Functions to Modify ✅
 
@@ -59,54 +63,62 @@ This is a news aggregation app where users can search for news. To prevent misus
 - ✅ Add logging to NonNewsViolationLog collection
 - ✅ Create resetExpiredStrikes() cron function
 
-### 7. Missing AI Enhancement Checks ⚠️
+### 7. AI Enhancement Strike Implementation Status ⚠️
 
-**CRITICAL**: The following AI enhancement endpoints are missing news classification checks:
+**ARCHITECTURE**: Strike checks implemented at **service layer** (not controller layer) for better separation of concerns.
 
-- `generateTagsController`
-- `analyzeSentimentController`
-- `extractKeyPointsController`
-- `analyzeComplexityController`
-- `generateQuestionsController`
-- `answerQuestionController`
-- `extractLocationsController`
-- `generateSocialMediaCaptionController`
-- `generateNewsInsightsController`
+**COMPLETED**:
 
-**Code Snippet to Add to Each:**
+- ✅ `TagGenerationService.generateTags()` (Service layer implementation)
+- ✅ `SentimentAnalysisService.analyzeSentiment()` (Service layer implementation)
 
+**REMAINING** (7 endpoints need service-layer implementation):
+
+- `extractKeyPointsController` → Update `KeyPointsExtractionService`
+- `analyzeComplexityController` → Update `ComplexityMeterService`
+- `generateQuestionsController` → Update `QuestionGenerationService`
+- `answerQuestionController` → Update `QuestionAnswerService`
+- `extractLocationsController` → Update `GeographicExtractionService`
+- `generateSocialMediaCaptionController` → Update `SocialMediaCaptionService`
+- `generateNewsInsightsController` → Update `NewsInsightsService`
+
+**IMPLEMENTATION PATTERN** (Service Layer):
+
+1. Update service interface to include `email` parameter
+2. Add block check at start of service method
+3. Add news classification after content processing
+4. Return strike information in error responses
+5. Update controller to handle new response format
+
+**EXAMPLE SERVICE IMPLEMENTATION**:
 ```typescript
-// Add after email extraction, before main logic
-const email = (req as IAuthRequest).email;
+// In Service Method (e.g., KeyPointsExtractionService.extractKeyPoints)
+static async
+extractKeyPoints({email, content, url}
+:
+IKeyPointsExtractionParams
+):
+Promise < IKeyPointsExtractionResponse > {
+    // 1. Block check
+    const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock(email);
+    if(isBlocked) {
+        return {error: 'USER_BLOCKED', message: blockMessage, isBlocked, blockedUntil, blockType};
+    }
 
-// Block check
-const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock(email);
-if (isBlocked) {
-    console.warn('Client Error: User is blocked from AI features'.yellow, {email, blockType, blockedUntil});
-    res.status(403).send(new ApiResponse({
-        success: false,
-        errorCode: 'USER_BLOCKED',
-        errorMsg: blockMessage || 'You are temporarily blocked from using AI features',
-        isBlocked, blockedUntil, blockType,
-    }));
-    return;
+    // 2. Content processing (existing logic)
+    let articleContent = content || '';
+    // ... handle URL scraping if needed ...
+
+    // 3. News classification
+    const classification = await NewsClassificationService.classifyContent(articleContent);
+    if(classification === 'non_news'
+)
+{
+    const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike(email, 'ai_enhancement', articleContent);
+    return {error: 'NON_NEWS_CONTENT', message, strikeCount, isBlocked, blockedUntil};
 }
 
-// News classification
-console.log('External API: Validating news content classification'.magenta);
-const classification = await NewsClassificationService.classifyContent(content); // Replace 'content' with actual variable
-
-if (classification === 'error') {
-    console.warn('Fallback Behavior: Classification failed, proceeding anyway'.yellow);
-} else if (classification === 'non_news') {
-    console.warn('Client Error: Non-news content detected, applying user strike'.yellow);
-    const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike(email, 'ai_enhancement', content);
-    res.status(400).send(new ApiResponse({
-        success: false, errorCode: 'NON_NEWS_CONTENT', errorMsg: message,
-        strikeCount, isBlocked, blockedUntil,
-    }));
-    return;
-} else {
-    console.log('News content verified, proceeding with AI enhancement'.bgGreen.bold);
+// 4. Proceed with AI processing (existing logic)
+// ... existing AI processing code ...
 }
 ```

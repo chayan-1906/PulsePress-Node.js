@@ -3,8 +3,10 @@ import {GoogleGenerativeAI} from "@google/generative-ai";
 import NewsService from "./NewsService";
 import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
+import StrikeService from "./StrikeService";
 import {GEMINI_API_KEY} from "../config/config";
 import {generateMissingCode} from "../utils/generateErrorCodes";
+import NewsClassificationService from "./NewsClassificationService";
 import {AI_TAG_GENERATION_MODELS, API_CONFIG} from "../utils/constants";
 import {ITagGenerationParams, ITagGenerationResponse} from "../types/ai";
 import {validateAndProcessTags} from "../utils/serviceHelpers/tagHelpers";
@@ -16,8 +18,20 @@ class TagGenerationService {
     /**
      * Generate relevant tags for news article content using Gemini AI
      */
-    static async generateTags({content, url}: ITagGenerationParams): Promise<ITagGenerationResponse> {
-        console.log('Service: TagGenerationService.generateTags called'.cyan.italic, {content, url});
+    static async generateTags({email, content, url}: ITagGenerationParams): Promise<ITagGenerationResponse> {
+        console.log('Service: TagGenerationService.generateTags called'.cyan.italic, {email, content, url});
+
+        const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock(email);
+        if (isBlocked) {
+            console.warn('Client Error: User is blocked from AI features'.yellow, {email, blockType, blockedUntil});
+            return {
+                error: 'USER_BLOCKED',
+                message: blockMessage || 'You are temporarily blocked from using AI features',
+                isBlocked,
+                blockedUntil,
+                blockType,
+            };
+        }
 
         if (!content && !url) {
             console.warn('Client Error: Content and url both invalid'.yellow, {content, url});
@@ -43,8 +57,21 @@ class TagGenerationService {
         }
 
         if (!articleContent || articleContent.trim().length === 0) {
-            console.warn('Client Error: Empty content provided for caption generation'.yellow);
+            console.warn('Client Error: Empty content provided for tag generation'.yellow);
             return {error: generateMissingCode('content')};
+        }
+
+        console.log('External API: Validating news content classification'.magenta);
+        const classification = await NewsClassificationService.classifyContent(articleContent);
+
+        if (classification === 'error') {
+            console.warn('Fallback Behavior: Classification failed, proceeding anyway'.yellow);
+        } else if (classification === 'non_news') {
+            console.warn('Client Error: Non-news content detected, applying user strike'.yellow);
+            const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike(email, 'ai_enhancement', articleContent);
+            return {error: 'NON_NEWS_CONTENT', message, strikeCount, isBlocked, blockedUntil};
+        } else {
+            console.log('News content verified, proceeding with tag generation'.bgGreen.bold);
         }
 
         // Truncate content to avoid token limits - use title and description primarily
