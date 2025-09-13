@@ -37,7 +37,22 @@ const classifyContentController = async (req: Request, res: Response) => {
     console.info('Controller: classifyContentController started'.bgBlue.white.bold);
 
     try {
+        const email = (req as IAuthRequest).email;
         const {text, url} = req.body;
+
+        const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock(email);
+        if (isBlocked) {
+            console.warn('Client Error: User is blocked from AI features'.yellow, {email, blockType, blockedUntil});
+            res.status(403).send(new ApiResponse({
+                success: false,
+                errorCode: 'USER_BLOCKED',
+                errorMsg: blockMessage || 'You are temporarily blocked from using AI features',
+                isBlocked,
+                blockedUntil,
+                blockType,
+            }));
+            return;
+        }
 
         if (!text && !url) {
             res.status(400).send(new ApiResponse({
@@ -91,6 +106,20 @@ const classifyContentController = async (req: Request, res: Response) => {
                 success: false,
                 errorCode: 'CLASSIFICATION_FAILED',
                 errorMsg: 'Failed to classify content, try again after sometimes',
+            }));
+            return;
+        } else if (classification === 'non_news') {
+            console.warn('Client Error: Non-news content detected in classification, applying user strike'.yellow);
+            const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike(email, 'search_query', contentToClassify);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: 'NON_NEWS_CONTENT',
+                errorMsg: message,
+                strikeCount,
+                isBlocked,
+                blockedUntil,
+                classification,
+                isNews: false,
             }));
             return;
         }
@@ -198,7 +227,7 @@ const summarizeArticleController = async (req: Request, res: Response) => {
             // If classification fails, let the request continue (fail gracefully)
         } else if (classification === 'non_news') {
             console.warn('Client Error: Non-news content detected, applying user strike'.yellow);
-            const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike(email);
+            const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike(email, 'article_summary', articleContent);
             res.status(400).send(new ApiResponse({
                 success: false,
                 errorCode: 'NON_NEWS_CONTENT',

@@ -2,12 +2,12 @@ import {Router} from "express";
 import {authMiddleware} from "../middlewares/AuthMiddleware";
 import {aiRateLimiter, newsScrapingRateLimiter} from "../middlewares/RateLimiterMiddleware";
 import {
+    analyzeComplexityController,
     analyzeSentimentController,
     answerQuestionController,
     classifyContentController,
-    extractLocationsController,
-    analyzeComplexityController,
     extractKeyPointsController,
+    extractLocationsController,
     generateNewsInsightsController,
     generateQuestionsController,
     generateSocialMediaCaptionController,
@@ -17,7 +17,7 @@ import {
 
 const router = Router();
 
-router.post('/classify', classifyContentController);                                                            // /api/v1/ai/classify
+router.post('/classify', authMiddleware, aiRateLimiter, classifyContentController);                              // /api/v1/ai/classify
 router.post('/summarize', authMiddleware, aiRateLimiter, newsScrapingRateLimiter, summarizeArticleController);  // /api/v1/ai/summarize
 router.post('/generate-tags', authMiddleware, aiRateLimiter, newsScrapingRateLimiter, generateTagsController);  // /api/v1/ai/generate-tags
 router.post('/sentiment', authMiddleware, aiRateLimiter, newsScrapingRateLimiter, analyzeSentimentController);  // /api/v1/ai/sentiment

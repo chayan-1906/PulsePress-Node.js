@@ -28,6 +28,9 @@ export type TSocialMediaPlatform = typeof SOCIAL_MEDIA_PLATFORMS[number];
 export const SOCIAL_MEDIA_CAPTION_STYLES = ['professional', 'casual', 'engaging', 'viral'] as const;
 export type TSocialMediaCaptionStyle = typeof SOCIAL_MEDIA_CAPTION_STYLES[number];
 
+export const VIOLATION_TYPES = ['search_query', 'article_summary', 'ai_enhancement'] as const;
+export type TViolationType = typeof VIOLATION_TYPES[number];
+
 export const IMPACT_LEVELS = ['local', 'regional', 'national', 'global'] as const;
 export type TImpactLevel = typeof IMPACT_LEVELS[number];
 
@@ -100,7 +103,6 @@ export interface IStrikeHistoryEvent {
 }
 
 export interface IStrikeResult {
-    success: boolean;
     newStrikeCount: number;
     isBlocked: boolean;
     blockType?: TUserStrikeBlock;
