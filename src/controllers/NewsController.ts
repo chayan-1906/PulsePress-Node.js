@@ -266,7 +266,7 @@ const fetchAllRssFeedsController = async (req: Request, res: Response) => {
     }
 }
 
-const fetchMultiSourceNewsController = async (req: Request, res: Response) => {
+/*const fetchMultiSourceNewsController = async (req: Request, res: Response) => {
     console.info('Controller: fetchMultiSourceNewsController started'.bgBlue.white.bold);
 
     try {
@@ -314,7 +314,7 @@ const fetchMultiSourceNewsController = async (req: Request, res: Response) => {
             errorMsg: error.message || 'Something went wrong while loading news from multiple sources',
         }));
     }
-}
+}*/
 
 const scrapeWebsiteController = async (req: Request, res: Response) => {
     console.info('Controller: scrapeWebsiteController started'.bgBlue.white.bold);
@@ -357,6 +357,7 @@ const scrapeWebsiteController = async (req: Request, res: Response) => {
     }
 }
 
+// TODO: Call the Progressive service function - fetchMultiSourceNewsEnhanced()
 const exploreTopicController = async (req: Request, res: Response) => {
     console.info('Controller: exploreTopicController started'.bgBlue.white.bold);
 
@@ -395,19 +396,19 @@ const exploreTopicController = async (req: Request, res: Response) => {
         }
 
         console.time('Performance: TOPIC_EXPLORATION_TIME'.cyan);
-        const topicResults = await NewsService.fetchMultiSourceNews({
+        /*const topicResults = await NewsService.fetchMultiSourceNews({
             q: predefinedQuery,
             category: topic,
             pageSize: pageSizeNumber,
             page: pageNumber,
-        });
+        });*/
         console.timeEnd('Performance: TOPIC_EXPLORATION_TIME'.cyan);
 
         res.status(200).send(new ApiResponse({
             success: true,
             message: `${TOPIC_METADATA[topic].name} news have been found 🎉`,
             topic: TOPIC_METADATA[topic],
-            searchResults: topicResults,
+            /*searchResults: topicResults,*/
         }));
     } catch (error: any) {
         console.error('Controller Error: exploreTopicController failed'.red.bold, error);
@@ -544,7 +545,7 @@ export {
     fetchNewYorkTimesNewsController,
     fetchNewYorkTimesTopStoriesController,
     fetchAllRssFeedsController,
-    fetchMultiSourceNewsController,
+    // fetchMultiSourceNewsController,
     fetchMultiSourceNewsEnhancedController,
     fetchMultiSourceNewsEnhancementStatusController,
     scrapeWebsiteController,

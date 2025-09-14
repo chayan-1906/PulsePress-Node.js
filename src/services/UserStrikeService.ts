@@ -20,12 +20,12 @@ class UserStrikeService {
                 return {error: generateNotFoundCode('user')};
             }
 
-            const strikeData = await StrikeService.getUserStrikes(email);
+            const strikeData = await StrikeService.getUserStrikes({email});
             if (!strikeData) {
                 return {error: 'STRIKE_DATA_UNAVAILABLE'};
             }
 
-            const {isBlocked, blockType, blockedUntil, message} = await StrikeService.checkUserBlock(email);
+            const {isBlocked, blockType, blockedUntil, message} = await StrikeService.checkUserBlock({email});
 
             const timeUntilReset = strikeData.count > 0 ? calculateTimeUntilReset(strikeData.lastStrikeAt) : undefined;
             const blockTimeRemaining = isBlocked ? calculateBlockTimeRemaining(blockedUntil) : undefined;
@@ -66,7 +66,7 @@ class UserStrikeService {
                 return {error: generateNotFoundCode('user')};
             }
 
-            const strikeData = await StrikeService.getUserStrikes(email);
+            const strikeData = await StrikeService.getUserStrikes({email});
             if (!strikeData) {
                 return {error: 'STRIKE_DATA_UNAVAILABLE'};
             }

@@ -4,7 +4,9 @@ import NewsService from "./NewsService";
 import QuotaService from "./QuotaService";
 import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
+import StrikeService from "./StrikeService";
 import {GEMINI_API_KEY} from "../config/config";
+import NewsClassificationService from "./NewsClassificationService";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
 import {AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS, API_CONFIG} from "../utils/constants";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
@@ -24,8 +26,20 @@ class SocialMediaCaptionService {
     /**
      * Generate engaging social media captions for news article content using Gemini AI
      */
-    static async generateCaption({content, url, platform, style}: ISocialMediaCaptionParams): Promise<ISocialMediaCaptionResponse> {
-        console.log('Service: SocialMediaCaptionService.generateCaption called'.cyan.italic, {content, url, platform, style});
+    static async generateCaption({email, content, url, platform, style}: ISocialMediaCaptionParams): Promise<ISocialMediaCaptionResponse> {
+        console.log('Service: SocialMediaCaptionService.generateCaption called'.cyan.italic, {email, content, url, platform, style});
+
+        const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock({email});
+        if (isBlocked) {
+            console.warn('Client Error: User is blocked from AI features'.yellow, {email, blockType, blockedUntil});
+            return {
+                error: 'USER_BLOCKED',
+                message: blockMessage || 'You are temporarily blocked from using AI features',
+                isBlocked,
+                blockedUntil,
+                blockType,
+            };
+        }
 
         if (!content && !url) {
             console.warn('Client Error: Content and url both invalid'.yellow, {content, url});
@@ -63,6 +77,19 @@ class SocialMediaCaptionService {
         if (!articleContent || articleContent.trim().length === 0) {
             console.warn('Client Error: Empty content provided for caption generation'.yellow);
             return {error: generateMissingCode('content')};
+        }
+
+        console.log('External API: Validating news content classification'.magenta);
+        const classification = await NewsClassificationService.classifyContent(articleContent);
+
+        if (classification === 'error') {
+            console.warn('Fallback Behavior: Classification failed, proceeding anyway'.yellow);
+        } else if (classification === 'non_news') {
+            console.warn('Client Error: Non-news content detected, applying user strike'.yellow);
+            const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike({email, violationType: 'ai_enhancement', content: articleContent});
+            return {error: 'NON_NEWS_CONTENT', message, strikeCount, isBlocked, blockedUntil};
+        } else {
+            console.log('News content verified, proceeding with caption generation'.bgGreen.bold);
         }
 
         // Truncate content to avoid token limits

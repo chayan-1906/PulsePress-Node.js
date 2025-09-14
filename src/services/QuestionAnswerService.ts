@@ -1,8 +1,12 @@
 import "colors";
 import {GoogleGenerativeAI} from "@google/generative-ai";
+import NewsService from "./NewsService";
+import {isListEmpty} from "../utils/list";
 import QuotaService from "./QuotaService";
 import {AI_PROMPTS} from "../utils/prompts";
+import StrikeService from "./StrikeService";
 import {GEMINI_API_KEY} from "../config/config";
+import NewsClassificationService from "./NewsClassificationService";
 import {API_CONFIG, QUESTION_ANSWER_MODELS} from "../utils/constants";
 import {generateContentHash} from "../utils/serviceHelpers/contentHashing";
 import CachedQuestionAnswerModel from "../models/CachedQuestionAnswerSchema";
@@ -17,15 +21,63 @@ class QuestionAnswerService {
     /**
      * Generate relevant questions for news article content using Gemini AI with caching
      */
-    static async generateQuestions({content}: IQuestionGenerationParams): Promise<IQuestionGenerationResponse> {
-        console.log('Service: QuestionAnswerService.generateQuestions called'.cyan.italic, {content});
+    static async generateQuestions({email, content, url}: IQuestionGenerationParams): Promise<IQuestionGenerationResponse> {
+        console.log('Service: QuestionAnswerService.generateQuestions called'.cyan.italic, {email, content, url});
 
-        if (!content || content.trim().length === 0) {
+        const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock({email});
+        if (isBlocked) {
+            console.warn('Client Error: User is blocked from AI features'.yellow, {email, blockType, blockedUntil});
+            return {
+                error: 'USER_BLOCKED',
+                message: blockMessage || 'You are temporarily blocked from using AI features',
+                isBlocked,
+                blockedUntil,
+                blockType,
+            };
+        }
+
+        if (!content && !url) {
+            console.warn('Client Error: Content and url both invalid'.yellow, {content, url});
+            return {error: 'CONTENT_OR_URL_REQUIRED'};
+        }
+
+        if (content && url) {
+            console.warn('Client Error: Content and url both valid'.yellow, {content, url});
+            return {error: 'CONTENT_AND_URL_CONFLICT'};
+        }
+
+        let articleContent = content || '';
+        if (!content && url) {
+            console.log('Scraping URL for question generation:'.cyan, url);
+            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
+
+            if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
+                console.error('Service Error: Scraping failed:'.red.bold, scrapedArticles[0]?.error);
+                return {error: 'SCRAPING_FAILED'};
+            }
+
+            articleContent = scrapedArticles[0]?.content || '';
+        }
+
+        if (!articleContent || articleContent.trim().length === 0) {
             console.warn('Client Error: Empty content provided for question generation'.yellow);
             return {error: generateInvalidCode('content')};
         }
 
-        const contentHash = generateContentHash(content);
+        console.log('External API: Validating news content classification'.magenta);
+        const classification = await NewsClassificationService.classifyContent(articleContent);
+
+        if (classification === 'error') {
+            console.warn('Fallback Behavior: Classification failed, proceeding anyway'.yellow);
+        } else if (classification === 'non_news') {
+            console.warn('Client Error: Non-news content detected, applying user strike'.yellow);
+            const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike({email, violationType: 'ai_enhancement', content: articleContent});
+            return {error: 'NON_NEWS_CONTENT', message, strikeCount, isBlocked, blockedUntil};
+        } else {
+            console.log('News content verified, proceeding with question generation'.bgGreen.bold);
+        }
+
+        const contentHash = generateContentHash(articleContent);
 
         // if (NODE_ENV === 'production') {
         try {
@@ -41,7 +93,7 @@ class QuestionAnswerService {
         console.log('Cache: No cached questions found for this article'.cyan);
 
         // Truncate content to avoid token limits
-        const truncatedContent = truncateContentForAI(content, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
+        const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
         const quotaReservation = await QuotaService.reserveQuotaForModelFallback({
             primaryModel: QUESTION_ANSWER_MODELS[0],
@@ -85,10 +137,45 @@ class QuestionAnswerService {
     /**
      * Answer a specific question based on article content using Gemini AI with caching
      */
-    static async answerQuestion({content, question}: IQuestionAnsweringParams): Promise<IQuestionAnsweringResponse> {
-        console.log('Service: QuestionAnswerService.answerQuestion called'.cyan.italic, {content, question});
+    static async answerQuestion({email, content, url, question}: IQuestionAnsweringParams): Promise<IQuestionAnsweringResponse> {
+        console.log('Service: QuestionAnswerService.answerQuestion called'.cyan.italic, {email, content, url, question});
 
-        if (!content || content.trim().length === 0) {
+        const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock({email});
+        if (isBlocked) {
+            console.warn('Client Error: User is blocked from AI features'.yellow, {email, blockType, blockedUntil});
+            return {
+                error: 'USER_BLOCKED',
+                message: blockMessage || 'You are temporarily blocked from using AI features',
+                isBlocked,
+                blockedUntil,
+                blockType,
+            };
+        }
+
+        if (!content && !url) {
+            console.warn('Client Error: Content and url both invalid'.yellow, {content, url});
+            return {error: 'CONTENT_OR_URL_REQUIRED'};
+        }
+
+        if (content && url) {
+            console.warn('Client Error: Content and url both valid'.yellow, {content, url});
+            return {error: 'CONTENT_AND_URL_CONFLICT'};
+        }
+
+        let articleContent = content || '';
+        if (!content && url) {
+            console.log('Scraping URL for question answering:'.cyan, url);
+            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
+
+            if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
+                console.error('Service Error: Scraping failed:'.red.bold, scrapedArticles[0]?.error);
+                return {error: 'SCRAPING_FAILED'};
+            }
+
+            articleContent = scrapedArticles[0]?.content || '';
+        }
+
+        if (!articleContent || articleContent.trim().length === 0) {
             console.warn('Client Error: Empty content provided for question answering'.yellow);
             return {error: generateInvalidCode('content')};
         }
@@ -98,7 +185,20 @@ class QuestionAnswerService {
             return {error: generateInvalidCode('question')};
         }
 
-        const contentHash = generateContentHash(content);
+        console.log('External API: Validating news content classification'.magenta);
+        const classification = await NewsClassificationService.classifyContent(articleContent);
+
+        if (classification === 'error') {
+            console.warn('Fallback Behavior: Classification failed, proceeding anyway'.yellow);
+        } else if (classification === 'non_news') {
+            console.warn('Client Error: Non-news content detected, applying user strike'.yellow);
+            const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike({email, violationType: 'ai_enhancement', content: articleContent});
+            return {error: 'NON_NEWS_CONTENT', message, strikeCount, isBlocked, blockedUntil};
+        } else {
+            console.log('News content verified, proceeding with question answering'.bgGreen.bold);
+        }
+
+        const contentHash = generateContentHash(articleContent);
 
         // if (NODE_ENV === 'production') {
         try {
@@ -115,7 +215,7 @@ class QuestionAnswerService {
         console.log('Cache: No cached answer found for this question'.cyan);
 
         // Truncate content to avoid token limits
-        const truncatedContent = truncateContentForAI(content, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
+        const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
         const quotaReservation = await QuotaService.reserveQuotaForModelFallback({
             primaryModel: QUESTION_ANSWER_MODELS[0],

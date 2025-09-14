@@ -4,8 +4,10 @@ import NewsService from "./NewsService";
 import QuotaService from "./QuotaService";
 import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
+import StrikeService from "./StrikeService";
 import {GEMINI_API_KEY} from "../config/config";
 import {generateMissingCode} from "../utils/generateErrorCodes";
+import NewsClassificationService from "./NewsClassificationService";
 import {AI_GEOGRAPHIC_EXTRACTION_MODELS, API_CONFIG} from "../utils/constants";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 import {IAIGeographicExtraction, IGeographicExtractionParams, IGeographicExtractionResponse} from "../types/ai";
@@ -16,8 +18,20 @@ class GeographicExtractionService {
     /**
      * Extract geographic locations from news article content using Gemini AI
      */
-    static async extractLocations({content, url}: IGeographicExtractionParams): Promise<IGeographicExtractionResponse> {
-        console.log('Service: GeographicExtractionService.extractLocations called'.cyan.italic, {contentLength: content?.length, url});
+    static async extractLocations({email, content, url}: IGeographicExtractionParams): Promise<IGeographicExtractionResponse> {
+        console.log('Service: GeographicExtractionService.extractLocations called'.cyan.italic, {email, content, url});
+
+        const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock({email});
+        if (isBlocked) {
+            console.warn('Client Error: User is blocked from AI features'.yellow, {email, blockType, blockedUntil});
+            return {
+                error: 'USER_BLOCKED',
+                message: blockMessage || 'You are temporarily blocked from using AI features',
+                isBlocked,
+                blockedUntil,
+                blockType,
+            };
+        }
 
         if (!content && !url) {
             console.warn('Client Error: Both content and URL missing'.yellow, {content, url});
@@ -25,7 +39,7 @@ class GeographicExtractionService {
         }
 
         if (content && url) {
-            console.warn('Client Error: Both content and URL provided'.yellow, {contentLength: content.length, url});
+            console.warn('Client Error: Both content and URL provided'.yellow, {content, url});
             return {error: 'CONTENT_AND_URL_CONFLICT'};
         }
 
@@ -45,6 +59,19 @@ class GeographicExtractionService {
         if (!articleContent || articleContent.trim().length === 0) {
             console.warn('Client Error: Empty content provided for geographic extraction'.yellow);
             return {error: generateMissingCode('content')};
+        }
+
+        console.log('External API: Validating news content classification'.magenta);
+        const classification = await NewsClassificationService.classifyContent(articleContent);
+
+        if (classification === 'error') {
+            console.warn('Fallback Behavior: Classification failed, proceeding anyway'.yellow);
+        } else if (classification === 'non_news') {
+            console.warn('Client Error: Non-news content detected, applying user strike'.yellow);
+            const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike({email, violationType: 'ai_enhancement', content: articleContent});
+            return {error: 'NON_NEWS_CONTENT', message, strikeCount, isBlocked, blockedUntil};
+        } else {
+            console.log('News content verified, proceeding with geographic extraction'.bgGreen.bold);
         }
 
         // Truncate content to avoid token limits

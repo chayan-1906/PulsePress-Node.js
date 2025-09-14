@@ -1,13 +1,14 @@
 import "colors";
-import UserModel from "../models/UserSchema";
+import UserModel, {IUser} from "../models/UserSchema";
+import NonNewsViolationLogModel from "../models/NonNewsViolationLogSchema";
 import {STRIKE_COOLDOWN_COUNT, STRIKE_LONG_BLOCK_DURATION, STRIKE_TEMPORARY_BLOCK_COUNT, STRIKE_TEMPORARY_BLOCK_DURATION} from "../config/config";
-import {IStrikeCheckResult, IStrikeHistoryEvent, IStrikeResult, TUserStrikeBlock} from "../types/ai";
+import {IApplyStrikeParams, ICheckUserBlockParams, IGetUserStrikesParams, ILogNonNewsViolationParams, IStrikeCheckResult, IStrikeHistoryEvent, IStrikeResult, TUserStrikeBlock} from "../types/ai";
 
 class StrikeService {
     /**
      * Check if user is currently blocked and handle 48-hour reset
      */
-    static async checkUserBlock(email: string): Promise<IStrikeCheckResult> {
+    static async checkUserBlock({email}: ICheckUserBlockParams): Promise<IStrikeCheckResult> {
         console.log('Service: StrikeService.checkUserBlock called'.cyan.italic, {email});
 
         try {
@@ -86,23 +87,47 @@ class StrikeService {
     }
 
     /**
+     * Log non-news violation for admin tracking
+     */
+    static async logNonNewsViolation({email, violationType, content}: ILogNonNewsViolationParams): Promise<void> {
+        console.log('Service: StrikeService.logNonNewsViolation called'.cyan.italic, {email, violationType});
+
+        try {
+            const user = await UserModel.findOne({email});
+            if (!user) {
+                console.warn('Client Error: User not found for violation logging'.yellow, {email});
+                return;
+            }
+
+            await NonNewsViolationLogModel.create({
+                userExternalId: user.userExternalId,
+                email: user.email,
+                violationType,
+                content: content.substring(0, 2000),
+                violatedAt: new Date(),
+            });
+
+            console.log('Non-news violation logged successfully'.cyan, {email, violationType});
+        } catch (error: any) {
+            console.error('Service Error: StrikeService.logNonNewsViolation failed:'.red.bold, error);
+        }
+    }
+
+    /**
      * Apply a strike to user for non-news query
      */
-    static async applyStrike(email: string): Promise<IStrikeResult> {
+    static async applyStrike({email, violationType = 'search_query', content = ''}: IApplyStrikeParams): Promise<IStrikeResult> {
         console.log('Service: StrikeService.applyStrike called'.cyan.italic, {email});
 
         try {
-            const blockCheck = await this.checkUserBlock(email);
+            await this.logNonNewsViolation({email, violationType, content});
+
+            const blockCheck = await this.checkUserBlock({email});
             const wasReset = blockCheck.wasReset || false;
 
             const user = await UserModel.findOne({email});
             if (!user) {
-                return {
-                    success: false,
-                    newStrikeCount: 0,
-                    isBlocked: false,
-                    message: 'User not found',
-                };
+                return {newStrikeCount: 0, isBlocked: false, message: 'User not found'};
             }
 
             const currentStrikes = user.newsClassificationStrikes?.count || 0;
@@ -159,7 +184,6 @@ class StrikeService {
                 message = `Strike ${newStrikeCount} applied.`;
             }
 
-            // Create history event
             const historyEvent: IStrikeHistoryEvent = {
                 strikeNumber: newStrikeCount,
                 appliedAt: now,
@@ -168,7 +192,6 @@ class StrikeService {
                 blockDuration,
             };
 
-            // Add history event to the array
             updateData['$push'] = {
                 'newsClassificationStrikes.history': historyEvent,
             };
@@ -177,38 +200,12 @@ class StrikeService {
 
             console.log(`Strike applied to ${email}:`.cyan, {previousCount: currentStrikes, newStrikeCount, isBlocked, blockType, blockedUntil, wasReset, historyEvent});
 
-            const result = {success: true, newStrikeCount, isBlocked, blockType, blockedUntil, message, wasReset};
+            const result = {newStrikeCount, isBlocked, blockType, blockedUntil, message, wasReset};
             console.log('Strike application completed successfully'.green.bold, result);
             return result;
         } catch (error: any) {
             console.error('Service Error: StrikeService.applyStrike failed:'.red.bold, error);
-            return {
-                success: false,
-                newStrikeCount: 0,
-                isBlocked: false,
-                message: 'Failed to apply strike',
-            };
-        }
-    }
-
-    /**
-     * Get user's current strike information
-     */
-    static async getUserStrikes(email: string): Promise<{ count: number; lastStrikeAt?: Date; blockedUntil?: Date; history?: IStrikeHistoryEvent[] } | null> {
-        console.log('Service: StrikeService.getUserStrikes called'.cyan.italic, {email});
-
-        try {
-            // Check for reset first
-            await this.checkUserBlock(email);
-
-            // Get fresh data after potential reset
-            const user = await UserModel.findOne({email}, 'newsClassificationStrikes');
-            const result = user?.newsClassificationStrikes || {count: 0, history: []};
-            console.log('User strikes retrieval completed successfully'.green.bold, result);
-            return result;
-        } catch (error: any) {
-            console.error('Service Error: StrikeService.getUserStrikes failed:'.red.bold, error);
-            return null;
+            return {newStrikeCount: 0, isBlocked: false, message: 'Failed to apply strike'};
         }
     }
 
@@ -242,6 +239,27 @@ class StrikeService {
     }
 
     /**
+     * Get user's current strike information
+     */
+    static async getUserStrikes({email}: IGetUserStrikesParams): Promise<{ count: number; lastStrikeAt?: Date; blockedUntil?: Date; history?: IStrikeHistoryEvent[] } | null> {
+        console.log('Service: StrikeService.getUserStrikes called'.cyan.italic, {email});
+
+        try {
+            // Check for reset first
+            await this.checkUserBlock({email});
+
+            // Get fresh data after potential reset
+            const user = await UserModel.findOne({email}, 'newsClassificationStrikes');
+            const result = user?.newsClassificationStrikes || {count: 0, history: []};
+            console.log('User strikes retrieval completed successfully'.green.bold, result);
+            return result;
+        } catch (error: any) {
+            console.error('Service Error: StrikeService.getUserStrikes failed:'.red.bold, error);
+            return null;
+        }
+    }
+
+    /**
      * Check if user strikes should be reset (48 hours since last strike)
      */
     private static async checkForAutoReset(email: string): Promise<boolean> {
@@ -264,6 +282,57 @@ class StrikeService {
         } catch (error: any) {
             console.error('Service Error: StrikeService.checkForAutoReset failed:'.red.bold, error);
             return false;
+        }
+    }
+
+    /**
+     * Reset strikes for users who haven't violated in the last hour (cooling off period)
+     * This runs every 15 minutes via cron job
+     */
+    static async resetExpiredStrikes(): Promise<void> {
+        console.log('Service: StrikeService.resetExpiredStrikes called'.cyan.italic);
+
+        try {
+            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+            const usersToReset: IUser[] = await UserModel.find({
+                'newsClassificationStrikes.count': {$gt: 0},
+                'newsClassificationStrikes.lastStrikeAt': {$lt: oneHourAgo},
+            });
+
+            let resetCount = 0;
+            for (const user of usersToReset) {
+                const lastStrikeAt = user.newsClassificationStrikes?.lastStrikeAt;
+                const currentStrikes = user.newsClassificationStrikes?.count || 0;
+
+                if (lastStrikeAt && currentStrikes > 0) {
+                    console.log(`Auto-resetting strikes for user ${user.email}: ${currentStrikes} strikes → 0 (last strike: ${lastStrikeAt.toISOString()})`.cyan);
+
+                    await UserModel.updateOne(
+                        {email: user.email},
+                        {
+                            $set: {
+                                'newsClassificationStrikes.count': 0,
+                                'newsClassificationStrikes.history': [],
+                            },
+                            $unset: {
+                                'newsClassificationStrikes.lastStrikeAt': 1,
+                                'newsClassificationStrikes.blockedUntil': 1,
+                                'newsClassificationStrikes.blockType': 1,
+                            },
+                        },
+                    );
+                    resetCount++;
+                }
+            }
+
+            if (resetCount > 0) {
+                console.log(`Auto-reset completed: Reset strikes for ${resetCount} users`.green.bold);
+            } else {
+                console.log('Auto-reset check completed: No users eligible for reset'.cyan);
+            }
+        } catch (error: any) {
+            console.error('Service Error: StrikeService.resetExpiredStrikes failed:'.red.bold, error);
         }
     }
 

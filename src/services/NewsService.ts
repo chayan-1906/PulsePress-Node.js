@@ -4,19 +4,16 @@ import Fuse from "fuse.js";
 import {JSDOM, VirtualConsole} from 'jsdom';
 import {Readability} from "@mozilla/readability";
 import {apis} from "../utils/apis";
-import AuthService from "./AuthService";
 import QuotaService from "./QuotaService";
 import {isListEmpty} from "../utils/list";
 import {parseRSS} from "../utils/parseRSS";
 import {buildHeader} from "../utils/buildHeader";
 import {generateArticleId} from "../utils/generateArticleId";
-import SentimentAnalysisService from "./SentimentAnalysisService";
 import ArticleEnhancementService from "./ArticleEnhancementService";
 import {API_CONFIG, RSS_SOURCES, USER_AGENTS} from "../utils/constants";
 import {GUARDIAN_API_KEY, NYTIMES_API_KEY} from "../config/config";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
-import {assessContentQuality, isDuplicateArticle} from "../utils/serviceHelpers/articleQuality";
-import {cleanScrapedText, generateQueryVariations, simplifySearchQuery} from "../utils/serviceHelpers/textProcessing";
+import {cleanScrapedText, simplifySearchQuery} from "../utils/serviceHelpers/textProcessing";
 import {determineTopicFromQuery, getOptimizedSourcesForTopic, mapToNewYorkTimesSection} from "../utils/serviceHelpers/topicMapping";
 import {convertGuardianToArticle, convertNewYorkTimesToArticle, convertNewYorkTimesTopStoryToArticle, convertRSSFeedToArticle} from "../utils/serviceHelpers/articleConverters";
 import {
@@ -35,7 +32,6 @@ import {
     IRssFeedParams,
     IScrapeMultipleWebsitesParams,
     IScrapeWebsiteParams,
-    ISmartFetchWithVariationsParams,
     SUPPORTED_NEWS_LANGUAGES,
     TEnhancementStatus,
     VALID_NYTIMES_SECTIONS,
@@ -475,272 +471,6 @@ class NewsService {
     }
 
     /**
-     * Fetch news from multiple sources with quality scoring and sentiment analysis
-     */
-    static async fetchMultiSourceNews({email, q, category, sources, pageSize = 5, page = 1}: IMultisourceFetchNewsParams) {
-        console.log('Service: fetchMultiSourceNews called'.cyan.italic, {q, category, sources, pageSize, page});
-
-        const topic = determineTopicFromQuery(q, category);
-        const simplifiedQuery = q ? simplifySearchQuery(q) : q;
-        const optimizedSources = getOptimizedSourcesForTopic(topic, sources);
-        const nytSection = mapToNewYorkTimesSection(topic);
-
-        console.log('Topic:'.cyan, topic);
-        console.log('Simplified query:'.cyan, simplifiedQuery);
-        console.log('Optimized sources:'.cyan, optimizedSources);
-        console.log('NYT section:'.cyan, nytSection);
-
-        const results: IArticle[] = [];
-        const usedSources: string[] = [];
-        const errors: string[] = [];
-
-        // NewsAPIOrg (40% of requested articles) with smart query variations
-        const newsApiTargetCount = Math.ceil(pageSize * 0.4);
-        try {
-            if (await QuotaService.hasQuotaAvailable({service: 'newsapi'}) && simplifiedQuery) {
-                console.log(`Service: Trying NewsAPIOrg with smart query variations (target: ${newsApiTargetCount} articles)...`.cyan);
-
-                const newsApiResult = await this.smartFetchWithVariations({
-                    apiFunction: this.fetchNewsApiOrgEverything,
-                    query: simplifiedQuery,
-                    params: {language: 'en', sortBy: 'relevancy', pageSize: newsApiTargetCount * API_CONFIG.NEWS_API.RESULT_MULTIPLIER, page},
-                    minQualityResults: Math.max(2, Math.ceil(newsApiTargetCount / 2)),
-                });
-
-                if (newsApiResult && newsApiResult.articles && newsApiResult.articles.length > 0) {
-                    const topArticles = newsApiResult.articles
-                        .sort((a: IArticle, b: IArticle) => b.qualityScore!.score - a.qualityScore!.score)
-                        .slice(0, newsApiTargetCount);
-
-                    results.push(...topArticles);
-                    usedSources.push(`NewsAPI (${newsApiResult.usedQuery})`);
-                    console.log(`NewsAPI contributed ${topArticles.length} quality articles using query: "${newsApiResult.usedQuery}"`.cyan);
-                } else {
-                    console.warn('Service Warning: NewsAPIOrg smart fetch returned no quality articles'.yellow);
-
-                    const fallbackResult = await this.fetchNewsApiOrgTopHeadlines({
-                        country: 'us',
-                        category: topic !== 'general' ? topic : undefined,
-                        sources: optimizedSources,
-                        pageSize: newsApiTargetCount,
-                        page,
-                    });
-
-                    if (fallbackResult && fallbackResult.articles && fallbackResult.articles.length > 0) {
-                        results.push(...fallbackResult.articles.slice(0, newsApiTargetCount));
-                        usedSources.push('NewsAPI (fallback)');
-                        console.log(`NewsAPI fallback contributed ${Math.min(fallbackResult.articles.length, newsApiTargetCount)} articles`.cyan);
-                    }
-                }
-            } else if (!simplifiedQuery) {
-                const headlinesResult = await this.fetchNewsApiOrgTopHeadlines({
-                    country: 'us',
-                    category: topic !== 'general' ? topic : undefined,
-                    sources: optimizedSources,
-                    pageSize: newsApiTargetCount,
-                    page,
-                });
-
-                if (headlinesResult && headlinesResult.articles && headlinesResult.articles.length > 0) {
-                    results.push(...headlinesResult.articles.slice(0, newsApiTargetCount));
-                    usedSources.push('NewsAPI (headlines)');
-                    console.log(`NewsAPI headlines contributed ${Math.min(headlinesResult.articles.length, newsApiTargetCount)} articles`.cyan);
-                }
-            } else {
-                errors.push('NewsAPIOrg limit reached');
-                console.warn('Rate Limit: NewsAPI limit reached, skipping...'.yellow);
-            }
-        } catch (error: any) {
-            errors.push(`NewsAPIOrg failed: ${error.message}`);
-            console.warn('Service Warning: NewsAPIOrg failed, continuing...'.yellow, error.message);
-        }
-
-        // Guardian API (40% of remaining slots)
-        const remainingSlots = pageSize - results.length;
-        const guardianTargetCount = Math.ceil(remainingSlots * 0.4);
-
-        if (remainingSlots > 0) {
-            try {
-                if (await QuotaService.hasQuotaAvailable({service: 'guardian'}) && simplifiedQuery) {
-                    console.log(`Service: Trying Guardian API with smart variations (target: ${guardianTargetCount} articles)...`.cyan);
-
-                    const guardianResult = await this.smartFetchWithVariations({
-                        apiFunction: this.fetchGuardianNews,
-                        query: simplifiedQuery,
-                        params: {section: topic !== 'general' ? topic : undefined, orderBy: 'relevance', pageSize: guardianTargetCount * API_CONFIG.NEWS_API.RESULT_MULTIPLIER, page},
-                        minQualityResults: Math.max(1, Math.ceil(guardianTargetCount / 3)) // Need at least 1 good result
-                    });
-
-                    if (guardianResult && guardianResult.articles && guardianResult.articles.length > 0) {
-                        const qualityArticles = guardianResult.articles
-                            .filter((article: IArticle) => !isDuplicateArticle(article, results))
-                            .sort((a: IArticle, b: IArticle) => b.qualityScore!.score - a.qualityScore!.score)
-                            .slice(0, guardianTargetCount);
-
-                        results.push(...qualityArticles);
-                        usedSources.push(`Guardian (${guardianResult.usedQuery})`);
-                        console.log(`Guardian contributed ${qualityArticles.length} quality articles using query: "${guardianResult.usedQuery}"`.cyan);
-                    }
-                } else if (!simplifiedQuery) {
-                    const guardianResult = await this.fetchGuardianNews({
-                        section: topic !== 'general' ? topic : undefined,
-                        orderBy: 'newest',
-                        pageSize: guardianTargetCount,
-                        page,
-                    });
-
-                    if (guardianResult && guardianResult.articles && guardianResult.articles.length > 0) {
-                        const articles = guardianResult.articles
-                            .filter((article: IArticle) => !isDuplicateArticle(article, results))
-                            .slice(0, guardianTargetCount);
-                        results.push(...articles);
-                        usedSources.push('Guardian (section)');
-                        console.log(`Guardian section contributed ${articles.length} articles`.cyan);
-                    }
-                } else {
-                    errors.push('Guardian API limit reached');
-                    console.warn('Rate Limit: Guardian API limit reached, skipping...'.yellow);
-                }
-            } catch (error: any) {
-                errors.push(`Guardian failed: ${error.message}`);
-                console.warn('Service Warning: Guardian API failed, continuing...'.yellow);
-            }
-        }
-
-        // NYTimes API (30% of remaining slots)
-        const remainingSlots2 = pageSize - results.length;
-        const nytimesTargetCount = Math.ceil(remainingSlots2 * 0.3);
-
-        if (remainingSlots2 > 0) {
-            try {
-                if (await QuotaService.hasQuotaAvailable({service: 'nytimes'})) {
-                    console.log(`Service: Trying NYTimes API (target: ${nytimesTargetCount} articles)...`.cyan);
-
-                    if (simplifiedQuery) {
-                        const nytResult = await this.smartFetchWithVariations({
-                            apiFunction: this.fetchNewYorkTimesNews,
-                            query: simplifiedQuery,
-                            params: {section: nytSection, sort: 'relevance', pageSize: nytimesTargetCount * API_CONFIG.NEWS_API.RESULT_MULTIPLIER, page},
-                            minQualityResults: Math.max(1, Math.ceil(nytimesTargetCount / 3)) // Need at least 1 good result
-                        });
-
-                        if (nytResult && nytResult.articles && nytResult.articles.length > 0) {
-                            const qualityArticles = nytResult.articles
-                                .filter((article: IArticle) => !isDuplicateArticle(article, results))
-                                .sort((a: IArticle, b: IArticle) => b.qualityScore!.score - a.qualityScore!.score)
-                                .slice(0, nytimesTargetCount);
-
-                            results.push(...qualityArticles);
-                            usedSources.push(`NYTimes (${nytResult.usedQuery})`);
-                            console.log(`NYTimes contributed ${qualityArticles.length} quality articles using query: "${nytResult.usedQuery}"`.cyan);
-                        }
-                    } else {
-                        const nytResult = await this.fetchNewYorkTimesTopStories({section: nytSection});
-
-                        if (nytResult && nytResult.articles && nytResult.articles.length > 0) {
-                            const articles = nytResult.articles
-                                .filter((article: IArticle) => !isDuplicateArticle(article, results))
-                                .slice(0, nytimesTargetCount);
-                            results.push(...articles);
-                            usedSources.push('NYTimes (top stories)');
-                            console.log(`NYTimes top stories contributed ${articles.length} articles`.cyan);
-                        }
-                    }
-                } else {
-                    errors.push('NYTimes API limit reached');
-                    console.warn('Rate Limit: NYTimes API limit reached, skipping...'.yellow);
-                }
-            } catch (error: any) {
-                errors.push(`NYTimes failed: ${error.message}`);
-                console.warn('Service Warning: NYTimes API failed, continuing...'.yellow);
-            }
-        }
-
-        // RSS feeds (fill remaining)
-        const remainingSlots3 = pageSize - results.length;
-
-        if (remainingSlots3 > 0) {
-            try {
-                console.log(`Service: Trying RSS feeds (target: ${remainingSlots3} articles)...`.cyan);
-
-                const rssResults = await this.fetchAllRssFeeds({q: simplifiedQuery, sources: optimizedSources, pageSize: remainingSlots3 * 2, page});
-
-                if (rssResults && rssResults.length > 0) {
-                    const rssArticles = rssResults.map(convertRSSFeedToArticle);
-
-                    const qualityArticles = rssArticles
-                        .map(article => {
-                            article.qualityScore = assessContentQuality(article, q);
-                            return article;
-                        })
-                        .filter((article: IArticle) => article.qualityScore!.isProfessional && article.qualityScore!.isRelevant && article.qualityScore!.score > 0.2 && !isDuplicateArticle(article, results))
-                        .sort((a, b) => b.qualityScore!.score - a.qualityScore!.score)
-                        .slice(0, remainingSlots3);
-
-                    results.push(...qualityArticles);
-                    usedSources.push('RSS');
-                    console.log(`RSS contributed ${qualityArticles.length} quality articles (filtered from ${rssArticles.length})`.cyan);
-                }
-            } catch (error: any) {
-                errors.push(`RSS failed: ${error.message}`);
-                console.warn('Service Warning: RSS fallback failed, continuing...'.yellow);
-            }
-        }
-
-        const finalResults = results.sort((a: IArticle, b: IArticle) => {
-            // Primary sort: Quality score
-            const scoreDiff = (b.qualityScore?.score || 0) - (a.qualityScore?.score || 0);
-            if (Math.abs(scoreDiff) > 0.1) return scoreDiff;
-
-            // Secondary sort: Recency for similar scores
-            const dateA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
-            const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
-            return dateB - dateA;
-        }).slice(0, pageSize);
-
-        console.log(`Multisource search completed successfully: ${finalResults.length}/${pageSize} quality articles from [${usedSources.join(', ')}]`.green.bold);
-
-        // Enrich articles with sentiment analysis for logged-in users
-        let enrichedArticles = finalResults;
-        let sentimentAnalysisEnabled = false;
-
-        if (email) {
-            try {
-                // Verify user exists
-                const {user} = await AuthService.getUserByEmail({email});
-                if (user) {
-                    console.log('User verified, enriching articles with sentiment analysis...'.cyan);
-                    console.time('Performance: MULTISOURCE_SENTIMENT_ENRICHMENT_TIME'.cyan);
-                    enrichedArticles = await SentimentAnalysisService.enrichArticlesWithSentiment({articles: finalResults, shouldAnalyze: true});
-                    console.timeEnd('Performance: MULTISOURCE_SENTIMENT_ENRICHMENT_TIME'.cyan);
-                    sentimentAnalysisEnabled = true;
-                } else {
-                    console.warn('Service Warning: User not found, skipping sentiment analysis'.yellow);
-                }
-            } catch (error: any) {
-                console.error('ERROR: during user verification or sentiment analysis:'.red.bold, error.message);
-                // Continue without sentiment analysis if there's an error
-            }
-        }
-
-        return {
-            totalResults: enrichedArticles.length,
-            query: q,
-            articles: enrichedArticles,
-            sentimentAnalysisEnabled,
-            metadata: {
-                usedSources,
-                errors: errors.length > 0 ? errors : undefined,
-                apiRequestCounts: {
-                    newsApi: await QuotaService.getCurrentCount({service: 'newsapi'}),
-                    guardian: await QuotaService.getCurrentCount({service: 'guardian'}),
-                    nytimes: await QuotaService.getCurrentCount({service: 'nytimes'}),
-                },
-            },
-        };
-    }
-
-    /**
      * Scrape content from multiple URLs with error handling
      */
     static async scrapeMultipleArticles({urls}: IScrapeMultipleWebsitesParams) {
@@ -821,51 +551,6 @@ class NewsService {
                 progress,
             },
         };
-    }
-
-    /**
-     * Smart fetch with query variations and quality filtering
-     */
-    private static async smartFetchWithVariations({apiFunction, query, params, minQualityResults = 3}: ISmartFetchWithVariationsParams): Promise<any> {
-        console.log('Service: NewsService.smartFetchWithVariations called'.cyan.italic, {query, params, minQualityResults});
-
-        const queryVariations = generateQueryVariations(query);
-        console.log(`Service: smartFetchWithVariations trying ${queryVariations.length} query variations:`, queryVariations);
-
-        for (let i = 0; i < queryVariations.length; i++) {
-            const variation = queryVariations[i];
-            console.log(`Attempt ${i + 1}: "${variation}"`.cyan);
-
-            try {
-                const result = await apiFunction({...params, q: variation});
-
-                if (result && result.articles && result.articles.length > 0) {
-                    // Apply quality scoring and filtering
-                    const qualityArticles = result.articles
-                        .map((article: IArticle) => {
-                            article.qualityScore = assessContentQuality(article, query); // Use original query for relevance
-                            return article;
-                        })
-                        .filter((article: IArticle) => article.qualityScore!.isProfessional && article.qualityScore!.isRelevant && article.qualityScore!.score > API_CONFIG.SEARCH.FUSE_THRESHOLD);
-
-                    console.log(`Query variation "${variation}" yielded ${qualityArticles.length} quality articles (from ${result.articles.length} total)`.cyan);
-
-                    if (qualityArticles.length >= minQualityResults) {
-                        return {
-                            ...result,
-                            articles: qualityArticles,
-                            usedQuery: variation,
-                            originalQuery: query,
-                        };
-                    }
-                }
-            } catch (error: any) {
-                console.log(`Service Error: Query variation "${variation}" failed:`.red.bold, error.message);
-            }
-        }
-
-        console.warn(`Service Warning: All query variations failed to produce ${minQualityResults}+ quality results`.yellow);
-        return null;
     }
 
     /**

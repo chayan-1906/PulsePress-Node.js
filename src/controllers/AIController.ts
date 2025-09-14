@@ -1,11 +1,8 @@
 import "colors";
 import {Request, Response} from "express";
 import {IAuthRequest} from "../types/auth";
-import {isListEmpty} from "../utils/list";
 import {ApiResponse} from "../utils/ApiResponse";
 import AuthService from "../services/AuthService";
-import NewsService from "../services/NewsService";
-import StrikeService from "../services/StrikeService";
 import NewsInsightsService from "../services/NewsInsightsService";
 import TagGenerationService from "../services/TagGenerationService";
 import SummarizationService from "../services/SummarizationService";
@@ -37,72 +34,69 @@ const classifyContentController = async (req: Request, res: Response) => {
     console.info('Controller: classifyContentController started'.bgBlue.white.bold);
 
     try {
+        const email = (req as IAuthRequest).email;
         const {text, url} = req.body;
 
-        if (!text && !url) {
-            res.status(400).send(new ApiResponse({
+        const {user} = await AuthService.getUserByEmail({email});
+        if (!user) {
+            res.status(404).send(new ApiResponse({
                 success: false,
-                errorCode: 'TEXT_OR_URL_REQUIRED',
-                errorMsg: 'Either text or URL must be provided for classification',
+                errorCode: generateNotFoundCode('user'),
+                errorMsg: 'User not found',
             }));
             return;
         }
 
-        if (text && url) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'TEXT_AND_URL_CONFLICT',
-                errorMsg: 'Provide either text or URL, not both',
-            }));
-            return;
-        }
+        const {classification, isNews, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await NewsClassificationService.classifyContentWithStrikeHandling({email, text, url});
 
-        let contentToClassify = text;
+        if (error) {
+            let errorMsg = message || 'Failed to classify content';
+            let statusCode = 500;
 
-        if (url && !text) {
-            console.log('External API: Scraping URL for classification'.magenta, {url});
-            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
-
-            if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
-                res.status(400).send(new ApiResponse({
-                    success: false,
-                    errorCode: 'SCRAPING_FAILED',
-                    errorMsg: 'Failed to scrape the provided URL',
-                }));
-                return;
+            if (error === 'USER_BLOCKED') {
+                errorMsg = message || 'You are temporarily blocked from using AI features';
+                statusCode = 403;
+            } else if (error === 'NON_NEWS_CONTENT') {
+                errorMsg = message || 'Non-news content detected';
+                statusCode = 400;
+            } else if (error === 'TEXT_OR_URL_REQUIRED') {
+                errorMsg = 'Either text or URL must be provided for classification';
+                statusCode = 400;
+            } else if (error === 'TEXT_AND_URL_CONFLICT') {
+                errorMsg = 'Provide either text or URL, not both';
+                statusCode = 400;
+            } else if (error === 'SCRAPING_FAILED') {
+                errorMsg = 'Failed to scrape the provided URL';
+                statusCode = 400;
+            } else if (error === 'CONTENT_REQUIRED') {
+                errorMsg = 'Content is required for classification';
+                statusCode = 400;
+            } else if (error === 'CLASSIFICATION_FAILED') {
+                errorMsg = 'Failed to classify content, try again after sometimes';
+                statusCode = 500;
             }
 
-            contentToClassify = scrapedArticles[0]?.content || '';
-        }
-
-        if (!contentToClassify || contentToClassify.trim().length === 0) {
-            res.status(400).send(new ApiResponse({
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: generateMissingCode('content'),
-                errorMsg: 'Content is required for classification',
+                errorCode: error,
+                errorMsg,
+                strikeCount,
+                isBlocked,
+                blockedUntil,
+                blockType,
+                classification: classification || undefined,
+                isNews: isNews || false,
             }));
             return;
         }
 
-        const classification = await NewsClassificationService.classifyContent(contentToClassify);
-
-        if (classification === 'error') {
-            res.status(500).send(new ApiResponse({
-                success: false,
-                errorCode: 'CLASSIFICATION_FAILED',
-                errorMsg: 'Failed to classify content, try again after sometimes',
-            }));
-            return;
-        }
-
-        console.log('News classified successfully:'.bgGreen.bold, {classification, isNews: classification === 'news'});
+        console.log('News classified successfully:'.bgGreen.bold, {classification, isNews});
 
         res.status(200).send(new ApiResponse({
             success: true,
             message: 'Content has been classified successfully 🎉',
             classification,
-            isNews: classification === 'news',
-            contentPreview: contentToClassify.substring(0, 200) + '...',
+            isNews,
         }));
     } catch (error: any) {
         console.error('Controller Error: classifyContentController failed'.red.bold, error);
@@ -151,74 +145,19 @@ const summarizeArticleController = async (req: Request, res: Response) => {
             return;
         }
 
-        let articleContent = content || '';
-        if (!content && url) {
-            console.log('External API: Scraping article for classification check'.magenta, {url});
-            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
-
-            if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
-                console.error('Controller Error: Article scraping failed'.red.bold, scrapedArticles[0]?.error);
-                res.status(400).send(new ApiResponse({
-                    success: false,
-                    errorCode: 'SCRAPING_FAILED',
-                    errorMsg: 'Failed to scrape website',
-                }));
-                return;
-            }
-
-            articleContent = scrapedArticles[0]?.content || '';
-        }
-
-        if (!articleContent || articleContent.trim().length === 0) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('content'),
-                errorMsg: 'No content available for processing',
-            }));
-            return;
-        }
-
-        const {isBlocked, message, blockedUntil, blockType} = await StrikeService.checkUserBlock(email);
-        if (isBlocked) {
-            res.status(403).send(new ApiResponse({
-                success: false,
-                errorCode: 'USER_BLOCKED',
-                errorMsg: message,
-                blockedUntil,
-                blockType,
-            }));
-            return;
-        }
-
-        console.log('External API: Validating news content classification'.magenta);
-        const classification = await NewsClassificationService.classifyContent(articleContent);
-
-        if (classification === 'error') {
-            console.warn('Fallback Behavior: Classification failed, proceeding anyway'.yellow);
-            // If classification fails, let the request continue (fail gracefully)
-        } else if (classification === 'non_news') {
-            console.warn('Client Error: Non-news content detected, applying user strike'.yellow);
-            const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike(email);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'NON_NEWS_CONTENT',
-                errorMsg: message,
-                strikeCount,
-                isBlocked,
-                blockedUntil,
-            }));
-            return;
-        } else {
-            console.log('News content verified, proceeding with summarization'.bgGreen.bold);
-        }
-
-        const {summary, powered_by, error} = await SummarizationService.summarizeArticle({email, content: articleContent, language, style});
+        const {summary, powered_by, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await SummarizationService.summarizeArticle({email, content, url, language, style});
 
         if (error) {
-            let errorMsg = 'Failed to summarize article';
+            let errorMsg = message || 'Failed to summarize article';
             let statusCode = 500;
 
-            if (error === generateMissingCode('email')) {
+            if (error === 'USER_BLOCKED_FROM_AI_FEATURES') {
+                errorMsg = message || 'You are temporarily blocked from using AI features';
+                statusCode = 403;
+            } else if (error === 'NON_NEWS_CONTENT') {
+                errorMsg = message || 'Non-news content detected';
+                statusCode = 400;
+            } else if (error === generateMissingCode('email')) {
                 errorMsg = 'Email is missing';
                 statusCode = 400;
             } else if (error === generateNotFoundCode('user')) {
@@ -239,6 +178,10 @@ const summarizeArticleController = async (req: Request, res: Response) => {
                 success: false,
                 errorCode: error,
                 errorMsg,
+                strikeCount,
+                isBlocked,
+                blockedUntil,
+                blockType,
             }));
             return;
         }
@@ -250,7 +193,6 @@ const summarizeArticleController = async (req: Request, res: Response) => {
             message: 'Article has been summarized 🎉',
             summary,
             powered_by,
-            wasClassified: classification !== 'error' ? 'news' : 'classification_skipped',
         }));
     } catch (error: any) {
         console.error('Controller Error: summarizeArticleController failed'.red.bold, error);
@@ -297,13 +239,19 @@ const generateTagsController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {tags, powered_by, error} = await TagGenerationService.generateTags({content, url});
+        const {tags, powered_by, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await TagGenerationService.generateTags({email, content, url});
 
         if (error) {
-            let errorMsg = 'Failed to generate tags';
+            let errorMsg = message || 'Failed to generate tags';
             let statusCode = 500;
 
-            if (error === 'CONTENT_OR_URL_REQUIRED') {
+            if (error === 'USER_BLOCKED') {
+                errorMsg = message || 'You are temporarily blocked from using AI features';
+                statusCode = 403;
+            } else if (error === 'NON_NEWS_CONTENT') {
+                errorMsg = message || 'Non-news content detected';
+                statusCode = 400;
+            } else if (error === 'CONTENT_OR_URL_REQUIRED') {
                 errorMsg = 'Either content or URL must be provided';
                 statusCode = 400;
             } else if (error === 'CONTENT_AND_URL_CONFLICT') {
@@ -327,6 +275,10 @@ const generateTagsController = async (req: Request, res: Response) => {
                 success: false,
                 errorCode: error,
                 errorMsg,
+                strikeCount,
+                isBlocked,
+                blockedUntil,
+                blockType,
             }));
             return;
         }
@@ -374,33 +326,6 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
             return;
         }
 
-        let contentToAnalyze = content;
-
-        if (!content && url) {
-            console.log('External API: Scraping URL for sentiment analysis'.magenta, {url});
-            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
-
-            if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
-                res.status(400).send(new ApiResponse({
-                    success: false,
-                    errorCode: 'SCRAPING_FAILED',
-                    errorMsg: 'Failed to scrape the provided URL',
-                }));
-                return;
-            }
-
-            contentToAnalyze = scrapedArticles[0]?.content || '';
-        }
-
-        if (!contentToAnalyze || contentToAnalyze.trim().length === 0) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('content'),
-                errorMsg: 'Content is required for sentiment analysis',
-            }));
-            return;
-        }
-
         const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             res.status(404).send(new ApiResponse({
@@ -411,22 +336,40 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {sentiment, powered_by, confidence, error} = await SentimentAnalysisService.analyzeSentiment({content: contentToAnalyze});
+        const {sentiment, powered_by, confidence, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await SentimentAnalysisService.analyzeSentiment({email, content, url});
 
         if (error) {
-            let errorMsg = 'Failed to analyze sentiment';
-            if (error === generateMissingCode('content')) {
+            let errorMsg = message || 'Failed to analyze sentiment';
+            let statusCode = 500;
+
+            if (error === 'USER_BLOCKED') {
+                errorMsg = message || 'You are temporarily blocked from using AI features';
+                statusCode = 403;
+            } else if (error === 'NON_NEWS_CONTENT') {
+                errorMsg = message || 'Non-news content detected';
+                statusCode = 400;
+            } else if (error === 'SCRAPING_FAILED') {
+                errorMsg = 'Failed to scrape the provided URL';
+                statusCode = 400;
+            } else if (error === generateMissingCode('content')) {
                 errorMsg = 'No content provided for analysis';
+                statusCode = 400;
             } else if (error === generateMissingCode('gemini_api_key')) {
                 errorMsg = 'Sentiment analysis service is temporarily unavailable';
+                statusCode = 500;
             } else if (error === 'SENTIMENT_ANALYSIS_FAILED') {
                 errorMsg = 'Sentiment analysis failed, please try again';
+                statusCode = 500;
             }
 
-            res.status(500).send(new ApiResponse({
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
                 errorCode: error,
                 errorMsg,
+                strikeCount,
+                isBlocked,
+                blockedUntil,
+                blockType,
             }));
             return;
         }
@@ -445,7 +388,7 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
             sentimentEmoji,
             sentimentColor,
             powered_by,
-            contentPreview: contentToAnalyze.substring(0, 200) + '...',
+            contentPreview: content?.substring(0, 200) + '...' || 'Content from URL',
         }));
     } catch (error: any) {
         console.error('Controller Error: analyzeSentimentController failed'.red.bold, error);
@@ -482,33 +425,6 @@ const extractKeyPointsController = async (req: Request, res: Response) => {
             return;
         }
 
-        let contentToAnalyze = content;
-
-        if (!content && url) {
-            console.log('External API: Scraping URL for key points extraction'.magenta, {url});
-            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
-
-            if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
-                res.status(400).send(new ApiResponse({
-                    success: false,
-                    errorCode: 'SCRAPING_FAILED',
-                    errorMsg: 'Failed to scrape the provided URL',
-                }));
-                return;
-            }
-
-            contentToAnalyze = scrapedArticles[0]?.content || '';
-        }
-
-        if (!contentToAnalyze || contentToAnalyze.trim().length === 0) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('content'),
-                errorMsg: 'No content available for key points extraction',
-            }));
-            return;
-        }
-
         const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             res.status(404).send(new ApiResponse({
@@ -519,12 +435,30 @@ const extractKeyPointsController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {keyPoints, powered_by, error} = await KeyPointsExtractionService.extractKeyPoints({content: contentToAnalyze});
+        const {keyPoints, powered_by, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await KeyPointsExtractionService.extractKeyPoints({email, content, url});
 
         if (error) {
-            let errorMsg = 'Failed to extract key points';
-            if (error === generateMissingCode('content')) {
+            let errorMsg = message || 'Failed to extract key points';
+            let statusCode = 500;
+
+            if (error === 'USER_BLOCKED') {
+                errorMsg = message || 'You are temporarily blocked from using AI features';
+                statusCode = 403;
+            } else if (error === 'NON_NEWS_CONTENT') {
+                errorMsg = message || 'Non-news content detected';
+                statusCode = 400;
+            } else if (error === 'CONTENT_OR_URL_REQUIRED') {
+                errorMsg = 'Either content or URL must be provided';
+                statusCode = 400;
+            } else if (error === 'CONTENT_AND_URL_CONFLICT') {
+                errorMsg = 'Provide either content or URL, not both';
+                statusCode = 400;
+            } else if (error === 'SCRAPING_FAILED') {
+                errorMsg = 'Failed to scrape the provided URL';
+                statusCode = 400;
+            } else if (error === generateMissingCode('content')) {
                 errorMsg = 'No content provided for analysis';
+                statusCode = 400;
             } else if (error === generateMissingCode('gemini_api_key')) {
                 errorMsg = 'Key points extraction service is temporarily unavailable';
             } else if (error === 'KEY_POINTS_EXTRACTION_FAILED') {
@@ -535,10 +469,14 @@ const extractKeyPointsController = async (req: Request, res: Response) => {
                 errorMsg = 'No valid key points found in the content';
             }
 
-            res.status(500).send(new ApiResponse({
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
                 errorCode: error,
                 errorMsg,
+                strikeCount,
+                isBlocked,
+                blockedUntil,
+                blockType,
             }));
             return;
         }
@@ -550,7 +488,7 @@ const extractKeyPointsController = async (req: Request, res: Response) => {
             message: 'Key points have been extracted successfully 🎉',
             keyPoints,
             powered_by,
-            contentPreview: contentToAnalyze.substring(0, 200) + '...',
+            contentPreview: content?.substring(0, 200) + '...' || 'Content from URL',
         }));
     } catch (error: any) {
         console.error('Controller Error: extractKeyPointsController failed'.red.bold, error);
@@ -587,33 +525,6 @@ const analyzeComplexityController = async (req: Request, res: Response) => {
             return;
         }
 
-        let contentToAnalyze = content;
-
-        if (!content && url) {
-            console.log('External API: Scraping URL for complexity analysis'.magenta, {url});
-            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
-
-            if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
-                res.status(400).send(new ApiResponse({
-                    success: false,
-                    errorCode: 'SCRAPING_FAILED',
-                    errorMsg: 'Failed to scrape the provided URL',
-                }));
-                return;
-            }
-
-            contentToAnalyze = scrapedArticles[0]?.content || '';
-        }
-
-        if (!contentToAnalyze || contentToAnalyze.trim().length === 0) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('content'),
-                errorMsg: 'Content is required for complexity analysis',
-            }));
-            return;
-        }
-
         const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             res.status(404).send(new ApiResponse({
@@ -624,12 +535,30 @@ const analyzeComplexityController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {complexityMeter, powered_by, error} = await ComplexityMeterService.analyzeComplexity({content: contentToAnalyze});
+        const {complexityMeter, powered_by, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await ComplexityMeterService.analyzeComplexity({email, content, url});
 
         if (error) {
-            let errorMsg = 'Failed to generate complexity meter';
-            if (error === generateMissingCode('content')) {
+            let errorMsg = message || 'Failed to generate complexity meter';
+            let statusCode = 500;
+
+            if (error === 'USER_BLOCKED') {
+                errorMsg = message || 'You are temporarily blocked from using AI features';
+                statusCode = 403;
+            } else if (error === 'NON_NEWS_CONTENT') {
+                errorMsg = message || 'Non-news content detected';
+                statusCode = 400;
+            } else if (error === 'CONTENT_OR_URL_REQUIRED') {
+                errorMsg = 'Either content or URL must be provided';
+                statusCode = 400;
+            } else if (error === 'CONTENT_AND_URL_CONFLICT') {
+                errorMsg = 'Provide either content or URL, not both';
+                statusCode = 400;
+            } else if (error === 'SCRAPING_FAILED') {
+                errorMsg = 'Failed to scrape the provided URL';
+                statusCode = 400;
+            } else if (error === generateMissingCode('content')) {
                 errorMsg = 'No content provided for analysis';
+                statusCode = 400;
             } else if (error === generateMissingCode('gemini_api_key')) {
                 errorMsg = 'Complexity analysis service is temporarily unavailable';
             } else if (error === 'COMPLEXITY_METER_GENERATION_FAILED') {
@@ -640,10 +569,14 @@ const analyzeComplexityController = async (req: Request, res: Response) => {
                 errorMsg = 'Invalid complexity level received from analysis';
             }
 
-            res.status(500).send(new ApiResponse({
+            res.status(statusCode).send(new ApiResponse({
                 success: false,
                 errorCode: error,
                 errorMsg,
+                strikeCount,
+                isBlocked,
+                blockedUntil,
+                blockType,
             }));
             return;
         }
@@ -655,7 +588,7 @@ const analyzeComplexityController = async (req: Request, res: Response) => {
             message: 'Complexity meter has been generated successfully 🎉',
             complexityMeter,
             powered_by,
-            contentPreview: contentToAnalyze.substring(0, 200) + '...',
+            contentPreview: content?.substring(0, 200) + '...' || 'Content from URL',
         }));
     } catch (error: any) {
         console.error('Controller Error: analyzeComplexityController failed'.red.bold, error);
@@ -693,13 +626,28 @@ const generateQuestionsController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {questions, powered_by, error} = await QuestionAnswerService.generateQuestions({content});
+        const {questions, powered_by, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await QuestionAnswerService.generateQuestions({email, content});
 
         if (error) {
-            let errorMsg = 'Failed to generate questions';
+            let errorMsg = message || 'Failed to generate questions';
             let statusCode = 500;
 
-            if (error === generateInvalidCode('content')) {
+            if (error === 'USER_BLOCKED') {
+                errorMsg = message || 'You are temporarily blocked from using AI features';
+                statusCode = 403;
+            } else if (error === 'NON_NEWS_CONTENT') {
+                errorMsg = message || 'Non-news content detected';
+                statusCode = 400;
+            } else if (error === 'CONTENT_OR_URL_REQUIRED') {
+                errorMsg = 'Either content or URL must be provided';
+                statusCode = 400;
+            } else if (error === 'CONTENT_AND_URL_CONFLICT') {
+                errorMsg = 'Provide either content or URL, not both';
+                statusCode = 400;
+            } else if (error === 'SCRAPING_FAILED') {
+                errorMsg = 'Failed to scrape the provided URL';
+                statusCode = 400;
+            } else if (error === generateInvalidCode('content')) {
                 errorMsg = 'No content provided for question generation';
                 statusCode = 400;
             } else if (error === generateMissingCode('gemini_api_key')) {
@@ -717,6 +665,10 @@ const generateQuestionsController = async (req: Request, res: Response) => {
                 success: false,
                 errorCode: error,
                 errorMsg,
+                strikeCount,
+                isBlocked,
+                blockedUntil,
+                blockType,
             }));
             return;
         }
@@ -775,13 +727,28 @@ const answerQuestionController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {answer, powered_by, error} = await QuestionAnswerService.answerQuestion({content, question});
+        const {answer, powered_by, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await QuestionAnswerService.answerQuestion({email, content, question});
 
         if (error) {
-            let errorMsg = 'Failed to answer question';
+            let errorMsg = message || 'Failed to answer question';
             let statusCode = 500;
 
-            if (error === generateInvalidCode('content')) {
+            if (error === 'USER_BLOCKED') {
+                errorMsg = message || 'You are temporarily blocked from using AI features';
+                statusCode = 403;
+            } else if (error === 'NON_NEWS_CONTENT') {
+                errorMsg = message || 'Non-news content detected';
+                statusCode = 400;
+            } else if (error === 'CONTENT_OR_URL_REQUIRED') {
+                errorMsg = 'Either content or URL must be provided';
+                statusCode = 400;
+            } else if (error === 'CONTENT_AND_URL_CONFLICT') {
+                errorMsg = 'Provide either content or URL, not both';
+                statusCode = 400;
+            } else if (error === 'SCRAPING_FAILED') {
+                errorMsg = 'Failed to scrape the provided URL';
+                statusCode = 400;
+            } else if (error === generateInvalidCode('content')) {
                 errorMsg = 'No content provided for question answering';
                 statusCode = 400;
             } else if (error === generateInvalidCode('question')) {
@@ -802,6 +769,10 @@ const answerQuestionController = async (req: Request, res: Response) => {
                 success: false,
                 errorCode: error,
                 errorMsg,
+                strikeCount,
+                isBlocked,
+                blockedUntil,
+                blockType,
             }));
             return;
         }
@@ -851,33 +822,6 @@ const extractLocationsController = async (req: Request, res: Response) => {
             return;
         }
 
-        let contentToAnalyze = content;
-
-        if (!content && url) {
-            console.log('External API: Scraping URL for location extraction'.magenta, {url});
-            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
-
-            if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
-                res.status(400).send(new ApiResponse({
-                    success: false,
-                    errorCode: 'SCRAPING_FAILED',
-                    errorMsg: 'Failed to scrape the provided URL',
-                }));
-                return;
-            }
-
-            contentToAnalyze = scrapedArticles[0]?.content || '';
-        }
-
-        if (!contentToAnalyze || contentToAnalyze.trim().length === 0) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('content'),
-                errorMsg: 'Content is required for location extraction',
-            }));
-            return;
-        }
-
         const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             res.status(404).send(new ApiResponse({
@@ -888,13 +832,19 @@ const extractLocationsController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {locations, powered_by, error} = await GeographicExtractionService.extractLocations({content: contentToAnalyze});
+        const {locations, powered_by, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await GeographicExtractionService.extractLocations({email, content, url});
 
         if (error) {
-            let errorMsg = 'Failed to extract geographic locations';
+            let errorMsg = message || 'Failed to extract geographic locations';
             let statusCode = 500;
 
-            if (error === 'CONTENT_OR_URL_REQUIRED') {
+            if (error === 'USER_BLOCKED') {
+                errorMsg = message || 'You are temporarily blocked from using AI features';
+                statusCode = 403;
+            } else if (error === 'NON_NEWS_CONTENT') {
+                errorMsg = message || 'Non-news content detected';
+                statusCode = 400;
+            } else if (error === 'CONTENT_OR_URL_REQUIRED') {
                 errorMsg = 'Either content or URL must be provided';
                 statusCode = 400;
             } else if (error === 'CONTENT_AND_URL_CONFLICT') {
@@ -905,6 +855,7 @@ const extractLocationsController = async (req: Request, res: Response) => {
                 statusCode = 400;
             } else if (error === generateMissingCode('content')) {
                 errorMsg = 'No content provided for analysis';
+                statusCode = 400;
             } else if (error === generateMissingCode('gemini_api_key')) {
                 errorMsg = 'Geographic extraction service is temporarily unavailable';
             } else if (error === 'GEOGRAPHIC_EXTRACTION_FAILED') {
@@ -919,6 +870,10 @@ const extractLocationsController = async (req: Request, res: Response) => {
                 success: false,
                 errorCode: error,
                 errorMsg,
+                strikeCount,
+                isBlocked,
+                blockedUntil,
+                blockType,
             }));
             return;
         }
@@ -930,7 +885,7 @@ const extractLocationsController = async (req: Request, res: Response) => {
             message: 'Geographic locations have been extracted successfully 🎉',
             locations,
             powered_by,
-            contentPreview: contentToAnalyze.substring(0, 200) + '...',
+            contentPreview: content?.substring(0, 200) + '...' || 'Content from URL',
         }));
     } catch (error: any) {
         console.error('Controller Error: extractLocationsController failed'.red.bold, error);
@@ -986,13 +941,25 @@ const generateSocialMediaCaptionController = async (req: Request, res: Response)
             return;
         }
 
-        const {caption, hashtags, characterCount, powered_by, error} = await SocialMediaCaptionService.generateCaption({content, url, platform, style});
+        const {caption, hashtags, characterCount, powered_by, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await SocialMediaCaptionService.generateCaption({
+            email,
+            content,
+            url,
+            platform,
+            style
+        });
 
         if (error) {
-            let errorMsg = 'Failed to generate social media caption';
+            let errorMsg = message || 'Failed to generate social media caption';
             let statusCode = 500;
 
-            if (error === 'CONTENT_OR_URL_REQUIRED') {
+            if (error === 'USER_BLOCKED') {
+                errorMsg = message || 'You are temporarily blocked from using AI features';
+                statusCode = 403;
+            } else if (error === 'NON_NEWS_CONTENT') {
+                errorMsg = message || 'Non-news content detected';
+                statusCode = 400;
+            } else if (error === 'CONTENT_OR_URL_REQUIRED') {
                 errorMsg = 'Either content or URL must be provided';
                 statusCode = 400;
             } else if (error === 'CONTENT_AND_URL_CONFLICT') {
@@ -1022,6 +989,10 @@ const generateSocialMediaCaptionController = async (req: Request, res: Response)
                 success: false,
                 errorCode: error,
                 errorMsg,
+                strikeCount,
+                isBlocked,
+                blockedUntil,
+                blockType,
             }));
             return;
         }
@@ -1073,33 +1044,6 @@ const generateNewsInsightsController = async (req: Request, res: Response) => {
             return;
         }
 
-        let contentToAnalyze = content;
-
-        if (!content && url) {
-            console.log('External API: Scraping URL for news insights analysis'.magenta, {url});
-            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
-
-            if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
-                res.status(400).send(new ApiResponse({
-                    success: false,
-                    errorCode: 'SCRAPING_FAILED',
-                    errorMsg: 'Failed to scrape the provided URL',
-                }));
-                return;
-            }
-
-            contentToAnalyze = scrapedArticles[0]?.content || '';
-        }
-
-        if (!contentToAnalyze || contentToAnalyze.trim().length === 0) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('content'),
-                errorMsg: 'Content is required for news insights analysis',
-            }));
-            return;
-        }
-
         const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             res.status(404).send(new ApiResponse({
@@ -1110,13 +1054,32 @@ const generateNewsInsightsController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {keyThemes, impactAssessment, contextConnections, stakeholderAnalysis, timelineContext, powered_by, error} = await NewsInsightsService.generateInsights({content: contentToAnalyze});
+        const {
+            keyThemes,
+            impactAssessment,
+            contextConnections,
+            stakeholderAnalysis,
+            timelineContext,
+            powered_by,
+            error,
+            message,
+            strikeCount,
+            isBlocked,
+            blockedUntil,
+            blockType
+        } = await NewsInsightsService.generateInsights({email, content, url});
 
         if (error) {
-            let errorMsg = 'Failed to generate news insights analysis';
+            let errorMsg = message || 'Failed to generate news insights analysis';
             let statusCode = 500;
 
-            if (error === 'CONTENT_OR_URL_REQUIRED') {
+            if (error === 'USER_BLOCKED') {
+                errorMsg = message || 'You are temporarily blocked from using AI features';
+                statusCode = 403;
+            } else if (error === 'NON_NEWS_CONTENT') {
+                errorMsg = message || 'Non-news content detected';
+                statusCode = 400;
+            } else if (error === 'CONTENT_OR_URL_REQUIRED') {
                 errorMsg = 'Either content or URL must be provided';
                 statusCode = 400;
             } else if (error === 'CONTENT_AND_URL_CONFLICT') {
@@ -1161,7 +1124,7 @@ const generateNewsInsightsController = async (req: Request, res: Response) => {
             stakeholderAnalysis,
             timelineContext,
             powered_by,
-            contentPreview: contentToAnalyze.substring(0, 200) + '...',
+            contentPreview: content?.substring(0, 200) + '...' || 'Content from URL',
         }));
     } catch (error: any) {
         console.error('Controller Error: generateNewsInsightsController failed'.red.bold, error);

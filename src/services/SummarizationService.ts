@@ -8,6 +8,7 @@ import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
 import {AI_SUMMARIZATION_MODELS} from "../utils/constants";
+import NewsClassificationService from "./NewsClassificationService";
 import {translateText} from "../utils/serviceHelpers/translationHelpers";
 import {truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 import {generateSummarizationContentHash} from "../utils/serviceHelpers/contentHashing";
@@ -45,12 +46,12 @@ class SummarizationService {
                 return {error: generateNotFoundCode('user')};
             }
 
-            const {isBlocked, message, blockedUntil, blockType} = await StrikeService.checkUserBlock(email);
+            const {isBlocked, message, blockedUntil, blockType} = await StrikeService.checkUserBlock({email});
             if (isBlocked) {
                 console.warn('Service Warning: User blocked from AI summarization'.yellow, {message, blockedUntil, blockType});
                 return {
                     error: 'USER_BLOCKED_FROM_AI_FEATURES',
-                    errorMsg: message || 'You are temporarily blocked from using AI features due to non-news queries',
+                    message: message || 'You are temporarily blocked from using AI features due to non-news queries',
                 };
             }
 
@@ -66,6 +67,19 @@ class SummarizationService {
             }
 
             const articleContent = content || '';
+
+            console.log('External API: Validating news content classification'.magenta);
+            const classification = await NewsClassificationService.classifyContent(articleContent);
+
+            if (classification === 'error') {
+                console.warn('Fallback Behavior: Classification failed, proceeding anyway'.yellow);
+            } else if (classification === 'non_news') {
+                console.warn('Client Error: Non-news content detected, applying user strike'.yellow);
+                const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike({email, violationType: 'article_summary', content: articleContent});
+                return {error: 'NON_NEWS_CONTENT', message, strikeCount, isBlocked, blockedUntil};
+            } else {
+                console.log('News content verified, proceeding with summarization'.bgGreen.bold);
+            }
 
             const hash = generateSummarizationContentHash(articleContent, language, style);
             if (!hash) {
@@ -114,7 +128,7 @@ class SummarizationService {
     /**
      * Core summarization logic using Gemini AI
      */
-    static async summarizeContent({content, url, style = 'standard'}: ISummarizeContentParams): Promise<ISummarizeContentResponse> {
+    private static async summarizeContent({content, url, style = 'standard'}: ISummarizeContentParams): Promise<ISummarizeContentResponse> {
         console.log('Service: SummarizationService.summarizeContent called'.cyan.italic, {content, url, style});
 
         if (!content && !url) {

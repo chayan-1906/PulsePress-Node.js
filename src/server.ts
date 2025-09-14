@@ -1,6 +1,7 @@
 import "colors";
 import cors from "cors";
 import morgan from "morgan";
+import cron from "node-cron";
 import express from 'express';
 import {PORT} from "./config/config";
 import aiRoutes from "./routes/AIRoutes";
@@ -11,6 +12,7 @@ import {getLocalIP} from "./utils/getLocalIP";
 import healthRoutes from "./routes/HealthRoutes";
 import QuotaService from "./services/QuotaService";
 import bookmarkRoutes from "./routes/BookmarkRoutes";
+import StrikeService from "./services/StrikeService";
 import analyticsRoutes from "./routes/AnalyticsRoutes";
 import userStrikeRoutes from "./routes/UserStrikeRoutes";
 import readingHistoryRoutes from "./routes/ReadingHistoryRoutes";
@@ -54,6 +56,13 @@ const port = Number(PORT) || 4000;
 const start = async () => {
     try {
         await connectDB();
+
+        cron.schedule('*/15 * * * *', async () => {
+            console.log('Background task: Running strike auto-reset check'.blue);
+            await StrikeService.resetExpiredStrikes();
+        });
+        console.log('Background task: Strike auto-reset cron job initialized (every 15 minutes)'.blue);
+
         await QuotaService.initializeQuotaRecords();
         app.listen(port, '0.0.0.0', (error?: Error, address?: string) => {
             if (error) {

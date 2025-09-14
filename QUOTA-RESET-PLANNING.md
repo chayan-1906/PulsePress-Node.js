@@ -3,6 +3,7 @@
 ### **Current Problem Analysis**
 
 #### **SummarizationService.ts (Lines 31-36)**
+
 ```typescript
 static geminiRequestCount = 0;
 private static resetInterval = setInterval(() => {
@@ -12,6 +13,7 @@ private static resetInterval = setInterval(() => {
 ```
 
 #### **NewsService.ts (Lines 47-56)**
+
 ```typescript
 let newsApiRequestCount = 0;
 let guardianApiRequestCount = 0;
@@ -80,6 +82,7 @@ class QuotaService {
 #### **Phase 3: Integration Points**
 
 **Replace in SummarizationService.ts:**
+
 ```typescript
 // L OLD
 if (this.geminiRequestCount >= Number.parseInt(GEMINI_QUOTA_REQUESTS!)) {
@@ -97,22 +100,26 @@ if (!allowed) {
 ### **Migration Strategy**
 
 #### **Step 1: Create Models & Service**
+
 - Create `ApiQuotaSchema.ts`
 - Create `QuotaService.ts`
 - Add database indexes for performance
 
 #### **Step 2: Replace SummarizationService**
+
 - Remove in-memory counters
 - Integrate QuotaService
 - Test quota enforcement
 
 #### **Step 3: Replace NewsService**
+
 - Same approach for news API counters
 - Consolidate quota logic
 
 #### ** Implementation Order**
+
 1. Database schema (1 day)
-2. QuotaService implementation (1 day)  
+2. QuotaService implementation (1 day)
 3. SummarizationService integration (0.5 day)
 4. NewsService integration (0.5 day)
 5. Testing & validation (1 day)
@@ -120,16 +127,19 @@ if (!allowed) {
 ### **Additional Considerations**
 
 #### **Performance Optimization**
+
 - Cache quota data in memory for 1-minute intervals
 - Batch database updates to reduce write operations
 - Use MongoDB aggregation for usage analytics
 
 #### **Error Handling**
+
 - Graceful fallback if quota service fails
 - Detailed logging for quota violations
 - User-friendly error messages
 
 #### **Testing Strategy**
+
 - Unit tests for quota logic
 - Integration tests with database
 - Load testing for concurrent requests
@@ -137,49 +147,56 @@ if (!allowed) {
 ### **Cost Estimation**
 
 **Before Fix:**
+
 - Unlimited API usage = Unpredictable costs
 - Recent bill: ₹140 for 1 month
 
 **After Fix:**
+
 - Predictable usage within free tiers
 - Estimated cost: ₹0-50/month (well within free limits)
 
 ### **🔍 Gemini API Free Tier Research (September 2025)**
 
 #### **Current Free Tier Limits (Per Project)**
+
 Based on official Google AI documentation:
 
-| Model | RPM | TPM | RPD | Notes |
-|-------|-----|-----|-----|-------|
-| **gemini-2.5-pro** | 5 | 250K | **100** | Most restrictive |
-| **gemini-2.5-flash** | 10 | 250K | **250** | Balanced option |
-| **gemini-2.5-flash-lite** | 15 | 250K | **1,000** | 🎯 **Best for production** |
-| **gemini-2.0-flash** | 15 | 1M | **200** | Good performance |
-| **gemini-2.0-flash-lite** | 30 | 1M | **200** | Fastest RPM |
-| **gemini-2.5-flash-lite-preview-06-17** | ? | ? | **N/A** | Preview model, no free tier |
+| Model                                   | RPM | TPM  | RPD       | Notes                       |
+|-----------------------------------------|-----|------|-----------|-----------------------------|
+| **gemini-2.5-pro**                      | 5   | 250K | **100**   | Most restrictive            |
+| **gemini-2.5-flash**                    | 10  | 250K | **250**   | Balanced option             |
+| **gemini-2.5-flash-lite**               | 15  | 250K | **1,000** | 🎯 **Best for production**  |
+| **gemini-2.0-flash**                    | 15  | 1M   | **200**   | Good performance            |
+| **gemini-2.0-flash-lite**               | 30  | 1M   | **200**   | Fastest RPM                 |
+| **gemini-2.5-flash-lite-preview-06-17** | ?   | ?    | **N/A**   | Preview model, no free tier |
 
 #### **Key Research Insights:**
 
 **1. Quota Structure (CORRECTED):**
+
 - **Quotas are SHARED POOL** across all Gemini models within same project
 - **Gemini AI Clarification**: *"The free tier operates on a shared quota system, not per-model buckets"*
 - Daily quotas reset at **midnight Pacific time**
 
 **2. FAQs:**
-- **Q: "gemini-2.5-flash-lite offers 1000 free RPD?"** 
-  - **A: YES** - But shared across ALL Gemini models in your project
+
+- **Q: "gemini-2.5-flash-lite offers 1000 free RPD?"**
+    - **A: YES** - But shared across ALL Gemini models in your project
 - **Q: "How is quota calculated for single API key?"**
-  - **A: SHARED POOL** - All Gemini model calls count toward your project's daily limit
+    - **A: SHARED POOL** - All Gemini model calls count toward your project's daily limit
 - **Q: "Remove gemini-2.5-flash from constants.ts?"**
-  - **A: Keep priority order** - Use efficient models first to maximize quota usage
+    - **A: Keep priority order** - Use efficient models first to maximize quota usage
 
 **3. Conservative Quota Strategy:**
+
 - **Project daily limit**: ~1,000 requests/day (shared across all Gemini models)
 - Set warning at **90% usage** (900 requests/day)
 - Return `HTTP 429 Too Many Requests` with proper error message
 - **Smart model fallback**: Use most efficient models first (Flash-Lite → Flash → etc.)
 
 **4. Production Recommendations:**
+
 - **Primary model**: gemini-2.5-flash-lite (most efficient for quota usage)
 - **Fallback strategy**: Switch models for performance, not quota bypass
 - **Total daily quota**: ~1,000 requests across ALL Gemini models
@@ -188,6 +205,7 @@ Based on official Google AI documentation:
 ### **🚀 Enhanced Implementation Plan with Caching**
 
 #### **✅ Phase 1: Database Schema (COMPLETED)**
+
 - ✅ ApiQuotaSchema model for persistent quota management (`/src/models/ApiQuotaSchema.ts`)
 - ✅ Quota types definitions (`/src/types/quota.ts`)
 - ✅ MongoDB compound index for performance (`{service: 1, date: 1}`)
@@ -203,8 +221,10 @@ Based on official Google AI documentation:
 - Enhanced AI response caching to minimize redundant API calls
 
 #### **Phase 3: Caching Optimization (Day 2)**
+
 **Problem**: Identical AI requests waste quota unnecessarily
 **Solution**: Extend existing caching with expiration timing
+
 ```typescript
 // Current: Basic content hash caching
 const hash = generateSummarizationContentHash(content, language, style);
@@ -218,17 +238,20 @@ const cacheOptions = {
 ```
 
 **Benefits:**
+
 - **Reduce API calls by 30-50%** for similar content
-- **Smart cache expiration** based on content freshness needs  
+- **Smart cache expiration** based on content freshness needs
 - **Quota-aware caching** - more aggressive when approaching limits
 - **Content similarity detection** - avoid processing near-duplicate articles
 
 #### **Phase 4: Service Integration (Day 2-3)**
+
 - Replace SummarizationService in-memory counters
-- Replace NewsService quota logic  
+- Replace NewsService quota logic
 - Integrate enhanced caching throughout AI pipeline
 
 #### **Phase 5: Testing & Validation (Day 3-4)**
+
 - Quota persistence testing across server restarts
 - Cache effectiveness measurement
 - Load testing with quota enforcement
