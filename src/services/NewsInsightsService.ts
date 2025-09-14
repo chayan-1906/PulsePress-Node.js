@@ -3,8 +3,10 @@ import {GoogleGenerativeAI} from "@google/generative-ai";
 import NewsService from "./NewsService";
 import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
+import StrikeService from "./StrikeService";
 import {GEMINI_API_KEY} from "../config/config";
 import {generateMissingCode} from "../utils/generateErrorCodes";
+import NewsClassificationService from "./NewsClassificationService";
 import {AI_NEWS_INSIGHTS_MODELS, API_CONFIG} from "../utils/constants";
 import {cleanArray, cleanStakeholderAnalysis} from "../utils/serviceHelpers/dataCleaners";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
@@ -16,8 +18,20 @@ class NewsInsightsService {
     /**
      * Generate comprehensive news insights and analysis using Gemini AI
      */
-    static async generateInsights({content, url}: INewsInsightsParams): Promise<INewsInsightsResponse> {
-        console.log('Service: NewsInsightsService.generateInsights called'.cyan.italic, {contentLength: content?.length, url});
+    static async generateInsights({email, content, url}: INewsInsightsParams): Promise<INewsInsightsResponse> {
+        console.log('Service: NewsInsightsService.generateInsights called'.cyan.italic, {email, content, url});
+
+        const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock(email);
+        if (isBlocked) {
+            console.warn('Client Error: User is blocked from AI features'.yellow, {email, blockType, blockedUntil});
+            return {
+                error: 'USER_BLOCKED',
+                message: blockMessage || 'You are temporarily blocked from using AI features',
+                isBlocked,
+                blockedUntil,
+                blockType,
+            };
+        }
 
         if (!content && !url) {
             console.warn('Client Error: Both content and URL missing'.yellow, {content, url});
@@ -25,7 +39,7 @@ class NewsInsightsService {
         }
 
         if (content && url) {
-            console.warn('Client Error: Both content and URL provided'.yellow, {contentLength: content.length, url});
+            console.warn('Client Error: Both content and URL provided'.yellow, {content, url});
             return {error: 'CONTENT_AND_URL_CONFLICT'};
         }
 
@@ -45,6 +59,19 @@ class NewsInsightsService {
         if (!articleContent || articleContent.trim().length === 0) {
             console.warn('Client Error: Empty content provided for news insights analysis'.yellow);
             return {error: generateMissingCode('content')};
+        }
+
+        console.log('External API: Validating news content classification'.magenta);
+        const classification = await NewsClassificationService.classifyContent(articleContent);
+
+        if (classification === 'error') {
+            console.warn('Fallback Behavior: Classification failed, proceeding anyway'.yellow);
+        } else if (classification === 'non_news') {
+            console.warn('Client Error: Non-news content detected, applying user strike'.yellow);
+            const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike(email, 'ai_enhancement', articleContent);
+            return {error: 'NON_NEWS_CONTENT', message, strikeCount, isBlocked, blockedUntil};
+        } else {
+            console.log('News content verified, proceeding with news insights analysis'.bgGreen.bold);
         }
 
         // Truncate content to avoid token limits

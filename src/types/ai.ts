@@ -68,32 +68,6 @@ export const LANGUAGE_NAMES: Record<TSupportedLanguage, string> = {
     'my': 'မြန်မာ'
 };
 
-export interface IEnrichedArticleWithSentiment {
-    source: {
-        id: string | null;
-        name: string | null;
-    };
-    author: string | null;
-    title: string | null;
-    description: string | null;
-    url: string | null;
-    urlToImage: string | null;
-    publishedAt: string | null;
-    content: string | null;
-    qualityScore?: {
-        score: number;
-        reasons: string[];
-        isRelevant: boolean;
-        isProfessional: boolean;
-    };
-    sentimentData?: {
-        sentiment: TSentimentResult;
-        confidence: number;
-        emoji: string;
-        color: string;
-    };
-}
-
 export interface IStrikeHistoryEvent {
     strikeNumber: number;
     appliedAt: Date;
@@ -199,22 +173,32 @@ export interface IAINewsInsights {
 
 /** ------------- API response types ------------- */
 
+export interface INewsClassificationResponse {
+    classification?: TClassificationResult;
+    isNews?: boolean;
+    error?: string;
+    message?: string;
+    strikeCount?: number;
+    isBlocked?: boolean;
+    blockedUntil?: Date;
+    blockType?: TUserStrikeBlock;
+}
+
 export interface ISummarizeArticleResponse {
     summary?: string;
     wasClassified?: 'news' | 'non_news' | 'classification_skipped';
     powered_by?: string;
     error?: string;
-    errorMsg?: string;
+    message?: string;
+    strikeCount?: number;
+    isBlocked?: boolean;
+    blockedUntil?: Date;
+    blockType?: TUserStrikeBlock;
 }
 
 export interface ISummarizeContentResponse {
     summary?: string;
     powered_by?: string;
-    error?: string;
-}
-
-export interface IGenerateContentHashResponse {
-    hash?: string;
     error?: string;
 }
 
@@ -245,6 +229,11 @@ export interface IKeyPointsExtractionResponse {
     keyPoints?: string[];
     powered_by?: string;
     error?: string;
+    message?: string;
+    strikeCount?: number;
+    isBlocked?: boolean;
+    blockedUntil?: Date;
+    blockType?: TUserStrikeBlock;
 }
 
 export interface IComplexityMeterResponse {
@@ -254,6 +243,11 @@ export interface IComplexityMeterResponse {
     };
     powered_by?: string;
     error?: string;
+    message?: string;
+    strikeCount?: number;
+    isBlocked?: boolean;
+    blockedUntil?: Date;
+    blockType?: TUserStrikeBlock;
 }
 
 export interface IReadingTimeComplexityResponse {
@@ -266,18 +260,33 @@ export interface IQuestionGenerationResponse {
     questions?: string[];
     powered_by?: string;
     error?: string;
+    message?: string;
+    strikeCount?: number;
+    isBlocked?: boolean;
+    blockedUntil?: Date;
+    blockType?: TUserStrikeBlock;
 }
 
 export interface IQuestionAnsweringResponse {
     answer?: string;
     powered_by?: string;
     error?: string;
+    message?: string;
+    strikeCount?: number;
+    isBlocked?: boolean;
+    blockedUntil?: Date;
+    blockType?: TUserStrikeBlock;
 }
 
 export interface IGeographicExtractionResponse {
     locations?: string[];
     powered_by?: string;
     error?: string;
+    message?: string;
+    strikeCount?: number;
+    isBlocked?: boolean;
+    blockedUntil?: Date;
+    blockType?: TUserStrikeBlock;
 }
 
 export interface ISocialMediaCaptionResponse {
@@ -288,6 +297,11 @@ export interface ISocialMediaCaptionResponse {
     characterCount?: number;
     powered_by?: string;
     error?: string;
+    message?: string;
+    strikeCount?: number;
+    isBlocked?: boolean;
+    blockedUntil?: Date;
+    blockType?: TUserStrikeBlock;
 }
 
 export interface INewsInsightsResponse {
@@ -305,6 +319,11 @@ export interface INewsInsightsResponse {
     timelineContext?: string[];
     powered_by?: string;
     error?: string;
+    message?: string;
+    strikeCount?: number;
+    isBlocked?: boolean;
+    blockedUntil?: Date;
+    blockType?: TUserStrikeBlock;
 }
 
 export interface ICombinedAIResponse {
@@ -366,6 +385,12 @@ export interface IGetUserStrikeHistoryResponse {
 
 /** ------------- function params ------------- */
 
+export interface INewsClassificationParams {
+    email: string;  // for authMiddleware
+    text?: string;
+    url?: string;
+}
+
 export interface ISummarizeArticleParams {
     email: string;  // for authMiddleware
     content?: string;
@@ -380,56 +405,26 @@ export interface ISummarizeContentParams {
     style?: TSummarizationStyle;
 }
 
-export interface IGenerateContentHashParams {
-    articleContent: string;
-    language?: TSupportedLanguage;
-    style?: TSummarizationStyle;
-}
-
-export interface ISaveSummaryToCacheParams {
-    contentHash: string;
-    summary: string;
-    language?: TSupportedLanguage;
-    style?: TSummarizationStyle;
-}
-
-export interface IGetCachedSummaryParams {
-    contentHash: string;
-}
-
-export interface ITranslateTextParams {
-    text: string;
-    targetLanguage: TSupportedLanguage;
-}
-
 export interface ITagGenerationParams {
-    email: string;
+    email: string;  // for authMiddleware
     content?: string;
     url?: string;
 }
 
 export interface ISentimentAnalysisParams {
+    email: string;  // for authMiddleware
+    url?: string;
+    content?: string;
+}
+
+export interface IKeyPointsExtractionParams {
     email: string;
     url?: string;
     content?: string;
 }
 
-export interface IEnrichArticleWithSentimentParams {
-    article: any;
-    shouldAnalyze?: boolean;
-}
-
-export interface IEnrichArticlesWithSentimentParams {
-    articles: any[];
-    shouldAnalyze?: boolean;
-}
-
-export interface IKeyPointsExtractionParams {
-    url?: string;
-    content?: string;
-}
-
 export interface IComplexityMeterParams {
+    email: string;  // for authMiddleware
     url?: string;
     content?: string;
 }
@@ -439,20 +434,26 @@ export interface IReadingTimeComplexityParams {
 }
 
 export interface IQuestionGenerationParams {
-    content: string;
+    email: string;  // for authMiddleware
+    url?: string;
+    content?: string;
 }
 
 export interface IQuestionAnsweringParams {
-    content: string;
+    email: string;  // for authMiddleware
+    content?: string;
+    url?: string;
     question: string;
 }
 
 export interface IGeographicExtractionParams {
+    email: string;  // for authMiddleware
     url?: string;
     content?: string;
 }
 
 export interface ISocialMediaCaptionParams {
+    email: string;  // for authMiddleware
     url?: string;
     content?: string;
     platform?: TSocialMediaPlatform;
@@ -460,6 +461,7 @@ export interface ISocialMediaCaptionParams {
 }
 
 export interface INewsInsightsParams {
+    email: string;  // for authMiddleware
     url?: string;
     content?: string;
 }
@@ -467,11 +469,6 @@ export interface INewsInsightsParams {
 export interface ICombinedAIParams {
     content: string;
     tasks: TAIArticleEnhancement[];
-}
-
-export interface ICombinedAIDetailsParams {
-    email?: string;
-    url: string;
 }
 
 export interface IGetProcessingStatusParams {

@@ -6,6 +6,7 @@ import StrikeService from "./StrikeService";
 import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
 import {AI_SUMMARIZATION_MODELS} from "../utils/constants";
+import NewsClassificationService from "./NewsClassificationService";
 import {translateText} from "../utils/serviceHelpers/translationHelpers";
 import {truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 import {GEMINI_API_KEY, GEMINI_QUOTA_MS, GEMINI_QUOTA_REQUESTS} from "../config/config";
@@ -55,32 +56,40 @@ class SummarizationService {
                 return {error: generateInvalidCode('style')};
             }
 
-            // Check user authentication
             const {user} = await AuthService.getUserByEmail({email});
             if (!user) {
                 return {error: generateNotFoundCode('user')};
             }
 
-            // Check if user is blocked
             const {isBlocked, message, blockedUntil, blockType} = await StrikeService.checkUserBlock(email);
             if (isBlocked) {
                 console.warn('Service Warning: User blocked from AI summarization'.yellow, {message, blockedUntil, blockType});
                 return {
                     error: 'USER_BLOCKED_FROM_AI_FEATURES',
-                    errorMsg: message || 'You are temporarily blocked from using AI features due to non-news queries',
+                    message: message || 'You are temporarily blocked from using AI features due to non-news queries',
                 };
             }
 
-            // Check rate limits
             if (this.geminiRequestCount >= Number.parseInt(GEMINI_QUOTA_REQUESTS!)) {
                 console.warn('Rate Limit: Gemini API daily quota reached'.yellow);
                 return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
             }
 
-            // Determine content to use
             const articleContent = content || '';
 
-            // Generate hash and check cache
+            console.log('External API: Validating news content classification'.magenta);
+            const classification = await NewsClassificationService.classifyContent(articleContent);
+
+            if (classification === 'error') {
+                console.warn('Fallback Behavior: Classification failed, proceeding anyway'.yellow);
+            } else if (classification === 'non_news') {
+                console.warn('Client Error: Non-news content detected, applying user strike'.yellow);
+                const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike(email, 'article_summary', articleContent);
+                return {error: 'NON_NEWS_CONTENT', message, strikeCount, isBlocked, blockedUntil};
+            } else {
+                console.log('News content verified, proceeding with summarization'.bgGreen.bold);
+            }
+
             const hash = generateSummarizationContentHash(articleContent, language, style);
             if (!hash) {
                 return {error: 'HASH_FAILED'};
@@ -95,7 +104,6 @@ class SummarizationService {
                 };
             }
 
-            // Generate summary using core summarization logic
             const {summary, powered_by, error} = await this.summarizeContent({content: articleContent, url, style});
 
             if (error) {
@@ -107,21 +115,18 @@ class SummarizationService {
                 return {error: 'SUMMARIZATION_FAILED'};
             }
 
-            // Increment API counter
             this.geminiRequestCount++;
             console.log(`Gemini API request ${this.geminiRequestCount}/${GEMINI_QUOTA_REQUESTS}:`.cyan, 'summarization');
 
             let finalSummary = summary;
             let finalPoweredBy = powered_by;
 
-            // Translate if needed
             if (language !== 'en') {
                 console.log('Translating summary to target language:'.cyan, language);
                 finalSummary = await translateText(summary, language);
                 finalPoweredBy = `${powered_by} + Translate`;
             }
 
-            // Save to cache
             await saveSummaryToCache(hash, finalSummary, language, style);
 
             console.log('Article summarization completed successfully'.green.bold, {summary: finalSummary.substring(0, 50) + '...', powered_by: finalPoweredBy});
@@ -139,7 +144,7 @@ class SummarizationService {
     /**
      * Core summarization logic using Gemini AI
      */
-    static async summarizeContent({content, url, style = 'standard'}: ISummarizeContentParams): Promise<ISummarizeContentResponse> {
+    private static async summarizeContent({content, url, style = 'standard'}: ISummarizeContentParams): Promise<ISummarizeContentResponse> {
         console.log('Service: SummarizationService.summarizeContent called'.cyan.italic, {content, url, style});
 
         if (!content && !url) {
@@ -235,8 +240,6 @@ class SummarizationService {
 
         return {summary: responseText};
     }
-
-
 }
 
 export default SummarizationService;

@@ -1,20 +1,84 @@
 import "colors";
 import axios from "axios";
 import {GoogleGenerativeAI} from "@google/generative-ai";
+import NewsService from "./NewsService";
+import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
+import StrikeService from "./StrikeService";
 import {buildHeader} from "../utils/buildHeader";
-import {IAIClassification, TClassificationResult} from "../types/ai";
 import {AI_SUMMARIZATION_MODELS, API_CONFIG} from "../utils/constants";
 import {GEMINI_API_KEY, HUGGINGFACE_API_TOKEN} from "../config/config";
 import {truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 import {processHuggingFaceResponse} from "../utils/serviceHelpers/externalApiHelpers";
+import {IAIClassification, INewsClassificationParams, INewsClassificationResponse, TClassificationResult} from "../types/ai";
 
 class NewsClassificationService {
     static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
     static readonly huggingFaceUrl = 'https://api-inference.huggingface.co/models/facebook/bart-large-mnli';
 
     /**
-     * Main classification method with HuggingFace -> Gemini fallback
+     * Classification with strike handling and user blocking
+     */
+    static async classifyContentWithStrikeHandling({email, text, url}: INewsClassificationParams): Promise<INewsClassificationResponse> {
+        console.log('Service: NewsClassificationService.classifyContentWithStrikeHandling called'.cyan.italic, {email, text, url});
+
+        const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock(email);
+        if (isBlocked) {
+            console.warn('Client Error: User is blocked from AI features'.yellow, {email, blockType, blockedUntil});
+            return {
+                error: 'USER_BLOCKED',
+                message: blockMessage || 'You are temporarily blocked from using AI features',
+                isBlocked,
+                blockedUntil,
+                blockType,
+            };
+        }
+
+        if (!text && !url) {
+            console.warn('Client Error: Text and url both invalid'.yellow, {text, url});
+            return {error: 'TEXT_OR_URL_REQUIRED'};
+        }
+
+        if (text && url) {
+            console.warn('Client Error: Text and url both valid'.yellow, {text, url});
+            return {error: 'TEXT_AND_URL_CONFLICT'};
+        }
+
+        let contentToClassify = text || '';
+        if (!text && url) {
+            console.log('External API: Scraping URL for classification'.magenta, {url});
+            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
+
+            if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
+                console.error('Service Error: Scraping failed:'.red.bold, scrapedArticles[0]?.error);
+                return {error: 'SCRAPING_FAILED'};
+            }
+
+            contentToClassify = scrapedArticles[0]?.content || '';
+        }
+
+        if (!contentToClassify || contentToClassify.trim().length === 0) {
+            console.warn('Client Error: Empty content provided for classification'.yellow);
+            return {error: 'CONTENT_REQUIRED'};
+        }
+
+        const classification = await this.classifyContent(contentToClassify);
+
+        if (classification === 'error') {
+            console.error('Service Error: Classification failed'.red.bold);
+            return {error: 'CLASSIFICATION_FAILED'};
+        } else if (classification === 'non_news') {
+            console.warn('Client Error: Non-news content detected, applying user strike'.yellow);
+            const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike(email, 'search_query', contentToClassify);
+            return {error: 'NON_NEWS_CONTENT', classification, isNews: false, message, strikeCount, isBlocked, blockedUntil};
+        }
+
+        console.log('News classified successfully'.bgGreen.bold, {classification, isNews: classification === 'news'});
+        return {classification, isNews: classification === 'news'};
+    }
+
+    /**
+     * Main classification method with HuggingFace -> Gemini fallback (utility method)
      */
     static async classifyContent(text: string): Promise<TClassificationResult> {
         console.log('Service: NewsClassificationService.classifyContent called'.cyan.italic, {textLength: text?.length});
