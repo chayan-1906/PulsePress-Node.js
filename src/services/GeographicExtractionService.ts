@@ -1,6 +1,7 @@
 import "colors";
 import {GoogleGenerativeAI} from "@google/generative-ai";
 import NewsService from "./NewsService";
+import QuotaService from "./QuotaService";
 import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
 import StrikeService from "./StrikeService";
@@ -76,28 +77,38 @@ class GeographicExtractionService {
         // Truncate content to avoid token limits
         const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
-        for (let i = 0; i < AI_GEOGRAPHIC_EXTRACTION_MODELS.length; i++) {
-            const modelName = AI_GEOGRAPHIC_EXTRACTION_MODELS[i];
-            console.log(`Trying geographic extraction with model ${i + 1}/${AI_GEOGRAPHIC_EXTRACTION_MODELS.length}:`.cyan, modelName);
+        const quotaReservation = await QuotaService.reserveQuotaForModelFallback({
+            primaryModel: AI_GEOGRAPHIC_EXTRACTION_MODELS[0],
+            fallbackModels: AI_GEOGRAPHIC_EXTRACTION_MODELS.slice(1),
+            count: 1,
+        });
 
-            try {
-                const result = await this.extractWithGemini(modelName, truncatedContent);
-
-                if (result.locations && result.locations.length > 0) {
-                    console.log(`✅ Geographic extraction successful with model:`.cyan, modelName);
-                    console.log('Extracted locations:'.cyan, result.locations);
-                    console.log('Geographic extraction completed successfully'.green.bold);
-                    return {...result, powered_by: modelName};
-                }
-
-                console.error('Service Error: Geographic extraction model failed'.red.bold, {model: modelName, error: result.error});
-            } catch (error: any) {
-                console.error('Service Error: Geographic extraction model failed'.red.bold, {model: modelName, error: error.message});
-            }
+        if (!quotaReservation.allowed) {
+            console.warn('Rate Limit: Gemini API daily quota reached for geographic extraction'.yellow, {
+                selectedModel: quotaReservation.selectedModel,
+                quotaReserved: quotaReservation.quotaReserved,
+                service: quotaReservation.service,
+            });
+            return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
         }
 
-        console.error('Service Error: All geographic extraction models failed'.red.bold);
-        return {error: 'GEOGRAPHIC_EXTRACTION_FAILED'};
+        const selectedModel = quotaReservation.selectedModel;
+        console.log('Quota reserved for geographic extraction'.cyan, {selectedModel, quotaReserved: quotaReservation.quotaReserved});
+
+        try {
+            const result = await this.extractWithGemini(selectedModel, truncatedContent);
+
+            if (result.locations && result.locations.length > 0) {
+                console.log('Geographic extraction completed successfully'.green.bold, {locations: result.locations, model: selectedModel});
+                return {...result, powered_by: selectedModel};
+            }
+
+            console.error('Service Error: Geographic extraction failed with quota-reserved model'.red.bold, {model: selectedModel, error: result.error});
+            return {error: 'GEOGRAPHIC_EXTRACTION_FAILED'};
+        } catch (error: any) {
+            console.error('Service Error: Geographic extraction failed with quota-reserved model'.red.bold, {model: selectedModel, error: error.message});
+            return {error: 'GEOGRAPHIC_EXTRACTION_FAILED'};
+        }
     }
 
     /**

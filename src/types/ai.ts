@@ -405,6 +405,35 @@ export interface ISummarizeContentParams {
     style?: TSummarizationStyle;
 }
 
+export interface ISummarizeContentWithModelParams {
+    content?: string;
+    url?: string;
+    style?: TSummarizationStyle;
+    modelName: string;
+}
+
+export interface IGenerateContentHashParams {
+    articleContent: string;
+    language?: TSupportedLanguage;
+    style?: TSummarizationStyle;
+}
+
+export interface ISaveSummaryToCacheParams {
+    contentHash: string;
+    summary: string;
+    language?: TSupportedLanguage;
+    style?: TSummarizationStyle;
+}
+
+export interface IGetCachedSummaryParams {
+    contentHash: string;
+}
+
+export interface ITranslateTextParams {
+    text: string;
+    targetLanguage: TSupportedLanguage;
+}
+
 export interface ITagGenerationParams {
     email: string;  // for authMiddleware
     content?: string;
@@ -469,6 +498,7 @@ export interface INewsInsightsParams {
 export interface ICombinedAIParams {
     content: string;
     tasks: TAIArticleEnhancement[];
+    selectedModel?: string;
 }
 
 export interface IGetProcessingStatusParams {

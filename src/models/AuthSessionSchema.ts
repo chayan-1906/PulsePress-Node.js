@@ -41,7 +41,7 @@ const AuthSessionSchema = new Schema<IAuthSession>({
     createdAt: {
         type: Date,
         default: Date.now,
-        expires: 1200,   // 20 minutes TTL, users might log in right after 15 m of getting the magic link
+        expires: 20 * 60,   // 20 minutes TTL, users might log in right after 15 m of getting the magic link
     },
 }, {
     timestamps: true,

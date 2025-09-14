@@ -130,12 +130,21 @@ const RSS_SOURCES = {
     },
 };
 
+export const AI_MODELS = {
+    GEMINI_25_FLASH_LITE: 'gemini-2.5-flash-lite',
+    GEMINI_25_FLASH: 'gemini-2.5-flash',
+    GEMINI_20_FLASH: 'gemini-2.0-flash',
+    GEMINI_20_FLASH_LITE: 'gemini-2.0-flash-lite',
+    GEMINI_15_FLASH: 'gemini-1.5-flash',
+} as const;
+
 export const AI_SUMMARIZATION_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite-preview-06-17',
-    'gemini-1.5-flash',
+    AI_MODELS.GEMINI_25_FLASH_LITE,                // 1,000 RPD | 15 RPM | 250K TPM - ⭐ PRIMARY (10x quota vs Pro)
+    AI_MODELS.GEMINI_25_FLASH,                     // 250 RPD | 10 RPM | 250K TPM - FALLBACK #1
+    AI_MODELS.GEMINI_20_FLASH,                     // 200 RPD | 15 RPM | 1M TPM - FALLBACK #2
+    AI_MODELS.GEMINI_20_FLASH_LITE,                // 200 RPD | 30 RPM | 1M TPM - FALLBACK #3 (fastest RPM)
+    // 'gemini-2.5-flash-lite-preview-06-17',      // NO FREE TIER - Will cause billing!
+    AI_MODELS.GEMINI_15_FLASH,                     // Legacy model - Keep as final fallback
 
     // HuggingFace fallbacks (reliable and tested models)
     // 'huggingface:sshleifer/distilbart-cnn-12-6',
@@ -144,76 +153,90 @@ export const AI_SUMMARIZATION_MODELS = [
 ];
 
 export const AI_TAG_GENERATION_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite-preview-06-17',
-    'gemini-1.5-flash',
+    AI_MODELS.GEMINI_25_FLASH_LITE,  // 1,000 RPD - Primary choice for tag generation
+    AI_MODELS.GEMINI_25_FLASH,       // 250 RPD - Fallback #1
+    AI_MODELS.GEMINI_20_FLASH,       // 200 RPD - Fallback #2
+    AI_MODELS.GEMINI_20_FLASH_LITE,  // 200 RPD - Fallback #3
+    AI_MODELS.GEMINI_15_FLASH,       // Legacy fallback
 ];
 
 export const AI_SENTIMENT_ANALYSIS_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite-preview-06-17',
-    'gemini-1.5-flash',
+    AI_MODELS.GEMINI_25_FLASH_LITE,  // 1,000 RPD - Primary for sentiment analysis
+    AI_MODELS.GEMINI_25_FLASH,       // 250 RPD - Fallback #1
+    AI_MODELS.GEMINI_20_FLASH,       // 200 RPD - Fallback #2
+    AI_MODELS.GEMINI_20_FLASH_LITE,  // 200 RPD - Fallback #3
+    AI_MODELS.GEMINI_15_FLASH,       // Legacy fallback
 ];
 
 export const AI_KEY_POINTS_EXTRACTOR_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite-preview-06-17',
-    'gemini-1.5-flash',
+    AI_MODELS.GEMINI_25_FLASH_LITE,  // 1,000 RPD - Primary for key point extraction
+    AI_MODELS.GEMINI_25_FLASH,       // 250 RPD - Fallback #1
+    AI_MODELS.GEMINI_20_FLASH,       // 200 RPD - Fallback #2
+    AI_MODELS.GEMINI_20_FLASH_LITE,  // 200 RPD - Fallback #3
+    AI_MODELS.GEMINI_15_FLASH,       // Legacy fallback
 ];
 
 export const AI_COMPLEXITY_METER__MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite-preview-06-17',
-    'gemini-1.5-flash',
+    AI_MODELS.GEMINI_25_FLASH_LITE,  // 1,000 RPD - Primary for complexity analysis
+    AI_MODELS.GEMINI_25_FLASH,       // 250 RPD - Fallback #1
+    AI_MODELS.GEMINI_20_FLASH,       // 200 RPD - Fallback #2
+    AI_MODELS.GEMINI_20_FLASH_LITE,  // 200 RPD - Fallback #3
+    AI_MODELS.GEMINI_15_FLASH,       // Legacy fallback
 ];
 
 export const QUESTION_ANSWER_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite-preview-06-17',
-    'gemini-1.5-flash',
+    AI_MODELS.GEMINI_25_FLASH_LITE,  // 1,000 RPD - Primary for Q&A
+    AI_MODELS.GEMINI_25_FLASH,       // 250 RPD - Fallback #1
+    AI_MODELS.GEMINI_20_FLASH,       // 200 RPD - Fallback #2
+    AI_MODELS.GEMINI_20_FLASH_LITE,  // 200 RPD - Fallback #3
+    AI_MODELS.GEMINI_15_FLASH,       // Legacy fallback
 ];
 
 export const AI_GEOGRAPHIC_EXTRACTION_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite-preview-06-17',
-    'gemini-1.5-flash',
+    AI_MODELS.GEMINI_25_FLASH_LITE,  // 1,000 RPD - Primary for geo extraction
+    AI_MODELS.GEMINI_25_FLASH,       // 250 RPD - Fallback #1
+    AI_MODELS.GEMINI_20_FLASH,       // 200 RPD - Fallback #2
+    AI_MODELS.GEMINI_20_FLASH_LITE,  // 200 RPD - Fallback #3
+    AI_MODELS.GEMINI_15_FLASH,       // Legacy fallback
 ];
 
 export const AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite-preview-06-17',
-    'gemini-1.5-flash',
+    AI_MODELS.GEMINI_25_FLASH_LITE,  // 1,000 RPD - Primary for caption generation
+    AI_MODELS.GEMINI_25_FLASH,       // 250 RPD - Fallback #1
+    AI_MODELS.GEMINI_20_FLASH,       // 200 RPD - Fallback #2
+    AI_MODELS.GEMINI_20_FLASH_LITE,  // 200 RPD - Fallback #3
+    AI_MODELS.GEMINI_15_FLASH,       // Legacy fallback
 ];
 
 export const AI_NEWS_INSIGHTS_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite-preview-06-17',
-    'gemini-1.5-flash',
+    AI_MODELS.GEMINI_25_FLASH_LITE,  // 1,000 RPD - Primary for news insights
+    AI_MODELS.GEMINI_25_FLASH,       // 250 RPD - Fallback #1
+    AI_MODELS.GEMINI_20_FLASH,       // 200 RPD - Fallback #2
+    AI_MODELS.GEMINI_20_FLASH_LITE,  // 200 RPD - Fallback #3
+    AI_MODELS.GEMINI_15_FLASH,       // Legacy fallback
 ];
 
 export const AI_ENHANCEMENT_MODELS = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash-lite-preview-06-17',
-    'gemini-1.5-flash',
+    AI_MODELS.GEMINI_25_FLASH_LITE,  // 1,000 RPD - Primary for article enhancement
+    AI_MODELS.GEMINI_25_FLASH,       // 250 RPD - Fallback #1
+    AI_MODELS.GEMINI_20_FLASH,       // 200 RPD - Fallback #2
+    AI_MODELS.GEMINI_20_FLASH_LITE,  // 200 RPD - Fallback #3
+    AI_MODELS.GEMINI_15_FLASH,       // Legacy fallback
 ];
+
+export const API_QUOTA_LIMITS = {
+    // Conservative 90% limits to prevent accidental overruns
+    'gemini-total': 900,                             // Shared pool across all Gemini models
+    [AI_MODELS.GEMINI_25_FLASH_LITE]: 900,           // 1000 RPD * 0.9
+    [AI_MODELS.GEMINI_25_FLASH]: 225,                // 250 RPD * 0.9
+    [AI_MODELS.GEMINI_20_FLASH]: 180,                // 200 RPD * 0.9
+    [AI_MODELS.GEMINI_20_FLASH_LITE]: 180,           // 200 RPD * 0.9
+    [AI_MODELS.GEMINI_15_FLASH]: 90,                 // 100 RPD * 0.9
+    newsapi: 100,                                    // NewsAPI.org free tier (2025: 100 requests/day + 24hr delay)
+    guardian: 5000,                                  // Guardian API free tier (2025: 5,000 requests/day, 12/second)
+    nytimes: 500,                                    // NYTimes API free tier (2025: 500 requests/day, 5/minute)
+    google_translate: 16667,                         // Google Translate free tier (2025: 500K chars/month ≈ 16,667/day)
+} as const;
 
 const USER_AGENTS = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -229,27 +252,6 @@ const DEFAULT_ENGAGEMENT_WEIGHTS: IEngagementScoreWeights = {
     completionWeight: 2,
     readingTimeWeight: 0.1,
 };
-
-const LOW_QUALITY_CONTENT_INDICATORS = [
-    // Puzzles & Games
-    'crossword', 'puzzle', 'sudoku', 'word game', 'quiz', 'riddle', 'trivia',
-
-    // Opinion/Letters (not hard news)
-    'letter to editor', 'letters to the editor', 'dear editor', 'opinion piece',
-    'reader mail', 'your letters', 'readers write', 'op-ed', 'editorial',
-
-    // Social/Personal content
-    'horoscope', 'astrology', 'daily forecast', 'wedding announcement',
-    'birth announcement', 'anniversary', 'obituary', 'death notice',
-
-    // Non-news content
-    'recipe', 'cooking tips', 'fashion tips', 'lifestyle advice', 'how to',
-    'think out loud', 'briefing', 'newsletter', 'recap', 'roundup',
-
-    // Low-quality indicators
-    'click here', 'you won\'t believe', 'shocking truth', 'celebrities hate',
-    'doctors hate this', 'one weird trick', 'amazing secret', 'must see',
-];
 
 const TRUSTED_NEWS_SOURCES = {
     // Tier 1: Premium sources (highest credibility)
@@ -426,7 +428,8 @@ export const API_CONFIG = {
     SEARCH: {
         FUSE_THRESHOLD: 0.4,
         MIN_QUERY_LENGTH: 3,
-        CACHE_TTL_MS: 300000,
+        // CACHE_TTL_MS: 300000,
+        CACHE_TTL_MS: 1800000, // 30 minutes (30 * 60 * 1000)
     },
 };
 
@@ -434,7 +437,6 @@ export {
     RSS_SOURCES,
     USER_AGENTS,
     DEFAULT_ENGAGEMENT_WEIGHTS,
-    LOW_QUALITY_CONTENT_INDICATORS,
     TRUSTED_NEWS_SOURCES,
     TOPIC_SPECIFIC_SOURCES,
     COMPREHENSIVE_TOPIC_KEYWORDS,

@@ -1,5 +1,4 @@
 import "colors";
-import {NODE_ENV} from "../../config/config";
 import CachedQuestionAnswerModel from "../../models/CachedQuestionAnswerSchema";
 import CachedSummaryModel, {ICachedSummary} from "../../models/CachedSummarySchema";
 
@@ -60,10 +59,10 @@ const saveSummaryToCache = async (contentHash: string, summary: string, language
     console.log('Service: saveSummaryToCache called'.cyan.italic, {contentHash, summary: summary.substring(0, 50) + '...', language, style});
 
     try {
-        if (NODE_ENV !== 'production') {
+        /*if (NODE_ENV !== 'production') {
             console.log('Caching disabled in development mode'.cyan);
             return null;
-        }
+        }*/
 
         const savedContentHash: ICachedSummary | null = await CachedSummaryModel.create({contentHash, summary, language, style});
         console.log('Saved content hash to cache:'.cyan, savedContentHash);
@@ -81,10 +80,10 @@ const getCachedSummary = async (contentHash: string): Promise<ICachedSummary | n
     console.log('Service: getCachedSummary called'.cyan.italic, {contentHash});
 
     try {
-        if (NODE_ENV !== 'production') {
+        /*if (NODE_ENV !== 'production') {
             console.log('Caching disabled in development mode'.cyan);
             return null;
-        }
+        }*/
 
         const cachedSummary: ICachedSummary | null = await CachedSummaryModel.findOne({contentHash});
         console.log('Retrieved cached summary:'.cyan, cachedSummary ? 'Found' : 'Not found');

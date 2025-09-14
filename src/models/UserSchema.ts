@@ -1,7 +1,7 @@
 import {Document, Model, model, Schema} from "mongoose";
 import generateNanoIdWithAlphabet from "../utils/generateUUID";
 import {SUPPORTED_AUTH__PROVIDERS, TSupportedAuthProvider} from "../types/auth";
-import {IStrikeHistoryEvent, USER_STRIKE_BLOCK, TUserStrikeBlock} from "../types/ai";
+import {IStrikeHistoryEvent, TUserStrikeBlock, USER_STRIKE_BLOCK} from "../types/ai";
 
 export interface IUserStrike {
     count: number;

@@ -10,6 +10,7 @@ import newsRoutes from "./routes/NewsRoutes";
 import authRoutes from "./routes/AuthRoutes";
 import {getLocalIP} from "./utils/getLocalIP";
 import healthRoutes from "./routes/HealthRoutes";
+import QuotaService from "./services/QuotaService";
 import bookmarkRoutes from "./routes/BookmarkRoutes";
 import StrikeService from "./services/StrikeService";
 import analyticsRoutes from "./routes/AnalyticsRoutes";
@@ -62,6 +63,7 @@ const start = async () => {
         });
         console.log('Background task: Strike auto-reset cron job initialized (every 15 minutes)'.blue);
 
+        await QuotaService.initializeQuotaRecords();
         app.listen(port, '0.0.0.0', (error?: Error, address?: string) => {
             if (error) {
                 console.error('Service Error: Failed to start server'.red.bold, error);
