@@ -32,6 +32,16 @@ class SentimentAnalysisService {
             };
         }
 
+        if (!content && !url) {
+            console.warn('Client Error: Content and url both invalid'.yellow, {content, url});
+            return {error: 'CONTENT_OR_URL_REQUIRED'};
+        }
+
+        if (content && url) {
+            console.warn('Client Error: Content and url both valid'.yellow, {content, url});
+            return {error: 'CONTENT_AND_URL_CONFLICT'};
+        }
+
         let articleContent = content || '';
         if (!content && url) {
             console.log('External API: Scraping URL for sentiment analysis'.magenta, {url});

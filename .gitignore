@@ -28,4 +28,5 @@ ios-credentials.plist
 web-credentials.json
 
 # claude
+.claude
 CLAUDE.md

@@ -1,10 +1,8 @@
 import "colors";
 import {Request, Response} from "express";
 import {IAuthRequest} from "../types/auth";
-import {isListEmpty} from "../utils/list";
 import {ApiResponse} from "../utils/ApiResponse";
 import AuthService from "../services/AuthService";
-import NewsService from "../services/NewsService";
 import NewsInsightsService from "../services/NewsInsightsService";
 import TagGenerationService from "../services/TagGenerationService";
 import SummarizationService from "../services/SummarizationService";
@@ -328,33 +326,6 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
             return;
         }
 
-        let contentToAnalyze = content;
-
-        if (!content && url) {
-            console.log('External API: Scraping URL for sentiment analysis'.magenta, {url});
-            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
-
-            if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
-                res.status(400).send(new ApiResponse({
-                    success: false,
-                    errorCode: 'SCRAPING_FAILED',
-                    errorMsg: 'Failed to scrape the provided URL',
-                }));
-                return;
-            }
-
-            contentToAnalyze = scrapedArticles[0]?.content || '';
-        }
-
-        if (!contentToAnalyze || contentToAnalyze.trim().length === 0) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('content'),
-                errorMsg: 'Content is required for sentiment analysis',
-            }));
-            return;
-        }
-
         const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             res.status(404).send(new ApiResponse({
@@ -365,11 +336,7 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {sentiment, powered_by, confidence, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await SentimentAnalysisService.analyzeSentiment({
-            email,
-            content: contentToAnalyze,
-            url,
-        });
+        const {sentiment, powered_by, confidence, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await SentimentAnalysisService.analyzeSentiment({email, content, url});
 
         if (error) {
             let errorMsg = message || 'Failed to analyze sentiment';
@@ -421,7 +388,7 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
             sentimentEmoji,
             sentimentColor,
             powered_by,
-            contentPreview: contentToAnalyze.substring(0, 200) + '...',
+            contentPreview: content?.substring(0, 200) + '...' || 'Content from URL',
         }));
     } catch (error: any) {
         console.error('Controller Error: analyzeSentimentController failed'.red.bold, error);
@@ -458,33 +425,6 @@ const extractKeyPointsController = async (req: Request, res: Response) => {
             return;
         }
 
-        let contentToAnalyze = content;
-
-        if (!content && url) {
-            console.log('External API: Scraping URL for key points extraction'.magenta, {url});
-            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
-
-            if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
-                res.status(400).send(new ApiResponse({
-                    success: false,
-                    errorCode: 'SCRAPING_FAILED',
-                    errorMsg: 'Failed to scrape the provided URL',
-                }));
-                return;
-            }
-
-            contentToAnalyze = scrapedArticles[0]?.content || '';
-        }
-
-        if (!contentToAnalyze || contentToAnalyze.trim().length === 0) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('content'),
-                errorMsg: 'No content available for key points extraction',
-            }));
-            return;
-        }
-
         const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             res.status(404).send(new ApiResponse({
@@ -495,7 +435,7 @@ const extractKeyPointsController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {keyPoints, powered_by, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await KeyPointsExtractionService.extractKeyPoints({email, content: contentToAnalyze, url});
+        const {keyPoints, powered_by, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await KeyPointsExtractionService.extractKeyPoints({email, content, url});
 
         if (error) {
             let errorMsg = message || 'Failed to extract key points';
@@ -548,7 +488,7 @@ const extractKeyPointsController = async (req: Request, res: Response) => {
             message: 'Key points have been extracted successfully 🎉',
             keyPoints,
             powered_by,
-            contentPreview: contentToAnalyze.substring(0, 200) + '...',
+            contentPreview: content?.substring(0, 200) + '...' || 'Content from URL',
         }));
     } catch (error: any) {
         console.error('Controller Error: extractKeyPointsController failed'.red.bold, error);
@@ -585,33 +525,6 @@ const analyzeComplexityController = async (req: Request, res: Response) => {
             return;
         }
 
-        let contentToAnalyze = content;
-
-        if (!content && url) {
-            console.log('External API: Scraping URL for complexity analysis'.magenta, {url});
-            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
-
-            if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
-                res.status(400).send(new ApiResponse({
-                    success: false,
-                    errorCode: 'SCRAPING_FAILED',
-                    errorMsg: 'Failed to scrape the provided URL',
-                }));
-                return;
-            }
-
-            contentToAnalyze = scrapedArticles[0]?.content || '';
-        }
-
-        if (!contentToAnalyze || contentToAnalyze.trim().length === 0) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('content'),
-                errorMsg: 'Content is required for complexity analysis',
-            }));
-            return;
-        }
-
         const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             res.status(404).send(new ApiResponse({
@@ -622,7 +535,7 @@ const analyzeComplexityController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {complexityMeter, powered_by, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await ComplexityMeterService.analyzeComplexity({email, content: contentToAnalyze, url});
+        const {complexityMeter, powered_by, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await ComplexityMeterService.analyzeComplexity({email, content, url});
 
         if (error) {
             let errorMsg = message || 'Failed to generate complexity meter';
@@ -675,7 +588,7 @@ const analyzeComplexityController = async (req: Request, res: Response) => {
             message: 'Complexity meter has been generated successfully 🎉',
             complexityMeter,
             powered_by,
-            contentPreview: contentToAnalyze.substring(0, 200) + '...',
+            contentPreview: content?.substring(0, 200) + '...' || 'Content from URL',
         }));
     } catch (error: any) {
         console.error('Controller Error: analyzeComplexityController failed'.red.bold, error);
@@ -909,33 +822,6 @@ const extractLocationsController = async (req: Request, res: Response) => {
             return;
         }
 
-        let contentToAnalyze = content;
-
-        if (!content && url) {
-            console.log('External API: Scraping URL for location extraction'.magenta, {url});
-            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
-
-            if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
-                res.status(400).send(new ApiResponse({
-                    success: false,
-                    errorCode: 'SCRAPING_FAILED',
-                    errorMsg: 'Failed to scrape the provided URL',
-                }));
-                return;
-            }
-
-            contentToAnalyze = scrapedArticles[0]?.content || '';
-        }
-
-        if (!contentToAnalyze || contentToAnalyze.trim().length === 0) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('content'),
-                errorMsg: 'Content is required for location extraction',
-            }));
-            return;
-        }
-
         const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             res.status(404).send(new ApiResponse({
@@ -946,7 +832,7 @@ const extractLocationsController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {locations, powered_by, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await GeographicExtractionService.extractLocations({email, content: contentToAnalyze, url});
+        const {locations, powered_by, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await GeographicExtractionService.extractLocations({email, content, url});
 
         if (error) {
             let errorMsg = message || 'Failed to extract geographic locations';
@@ -999,7 +885,7 @@ const extractLocationsController = async (req: Request, res: Response) => {
             message: 'Geographic locations have been extracted successfully 🎉',
             locations,
             powered_by,
-            contentPreview: contentToAnalyze.substring(0, 200) + '...',
+            contentPreview: content?.substring(0, 200) + '...' || 'Content from URL',
         }));
     } catch (error: any) {
         console.error('Controller Error: extractLocationsController failed'.red.bold, error);
@@ -1158,33 +1044,6 @@ const generateNewsInsightsController = async (req: Request, res: Response) => {
             return;
         }
 
-        let contentToAnalyze = content;
-
-        if (!content && url) {
-            console.log('External API: Scraping URL for news insights analysis'.magenta, {url});
-            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
-
-            if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
-                res.status(400).send(new ApiResponse({
-                    success: false,
-                    errorCode: 'SCRAPING_FAILED',
-                    errorMsg: 'Failed to scrape the provided URL',
-                }));
-                return;
-            }
-
-            contentToAnalyze = scrapedArticles[0]?.content || '';
-        }
-
-        if (!contentToAnalyze || contentToAnalyze.trim().length === 0) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('content'),
-                errorMsg: 'Content is required for news insights analysis',
-            }));
-            return;
-        }
-
         const {user} = await AuthService.getUserByEmail({email});
         if (!user) {
             res.status(404).send(new ApiResponse({
@@ -1208,7 +1067,7 @@ const generateNewsInsightsController = async (req: Request, res: Response) => {
             isBlocked,
             blockedUntil,
             blockType
-        } = await NewsInsightsService.generateInsights({email, content: contentToAnalyze, url});
+        } = await NewsInsightsService.generateInsights({email, content, url});
 
         if (error) {
             let errorMsg = message || 'Failed to generate news insights analysis';
@@ -1265,7 +1124,7 @@ const generateNewsInsightsController = async (req: Request, res: Response) => {
             stakeholderAnalysis,
             timelineContext,
             powered_by,
-            contentPreview: contentToAnalyze.substring(0, 200) + '...',
+            contentPreview: content?.substring(0, 200) + '...' || 'Content from URL',
         }));
     } catch (error: any) {
         console.error('Controller Error: generateNewsInsightsController failed'.red.bold, error);
