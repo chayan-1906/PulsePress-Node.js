@@ -504,3 +504,23 @@ export interface IGetUserStrikeHistoryParams {
     email: string;  // for authMiddleware
     limit?: number;
 }
+
+export interface ICheckUserBlockParams {
+    email: string;  // for authMiddleware
+}
+
+export interface ILogNonNewsViolationParams {
+    email: string;  // for authMiddleware
+    violationType: string;
+    content: string;
+}
+
+export interface IApplyStrikeParams {
+    email: string;  // for authMiddleware
+    violationType?: TViolationType;
+    content?: string;
+}
+
+export interface IGetUserStrikesParams {
+    email: string;  // for authMiddleware
+}

@@ -28,7 +28,7 @@ class SocialMediaCaptionService {
     static async generateCaption({email, content, url, platform, style}: ISocialMediaCaptionParams): Promise<ISocialMediaCaptionResponse> {
         console.log('Service: SocialMediaCaptionService.generateCaption called'.cyan.italic, {email, content, url, platform, style});
 
-        const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock(email);
+        const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock({email});
         if (isBlocked) {
             console.warn('Client Error: User is blocked from AI features'.yellow, {email, blockType, blockedUntil});
             return {
@@ -85,7 +85,7 @@ class SocialMediaCaptionService {
             console.warn('Fallback Behavior: Classification failed, proceeding anyway'.yellow);
         } else if (classification === 'non_news') {
             console.warn('Client Error: Non-news content detected, applying user strike'.yellow);
-            const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike(email, 'ai_enhancement', articleContent);
+            const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike({email, violationType: 'ai_enhancement', content: articleContent});
             return {error: 'NON_NEWS_CONTENT', message, strikeCount, isBlocked, blockedUntil};
         } else {
             console.log('News content verified, proceeding with caption generation'.bgGreen.bold);

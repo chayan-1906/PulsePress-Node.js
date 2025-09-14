@@ -205,7 +205,7 @@ class ArticleEnhancementService {
         if (email) {
             try {
                 const {user} = await AuthService.getUserByEmail({email});
-                const {isBlocked} = await StrikeService.checkUserBlock(email);
+                const {isBlocked} = await StrikeService.checkUserBlock({email});
                 if (!user || isBlocked) {
                     console.warn('Service Warning: User not found - no AI enhancements'.yellow);
                     return;

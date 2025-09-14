@@ -22,7 +22,7 @@ class NewsClassificationService {
     static async classifyContentWithStrikeHandling({email, text, url}: INewsClassificationParams): Promise<INewsClassificationResponse> {
         console.log('Service: NewsClassificationService.classifyContentWithStrikeHandling called'.cyan.italic, {email, text, url});
 
-        const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock(email);
+        const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock({email});
         if (isBlocked) {
             console.warn('Client Error: User is blocked from AI features'.yellow, {email, blockType, blockedUntil});
             return {
@@ -69,7 +69,7 @@ class NewsClassificationService {
             return {error: 'CLASSIFICATION_FAILED'};
         } else if (classification === 'non_news') {
             console.warn('Client Error: Non-news content detected, applying user strike'.yellow);
-            const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike(email, 'search_query', contentToClassify);
+            const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike({email, violationType: 'search_query', content: contentToClassify});
             return {error: 'NON_NEWS_CONTENT', classification, isNews: false, message, strikeCount, isBlocked, blockedUntil};
         }
 

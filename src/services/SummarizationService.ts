@@ -61,7 +61,7 @@ class SummarizationService {
                 return {error: generateNotFoundCode('user')};
             }
 
-            const {isBlocked, message, blockedUntil, blockType} = await StrikeService.checkUserBlock(email);
+            const {isBlocked, message, blockedUntil, blockType} = await StrikeService.checkUserBlock({email});
             if (isBlocked) {
                 console.warn('Service Warning: User blocked from AI summarization'.yellow, {message, blockedUntil, blockType});
                 return {
@@ -84,7 +84,7 @@ class SummarizationService {
                 console.warn('Fallback Behavior: Classification failed, proceeding anyway'.yellow);
             } else if (classification === 'non_news') {
                 console.warn('Client Error: Non-news content detected, applying user strike'.yellow);
-                const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike(email, 'article_summary', articleContent);
+                const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike({email, violationType: 'article_summary', content: articleContent});
                 return {error: 'NON_NEWS_CONTENT', message, strikeCount, isBlocked, blockedUntil};
             } else {
                 console.log('News content verified, proceeding with summarization'.bgGreen.bold);

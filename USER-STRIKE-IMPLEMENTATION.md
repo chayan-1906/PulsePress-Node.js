@@ -29,7 +29,7 @@ This is a news aggregation app where users can search for news. To prevent misus
 
 - Cron job runs every 15 minutes
 - Check users with `strikes > 0`
-- If last `history.appliedAt` > 1 hour ago � reset strikes to 0
+- If last `history.appliedAt` > 1 hour ago reset strikes to 0
 - Uses existing `IStrikeHistoryEvent[]` in UserSchema
 
 ### 3. Technical Details ✅
@@ -63,24 +63,25 @@ This is a news aggregation app where users can search for news. To prevent misus
 - ✅ Add logging to NonNewsViolationLog collection
 - ✅ Create resetExpiredStrikes() cron function
 
-### 7. AI Enhancement Strike Implementation Status ⚠️
+### 7. AI Enhancement Strike Implementation Status ✅
 
 **ARCHITECTURE**: Strike checks implemented at **service layer** (not controller layer) for better separation of concerns.
 
-**COMPLETED**:
+**COMPLETED** (ALL 11 AI SERVICES FULLY IMPLEMENTED):
 
+- ✅ `NewsClassificationService.classifyContentWithStrikeHandling()` (Service layer implementation)
+- ✅ `SummarizationService.summarizeArticle()` (Service layer implementation)
 - ✅ `TagGenerationService.generateTags()` (Service layer implementation)
 - ✅ `SentimentAnalysisService.analyzeSentiment()` (Service layer implementation)
+- ✅ `KeyPointsExtractionService.extractKeyPoints()` (Service layer implementation)
+- ✅ `ComplexityMeterService.analyzeComplexity()` (Service layer implementation)
+- ✅ `QuestionAnswerService.generateQuestions()` (Service layer implementation)
+- ✅ `QuestionAnswerService.answerQuestion()` (Service layer implementation)
+- ✅ `GeographicExtractionService.extractLocations()` (Service layer implementation)
+- ✅ `SocialMediaCaptionService.generateCaption()` (Service layer implementation)
+- ✅ `NewsInsightsService.generateInsights()` (Service layer implementation)
 
-**REMAINING** (7 endpoints need service-layer implementation):
-
-- `extractKeyPointsController` → Update `KeyPointsExtractionService`
-- `analyzeComplexityController` → Update `ComplexityMeterService`
-- `generateQuestionsController` → Update `QuestionGenerationService`
-- `answerQuestionController` → Update `QuestionAnswerService`
-- `extractLocationsController` → Update `GeographicExtractionService`
-- `generateSocialMediaCaptionController` → Update `SocialMediaCaptionService`
-- `generateNewsInsightsController` → Update `NewsInsightsService`
+**STATUS**: 🎉 **100% COMPLETE** - All AI services now have consistent user block checking and news classification at the service layer.
 
 **IMPLEMENTATION PATTERN** (Service Layer):
 
@@ -89,36 +90,3 @@ This is a news aggregation app where users can search for news. To prevent misus
 3. Add news classification after content processing
 4. Return strike information in error responses
 5. Update controller to handle new response format
-
-**EXAMPLE SERVICE IMPLEMENTATION**:
-```typescript
-// In Service Method (e.g., KeyPointsExtractionService.extractKeyPoints)
-static async
-extractKeyPoints({email, content, url}
-:
-IKeyPointsExtractionParams
-):
-Promise < IKeyPointsExtractionResponse > {
-    // 1. Block check
-    const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock(email);
-    if(isBlocked) {
-        return {error: 'USER_BLOCKED', message: blockMessage, isBlocked, blockedUntil, blockType};
-    }
-
-    // 2. Content processing (existing logic)
-    let articleContent = content || '';
-    // ... handle URL scraping if needed ...
-
-    // 3. News classification
-    const classification = await NewsClassificationService.classifyContent(articleContent);
-    if(classification === 'non_news'
-)
-{
-    const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike(email, 'ai_enhancement', articleContent);
-    return {error: 'NON_NEWS_CONTENT', message, strikeCount, isBlocked, blockedUntil};
-}
-
-// 4. Proceed with AI processing (existing logic)
-// ... existing AI processing code ...
-}
-```

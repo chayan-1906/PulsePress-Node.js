@@ -1,14 +1,14 @@
 import "colors";
 import UserModel, {IUser} from "../models/UserSchema";
 import NonNewsViolationLogModel from "../models/NonNewsViolationLogSchema";
-import {IStrikeCheckResult, IStrikeHistoryEvent, IStrikeResult, TUserStrikeBlock} from "../types/ai";
 import {STRIKE_COOLDOWN_COUNT, STRIKE_LONG_BLOCK_DURATION, STRIKE_TEMPORARY_BLOCK_COUNT, STRIKE_TEMPORARY_BLOCK_DURATION} from "../config/config";
+import {IApplyStrikeParams, ICheckUserBlockParams, IGetUserStrikesParams, ILogNonNewsViolationParams, IStrikeCheckResult, IStrikeHistoryEvent, IStrikeResult, TUserStrikeBlock} from "../types/ai";
 
 class StrikeService {
     /**
      * Check if user is currently blocked and handle 48-hour reset
      */
-    static async checkUserBlock(email: string): Promise<IStrikeCheckResult> {
+    static async checkUserBlock({email}: ICheckUserBlockParams): Promise<IStrikeCheckResult> {
         console.log('Service: StrikeService.checkUserBlock called'.cyan.italic, {email});
 
         try {
@@ -89,7 +89,7 @@ class StrikeService {
     /**
      * Log non-news violation for admin tracking
      */
-    static async logNonNewsViolation(email: string, violationType: string, content: string): Promise<void> {
+    static async logNonNewsViolation({email, violationType, content}: ILogNonNewsViolationParams): Promise<void> {
         console.log('Service: StrikeService.logNonNewsViolation called'.cyan.italic, {email, violationType});
 
         try {
@@ -116,13 +116,13 @@ class StrikeService {
     /**
      * Apply a strike to user for non-news query
      */
-    static async applyStrike(email: string, violationType: string = 'search_query', content: string = ''): Promise<IStrikeResult> {
+    static async applyStrike({email, violationType = 'search_query', content = ''}: IApplyStrikeParams): Promise<IStrikeResult> {
         console.log('Service: StrikeService.applyStrike called'.cyan.italic, {email});
 
         try {
-            await this.logNonNewsViolation(email, violationType, content);
+            await this.logNonNewsViolation({email, violationType, content});
 
-            const blockCheck = await this.checkUserBlock(email);
+            const blockCheck = await this.checkUserBlock({email});
             const wasReset = blockCheck.wasReset || false;
 
             const user = await UserModel.findOne({email});
@@ -241,12 +241,12 @@ class StrikeService {
     /**
      * Get user's current strike information
      */
-    static async getUserStrikes(email: string): Promise<{ count: number; lastStrikeAt?: Date; blockedUntil?: Date; history?: IStrikeHistoryEvent[] } | null> {
+    static async getUserStrikes({email}: IGetUserStrikesParams): Promise<{ count: number; lastStrikeAt?: Date; blockedUntil?: Date; history?: IStrikeHistoryEvent[] } | null> {
         console.log('Service: StrikeService.getUserStrikes called'.cyan.italic, {email});
 
         try {
             // Check for reset first
-            await this.checkUserBlock(email);
+            await this.checkUserBlock({email});
 
             // Get fresh data after potential reset
             const user = await UserModel.findOne({email}, 'newsClassificationStrikes');
