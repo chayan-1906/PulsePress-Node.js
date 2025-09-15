@@ -7,7 +7,7 @@ import QuotaService from "./QuotaService";
 import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
-import {AI_SUMMARIZATION_MODELS} from "../utils/constants";
+import {AI_SUMMARIZATION_MODELS, CONTENT_LIMITS} from "../utils/constants";
 import NewsClassificationService from "./NewsClassificationService";
 import {translateText} from "../utils/serviceHelpers/translationHelpers";
 import {truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
@@ -116,7 +116,7 @@ class SummarizationService {
 
             await saveSummaryToCache(hash, finalSummary, language, style);
 
-            console.log('Article summarization completed successfully'.green.bold, {summary: finalSummary.substring(0, 50) + '...', powered_by: finalPoweredBy});
+            console.log('Article summarization completed successfully'.green.bold, {summary: finalSummary.substring(0, CONTENT_LIMITS.SUMMARY_PREVIEW_LENGTH) + '...', powered_by: finalPoweredBy});
 
             return {summary: finalSummary, powered_by: finalPoweredBy};
         } catch (error: any) {
@@ -176,7 +176,7 @@ class SummarizationService {
 
                 if (result.summary) {
                     console.log(`Summarization successful with model:`.cyan, modelName);
-                    console.log('Content summarization completed successfully'.green.bold, {summary: result.summary.substring(0, 50) + '...', model: modelName});
+                    console.log('Content summarization completed successfully'.green.bold, {summary: result.summary.substring(0, CONTENT_LIMITS.SUMMARY_PREVIEW_LENGTH) + '...', model: modelName});
                     return {...result, powered_by: modelName};
                 }
 
@@ -256,7 +256,10 @@ class SummarizationService {
             const result = await this.summarizeWithGemini(modelName, truncatedContent, style);
 
             if (result.summary) {
-                console.log('Content summarization completed successfully with reserved model'.green.bold, {summary: result.summary.substring(0, 50) + '...', model: modelName,});
+                console.log('Content summarization completed successfully with reserved model'.green.bold, {
+                    summary: result.summary.substring(0, CONTENT_LIMITS.SUMMARY_PREVIEW_LENGTH) + '...',
+                    model: modelName,
+                });
                 return {...result, powered_by: modelName};
             }
 

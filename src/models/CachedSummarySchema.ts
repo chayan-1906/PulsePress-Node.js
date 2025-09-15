@@ -1,4 +1,5 @@
 import {Document, Model, model, Schema} from "mongoose";
+import {TIME_CONSTANTS} from "../utils/constants";
 import {SUMMARIZATION_STYLES, SUPPORTED_LANGUAGES, TSummarizationStyle} from "../types/ai";
 
 export interface ICachedSummary extends Document {
@@ -38,7 +39,7 @@ const CachedSummarySchema = new Schema<ICachedSummary>({
     expiresAt: {
         type: Date,
         default: Date.now,
-        expires: 30 * 24 * 60 * 60 * 1000,    // 30 days - MongoDB TTL, MongoDB automatically deletes when expiresAt is reached
+        expires: TIME_CONSTANTS.MONTH_IN_MS,    // 30 days - MongoDB TTL, MongoDB automatically deletes when expiresAt is reached
     },
 }, {
     timestamps: true,

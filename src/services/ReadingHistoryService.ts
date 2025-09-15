@@ -20,6 +20,7 @@ import {
     ISearchReadingHistoryResponse,
     SUPPORTED_READING_HISTORY_SORTINGS,
 } from "../types/reading-history";
+import {TIME_CONSTANTS} from "../utils/constants";
 
 class ReadingHistoryService {
     /**
@@ -214,8 +215,8 @@ class ReadingHistoryService {
 
             const now = new Date();
             const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            const startOfWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-            const startOfMonth = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+            const startOfWeek = new Date(Date.now() - TIME_CONSTANTS.WEEK_IN_MS);
+            const startOfMonth = new Date(Date.now() - TIME_CONSTANTS.MONTH_IN_MS);
 
             const [totalArticles, articlesToday, articlesWeek, articlesMonth, completedArticles, readingTimeStats] = await Promise.all([
                 // total articles read ever

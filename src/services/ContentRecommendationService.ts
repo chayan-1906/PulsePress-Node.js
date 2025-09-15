@@ -1,10 +1,10 @@
 import "colors";
 import AuthService from "./AuthService";
 import NewsService from "./NewsService";
-import {RSS_SOURCES} from "../utils/constants";
 import AnalyticsService from "./AnalyticsService";
 import BookmarkModel from "../models/BookmarkSchema";
 import {sourceMap, TSupportedSource} from "../types/news";
+import {RSS_SOURCES, TIME_CONSTANTS} from "../utils/constants";
 import ReadingHistoryModel from "../models/ReadingHistorySchema";
 import UserPreferenceModel from "../models/UserPreferenceSchema";
 import {RECOMMENDATION_CACHE_DURATION} from "../config/config";
@@ -220,7 +220,7 @@ const getContentRecommendation = async ({email, pageSize = 5}: IGetContentRecomm
 
                 // Recency boost (newer articles get higher scores)
                 const articleDate = new Date(article.publishedAt || article.readAt);
-                const hoursOld = (Date.now() - articleDate.getTime()) / (1000 * 60 * 60);
+                const hoursOld = (Date.now() - articleDate.getTime()) / (TIME_CONSTANTS.HOUR_IN_MS);
                 score += Math.max(0, 24 - hoursOld) / 24;
 
                 return {

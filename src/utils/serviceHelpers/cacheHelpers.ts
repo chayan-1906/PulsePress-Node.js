@@ -1,6 +1,7 @@
 import "colors";
 import CachedQuestionAnswerModel from "../../models/CachedQuestionAnswerSchema";
 import CachedSummaryModel, {ICachedSummary} from "../../models/CachedSummarySchema";
+import {CONTENT_LIMITS} from "../constants";
 
 /**
  * Cache generated questions
@@ -56,7 +57,7 @@ const cacheAnswer = async (contentHash: string, question: string, answer: string
  * Save generated summary to cache with content hash and metadata
  */
 const saveSummaryToCache = async (contentHash: string, summary: string, language: string, style: string): Promise<ICachedSummary | null> => {
-    console.log('Service: saveSummaryToCache called'.cyan.italic, {contentHash, summary: summary.substring(0, 50) + '...', language, style});
+    console.log('Service: saveSummaryToCache called'.cyan.italic, {contentHash, summary: summary.substring(0, CONTENT_LIMITS.SUMMARY_PREVIEW_LENGTH) + '...', language, style});
 
     try {
         /*if (NODE_ENV !== 'production') {

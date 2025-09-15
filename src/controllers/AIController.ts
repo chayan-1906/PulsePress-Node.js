@@ -3,6 +3,7 @@ import {Request, Response} from "express";
 import {IAuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
 import AuthService from "../services/AuthService";
+import {CONTENT_LIMITS} from "../utils/constants";
 import NewsInsightsService from "../services/NewsInsightsService";
 import TagGenerationService from "../services/TagGenerationService";
 import SummarizationService from "../services/SummarizationService";
@@ -388,7 +389,7 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
             sentimentEmoji,
             sentimentColor,
             powered_by,
-            contentPreview: content?.substring(0, 200) + '...' || 'Content from URL',
+            contentPreview: content?.substring(0, CONTENT_LIMITS.CONTENT_PREVIEW_LENGTH) + '...' || 'Content from URL',
         }));
     } catch (error: any) {
         console.error('Controller Error: analyzeSentimentController failed'.red.bold, error);
@@ -488,7 +489,7 @@ const extractKeyPointsController = async (req: Request, res: Response) => {
             message: 'Key points have been extracted successfully 🎉',
             keyPoints,
             powered_by,
-            contentPreview: content?.substring(0, 200) + '...' || 'Content from URL',
+            contentPreview: content?.substring(0, CONTENT_LIMITS.CONTENT_PREVIEW_LENGTH) + '...' || 'Content from URL',
         }));
     } catch (error: any) {
         console.error('Controller Error: extractKeyPointsController failed'.red.bold, error);
@@ -588,7 +589,7 @@ const analyzeComplexityController = async (req: Request, res: Response) => {
             message: 'Complexity meter has been generated successfully 🎉',
             complexityMeter,
             powered_by,
-            contentPreview: content?.substring(0, 200) + '...' || 'Content from URL',
+            contentPreview: content?.substring(0, CONTENT_LIMITS.CONTENT_PREVIEW_LENGTH) + '...' || 'Content from URL',
         }));
     } catch (error: any) {
         console.error('Controller Error: analyzeComplexityController failed'.red.bold, error);
@@ -777,7 +778,7 @@ const answerQuestionController = async (req: Request, res: Response) => {
             return;
         }
 
-        console.log('Question answered successfully'.bgGreen.bold, {question: question.substring(0, 50) + '...'});
+        console.log('Question answered successfully'.bgGreen.bold, {question: question.substring(0, CONTENT_LIMITS.SUMMARY_PREVIEW_LENGTH) + '...'});
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -785,7 +786,7 @@ const answerQuestionController = async (req: Request, res: Response) => {
             question,
             answer,
             powered_by,
-            contentPreview: content.substring(0, 200) + '...',
+            contentPreview: content.substring(0, CONTENT_LIMITS.CONTENT_PREVIEW_LENGTH) + '...',
         }));
     } catch (error: any) {
         console.error('Controller Error: answerQuestionController failed'.red.bold, error);
@@ -885,7 +886,7 @@ const extractLocationsController = async (req: Request, res: Response) => {
             message: 'Geographic locations have been extracted successfully 🎉',
             locations,
             powered_by,
-            contentPreview: content?.substring(0, 200) + '...' || 'Content from URL',
+            contentPreview: content?.substring(0, CONTENT_LIMITS.CONTENT_PREVIEW_LENGTH) + '...' || 'Content from URL',
         }));
     } catch (error: any) {
         console.error('Controller Error: extractLocationsController failed'.red.bold, error);
@@ -1124,7 +1125,7 @@ const generateNewsInsightsController = async (req: Request, res: Response) => {
             stakeholderAnalysis,
             timelineContext,
             powered_by,
-            contentPreview: content?.substring(0, 200) + '...' || 'Content from URL',
+            contentPreview: content?.substring(0, CONTENT_LIMITS.CONTENT_PREVIEW_LENGTH) + '...' || 'Content from URL',
         }));
     } catch (error: any) {
         console.error('Controller Error: generateNewsInsightsController failed'.red.bold, error);

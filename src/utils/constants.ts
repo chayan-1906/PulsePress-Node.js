@@ -429,8 +429,22 @@ export const API_CONFIG = {
         FUSE_THRESHOLD: 0.4,
         MIN_QUERY_LENGTH: 3,
         // CACHE_TTL_MS: 300000,
-        CACHE_TTL_MS: 1800000, // 30 minutes (30 * 60 * 1000)
+        CACHE_TTL_MS: 1800000, // 30 minutes (30 * TIME_CONSTANTS.MIN_IN_MS)
     },
+};
+
+export const CONTENT_LIMITS = {
+    STRIKE_LOG_MAX_LENGTH: 2000,
+    SUMMARY_PREVIEW_LENGTH: 50,
+    CONTENT_PREVIEW_LENGTH: 200,
+};
+
+export const TIME_CONSTANTS = {
+    MIN_IN_MS: 60 * 1000,
+    HOUR_IN_MS: 60 * 60 * 1000,
+    DAY_IN_MS: 24 * 60 * 60 * 1000,
+    WEEK_IN_MS: 7 * 24 * 60 * 60 * 1000,
+    MONTH_IN_MS: 30 * 24 * 60 * 60 * 1000,
 };
 
 export {

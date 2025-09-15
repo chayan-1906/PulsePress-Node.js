@@ -9,6 +9,7 @@ import generateNanoIdWithAlphabet from "../utils/generateUUID";
 import AuthSessionModel, {IAuthSession} from "../models/AuthSessionSchema";
 import {generateInvalidCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {ICheckAuthStatusParams, ICheckAuthStatusResponse, IGenerateMagicLinkParams, IGenerateMagicLinkResponse, IVerifyMagicLinkParams, IVerifyMagicLinkResponse} from "../types/auth";
+import {TIME_CONSTANTS} from "../utils/constants";
 
 class MagicLinkService {
     /**
@@ -35,7 +36,7 @@ class MagicLinkService {
 
             const token = generateNanoIdWithAlphabet();
             console.log('Magic link token generated'.cyan, {token: token.substring(0, 10) + '...'});
-            const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+            const expiresAt = new Date(Date.now() + 15 * TIME_CONSTANTS.MIN_IN_MS); // 15 minutes
 
             console.log('Database: Creating magic link record'.cyan);
             await MagicLinkModel.create({email, token, expiresAt});

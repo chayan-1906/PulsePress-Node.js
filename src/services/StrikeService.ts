@@ -1,4 +1,5 @@
 import "colors";
+import {CONTENT_LIMITS, TIME_CONSTANTS} from "../utils/constants";
 import UserModel, {IUser} from "../models/UserSchema";
 import NonNewsViolationLogModel from "../models/NonNewsViolationLogSchema";
 import {STRIKE_COOLDOWN_COUNT, STRIKE_LONG_BLOCK_DURATION, STRIKE_TEMPORARY_BLOCK_COUNT, STRIKE_TEMPORARY_BLOCK_DURATION} from "../config/config";
@@ -26,7 +27,7 @@ class StrikeService {
 
             // 48-HOUR RESET LOGIC
             if (strikes.lastStrikeAt) {
-                const hoursSinceLastStrike = (now.getTime() - strikes.lastStrikeAt.getTime()) / (1000 * 60 * 60);
+                const hoursSinceLastStrike = (now.getTime() - strikes.lastStrikeAt.getTime()) / (TIME_CONSTANTS.HOUR_IN_MS);
 
                 if (hoursSinceLastStrike >= Number.parseInt(STRIKE_LONG_BLOCK_DURATION!) * 24) {
                     console.log(`48-hour reset triggered for ${email}, clearing strikes from ${strikes.count} to 0`.cyan);
@@ -103,7 +104,7 @@ class StrikeService {
                 userExternalId: user.userExternalId,
                 email: user.email,
                 violationType,
-                content: content.substring(0, 2000),
+                content: content.substring(0, CONTENT_LIMITS.STRIKE_LOG_MAX_LENGTH),
                 violatedAt: new Date(),
             });
 
@@ -156,7 +157,7 @@ class StrikeService {
             } else if (newStrikeCount === tempBlockCount) {
                 // Strike 3: 15-30 min cooldown
                 const cooldownMinutes = Number.parseInt(STRIKE_TEMPORARY_BLOCK_DURATION!);
-                blockedUntil = new Date(now.getTime() + cooldownMinutes * 60 * 1000);
+                blockedUntil = new Date(now.getTime() + cooldownMinutes * TIME_CONSTANTS.MIN_IN_MS);
                 blockType = 'cooldown';
                 isBlocked = true;
                 reason = 'Non-news query - Cooldown applied';
@@ -169,7 +170,7 @@ class StrikeService {
             } else if (newStrikeCount > tempBlockCount) {
                 // Strike 4+: 2-day block
                 const blockDays = Number.parseInt(STRIKE_LONG_BLOCK_DURATION!); // 2 days
-                blockedUntil = new Date(now.getTime() + blockDays * 24 * 60 * 60 * 1000);
+                blockedUntil = new Date(now.getTime() + blockDays * TIME_CONSTANTS.DAY_IN_MS);
                 blockType = 'long_block';
                 isBlocked = true;
                 reason = 'Non-news query - Long block applied';
@@ -271,7 +272,7 @@ class StrikeService {
                 return false;
             }
 
-            const hoursSinceLastStrike = (Date.now() - user.newsClassificationStrikes.lastStrikeAt.getTime()) / (1000 * 60 * 60);
+            const hoursSinceLastStrike = (Date.now() - user.newsClassificationStrikes.lastStrikeAt.getTime()) / (TIME_CONSTANTS.HOUR_IN_MS);
 
             if (hoursSinceLastStrike >= Number.parseInt(STRIKE_LONG_BLOCK_DURATION!) * 24) {
                 console.log(`Auto-reset conditions met for ${email} (${hoursSinceLastStrike.toFixed(1)} hours since last strike)`.cyan);
@@ -293,7 +294,7 @@ class StrikeService {
         console.log('Service: StrikeService.resetExpiredStrikes called'.cyan.italic);
 
         try {
-            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+            const oneHourAgo = new Date(Date.now() - TIME_CONSTANTS.HOUR_IN_MS);
 
             const usersToReset: IUser[] = await UserModel.find({
                 'newsClassificationStrikes.count': {$gt: 0},
@@ -343,7 +344,7 @@ class StrikeService {
         console.log('Service: StrikeService.formatRemainingTime called'.cyan.italic, {blockedUntil, now});
 
         const remainingMs = blockedUntil.getTime() - now.getTime();
-        const remainingMinutes = Math.ceil(remainingMs / (1000 * 60));
+        const remainingMinutes = Math.ceil(remainingMs / (TIME_CONSTANTS.MIN_IN_MS));
 
         if (remainingMinutes > 60) {
             const hours = Math.floor(remainingMinutes / 60);

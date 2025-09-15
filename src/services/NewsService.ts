@@ -236,7 +236,7 @@ class NewsService {
             let processedQuery = q;
 
             if (q && q.trim()) {
-                console.log(`Service: fetchNYTimesNews processing query: "${q}"`.cyan);
+                console.log(`Service: fetchNewYorkTimesNews processing query: "${q}"`.cyan);
 
                 processedQuery = simplifySearchQuery(q.trim());
 
@@ -285,7 +285,7 @@ class NewsService {
 
             return result;
         } catch (error: any) {
-            console.error('Service Error: NewsService.fetchNYTimesNews failed:'.red.bold, error.message);
+            console.error('Service Error: NewsService.fetchNewYorkTimesNews failed:'.red.bold, error.message);
             return {articles: [], totalResults: 0};
         }
     }

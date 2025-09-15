@@ -1,4 +1,5 @@
 import {Document, Model, model, Schema} from "mongoose";
+import {TIME_CONSTANTS} from "../utils/constants";
 
 export interface ICachedQuestionAnswer extends Document {
     contentHash: string;
@@ -31,8 +32,8 @@ const CachedQuestionAnswerSchema = new Schema<ICachedQuestionAnswer>({
     expiresAt: {
         type: Date,
         default: Date.now,
-        // expires: 7 * 24 * 60 * 60 * 1000,    // 7 days - MongoDB TTL, MongoDB automatically deletes when expiresAt is reached
-        expires: 30 * 24 * 60 * 60 * 1000,    // 30 days - MongoDB TTL, MongoDB automatically deletes when expiresAt is reached
+        // expires: TIME_CONSTANTS.WEEK_IN_MS,    // 7 days - MongoDB TTL, MongoDB automatically deletes when expiresAt is reached
+        expires: TIME_CONSTANTS.MONTH_IN_MS,    // 30 days - MongoDB TTL, MongoDB automatically deletes when expiresAt is reached
     },
 }, {
     timestamps: true,

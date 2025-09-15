@@ -1,4 +1,5 @@
 import "colors";
+import {TIME_CONSTANTS} from "../constants";
 import {IStrikeHistoryEvent, IUserStrikeHistory} from "../../types/ai";
 import {STRIKE_COOLDOWN_COUNT, STRIKE_LONG_BLOCK_DURATION, STRIKE_TEMPORARY_BLOCK_COUNT, STRIKE_TEMPORARY_BLOCK_DURATION} from "../../config/config";
 
@@ -12,11 +13,11 @@ const calculateTimeUntilReset = (lastStrikeAt?: Date): string | undefined => {
         return undefined;
     }
 
-    const resetTime = new Date(lastStrikeAt.getTime() + (48 * 60 * 60 * 1000));
+    const resetTime = new Date(lastStrikeAt.getTime() + (2 * TIME_CONSTANTS.DAY_IN_MS));
     const now = new Date();
 
     if (resetTime > now) {
-        const hoursLeft = Math.ceil((resetTime.getTime() - now.getTime()) / (1000 * 60 * 60));
+        const hoursLeft = Math.ceil((resetTime.getTime() - now.getTime()) / (TIME_CONSTANTS.HOUR_IN_MS));
         if (hoursLeft > 24) {
             const daysLeft = Math.floor(hoursLeft / 24);
             const remainingHours = hoursLeft % 24;
@@ -41,7 +42,7 @@ const calculateBlockTimeRemaining = (blockedUntil?: Date): string | undefined =>
 
     const now = new Date();
     const remainingMs = blockedUntil.getTime() - now.getTime();
-    const remainingMinutes = Math.ceil(remainingMs / (1000 * 60));
+    const remainingMinutes = Math.ceil(remainingMs / (TIME_CONSTANTS.MIN_IN_MS));
 
     if (remainingMinutes > 60) {
         const hours = Math.floor(remainingMinutes / 60);
