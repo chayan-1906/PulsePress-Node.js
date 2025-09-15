@@ -58,11 +58,26 @@ const toggleBookmarkController = async (req: Request, res: Response) => {
             if (error === generateMissingCode('email')) {
                 errorMsg = 'Email is missing';
                 statusCode = 400;
+            } else if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            } else if (error === generateMissingCode('articleUrl')) {
+                errorMsg = 'Article URL is missing';
+                statusCode = 400;
+            } else if (error === generateMissingCode('title')) {
+                errorMsg = 'Title is missing';
+                statusCode = 400;
+            } else if (error === generateMissingCode('source')) {
+                errorMsg = 'Source is missing';
+                statusCode = 400;
+            } else if (error === generateMissingCode('published_at')) {
+                errorMsg = 'Published date is missing';
+                statusCode = 400;
             }
 
             res.status(statusCode).send(new ApiResponse({
                 success: false,
-                errorCode: error === generateMissingCode('email') ? error : 'TOGGLE_BOOKMARK_FAILED',
+                errorCode: error,
                 errorMsg,
             }));
             return;
@@ -132,6 +147,9 @@ const isBookmarkedController = async (req: Request, res: Response) => {
             } else if (error === generateNotFoundCode('user')) {
                 errorMsg = 'User not found';
                 statusCode = 404;
+            } else if (error === generateMissingCode('articleUrl')) {
+                errorMsg = 'Article URL is missing';
+                statusCode = 400;
             }
 
             res.status(statusCode).send(new ApiResponse({
