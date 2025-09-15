@@ -15,16 +15,7 @@ const getSourceAnalyticsController = async (req: Request, res: Response) => {
             limitNumber = Number(limit);
         }
 
-        const {sourceAnalytics, totalSources, error} = await AnalyticsService.getSourceAnalytics({limit: limitNumber, sortBy, sortOrder});
-
-        if (error) {
-            res.status(500).send(new ApiResponse({
-                success: false,
-                errorCode: 'GET_SOURCE_ANALYTICS_FAILED',
-                errorMsg: 'Failed to get source analytics',
-            }));
-            return;
-        }
+        const {sourceAnalytics, totalSources} = await AnalyticsService.getSourceAnalytics({limit: limitNumber, sortBy, sortOrder});
 
         console.log('SUCCESS: Source analytics fetched'.bgGreen.bold, {totalSources});
 
@@ -58,16 +49,7 @@ const getTopPerformingSourcesController = async (req: Request, res: Response) =>
             minViewsNumber = Number(minViews);
         }
 
-        const {topSources, totalSources, error} = await AnalyticsService.getTopPerformingSources({limit: limitNumber, minViews: minViewsNumber});
-
-        if (error) {
-            res.status(500).send(new ApiResponse({
-                success: false,
-                errorCode: 'GET_TOP_SOURCES_FAILED',
-                errorMsg: 'Failed to get top performing sources',
-            }));
-            return;
-        }
+        const {topSources, totalSources} = await AnalyticsService.getTopPerformingSources({limit: limitNumber, minViews: minViewsNumber});
 
         console.log('SUCCESS: Top performing sources fetched'.bgGreen.bold, {totalSources});
 

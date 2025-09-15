@@ -84,6 +84,15 @@ const modifyUserPreferenceController = async (req: Request, res: Response) => {
             } else if (error === generateNotFoundCode('user')) {
                 errorMsg = 'User not found';
                 statusCode = 404;
+            } else if (error === generateInvalidCode('preferred_categories')) {
+                errorMsg = 'Invalid preferred categories';
+                statusCode = 400;
+            } else if (error === generateInvalidCode('preferred_sources')) {
+                errorMsg = 'Invalid preferred sources';
+                statusCode = 400;
+            } else if (error === generateInvalidCode('news_languages')) {
+                errorMsg = 'Invalid news languages';
+                statusCode = 400;
             } else if (error === 'MODIFY_USER_PREFERENCE_FAILED') {
                 errorMsg = 'Failed to modify user preference';
                 statusCode = 500;
