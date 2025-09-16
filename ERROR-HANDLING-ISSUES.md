@@ -295,20 +295,69 @@ if (error) {
 - **getSourceAnalyticsController** - Missing comprehensive error handling ✅
 - **getTopPerformingSourcesController** - Missing comprehensive error handling ✅
 
-### **ISSUES 7-12: Various Other Controllers**
+### **ISSUES 7-12: Additional Controllers Fixed** ✅
 
-- Similar patterns of missing error code handling across remaining controller methods
+#### **ISSUE 7: NewsController.fetchEnhancementStatusController Missing Error Handling** ✅
+
+- **Location**: `src/controllers/NewsController.ts:501`
+- **Service**: `ArticleEnhancementService.getEnhancementStatusByIds`
+- **Missing Error Codes**: 2 error codes added
+    * `generateMissingCode('content')`, `'AI_ENHANCEMENT_FAILED'`
+
+#### **ISSUE 8: NewsController.fetchNewYorkTimesNewsController Missing Error Handling** ✅
+
+- **Location**: `src/controllers/NewsController.ts:156`
+- **Service**: `NewsService.fetchNewYorkTimesNews`
+- **Missing Error Codes**: 1 error code added
+    * `generateInvalidCode('nytimes_section')`
+
+#### **ISSUE 9: NewsController.fetchNewYorkTimesTopStoriesController Missing Error Handling** ✅
+
+- **Location**: `src/controllers/NewsController.ts:207`
+- **Service**: `NewsService.fetchNewYorkTimesTopStories`
+- **Missing Error Codes**: 1 error code added
+    * `generateInvalidCode('nytimes_section')`
+
+#### **ISSUE 10: AuthController.registerUserController Missing Error Handling** ✅
+
+- **Location**: `src/controllers/AuthController.ts:64`
+- **Service**: `AuthService.registerUser`
+- **Missing Error Codes**: 3 error codes added
+    * `generateMissingCode('name', 'password', 'confirm_password')`
+
+#### **ISSUE 11: AuthController.refreshTokenController Missing Error Handling** ✅
+
+- **Location**: `src/controllers/AuthController.ts:273`
+- **Service**: `AuthService.refreshToken`
+- **Missing Error Codes**: 2 error codes added
+    * `generateMissingCode('refresh_token')`, `generateNotFoundCode('user')`
+
+#### **ISSUE 12: AuthController.verifyMagicLinkController Missing Error Handling** ✅
+
+- **Location**: `src/controllers/AuthController.ts:409`
+- **Service**: `MagicLinkService.verifyMagicLink`
+- **Missing Error Codes**: 1 error code added
+    * `generateInvalidCode('magic_link')`
 
 ---
 
 ## **SUMMARY**
 
-**Total Missing Error Handling Cases: 12**
+**Total Missing Error Handling Cases: 18** (originally estimated 12, actual analysis found 6 more)
 
-1. **BookmarkService**: 6 missing error codes across 2 controller methods
-2. **ReadingHistoryService**: 7 missing error codes across 2 controller methods
-3. **UserPreferenceService**: 2 missing error codes across 2 controller methods
-4. **AnalyticsService**: 1 potential missing error handling case
+1. **BookmarkService**: 6 missing error codes across 2 controller methods ✅
+2. **ReadingHistoryService**: 7 missing error codes across 2 controller methods ✅
+3. **UserPreferenceService**: 3 missing error codes across 1 controller method ✅
+4. **AnalyticsService**: 2 incorrect error handling patterns fixed ✅
+5. **NewsService**: 4 missing error codes across 3 controller methods ✅
+6. **AuthService**: 6 missing error codes across 3 controller methods ✅
+7. **MagicLinkService**: 1 missing error code across 1 controller method ✅
+
+**Controllers Verified as Complete:**
+
+- **ContentRecommendationController** ✅ - Already handling all error codes correctly
+- **UserStrikeController** ✅ - Already handling all error codes correctly
+- **HealthController** ✅ - Uses status-based pattern, working correctly
 
 ## **IMPLEMENTATION APPROACH**
 

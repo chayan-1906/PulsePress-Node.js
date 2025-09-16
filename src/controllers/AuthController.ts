@@ -67,7 +67,16 @@ const registerUserController = async (req: Request, res: Response) => {
             let errorMsg = 'Failed to register user';
             let statusCode = 500;
 
-            if (error === generateInvalidCode('password')) {
+            if (error === generateMissingCode('name')) {
+                errorMsg = 'Name is missing';
+                statusCode = 400;
+            } else if (error === generateMissingCode('password')) {
+                errorMsg = 'Password is missing';
+                statusCode = 400;
+            } else if (error === generateMissingCode('confirm_password')) {
+                errorMsg = 'Confirm password is missing';
+                statusCode = 400;
+            } else if (error === generateInvalidCode('password')) {
                 errorMsg = 'Password must contain lowercase, uppercase, special character, minimum 6 characters';
                 statusCode = 400;
             } else if (error === 'PASSWORD_MISMATCH') {
@@ -255,13 +264,34 @@ const refreshTokenController = async (req: Request, res: Response) => {
             console.warn('Client Error: Missing refresh token parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
-                errorCode: generateMissingCode('refreshToken'),
+                errorCode: generateMissingCode('refresh_token'),
                 errorMsg: 'Refresh token is missing',
             }));
             return;
         }
 
-        const {accessToken} = await AuthService.refreshToken({refreshToken: rawRefreshToken});
+        const {accessToken, error} = await AuthService.refreshToken({refreshToken: rawRefreshToken});
+
+        if (error) {
+            let errorMsg = 'Failed to refresh token';
+            let statusCode = 500;
+
+            if (error === generateMissingCode('refresh_token')) {
+                errorMsg = 'Refresh token is missing';
+                statusCode = 400;
+            } else if (error === generateNotFoundCode('user')) {
+                errorMsg = 'User not found';
+                statusCode = 404;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
+                success: false,
+                errorCode: error,
+                errorMsg,
+            }));
+            return;
+        }
+
         console.log('SUCCESS: Access token refreshed'.bgGreen.bold);
 
         res.status(200).send(new ApiResponse({
@@ -379,7 +409,11 @@ const verifyMagicLinkController = async (req: Request, res: Response) => {
         const {user, accessToken, refreshToken, error} = await MagicLinkService.verifyMagicLink({token});
 
         if (error) {
-            if (error === 'CREATE_USER_PREFERENCE_FAILED') {
+            if (error === generateInvalidCode('magic_link')) {
+                console.warn('Client Error: Invalid magic link'.yellow, {error});
+                res.send(verifyTokenErrorHTML);
+                return;
+            } else if (error === 'CREATE_USER_PREFERENCE_FAILED') {
                 console.warn('Client Error: User preference creation failed during registration'.yellow, {error});
                 res.status(400).send(new ApiResponse({
                     success: false,

@@ -212,7 +212,7 @@ class AuthService {
 
         try {
             if (!rawRefreshToken) {
-                return {error: generateMissingCode('refreshToken')};
+                return {error: generateMissingCode('refresh_token')};
             }
 
             const decoded = jwt.verify(rawRefreshToken, REFRESH_TOKEN_SECRET!) as IAuthRequest;
