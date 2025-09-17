@@ -155,6 +155,23 @@ const fetchNewYorkTimesNewsController = async (req: Request, res: Response) => {
 
         const nytResults = await NewsService.fetchNewYorkTimesNews({q, section, sort, fromDate, toDate, pageSize: pageSizeNumber, page: pageNumber});
 
+        if (nytResults.error) {
+            let errorMsg = 'Failed to fetch New York Times news';
+            let statusCode = 500;
+
+            if (nytResults.error === generateInvalidCode('nytimes_section')) {
+                errorMsg = 'Invalid New York Times section';
+                statusCode = 400;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
+                success: false,
+                errorCode: nytResults.error,
+                errorMsg,
+            }));
+            return;
+        }
+
         res.status(200).send(new ApiResponse({
             success: true,
             message: 'NYTimes news articles have been found 🎉',
@@ -188,6 +205,23 @@ const fetchNewYorkTimesTopStoriesController = async (req: Request, res: Response
         }
 
         const nytTopStories = await NewsService.fetchNewYorkTimesTopStories({section});
+
+        if (nytTopStories.error) {
+            let errorMsg = 'Failed to fetch New York Times top stories';
+            let statusCode = 500;
+
+            if (nytTopStories.error === generateInvalidCode('nytimes_section')) {
+                errorMsg = 'Invalid New York Times section';
+                statusCode = 400;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
+                success: false,
+                errorCode: nytTopStories.error,
+                errorMsg,
+            }));
+            return;
+        }
 
         res.status(200).send(new ApiResponse({
             success: true,
@@ -508,6 +542,12 @@ const fetchMultiSourceNewsEnhancementStatusController = async (req: Request, res
             if (error === generateNotFoundCode('user')) {
                 errorMsg = 'User not found';
                 statusCode = 404;
+            } else if (error === generateMissingCode('content')) {
+                errorMsg = 'Content is missing';
+                statusCode = 400;
+            } else if (error === 'AI_ENHANCEMENT_FAILED') {
+                errorMsg = 'AI enhancement failed';
+                statusCode = 500;
             }
 
             res.status(statusCode).send(new ApiResponse({

@@ -79,6 +79,24 @@ const modifyReadingHistoryController = async (req: Request, res: Response) => {
             } else if (error === generateNotFoundCode('user')) {
                 errorMsg = 'User not found';
                 statusCode = 404;
+            } else if (error === generateMissingCode('title')) {
+                errorMsg = 'Title is missing';
+                statusCode = 400;
+            } else if (error === generateMissingCode('article_url')) {
+                errorMsg = 'Article URL is missing';
+                statusCode = 400;
+            } else if (error === generateMissingCode('source')) {
+                errorMsg = 'Source is missing';
+                statusCode = 400;
+            } else if (error === generateMissingCode('read_at')) {
+                errorMsg = 'Read timestamp is missing';
+                statusCode = 400;
+            } else if (error === generateMissingCode('completed')) {
+                errorMsg = 'Completion status is missing';
+                statusCode = 400;
+            } else if (error === generateMissingCode('published_at')) {
+                errorMsg = 'Published date is missing';
+                statusCode = 400;
             }
 
             res.status(statusCode).send(new ApiResponse({
@@ -199,6 +217,9 @@ const completeArticleController = async (req: Request, res: Response) => {
             } else if (error === generateNotFoundCode('user')) {
                 errorMsg = 'User not found';
                 statusCode = 404;
+            } else if (error === generateMissingCode('article_url')) {
+                errorMsg = 'Article URL is missing';
+                statusCode = 400;
             } else if (error === 'ARTICLE_NOT_IN_HISTORY') {
                 errorMsg = 'Article is not present in reading history';
                 statusCode = 404;
