@@ -119,7 +119,6 @@ class ArticleEnhancementService {
                         continue;
                     }
 
-                    // Use the selected model from quota system
                     const selectedModel = quotaResult.selectedModel;
 
                     const aiResult: ICombinedAIResponse = await this.aiEnhanceArticle({
