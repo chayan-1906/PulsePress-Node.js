@@ -14,6 +14,7 @@ import {mergeEnhancementsWithArticles} from "../utils/serviceHelpers/articleConv
 import {getSentimentColor, getSentimentEmoji} from "../utils/serviceHelpers/sentimentHelpers";
 import ArticleEnhancementModel, {IArticleEnhancement} from "../models/ArticleEnhancementSchema";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
+import {updateArticleIdsProcessingStatus, updateArticlesProcessingStatus} from "../utils/serviceHelpers/articleEnhancementHelpers";
 import {
     ICombinedAIParams,
     ICombinedAIResponse,
@@ -42,15 +43,18 @@ class ArticleEnhancementService {
                 const {user} = await AuthService.getUserByEmail({email});
                 const {isBlocked} = await StrikeService.checkUserBlock({email});
                 if (!user || isBlocked) {
-                    console.warn('Service Warning: User not found - no AI enhancements'.yellow);
+                    console.warn('Service Warning: User not found or blocked - cancelling enhancements'.yellow);
+                    await updateArticlesProcessingStatus({articles, status: 'cancelled'});
                     return;
                 }
             } catch (error: any) {
                 console.error('Service Error: User verification failed'.red.bold, error);
+                await updateArticlesProcessingStatus({articles, status: 'failed'});
                 return;
             }
         } else {
-            console.warn('Service Warning: No user email provided - no AI enhancements'.yellow);
+            console.warn('Service Warning: No user email provided - cancelling enhancements'.yellow);
+            await updateArticlesProcessingStatus({articles, status: 'cancelled'});
             return;
         }
 
@@ -58,17 +62,7 @@ class ArticleEnhancementService {
 
         if (batchInfo.maxProcessable === 0) {
             console.warn('Client Error: Insufficient quota for article enhancement - 0 articles can be processed'.yellow);
-            const articleIds = articles.map((article: IArticle) => generateArticleId({article}));
-            for (const articleId of articleIds) {
-                await ArticleEnhancementModel.findOneAndUpdate(
-                    {articleId},
-                    {
-                        url: articles.find(a => generateArticleId({article: a}) === articleId)?.url,
-                        processingStatus: 'failed',
-                    },
-                    {upsert: true},
-                );
-            }
+            await updateArticlesProcessingStatus({articles, status: 'failed'});
             return;
         }
 
@@ -240,14 +234,17 @@ class ArticleEnhancementService {
 
         const completedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'completed').length;
         const failedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'failed').length;
-        const processedCount = completedCount + failedCount;
+        const cancelledCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'cancelled').length;
+        const processedCount = completedCount + failedCount + cancelledCount;
 
         const progress = articles.length > 0 ? Math.round((processedCount / articles.length) * 100) : 0;
 
         if (hasActiveJobs || processedCount < articles.length) {
             return {status: 'processing', progress};
         } else {
-            if (completedCount > 0) {
+            if (cancelledCount === articles.length) {
+                return {status: 'cancelled', progress: 100};
+            } else if (completedCount > 0) {
                 return {status: 'complete', progress: processedCount / articles.length * 100};
             } else {
                 return {status: 'failed', progress: processedCount / articles.length * 100};
@@ -264,9 +261,17 @@ class ArticleEnhancementService {
         try {
             if (email) {
                 const {user} = await AuthService.getUserByEmail({email});
+                const {isBlocked} = await StrikeService.checkUserBlock({email});
                 if (!user) {
                     return {error: generateNotFoundCode('user')};
                 }
+                if (isBlocked) {
+                    await updateArticleIdsProcessingStatus({articleIds, status: 'cancelled'});
+                    return {status: 'cancelled', progress: 100, articles: []};
+                }
+            } else {
+                await updateArticleIdsProcessingStatus({articleIds, status: 'cancelled'});
+                return {status: 'cancelled', progress: 100, articles: []};
             }
 
             const hasActiveJobs = articleIds.some((id: string) => this.activeJobs.has(id));
@@ -277,7 +282,8 @@ class ArticleEnhancementService {
 
             const completedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'completed').length;
             const failedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'failed').length;
-            const processedCount = completedCount + failedCount;
+            const cancelledCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'cancelled').length;
+            const processedCount = completedCount + failedCount + cancelledCount;
 
             const progress = articleIds.length > 0 ? Math.round((processedCount / articleIds.length) * 100) : 0;
 
@@ -298,7 +304,9 @@ class ArticleEnhancementService {
             let status: TEnhancementStatus = 'processing';
             console.log('hasActiveJobs:'.cyan, 'processedCount:'.cyan, processedCount, 'articleIds.length:'.cyan, articleIds.length);
             if (!hasActiveJobs && processedCount >= articleIds.length) {
-                if (completedCount > 0) {
+                if (cancelledCount === articleIds.length) {
+                    status = 'cancelled';
+                } else if (completedCount > 0) {
                     status = 'complete';
                 } else {
                     status = 'failed';
