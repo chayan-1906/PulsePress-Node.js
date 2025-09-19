@@ -24,10 +24,10 @@ export type TCountry = keyof typeof COUNTRY_KEYWORDS;
 export const ARTICLE_COMPLEXITIES = ['easy', 'medium', 'hard'];
 export type TArticleComplexities = typeof ARTICLE_COMPLEXITIES[number];
 
-export const PROCESSING_STATUSES = ['pending', 'completed', 'failed'];
+export const PROCESSING_STATUSES = ['pending', 'completed', 'failed', 'cancelled'];
 export type TProcessingStatus = typeof PROCESSING_STATUSES[number];
 
-export const ENHANCEMENT_STATUSES = ['processing', 'complete', 'failed'];
+export const ENHANCEMENT_STATUSES = ['processing', 'complete', 'failed', 'cancelled'];
 export type TEnhancementStatus = typeof ENHANCEMENT_STATUSES[number];
 
 
