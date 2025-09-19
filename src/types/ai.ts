@@ -495,14 +495,14 @@ export interface INewsInsightsParams {
     content?: string;
 }
 
-export interface ICombinedAIParams {
-    content: string;
-    tasks: TAIArticleEnhancement[];
-    selectedModel?: string;
+export interface UpdateArticlesProcessingStatusParams {
+    articles: IArticle[];
+    status: 'cancelled' | 'failed';
 }
 
-export interface IGetProcessingStatusParams {
-    articles: IArticle[];
+export interface UpdateArticleIdsProcessingStatusParams {
+    articleIds: string[];
+    status: 'cancelled' | 'failed';
 }
 
 export interface IEnhanceArticlesParams {
@@ -511,6 +511,10 @@ export interface IEnhanceArticlesParams {
 }
 
 export interface IGetEnhancementForArticlesParams {
+    articles: IArticle[];
+}
+
+export interface IGetProcessingStatusParams {
     articles: IArticle[];
 }
 
@@ -524,6 +528,12 @@ export interface IMergeEnhancementsWithArticlesParams {
     enhancements: {
         [articleId: string]: IArticleEnhancement;
     };
+}
+
+export interface ICombinedAIParams {
+    content: string;
+    tasks: TAIArticleEnhancement[];
+    selectedModel?: string;
 }
 
 export interface IGetUserStrikeStatusParams {

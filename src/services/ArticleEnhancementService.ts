@@ -14,6 +14,7 @@ import {mergeEnhancementsWithArticles} from "../utils/serviceHelpers/articleConv
 import {getSentimentColor, getSentimentEmoji} from "../utils/serviceHelpers/sentimentHelpers";
 import ArticleEnhancementModel, {IArticleEnhancement} from "../models/ArticleEnhancementSchema";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
+import {updateArticleIdsProcessingStatus, updateArticlesProcessingStatus} from "../utils/serviceHelpers/articleEnhancementHelpers";
 import {
     ICombinedAIParams,
     ICombinedAIResponse,
@@ -43,47 +44,17 @@ class ArticleEnhancementService {
                 const {isBlocked} = await StrikeService.checkUserBlock({email});
                 if (!user || isBlocked) {
                     console.warn('Service Warning: User not found or blocked - cancelling enhancements'.yellow);
-                    const articleIds = articles.map((article: IArticle) => generateArticleId({article}));
-                    for (const articleId of articleIds) {
-                        await ArticleEnhancementModel.findOneAndUpdate(
-                            {articleId},
-                            {
-                                url: articles.find(a => generateArticleId({article: a}) === articleId)?.url,
-                                processingStatus: 'cancelled',
-                            },
-                            {upsert: true},
-                        );
-                    }
+                    await updateArticlesProcessingStatus({articles, status: 'cancelled'});
                     return;
                 }
             } catch (error: any) {
                 console.error('Service Error: User verification failed'.red.bold, error);
-                const articleIds = articles.map((article: IArticle) => generateArticleId({article}));
-                for (const articleId of articleIds) {
-                    await ArticleEnhancementModel.findOneAndUpdate(
-                        {articleId},
-                        {
-                            url: articles.find(a => generateArticleId({article: a}) === articleId)?.url,
-                            processingStatus: 'failed',
-                        },
-                        {upsert: true},
-                    );
-                }
+                await updateArticlesProcessingStatus({articles, status: 'failed'});
                 return;
             }
         } else {
             console.warn('Service Warning: No user email provided - cancelling enhancements'.yellow);
-            const articleIds = articles.map((article: IArticle) => generateArticleId({article}));
-            for (const articleId of articleIds) {
-                await ArticleEnhancementModel.findOneAndUpdate(
-                    {articleId},
-                    {
-                        url: articles.find(a => generateArticleId({article: a}) === articleId)?.url,
-                        processingStatus: 'cancelled',
-                    },
-                    {upsert: true},
-                );
-            }
+            await updateArticlesProcessingStatus({articles, status: 'cancelled'});
             return;
         }
 
@@ -91,17 +62,7 @@ class ArticleEnhancementService {
 
         if (batchInfo.maxProcessable === 0) {
             console.warn('Client Error: Insufficient quota for article enhancement - 0 articles can be processed'.yellow);
-            const articleIds = articles.map((article: IArticle) => generateArticleId({article}));
-            for (const articleId of articleIds) {
-                await ArticleEnhancementModel.findOneAndUpdate(
-                    {articleId},
-                    {
-                        url: articles.find(a => generateArticleId({article: a}) === articleId)?.url,
-                        processingStatus: 'failed',
-                    },
-                    {upsert: true},
-                );
-            }
+            await updateArticlesProcessingStatus({articles, status: 'failed'});
             return;
         }
 
@@ -305,23 +266,11 @@ class ArticleEnhancementService {
                     return {error: generateNotFoundCode('user')};
                 }
                 if (isBlocked) {
-                    for (const articleId of articleIds) {
-                        await ArticleEnhancementModel.findOneAndUpdate(
-                            {articleId},
-                            {processingStatus: 'cancelled'},
-                            {upsert: true},
-                        );
-                    }
+                    await updateArticleIdsProcessingStatus({articleIds, status: 'cancelled'});
                     return {status: 'cancelled', progress: 100, articles: []};
                 }
             } else {
-                for (const articleId of articleIds) {
-                    await ArticleEnhancementModel.findOneAndUpdate(
-                        {articleId},
-                        {processingStatus: 'cancelled'},
-                        {upsert: true},
-                    );
-                }
+                await updateArticleIdsProcessingStatus({articleIds, status: 'cancelled'});
                 return {status: 'cancelled', progress: 100, articles: []};
             }
 
