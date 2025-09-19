@@ -1,7 +1,12 @@
 import "colors";
+import {IArticle} from "../../types/news";
+import {CONTENT_LIMITS} from "../constants";
+import {generateArticleId} from "../generateArticleId";
+import ArticleEnhancementModel from "../../models/ArticleEnhancementSchema";
 import CachedQuestionAnswerModel from "../../models/CachedQuestionAnswerSchema";
 import CachedSummaryModel, {ICachedSummary} from "../../models/CachedSummarySchema";
-import {CONTENT_LIMITS} from "../constants";
+import CachedArticleEnhancementModel, {ICachedArticleEnhancement} from "../../models/CachedArticleEnhancementSchema";
+import {IBasicEnhancementsParams, IUpdateArticleIdsProcessingStatusParams, IUpdateArticlesProcessingStatusParams, TBasicEnhancementTypes} from "../../types/ai";
 
 /**
  * Cache generated questions
@@ -95,4 +100,122 @@ const getCachedSummary = async (contentHash: string): Promise<ICachedSummary | n
     }
 }
 
-export {cacheQuestions, cacheAnswer, saveSummaryToCache, getCachedSummary};
+/**
+ * Helper function to update processing status for multiple articles
+ */
+const updateArticlesProcessingStatus = async ({articles, status}: IUpdateArticlesProcessingStatusParams): Promise<void> => {
+    const articleIds = articles.map((article: IArticle) => generateArticleId({article}));
+    for (const articleId of articleIds) {
+        await ArticleEnhancementModel.findOneAndUpdate(
+            {articleId},
+            {
+                url: articles.find(a => generateArticleId({article: a}) === articleId)?.url,
+                processingStatus: status,
+            },
+            {upsert: true},
+        );
+    }
+}
+
+/**
+ * Helper function to update processing status for multiple article IDs
+ */
+const updateArticleIdsProcessingStatus = async ({articleIds, status}: IUpdateArticleIdsProcessingStatusParams): Promise<void> => {
+    for (const articleId of articleIds) {
+        await ArticleEnhancementModel.findOneAndUpdate(
+            {articleId},
+            {processingStatus: status},
+            {upsert: true},
+        );
+    }
+}
+
+/**
+ * Get cached article enhancements by content hash
+ */
+const getCachedArticleEnhancements = async (contentHash: string): Promise<ICachedArticleEnhancement | null> => {
+    console.log('Service: getCachedArticleEnhancements called'.cyan.italic, {contentHash});
+
+    try {
+        const cachedEnhancements = await CachedArticleEnhancementModel.findOne({contentHash});
+        console.log('Cache lookup result:'.cyan, cachedEnhancements ? 'Found' : 'Not found');
+        return cachedEnhancements;
+    } catch (error: any) {
+        console.error('Service Error: getCachedArticleEnhancements failed'.red.bold, error);
+        return null;
+    }
+}
+
+/**
+ * Save or update basic article enhancements (from /multi-source/enhance)
+ */
+const saveBasicEnhancements = async (contentHash: string, enhancements: IBasicEnhancementsParams): Promise<ICachedArticleEnhancement | null> => {
+    console.log('Service: saveBasicEnhancements called'.cyan.italic, {contentHash, enhancementTypes: Object.keys(enhancements)});
+
+    try {
+        const updateData: Partial<ICachedArticleEnhancement> = {};
+
+        if (enhancements.tags) updateData.tags = enhancements.tags;
+        if (enhancements.sentiment) updateData.sentiment = enhancements.sentiment;
+        if (enhancements.keyPoints) updateData.keyPoints = enhancements.keyPoints;
+        if (enhancements.complexityMeter) updateData.complexityMeter = enhancements.complexityMeter;
+        if (enhancements.locations) updateData.locations = enhancements.locations;
+
+        const savedEnhancements: ICachedArticleEnhancement = await CachedArticleEnhancementModel.findOneAndUpdate(
+            {contentHash},
+            {
+                $set: updateData,
+                $setOnInsert: {
+                    contentHash,
+                    createdAt: new Date(),
+                },
+            },
+            {upsert: true, new: true},
+        );
+
+        console.log('Basic enhancements cached successfully'.cyan, {contentHash, fieldsUpdated: Object.keys(updateData)});
+
+        return savedEnhancements;
+    } catch (error: any) {
+        console.error('Service Error: saveBasicEnhancements failed'.red.bold, error);
+        return null;
+    }
+}
+
+/**
+ * Check if specific enhancement types are already cached
+ */
+const hasEnhancementTypes = async (contentHash: string, enhancementTypes: TBasicEnhancementTypes[]): Promise<{ [key: string]: boolean }> => {
+    console.log('Service: hasEnhancementTypes called'.cyan.italic, {contentHash, enhancementTypes});
+
+    try {
+        const cached = await CachedArticleEnhancementModel.findOne({contentHash});
+
+        if (!cached) {
+            return enhancementTypes.reduce((acc, type) => ({...acc, [type]: false}), {});
+        }
+
+        const result: { [key: string]: boolean } = {};
+        enhancementTypes.forEach(type => {
+            result[type] = cached[type] !== undefined && cached[type] !== null;
+        });
+
+        console.log('Enhancement availability check:'.cyan, result);
+        return result;
+    } catch (error: any) {
+        console.error('Service Error: hasEnhancementTypes failed'.red.bold, error);
+        return enhancementTypes.reduce((acc, type) => ({...acc, [type]: false}), {});
+    }
+}
+
+export {
+    cacheQuestions,
+    cacheAnswer,
+    saveSummaryToCache,
+    getCachedSummary,
+    updateArticlesProcessingStatus,
+    updateArticleIdsProcessingStatus,
+    getCachedArticleEnhancements,
+    saveBasicEnhancements,
+    hasEnhancementTypes,
+};

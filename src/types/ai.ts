@@ -36,6 +36,7 @@ export type TImpactLevel = typeof IMPACT_LEVELS[number];
 
 export const AI_ARTICLE_ENHANCEMENT_TYPES = ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'geoExtraction', 'questions', 'newsInsights'];
 export type TAIArticleEnhancement = typeof AI_ARTICLE_ENHANCEMENT_TYPES[number];
+export type TBasicEnhancementTypes = 'tags' | 'sentiment' | 'keyPoints' | 'complexityMeter' | 'locations';
 
 export const LANGUAGE_NAMES: Record<TSupportedLanguage, string> = {
     'en': 'English',
@@ -531,6 +532,32 @@ export interface ICombinedAIParams {
     content: string;
     tasks: TAIArticleEnhancement[];
     selectedModel?: string;
+}
+
+export interface IUpdateArticlesProcessingStatusParams {
+    articles: IArticle[];
+    status: 'cancelled' | 'failed';
+}
+
+export interface IUpdateArticleIdsProcessingStatusParams {
+    articleIds: string[];
+    status: 'cancelled' | 'failed';
+}
+
+export interface IBasicEnhancementsParams {
+    tags?: string[];
+    sentiment?: {
+        type: string;
+        confidence: number;
+        emoji: string;
+        color: string;
+    };
+    keyPoints?: string[];
+    complexityMeter?: {
+        level: 'easy' | 'medium' | 'hard';
+        reasoning: string;
+    };
+    locations?: string[];
 }
 
 export interface IGetUserStrikeStatusParams {

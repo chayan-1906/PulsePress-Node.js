@@ -14,7 +14,7 @@ import {mergeEnhancementsWithArticles} from "../utils/serviceHelpers/articleConv
 import {getSentimentColor, getSentimentEmoji} from "../utils/serviceHelpers/sentimentHelpers";
 import ArticleEnhancementModel, {IArticleEnhancement} from "../models/ArticleEnhancementSchema";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
-import {updateArticleIdsProcessingStatus, updateArticlesProcessingStatus} from "../utils/serviceHelpers/articleEnhancementHelpers";
+import {saveBasicEnhancements, updateArticleIdsProcessingStatus, updateArticlesProcessingStatus} from "../utils/serviceHelpers/cacheHelpers";
 import {
     ICombinedAIParams,
     ICombinedAIResponse,
@@ -27,6 +27,7 @@ import {
     IMergeEnhancementsWithArticlesParams,
     SENTIMENT_TYPES,
 } from "../types/ai";
+import {generateContentHash} from "../utils/serviceHelpers/contentHashing";
 
 class ArticleEnhancementService {
     static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
@@ -161,6 +162,25 @@ class ArticleEnhancementService {
                     }
                     console.log('aiResult:'.cyan, aiResult);
 
+                    try {
+                        const articleContent = article.content || article.description || article.title || '';
+                        const contentHash = generateContentHash(articleContent);
+
+                        const enhancementsToCache: any = {};
+                        if (tags) enhancementsToCache.tags = tags;
+                        if (sentimentData) enhancementsToCache.sentiment = sentimentData;
+                        if (keyPoints) enhancementsToCache.keyPoints = keyPoints;
+                        if (complexityMeter) enhancementsToCache.complexityMeter = complexityMeter;
+                        if (locations) enhancementsToCache.locations = locations;
+
+                        if (Object.keys(enhancementsToCache).length > 0) {
+                            await saveBasicEnhancements(contentHash, enhancementsToCache);
+                            console.log('Basic enhancements cached in unified schema'.cyan, {contentHash, enhancementTypes: Object.keys(enhancementsToCache)});
+                        }
+                    } catch (cacheError: any) {
+                        console.warn('Cache Warning: Failed to save basic enhancements to unified cache'.yellow, cacheError.message);
+                    }
+
                     const updatedEnhancedArticle = await ArticleEnhancementModel.findOneAndUpdate(
                         {articleId},
                         {
@@ -239,6 +259,7 @@ class ArticleEnhancementService {
         const progress = articles.length > 0 ? Math.round((processedCount / articles.length) * 100) : 0;
 
         if (hasActiveJobs || processedCount < articles.length) {
+            // console.log('hasActiveJobs:', hasActiveJobs, 'processedCount:', processedCount, 'articles.length:', articles.length)
             return {status: 'processing', progress};
         } else {
             if (cancelledCount === articles.length) {
