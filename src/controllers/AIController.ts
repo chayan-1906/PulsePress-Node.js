@@ -202,20 +202,12 @@ const generateTagsController = async (req: Request, res: Response) => {
         const email = (req as IAuthRequest).email;
         const {content, url}: ITagGenerationParams = req.body;
 
-        if (!content && !url) {
+        if (!url) {
+            console.warn('Client Error: Missing URL parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
-                errorCode: 'CONTENT_OR_URL_REQUIRED',
-                errorMsg: 'Either content or URL must be provided for tag generation',
-            }));
-            return;
-        }
-
-        if (content && url) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'CONTENT_AND_URL_CONFLICT',
-                errorMsg: 'Provide either content or URL, not both',
+                errorCode: generateMissingCode('url'),
+                errorMsg: 'URL must be provided',
             }));
             return;
         }
@@ -241,12 +233,6 @@ const generateTagsController = async (req: Request, res: Response) => {
                 statusCode = 403;
             } else if (error === 'NON_NEWS_CONTENT') {
                 errorMsg = message || 'Non-news content detected';
-                statusCode = 400;
-            } else if (error === 'CONTENT_OR_URL_REQUIRED') {
-                errorMsg = 'Either content or URL must be provided';
-                statusCode = 400;
-            } else if (error === 'CONTENT_AND_URL_CONFLICT') {
-                errorMsg = 'Provide either content or URL, not both';
                 statusCode = 400;
             } else if (error === 'SCRAPING_FAILED') {
                 errorMsg = 'Failed to scrape the provided URL';
@@ -941,12 +927,6 @@ const generateSocialMediaCaptionController = async (req: Request, res: Response)
                 statusCode = 403;
             } else if (error === 'NON_NEWS_CONTENT') {
                 errorMsg = message || 'Non-news content detected';
-                statusCode = 400;
-            } else if (error === 'CONTENT_OR_URL_REQUIRED') {
-                errorMsg = 'Either content or URL must be provided';
-                statusCode = 400;
-            } else if (error === 'CONTENT_AND_URL_CONFLICT') {
-                errorMsg = 'Provide either content or URL, not both';
                 statusCode = 400;
             } else if (error === 'SCRAPING_FAILED') {
                 errorMsg = 'Failed to scrape the provided URL';

@@ -31,18 +31,6 @@ class SocialMediaCaptionService {
     static async generateCaption({email, content, url, platform, style}: ISocialMediaCaptionParams): Promise<ISocialMediaCaptionResponse> {
         console.log('Service: SocialMediaCaptionService.generateCaption called'.cyan.italic, {email, content, url, platform, style});
 
-        const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock({email});
-        if (isBlocked) {
-            console.warn('Client Error: User is blocked from AI features'.yellow, {email, blockType, blockedUntil});
-            return {
-                error: 'USER_BLOCKED',
-                message: blockMessage || 'You are temporarily blocked from using AI features',
-                isBlocked,
-                blockedUntil,
-                blockType,
-            };
-        }
-
         if (!url) {
             console.warn('Client Error: URL is invalid'.yellow, {content, url});
             return {error: generateMissingCode('url')};
@@ -56,6 +44,18 @@ class SocialMediaCaptionService {
         if (style && !SOCIAL_MEDIA_CAPTION_STYLES.includes(style)) {
             console.warn('Client Error: Invalid style'.yellow, style);
             return {error: generateInvalidCode('style')};
+        }
+
+        const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock({email});
+        if (isBlocked) {
+            console.warn('Client Error: User is blocked from AI features'.yellow, {email, blockType, blockedUntil});
+            return {
+                error: 'USER_BLOCKED',
+                message: blockMessage || 'You are temporarily blocked from using AI features',
+                isBlocked,
+                blockedUntil,
+                blockType,
+            };
         }
 
         let articleContent = content || '';

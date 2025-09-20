@@ -326,6 +326,7 @@ export {
     updateArticleIdsProcessingStatus,
     getCachedArticleEnhancements,
     saveBasicEnhancements,
+    hasEnhancementTypes,
     saveSummaryVariation,
     saveCaptionVariation,
     getCachedSummaryVariation,
