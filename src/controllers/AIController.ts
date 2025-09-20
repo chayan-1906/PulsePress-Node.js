@@ -926,20 +926,12 @@ const generateNewsInsightsController = async (req: Request, res: Response) => {
         const email = (req as IAuthRequest).email;
         const {content, url}: INewsInsightsParams = req.body;
 
-        if (!content && !url) {
+        if (!url) {
+            console.warn('Client Error: Missing URL parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
-                errorCode: 'CONTENT_OR_URL_REQUIRED',
-                errorMsg: 'Either content or URL must be provided for news insights analysis',
-            }));
-            return;
-        }
-
-        if (content && url) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'CONTENT_AND_URL_CONFLICT',
-                errorMsg: 'Provide either content or URL, not both',
+                errorCode: generateMissingCode('url'),
+                errorMsg: 'URL must be provided',
             }));
             return;
         }
@@ -1003,6 +995,10 @@ const generateNewsInsightsController = async (req: Request, res: Response) => {
                 success: false,
                 errorCode: error,
                 errorMsg,
+                strikeCount,
+                isBlocked,
+                blockedUntil,
+                blockType,
             }));
             return;
         }
