@@ -400,26 +400,20 @@ export interface IGetUserStrikeHistoryResponse {
 export interface INewsClassificationParams {
     email: string;  // for authMiddleware
     text?: string;
-    url?: string;
+    url: string;
 }
 
 export interface ISummarizeArticleParams {
     email: string;  // for authMiddleware
     content?: string;
-    url?: string;
+    url: string;
     language?: TSupportedLanguage;
-    style?: TSummarizationStyle;
-}
-
-export interface ISummarizeContentParams {
-    content?: string;
-    url?: string;
     style?: TSummarizationStyle;
 }
 
 export interface ISummarizeContentWithModelParams {
     content?: string;
-    url?: string;
+    url: string;
     style?: TSummarizationStyle;
     modelName: string;
 }
@@ -427,24 +421,24 @@ export interface ISummarizeContentWithModelParams {
 export interface ITagGenerationParams {
     email: string;  // for authMiddleware
     content?: string;
-    url?: string;
+    url: string;
 }
 
 export interface ISentimentAnalysisParams {
     email: string;  // for authMiddleware
-    url?: string;
+    url: string;
     content?: string;
 }
 
 export interface IKeyPointsExtractionParams {
     email: string;
-    url?: string;
+    url: string;
     content?: string;
 }
 
 export interface IComplexityMeterParams {
     email: string;  // for authMiddleware
-    url?: string;
+    url: string;
     content?: string;
 }
 
@@ -454,26 +448,26 @@ export interface IReadingTimeComplexityParams {
 
 export interface IQuestionGenerationParams {
     email: string;  // for authMiddleware
-    url?: string;
+    url: string;
     content?: string;
 }
 
 export interface IQuestionAnsweringParams {
     email: string;  // for authMiddleware
+    url: string;
     content?: string;
-    url?: string;
     question: string;
 }
 
 export interface IGeographicExtractionParams {
     email: string;  // for authMiddleware
-    url?: string;
+    url: string;
     content?: string;
 }
 
 export interface ISocialMediaCaptionParams {
     email: string;  // for authMiddleware
-    url?: string;
+    url: string;
     content?: string;
     platform?: TSocialMediaPlatform;
     style?: TSocialMediaCaptionStyle;
@@ -481,7 +475,7 @@ export interface ISocialMediaCaptionParams {
 
 export interface INewsInsightsParams {
     email: string;  // for authMiddleware
-    url?: string;
+    url: string;
     content?: string;
 }
 

@@ -285,20 +285,12 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
         const email = (req as IAuthRequest).email;
         const {content, url}: ISentimentAnalysisParams = req.body;
 
-        if (!content && !url) {
+        if (!url) {
+            console.warn('Client Error: Missing URL parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
-                errorCode: 'CONTENT_OR_URL_REQUIRED',
-                errorMsg: 'Either content or URL must be provided for sentiment analysis',
-            }));
-            return;
-        }
-
-        if (content && url) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'CONTENT_AND_URL_CONFLICT',
-                errorMsg: 'Provide either content or URL, not both',
+                errorCode: generateMissingCode('url'),
+                errorMsg: 'URL must be provided',
             }));
             return;
         }
@@ -327,9 +319,6 @@ const analyzeSentimentController = async (req: Request, res: Response) => {
                 statusCode = 400;
             } else if (error === 'SCRAPING_FAILED') {
                 errorMsg = 'Failed to scrape the provided URL';
-                statusCode = 400;
-            } else if (error === generateMissingCode('content')) {
-                errorMsg = 'No content provided for analysis';
                 statusCode = 400;
             } else if (error === generateMissingCode('gemini_api_key')) {
                 errorMsg = 'Sentiment analysis service is temporarily unavailable';
@@ -384,20 +373,12 @@ const extractKeyPointsController = async (req: Request, res: Response) => {
         const email = (req as IAuthRequest).email;
         const {content, url}: IKeyPointsExtractionParams = req.body;
 
-        if (!content && !url) {
+        if (!url) {
+            console.warn('Client Error: Missing URL parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
-                errorCode: 'CONTENT_OR_URL_REQUIRED',
-                errorMsg: 'Either content or URL must be provided for key points extraction',
-            }));
-            return;
-        }
-
-        if (content && url) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'CONTENT_AND_URL_CONFLICT',
-                errorMsg: 'Provide either content or URL, not both',
+                errorCode: generateMissingCode('url'),
+                errorMsg: 'URL must be provided',
             }));
             return;
         }
@@ -423,12 +404,6 @@ const extractKeyPointsController = async (req: Request, res: Response) => {
                 statusCode = 403;
             } else if (error === 'NON_NEWS_CONTENT') {
                 errorMsg = message || 'Non-news content detected';
-                statusCode = 400;
-            } else if (error === 'CONTENT_OR_URL_REQUIRED') {
-                errorMsg = 'Either content or URL must be provided';
-                statusCode = 400;
-            } else if (error === 'CONTENT_AND_URL_CONFLICT') {
-                errorMsg = 'Provide either content or URL, not both';
                 statusCode = 400;
             } else if (error === 'SCRAPING_FAILED') {
                 errorMsg = 'Failed to scrape the provided URL';
@@ -582,7 +557,7 @@ const generateQuestionsController = async (req: Request, res: Response) => {
 
     try {
         const email = (req as IAuthRequest).email;
-        const {content}: IQuestionGenerationParams = req.body;
+        const {content, url}: IQuestionGenerationParams = req.body;
 
         if (!content || content.trim().length === 0) {
             res.status(400).send(new ApiResponse({
@@ -603,7 +578,7 @@ const generateQuestionsController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {questions, powered_by, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await QuestionAnswerService.generateQuestions({email, content});
+        const {questions, powered_by, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await QuestionAnswerService.generateQuestions({email, url, content});
 
         if (error) {
             let errorMsg = message || 'Failed to generate questions';
@@ -674,7 +649,7 @@ const answerQuestionController = async (req: Request, res: Response) => {
 
     try {
         const email = (req as IAuthRequest).email;
-        const {content, question}: IQuestionAnsweringParams = req.body;
+        const {content, url, question}: IQuestionAnsweringParams = req.body;
 
         if (!content || content.trim().length === 0) {
             res.status(400).send(new ApiResponse({
@@ -704,7 +679,7 @@ const answerQuestionController = async (req: Request, res: Response) => {
             return;
         }
 
-        const {answer, powered_by, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await QuestionAnswerService.answerQuestion({email, content, question});
+        const {answer, powered_by, error, message, strikeCount, isBlocked, blockedUntil, blockType} = await QuestionAnswerService.answerQuestion({email, url, content, question});
 
         if (error) {
             let errorMsg = message || 'Failed to answer question';

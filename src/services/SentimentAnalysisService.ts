@@ -6,10 +6,12 @@ import QuotaService from "./QuotaService";
 import {AI_PROMPTS} from "../utils/prompts";
 import StrikeService from "./StrikeService";
 import {GEMINI_API_KEY} from "../config/config";
+import {generateArticleId} from "../utils/generateArticleId";
 import {generateMissingCode} from "../utils/generateErrorCodes";
 import NewsClassificationService from "./NewsClassificationService";
 import {AI_SENTIMENT_ANALYSIS_MODELS, API_CONFIG} from "../utils/constants";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
+import {getCachedArticleEnhancements, hasEnhancementTypes, saveBasicEnhancements} from "../utils/serviceHelpers/cacheHelpers";
 import {IAISentiment, ISentimentAnalysisParams, ISentimentAnalysisResponse, SENTIMENT_TYPES, TSentimentResult,} from "../types/ai";
 
 class SentimentAnalysisService {
@@ -21,6 +23,11 @@ class SentimentAnalysisService {
     static async analyzeSentiment({email, content, url}: ISentimentAnalysisParams): Promise<ISentimentAnalysisResponse> {
         console.log('Service: SentimentAnalysisService.analyzeSentiment called'.cyan.italic, {email, content, url});
 
+        if (!url) {
+            console.warn('Client Error: URL is invalid'.yellow, {content, url});
+            return {error: generateMissingCode('url')};
+        }
+
         const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock({email});
         if (isBlocked) {
             console.warn('Client Error: User is blocked from AI features'.yellow, {email, blockType, blockedUntil});
@@ -31,16 +38,6 @@ class SentimentAnalysisService {
                 blockedUntil,
                 blockType,
             };
-        }
-
-        if (!content && !url) {
-            console.warn('Client Error: Content and url both invalid'.yellow, {content, url});
-            return {error: 'CONTENT_OR_URL_REQUIRED'};
-        }
-
-        if (content && url) {
-            console.warn('Client Error: Content and url both valid'.yellow, {content, url});
-            return {error: 'CONTENT_AND_URL_CONFLICT'};
         }
 
         let articleContent = content || '';
@@ -74,6 +71,19 @@ class SentimentAnalysisService {
             console.log('News content verified, proceeding with sentiment analysis'.cyan);
         }
 
+        const articleId = generateArticleId({url});
+
+        const existingSentiment = await hasEnhancementTypes(articleId, ['sentiment']);
+        if (existingSentiment.sentiment) {
+            console.log('Using cached sentiment result'.cyan);
+            const cachedEnhancements = await getCachedArticleEnhancements(articleId);
+            return {
+                sentiment: cachedEnhancements?.sentiment?.type,
+                confidence: cachedEnhancements?.sentiment?.confidence || 0.5,
+                powered_by: 'Cached Result',
+            };
+        }
+
         // Truncate content to avoid token limits
         const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
@@ -99,6 +109,15 @@ class SentimentAnalysisService {
             const result = await this.analyzeWithGemini(selectedModel, truncatedContent);
 
             if (result.sentiment && result.confidence) {
+                const sentimentData = {
+                    type: result.sentiment,
+                    confidence: result.confidence,
+                    emoji: this.getSentimentEmoji(result.sentiment),
+                    color: this.getSentimentColor(result.sentiment),
+                };
+
+                await saveBasicEnhancements({articleId, url, sentiment: sentimentData});
+
                 console.log('Sentiment analysis completed successfully'.green.bold, {sentiment: result.sentiment, confidence: result.confidence, model: selectedModel});
                 return {...result, powered_by: selectedModel};
             }
@@ -144,6 +163,32 @@ class SentimentAnalysisService {
         const confidence = typeof parsed.confidence === 'number' ? parsed.confidence : 0.5;
 
         return {sentiment, confidence};
+    }
+
+    private static getSentimentEmoji(sentiment: TSentimentResult): string {
+        switch (sentiment) {
+            case 'positive':
+                return '😊';
+            case 'negative':
+                return '😔';
+            case 'neutral':
+                return '😐';
+            default:
+                return '😐';
+        }
+    }
+
+    private static getSentimentColor(sentiment: TSentimentResult): string {
+        switch (sentiment) {
+            case 'positive':
+                return 'green';
+            case 'negative':
+                return 'red';
+            case 'neutral':
+                return 'gray';
+            default:
+                return 'gray';
+        }
     }
 }
 
