@@ -76,7 +76,7 @@ export interface IQualityScore {
 }
 
 interface ISentimentData {
-    sentiment: TSentimentResult;
+    type: TSentimentResult;
     confidence: number;
     emoji: string;
     color: string;

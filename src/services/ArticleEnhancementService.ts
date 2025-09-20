@@ -72,8 +72,15 @@ class ArticleEnhancementService {
             console.log(`Quota limiting: Processing ${processableArticles.length}/${articles.length} articles due to quota constraints`.cyan);
         }
 
-        const articleIds = processableArticles.map((article: IArticle) => generateArticleId({url: article.url}));
-        articleIds.forEach((id: string) => this.activeJobs.add(id));
+        const articlesNeedingProcessing: string[] = [];
+        for (const article of processableArticles) {
+            const articleId = generateArticleId({url: article.url});
+            const existingEnhancement = await ArticleEnhancementModel.findOne({articleId});
+            if (!existingEnhancement || existingEnhancement.processingStatus !== 'completed') {
+                articlesNeedingProcessing.push(articleId);
+                this.activeJobs.add(articleId);
+            }
+        }
 
         setTimeout(async () => {
             for (const article of processableArticles) {
@@ -164,7 +171,7 @@ class ArticleEnhancementService {
                     try {
                         const enhancementsToCache: any = {
                             articleId,
-                            url: article.url
+                            url: article.url,
                         };
                         if (tags) enhancementsToCache.tags = tags;
                         if (sentimentData) enhancementsToCache.sentiment = sentimentData;
@@ -207,7 +214,7 @@ class ArticleEnhancementService {
                 }
             }
 
-            articleIds.forEach((id: string) => this.activeJobs.delete(id));
+            articlesNeedingProcessing.forEach((id: string) => this.activeJobs.delete(id));
             console.log('Enhancement processing completed'.green.bold);
         }, 500);
     }
@@ -278,25 +285,43 @@ class ArticleEnhancementService {
         console.log('Service: ArticleEnhancementService.getProcessingStatus called'.cyan.italic, {articleCount: articles.length});
 
         const articleIds = articles.map((article: IArticle) => generateArticleId({url: article.url}));
+        console.log('🔍 DEBUG: Generated articleIds:'.bgBlue.white, articleIds);
 
         const hasActiveJobs = articleIds.some((id: string) => this.activeJobs.has(id));
+        console.log('🔍 DEBUG: Active jobs check:'.bgBlue.white, {hasActiveJobs, activeJobsSet: Array.from(this.activeJobs)});
 
         const enhancements: IArticleEnhancement[] = await ArticleEnhancementModel.find({
             articleId: {$in: articleIds},
+        });
+        console.log('🔍 DEBUG: Found enhancements in DB:'.bgBlue.white, {
+            count: enhancements.length,
+            statuses: enhancements.map(e => ({articleId: e.articleId, status: e.processingStatus}))
         });
 
         let completedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'completed').length;
         const failedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'failed').length;
         const cancelledCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'cancelled').length;
 
+        console.log('🔍 DEBUG: Initial counts from DB:'.bgBlue.white, {completedCount, failedCount, cancelledCount});
+
         for (const article of articles) {
             const articleId = generateArticleId({url: article.url});
 
             const existingEnhancement = enhancements.find(e => e.articleId === articleId);
-            if (existingEnhancement) continue;
+            console.log('🔍 DEBUG: Checking article:'.bgBlue.white, {articleId, hasExistingEnhancement: !!existingEnhancement});
+
+            if (existingEnhancement) {
+                console.log('🔍 DEBUG: Found existing enhancement:'.bgBlue.white, {articleId, status: existingEnhancement.processingStatus});
+                continue;
+            }
 
             try {
                 const cachedEnhancements = await getCachedArticleEnhancements(articleId);
+                console.log('🔍 DEBUG: Cache lookup result:'.bgBlue.white, {
+                    articleId,
+                    hasCachedEnhancements: !!cachedEnhancements,
+                    cachedStatus: cachedEnhancements?.processingStatus,
+                });
 
                 if (cachedEnhancements) {
                     completedCount++;
@@ -308,18 +333,35 @@ class ArticleEnhancementService {
         }
 
         const processedCount = completedCount + failedCount + cancelledCount;
-
         const progress = articles.length > 0 ? Math.round((processedCount / articles.length) * 100) : 0;
 
+        console.log('🔍 DEBUG: Final status calculation:'.bgBlue.white, {
+            completedCount,
+            failedCount,
+            cancelledCount,
+            processedCount,
+            totalArticles: articles.length,
+            progress,
+            hasActiveJobs
+        });
+
         if (hasActiveJobs || processedCount < articles.length) {
-            // console.log('hasActiveJobs:', hasActiveJobs, 'processedCount:', processedCount, 'articles.length:', articles.length)
+            console.log('🔍 DEBUG: Returning PROCESSING status because:'.bgRed.white, {
+                hasActiveJobs,
+                processedCountLessThanTotal: processedCount < articles.length,
+                processedCount,
+                totalCount: articles.length,
+            });
             return {status: 'processing', progress};
         } else {
             if (cancelledCount === articles.length) {
+                console.log('🔍 DEBUG: Returning CANCELLED status'.bgGreen.white);
                 return {status: 'cancelled', progress: 100};
             } else if (completedCount > 0) {
+                console.log('🔍 DEBUG: Returning COMPLETE status'.bgGreen.white, {completedCount});
                 return {status: 'complete', progress: processedCount / articles.length * 100};
             } else {
+                console.log('🔍 DEBUG: Returning FAILED status'.bgRed.white);
                 return {status: 'failed', progress: processedCount / articles.length * 100};
             }
         }

@@ -84,7 +84,9 @@ const ArticleEnhancementSchema = new Schema<IArticleEnhancement>({
         type: String,
     }],
     sentiment: {
-        type: String,
+        type: {
+            type: String,
+        },
         confidence: Number,
         emoji: String,
         color: String,
