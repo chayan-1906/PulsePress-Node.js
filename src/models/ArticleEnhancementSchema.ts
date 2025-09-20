@@ -37,6 +37,11 @@ export interface IArticleEnhancement extends Document {
     };
     locations?: string[];
     questions?: string[];
+    questionAnswers?: Map<string, {
+        question: string;
+        answer: string;
+        createdAt: Date;
+    }>;
     summaries?: Map<string, {
         content: string;
         style: TSummarizationStyle;
@@ -125,6 +130,24 @@ const ArticleEnhancementSchema = new Schema<IArticleEnhancement>({
     },
     questions: {
         type: [String],
+        default: undefined,
+    },
+    questionAnswers: {
+        type: Map,
+        of: new Schema({
+            question: {
+                type: String,
+                required: true,
+            },
+            answer: {
+                type: String,
+                required: true,
+            },
+            createdAt: {
+                type: Date,
+                default: Date.now,
+            },
+        }, {_id: false}),
         default: undefined,
     },
     summaries: {

@@ -6,13 +6,12 @@ import QuotaService from "./QuotaService";
 import {AI_PROMPTS} from "../utils/prompts";
 import StrikeService from "./StrikeService";
 import {GEMINI_API_KEY} from "../config/config";
+import {generateArticleId} from "../utils/generateArticleId";
 import NewsClassificationService from "./NewsClassificationService";
 import {API_CONFIG, QUESTION_ANSWER_MODELS} from "../utils/constants";
-import {generateContentHash} from "../utils/serviceHelpers/contentHashing";
-import CachedQuestionAnswerModel from "../models/CachedQuestionAnswerSchema";
-import {cacheAnswer, cacheQuestions} from "../utils/serviceHelpers/cacheHelpers";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
+import {getCachedQuestionAnswer, getCachedQuestions, saveQuestionAnswer, saveQuestions} from "../utils/serviceHelpers/cacheHelpers";
 import {IAIQuestionAnswering, IAIQuestionGeneration, IQuestionAnsweringParams, IQuestionAnsweringResponse, IQuestionGenerationParams, IQuestionGenerationResponse} from "../types/ai";
 
 class QuestionAnswerService {
@@ -42,6 +41,7 @@ class QuestionAnswerService {
         }
 
         let articleContent = content || '';
+        const articleId = generateArticleId({url});
         if (!content && url) {
             console.log('Scraping URL for question generation:'.cyan, url);
             const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
@@ -72,20 +72,11 @@ class QuestionAnswerService {
             console.log('News content verified, proceeding with question generation'.bgGreen.bold);
         }
 
-        const contentHash = generateContentHash(articleContent);
-
-        // if (NODE_ENV === 'production') {
-        try {
-            const cachedResult = await CachedQuestionAnswerModel.findOne({contentHash});
-            if (cachedResult && cachedResult.questions.length > 0) {
-                console.log('Cache: Found cached questions'.green.bold, cachedResult.questions.length);
-                return {questions: cachedResult.questions};
-            }
-        } catch (error) {
-            console.warn('Service Warning: Cache lookup failed, proceeding with AI generation'.yellow, error);
+        const cached = await getCachedQuestions({articleId});
+        if (cached && cached.length > 0) {
+            console.log('Questions retrieved from cache'.cyan, {articleId, questionsCount: cached.length});
+            return {questions: cached, powered_by: 'Cached Result'};
         }
-        // }
-        console.log('Cache: No cached questions found for this article'.cyan);
 
         // Truncate content to avoid token limits
         const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
@@ -114,9 +105,7 @@ class QuestionAnswerService {
             if (result.questions && result.questions.length > 0) {
                 console.log('Question generation completed successfully'.green.bold, {questions: result.questions, model: selectedModel});
 
-                // if (NODE_ENV === 'production') {
-                await cacheQuestions(contentHash, result.questions);
-                // }
+                await saveQuestions({articleId, url, questions: result.questions});
 
                 return {...result, powered_by: selectedModel};
             }
@@ -188,21 +177,13 @@ class QuestionAnswerService {
             console.log('News content verified, proceeding with question answering'.bgGreen.bold);
         }
 
-        const contentHash = generateContentHash(articleContent);
+        const articleId = generateArticleId({url});
+        const cached = await getCachedQuestionAnswer({articleId, question});
 
-        // if (NODE_ENV === 'production') {
-        try {
-            const cachedResult = await CachedQuestionAnswerModel.findOne({contentHash});
-            if (cachedResult && cachedResult.answers.has(question)) {
-                const cachedAnswer = cachedResult.answers.get(question);
-                console.log('Cache: Found cached answer for question:'.green.bold, question);
-                return {answer: cachedAnswer};
-            }
-        } catch (error) {
-            console.warn('Service Warning: Cache lookup failed, proceeding with AI generation'.yellow, error);
+        if (cached) {
+            console.log('Answer retrieved from cache'.cyan, {articleId, question: question.substring(0, 50) + '...'});
+            return {answer: cached, powered_by: 'Cached Result'};
         }
-        // }
-        console.log('Cache: No cached answer found for this question'.cyan);
 
         // Truncate content to avoid token limits
         const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
@@ -231,7 +212,7 @@ class QuestionAnswerService {
             if (result.answer && result.answer.trim().length > 0) {
                 console.log('Question answering completed successfully'.green.bold, {answer: result.answer, model: selectedModel});
 
-                await cacheAnswer(contentHash, question, result.answer);
+                await saveQuestionAnswer({articleId, url, question, answer: result.answer});
 
                 return {...result, powered_by: selectedModel};
             }
@@ -314,7 +295,6 @@ class QuestionAnswerService {
 
         return {answer: parsed.answer};
     }
-
 }
 
 export default QuestionAnswerService;

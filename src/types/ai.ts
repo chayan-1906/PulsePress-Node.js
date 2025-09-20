@@ -546,6 +546,12 @@ export interface ISaveSummaryVariationParams {
     language: TSupportedLanguage;
 }
 
+export interface IGetCachedSummaryVariationParams {
+    articleId: string;
+    style: TSummarizationStyle;
+    language: TSupportedLanguage;
+}
+
 export interface ISaveCaptionVariationParams {
     articleId: string;
     caption: string;
@@ -554,16 +560,42 @@ export interface ISaveCaptionVariationParams {
     platform?: TSocialMediaPlatform;
 }
 
-export interface IGetCachedSummaryVariationParams {
-    articleId: string;
-    style: TSummarizationStyle;
-    language: TSupportedLanguage;
-}
-
 export interface IGetCachedCaptionVariationParams {
     articleId: string;
     style: TSocialMediaCaptionStyle;
     platform?: TSocialMediaPlatform;
+}
+
+export interface ISaveQuestionsParams {
+    articleId: string;
+    url: string;
+    questions: string[];
+}
+
+export interface IGetCachedQuestionsParams {
+    articleId: string;
+}
+
+export interface ISaveQuestionAnswerParams {
+    articleId: string;
+    url: string;
+    question: string;
+    answer: string;
+}
+
+export interface IGetCachedQuestionAnswerParams {
+    articleId: string;
+    question: string;
+}
+
+export interface ISaveNewsInsightsParams {
+    articleId: string;
+    url: string;
+    newsInsights: any;
+}
+
+export interface IGetCachedNewsInsightsParams {
+    articleId: string;
 }
 
 export interface IGetUserStrikeStatusParams {

@@ -1,16 +1,22 @@
 import "colors";
 import {IArticle} from "../../types/news";
 import {CONTENT_LIMITS} from "../constants";
+import {generateContentHash} from "./contentHashing";
 import {generateArticleId} from "../generateArticleId";
-import CachedQuestionAnswerModel from "../../models/CachedQuestionAnswerSchema";
 import ArticleEnhancementModel, {IArticleEnhancement} from "../../models/ArticleEnhancementSchema";
 import {
     IBasicEnhancementsParams,
     IGetCachedCaptionVariationParams,
     IGetCachedCaptionVariationResponse,
+    IGetCachedNewsInsightsParams,
+    IGetCachedQuestionAnswerParams,
+    IGetCachedQuestionsParams,
     IGetCachedSummaryVariationParams,
     IGetCachedSummaryVariationResponse,
     ISaveCaptionVariationParams,
+    ISaveNewsInsightsParams,
+    ISaveQuestionAnswerParams,
+    ISaveQuestionsParams,
     ISaveSummaryVariationParams,
     IUpdateArticleIdsProcessingStatusParams,
     IUpdateArticlesProcessingStatusParams,
@@ -20,56 +26,6 @@ import {
     TSummarizationStyle,
     TSupportedLanguage,
 } from "../../types/ai";
-
-/**
- * Cache generated questions
- */
-const cacheQuestions = async (contentHash: string, questions: string[]): Promise<void> => {
-    console.log('Service: cacheQuestions called'.cyan.italic, {contentHash, questions});
-
-    try {
-        await CachedQuestionAnswerModel.findOneAndUpdate(
-            {contentHash},
-            {
-                $set: {questions},
-                $setOnInsert: {
-                    createdAt: new Date(),
-                    answers: new Map(),
-                },
-            },
-            {upsert: true, new: true},
-        );
-        console.log('Cache: Questions cached successfully'.cyan);
-    } catch (error) {
-        console.error('Service Error: Failed to cache questions:'.red.bold, error);
-    }
-}
-
-/**
- * Cache generated answer
- */
-const cacheAnswer = async (contentHash: string, question: string, answer: string): Promise<void> => {
-    console.log('Service: cacheAnswer called'.cyan.italic, {contentHash, question, answer});
-
-    try {
-        await CachedQuestionAnswerModel.findOneAndUpdate(
-            {contentHash},
-            {
-                $set: {
-                    [`answers.${question}`]: answer,
-                },
-                $setOnInsert: {
-                    createdAt: new Date(),
-                    questions: [],
-                },
-            },
-            {upsert: true, new: true},
-        );
-        console.log('Cache: Answer cached successfully'.cyan);
-    } catch (error) {
-        console.error('Service Error: Failed to cache answer:'.red.bold, error);
-    }
-}
 
 /**
  * Helper function to update processing status for multiple articles
@@ -319,9 +275,185 @@ const getCachedCaptionVariation = async ({articleId, style, platform}: IGetCache
     }
 }
 
+/**
+ * Generate key for question-answer caching (hash of question for consistent key)
+ */
+const generateQuestionKey = (question: string): string => generateContentHash(question);
+
+/**
+ * Save questions to cache
+ */
+const saveQuestions = async ({articleId, url, questions}: ISaveQuestionsParams): Promise<IArticleEnhancement | null> => {
+    console.log('Service: saveQuestions called'.cyan.italic, {articleId, questionsCount: questions.length});
+
+    try {
+        const savedEnhancements: IArticleEnhancement = await ArticleEnhancementModel.findOneAndUpdate(
+            {articleId},
+            {
+                $set: {
+                    questions,
+                },
+                $setOnInsert: {
+                    articleId,
+                    url,
+                    processingStatus: 'completed',
+                    createdAt: new Date(),
+                },
+            },
+            {upsert: true, new: true},
+        );
+
+        console.log('Questions cached successfully'.cyan, {articleId, questionsCount: questions.length});
+        return savedEnhancements;
+    } catch (error: any) {
+        console.error('Service Error: saveQuestions failed'.red.bold, error);
+        return null;
+    }
+}
+
+/**
+ * Get cached questions
+ */
+const getCachedQuestions = async ({articleId}: IGetCachedQuestionsParams): Promise<string[] | null> => {
+    console.log('Service: getCachedQuestions called'.cyan.italic, {articleId});
+
+    try {
+        const cached = await ArticleEnhancementModel.findOne({articleId});
+
+        if (!cached || !cached.questions || cached.questions.length === 0) {
+            console.log('Cache lookup result:'.cyan, 'Not found');
+            return null;
+        }
+
+        console.log('Questions lookup result:'.cyan, 'Found', {questionsCount: cached.questions.length});
+        return cached.questions;
+    } catch (error: any) {
+        console.error('Service Error: getCachedQuestions failed'.red.bold, error);
+        return null;
+    }
+}
+
+/**
+ * Save question-answer pair to cache
+ */
+const saveQuestionAnswer = async ({articleId, url, question, answer}: ISaveQuestionAnswerParams): Promise<IArticleEnhancement | null> => {
+    console.log('Service: saveQuestionAnswer called'.cyan.italic, {articleId, question: question.substring(0, 50) + '...', answer: answer.substring(0, 100) + '...'});
+
+    try {
+        const questionKey = generateQuestionKey(question);
+        const questionAnswerData = {
+            question,
+            answer,
+            createdAt: new Date(),
+        };
+
+        const savedEnhancements: IArticleEnhancement = await ArticleEnhancementModel.findOneAndUpdate(
+            {articleId},
+            {
+                $set: {
+                    [`questionAnswers.${questionKey}`]: questionAnswerData,
+                },
+                $setOnInsert: {
+                    articleId,
+                    url,
+                    processingStatus: 'completed',
+                    createdAt: new Date(),
+                },
+            },
+            {upsert: true, new: true},
+        );
+
+        console.log('Question-answer pair cached successfully'.cyan, {articleId, questionKey});
+        return savedEnhancements;
+    } catch (error: any) {
+        console.error('Service Error: saveQuestionAnswer failed'.red.bold, error);
+        return null;
+    }
+}
+
+/**
+ * Get cached answer for a specific question
+ */
+const getCachedQuestionAnswer = async ({articleId, question}: IGetCachedQuestionAnswerParams): Promise<string | null> => {
+    console.log('Service: getCachedQuestionAnswer called'.cyan.italic, {articleId, question: question.substring(0, 50) + '...'});
+
+    try {
+        const questionKey = generateQuestionKey(question);
+        const cached = await ArticleEnhancementModel.findOne({articleId});
+
+        if (!cached || !cached.questionAnswers) {
+            console.log('Cache lookup result:'.cyan, 'Not found');
+            return null;
+        }
+
+        const questionAnswer = cached.questionAnswers.get(questionKey);
+        if (!questionAnswer) {
+            console.log('Question-answer lookup result:'.cyan, 'Not found', {questionKey});
+            return null;
+        }
+
+        console.log('Question-answer lookup result:'.cyan, 'Found', {questionKey});
+        return questionAnswer.answer;
+    } catch (error: any) {
+        console.error('Service Error: getCachedQuestionAnswer failed'.red.bold, error);
+        return null;
+    }
+}
+
+/**
+ * Save news insights to cache
+ */
+const saveNewsInsights = async ({articleId, url, newsInsights}: ISaveNewsInsightsParams): Promise<IArticleEnhancement | null> => {
+    console.log('Service: saveNewsInsights called'.cyan.italic, {articleId});
+
+    try {
+        const savedEnhancements: IArticleEnhancement = await ArticleEnhancementModel.findOneAndUpdate(
+            {articleId},
+            {
+                $set: {
+                    newsInsights,
+                },
+                $setOnInsert: {
+                    articleId,
+                    url,
+                    processingStatus: 'completed',
+                    createdAt: new Date(),
+                },
+            },
+            {upsert: true, new: true},
+        );
+
+        console.log('News insights cached successfully'.cyan, {articleId});
+        return savedEnhancements;
+    } catch (error: any) {
+        console.error('Service Error: saveNewsInsights failed'.red.bold, error);
+        return null;
+    }
+}
+
+/**
+ * Get cached news insights
+ */
+const getCachedNewsInsights = async ({articleId}: IGetCachedNewsInsightsParams): Promise<any | null> => {
+    console.log('Service: getCachedNewsInsights called'.cyan.italic, {articleId});
+
+    try {
+        const cached = await ArticleEnhancementModel.findOne({articleId});
+
+        if (!cached || !cached.newsInsights) {
+            console.log('Cache lookup result:'.cyan, 'Not found');
+            return null;
+        }
+
+        console.log('News insights lookup result:'.cyan, 'Found');
+        return cached.newsInsights;
+    } catch (error: any) {
+        console.error('Service Error: getCachedNewsInsights failed'.red.bold, error);
+        return null;
+    }
+}
+
 export {
-    cacheQuestions,
-    cacheAnswer,
     updateArticlesProcessingStatus,
     updateArticleIdsProcessingStatus,
     getCachedArticleEnhancements,
@@ -331,4 +463,10 @@ export {
     saveCaptionVariation,
     getCachedSummaryVariation,
     getCachedCaptionVariation,
+    saveQuestions,
+    getCachedQuestions,
+    saveNewsInsights,
+    getCachedNewsInsights,
+    saveQuestionAnswer,
+    getCachedQuestionAnswer,
 };
