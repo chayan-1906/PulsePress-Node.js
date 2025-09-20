@@ -6,9 +6,11 @@ import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
 import StrikeService from "./StrikeService";
 import {GEMINI_API_KEY} from "../config/config";
+import {generateArticleId} from "../utils/generateArticleId";
 import NewsClassificationService from "./NewsClassificationService";
 import {generateInvalidCode, generateMissingCode} from "../utils/generateErrorCodes";
 import {AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS, API_CONFIG} from "../utils/constants";
+import {getCachedCaptionVariation, saveCaptionVariation} from "../utils/serviceHelpers/cacheHelpers";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 import {
     IAISocialMediaCaption,
@@ -17,7 +19,7 @@ import {
     SOCIAL_MEDIA_CAPTION_STYLES,
     SOCIAL_MEDIA_PLATFORMS,
     TSocialMediaCaptionStyle,
-    TSocialMediaPlatform
+    TSocialMediaPlatform,
 } from "../types/ai";
 
 class SocialMediaCaptionService {
@@ -41,14 +43,9 @@ class SocialMediaCaptionService {
             };
         }
 
-        if (!content && !url) {
-            console.warn('Client Error: Content and url both invalid'.yellow, {content, url});
-            return {error: 'CONTENT_OR_URL_REQUIRED'};
-        }
-
-        if (content && url) {
-            console.warn('Client Error: Content and url both valid'.yellow, {content, url});
-            return {error: 'CONTENT_AND_URL_CONFLICT'};
+        if (!url) {
+            console.warn('Client Error: URL is invalid'.yellow, {content, url});
+            return {error: generateMissingCode('url')};
         }
 
         if (platform && !SOCIAL_MEDIA_PLATFORMS.includes(platform)) {
@@ -92,6 +89,21 @@ class SocialMediaCaptionService {
             console.log('News content verified, proceeding with caption generation'.bgGreen.bold);
         }
 
+        const articleId = generateArticleId({url});
+
+        const cached = await getCachedCaptionVariation({articleId, style: style || 'engaging', platform});
+        if (cached) {
+            console.log('Using cached caption result'.cyan);
+            return {
+                caption: cached.content,
+                hashtags: cached.content.match(/#\w+/g) || [],
+                platform,
+                style,
+                characterCount: cached.content.length,
+                powered_by: 'Cached Result',
+            };
+        }
+
         // Truncate content to avoid token limits
         const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
@@ -117,6 +129,8 @@ class SocialMediaCaptionService {
             const result = await this.generateWithGemini(selectedModel, truncatedContent, platform, style);
 
             if (result.caption && result.caption.length > 0) {
+                await saveCaptionVariation({articleId, caption: result.caption, url: url || '', style: style || 'engaging', platform});
+
                 console.log('Social media caption generation completed successfully'.green.bold, {caption: result.caption, model: selectedModel});
                 return {...result, powered_by: selectedModel};
             }

@@ -346,12 +346,6 @@ class ArticleEnhancementService {
         });
 
         if (hasActiveJobs || processedCount < articles.length) {
-            console.log('🔍 DEBUG: Returning PROCESSING status because:'.bgRed.white, {
-                hasActiveJobs,
-                processedCountLessThanTotal: processedCount < articles.length,
-                processedCount,
-                totalCount: articles.length,
-            });
             return {status: 'processing', progress};
         } else {
             if (cancelledCount === articles.length) {

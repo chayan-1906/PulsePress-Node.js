@@ -14,9 +14,6 @@
 **Problem SOLVED:** Single `contentHash` per article, variations stored in nested Maps
 
 ```typescript
-// OLD Approach: hash("article content" + style + language) → multiple records
-// NEW Approach: hash("article content") → single record with nested variations
-
 summaries: Map<"standard+en", { content, style, language, createdAt }>
 socialMediaCaptions: Map<"professional+twitter", { content, style, platform, createdAt }>
 ```

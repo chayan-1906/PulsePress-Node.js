@@ -10,11 +10,11 @@ import {GEMINI_API_KEY} from "../config/config";
 import {generateArticleId} from "../utils/generateArticleId";
 import NewsClassificationService from "./NewsClassificationService";
 import {translateText} from "../utils/serviceHelpers/translationHelpers";
-import {AI_SUMMARIZATION_MODELS, CONTENT_LIMITS} from "../utils/constants";
+import {AI_SUMMARIZATION_MODELS, API_CONFIG, CONTENT_LIMITS} from "../utils/constants";
 import {truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 import {getCachedSummaryVariation, saveSummaryVariation} from "../utils/serviceHelpers/cacheHelpers";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
-import {ISummarizeArticleParams, ISummarizeArticleResponse, ISummarizeContentParams, ISummarizeContentResponse, ISummarizeContentWithModelParams, SUMMARIZATION_STYLES} from "../types/ai";
+import {ISummarizeArticleParams, ISummarizeArticleResponse, ISummarizeContentResponse, ISummarizeContentWithModelParams, SUMMARIZATION_STYLES} from "../types/ai";
 
 class SummarizationService {
     static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
@@ -117,71 +117,6 @@ class SummarizationService {
     }
 
     /**
-     * Core summarization logic using Gemini AI
-     */
-    private static async summarizeContent({content, url, style = 'standard'}: ISummarizeContentParams): Promise<ISummarizeContentResponse> {
-        console.log('Service: SummarizationService.summarizeContent called'.cyan.italic, {content, url, style});
-
-        if (!content && !url) {
-            console.warn('Client Error: Content and url both invalid'.yellow, {content, url});
-            return {error: 'CONTENT_OR_URL_REQUIRED'};
-        }
-
-        if (content && url) {
-            console.warn('Client Error: Content and url both valid'.yellow, {content, url});
-            return {error: 'CONTENT_AND_URL_CONFLICT'};
-        }
-
-        if (style && !SUMMARIZATION_STYLES.includes(style)) {
-            console.warn('Client Error: Invalid summarization style'.yellow, {style});
-            return {error: 'INVALID_STYLE'};
-        }
-
-        let articleContent = content || '';
-        if (!content && url) {
-            console.log('Scraping URL for summarization:'.cyan, url);
-            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
-
-            if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
-                console.error('Service Error: Scraping failed:'.red.bold, scrapedArticles[0]?.error);
-                return {error: 'SCRAPING_FAILED'};
-            }
-
-            articleContent = scrapedArticles[0]?.content || '';
-        }
-
-        if (!articleContent || articleContent.trim().length === 0) {
-            console.warn('Client Error: Empty content provided for summarization'.yellow);
-            return {error: generateMissingCode('content')};
-        }
-
-        // Truncate content to avoid token limits
-        const truncatedContent = truncateContentForAI(articleContent, 8000);
-
-        for (let i = 0; i < AI_SUMMARIZATION_MODELS.length; i++) {
-            const modelName = AI_SUMMARIZATION_MODELS[i];
-            console.log(`Trying summarization with model ${i + 1}/${AI_SUMMARIZATION_MODELS.length}:`.cyan, modelName);
-
-            try {
-                const result = await this.summarizeWithGemini(modelName, truncatedContent, style);
-
-                if (result.summary) {
-                    console.log(`Summarization successful with model:`.cyan, modelName);
-                    console.log('Content summarization completed successfully'.green.bold, {summary: result.summary.substring(0, CONTENT_LIMITS.SUMMARY_PREVIEW_LENGTH) + '...', model: modelName});
-                    return {...result, powered_by: modelName};
-                }
-
-                console.error(`Service Error: Model failed:`.red.bold, modelName, 'Error:', result.error);
-            } catch (error: any) {
-                console.error(`Service Error: Model failed:`.red.bold, modelName, 'Error:', error.message);
-            }
-        }
-
-        console.error('Service Error: All summarization models failed'.red.bold);
-        return {error: 'SUMMARIZATION_FAILED'};
-    }
-
-    /**
      * Summarize content using Gemini AI with specific style
      */
     private static async summarizeWithGemini(modelName: string, content: string, style: string): Promise<ISummarizeContentResponse> {
@@ -240,7 +175,7 @@ class SummarizationService {
             return {error: generateMissingCode('content')};
         }
 
-        const truncatedContent = truncateContentForAI(articleContent, 8000);
+        const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
         try {
             console.log(`Using quota-reserved model:`.cyan, modelName);
