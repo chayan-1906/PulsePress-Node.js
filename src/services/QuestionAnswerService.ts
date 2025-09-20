@@ -24,6 +24,11 @@ class QuestionAnswerService {
     static async generateQuestions({email, content, url}: IQuestionGenerationParams): Promise<IQuestionGenerationResponse> {
         console.log('Service: QuestionAnswerService.generateQuestions called'.cyan.italic, {email, content, url});
 
+        if (!url) {
+            console.warn('Client Error: URL is invalid'.yellow, {content, url});
+            return {error: generateMissingCode('url')};
+        }
+
         const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock({email});
         if (isBlocked) {
             console.warn('Client Error: User is blocked from AI features'.yellow, {email, blockType, blockedUntil});
@@ -34,16 +39,6 @@ class QuestionAnswerService {
                 blockedUntil,
                 blockType,
             };
-        }
-
-        if (!content && !url) {
-            console.warn('Client Error: Content and url both invalid'.yellow, {content, url});
-            return {error: 'CONTENT_OR_URL_REQUIRED'};
-        }
-
-        if (content && url) {
-            console.warn('Client Error: Content and url both valid'.yellow, {content, url});
-            return {error: 'CONTENT_AND_URL_CONFLICT'};
         }
 
         let articleContent = content || '';
@@ -140,6 +135,11 @@ class QuestionAnswerService {
     static async answerQuestion({email, content, url, question}: IQuestionAnsweringParams): Promise<IQuestionAnsweringResponse> {
         console.log('Service: QuestionAnswerService.answerQuestion called'.cyan.italic, {email, content, url, question});
 
+        if (!url) {
+            console.warn('Client Error: URL is invalid'.yellow, {content, url});
+            return {error: generateMissingCode('url')};
+        }
+
         const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock({email});
         if (isBlocked) {
             console.warn('Client Error: User is blocked from AI features'.yellow, {email, blockType, blockedUntil});
@@ -150,16 +150,6 @@ class QuestionAnswerService {
                 blockedUntil,
                 blockType,
             };
-        }
-
-        if (!content && !url) {
-            console.warn('Client Error: Content and url both invalid'.yellow, {content, url});
-            return {error: 'CONTENT_OR_URL_REQUIRED'};
-        }
-
-        if (content && url) {
-            console.warn('Client Error: Content and url both valid'.yellow, {content, url});
-            return {error: 'CONTENT_AND_URL_CONFLICT'};
         }
 
         let articleContent = content || '';

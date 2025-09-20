@@ -459,20 +459,12 @@ const analyzeComplexityController = async (req: Request, res: Response) => {
         const email = (req as IAuthRequest).email;
         const {content, url}: IComplexityMeterParams = req.body;
 
-        if (!content && !url) {
+        if (!url) {
+            console.warn('Client Error: Missing URL parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
-                errorCode: 'CONTENT_OR_URL_REQUIRED',
-                errorMsg: 'Either content or URL must be provided for complexity analysis',
-            }));
-            return;
-        }
-
-        if (content && url) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'CONTENT_AND_URL_CONFLICT',
-                errorMsg: 'Provide either content or URL, not both',
+                errorCode: generateMissingCode('url'),
+                errorMsg: 'URL must be provided',
             }));
             return;
         }
@@ -498,12 +490,6 @@ const analyzeComplexityController = async (req: Request, res: Response) => {
                 statusCode = 403;
             } else if (error === 'NON_NEWS_CONTENT') {
                 errorMsg = message || 'Non-news content detected';
-                statusCode = 400;
-            } else if (error === 'CONTENT_OR_URL_REQUIRED') {
-                errorMsg = 'Either content or URL must be provided';
-                statusCode = 400;
-            } else if (error === 'CONTENT_AND_URL_CONFLICT') {
-                errorMsg = 'Provide either content or URL, not both';
                 statusCode = 400;
             } else if (error === 'SCRAPING_FAILED') {
                 errorMsg = 'Failed to scrape the provided URL';
@@ -559,11 +545,12 @@ const generateQuestionsController = async (req: Request, res: Response) => {
         const email = (req as IAuthRequest).email;
         const {content, url}: IQuestionGenerationParams = req.body;
 
-        if (!content || content.trim().length === 0) {
+        if (!url) {
+            console.warn('Client Error: Missing URL parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
-                errorCode: generateMissingCode('content'),
-                errorMsg: 'Content is required for question generation',
+                errorCode: generateMissingCode('url'),
+                errorMsg: 'URL must be provided',
             }));
             return;
         }
@@ -589,12 +576,6 @@ const generateQuestionsController = async (req: Request, res: Response) => {
                 statusCode = 403;
             } else if (error === 'NON_NEWS_CONTENT') {
                 errorMsg = message || 'Non-news content detected';
-                statusCode = 400;
-            } else if (error === 'CONTENT_OR_URL_REQUIRED') {
-                errorMsg = 'Either content or URL must be provided';
-                statusCode = 400;
-            } else if (error === 'CONTENT_AND_URL_CONFLICT') {
-                errorMsg = 'Provide either content or URL, not both';
                 statusCode = 400;
             } else if (error === 'SCRAPING_FAILED') {
                 errorMsg = 'Failed to scrape the provided URL';
@@ -632,7 +613,7 @@ const generateQuestionsController = async (req: Request, res: Response) => {
             message: 'Questions have been generated successfully 🎉',
             questions,
             powered_by,
-            contentPreview: content.substring(0, 200) + '...',
+            contentPreview: content?.substring(0, 200) + '...',
         }));
     } catch (error: any) {
         console.error('Controller Error: generateQuestionsController failed'.red.bold, error);
@@ -651,11 +632,12 @@ const answerQuestionController = async (req: Request, res: Response) => {
         const email = (req as IAuthRequest).email;
         const {content, url, question}: IQuestionAnsweringParams = req.body;
 
-        if (!content || content.trim().length === 0) {
+        if (!url) {
+            console.warn('Client Error: Missing URL parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
-                errorCode: generateMissingCode('content'),
-                errorMsg: 'Content is required for question answering',
+                errorCode: generateMissingCode('url'),
+                errorMsg: 'URL must be provided',
             }));
             return;
         }
@@ -690,12 +672,6 @@ const answerQuestionController = async (req: Request, res: Response) => {
                 statusCode = 403;
             } else if (error === 'NON_NEWS_CONTENT') {
                 errorMsg = message || 'Non-news content detected';
-                statusCode = 400;
-            } else if (error === 'CONTENT_OR_URL_REQUIRED') {
-                errorMsg = 'Either content or URL must be provided';
-                statusCode = 400;
-            } else if (error === 'CONTENT_AND_URL_CONFLICT') {
-                errorMsg = 'Provide either content or URL, not both';
                 statusCode = 400;
             } else if (error === 'SCRAPING_FAILED') {
                 errorMsg = 'Failed to scrape the provided URL';
@@ -737,7 +713,7 @@ const answerQuestionController = async (req: Request, res: Response) => {
             question,
             answer,
             powered_by,
-            contentPreview: content.substring(0, CONTENT_LIMITS.CONTENT_PREVIEW_LENGTH) + '...',
+            contentPreview: content?.substring(0, CONTENT_LIMITS.CONTENT_PREVIEW_LENGTH) + '...',
         }));
     } catch (error: any) {
         console.error('Controller Error: answerQuestionController failed'.red.bold, error);
@@ -756,20 +732,12 @@ const extractLocationsController = async (req: Request, res: Response) => {
         const email = (req as IAuthRequest).email;
         const {content, url}: IGeographicExtractionParams = req.body;
 
-        if (!content && !url) {
+        if (!url) {
+            console.warn('Client Error: Missing URL parameter'.yellow);
             res.status(400).send(new ApiResponse({
                 success: false,
-                errorCode: 'CONTENT_OR_URL_REQUIRED',
-                errorMsg: 'Either content or URL must be provided for location extraction',
-            }));
-            return;
-        }
-
-        if (content && url) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: 'CONTENT_AND_URL_CONFLICT',
-                errorMsg: 'Provide either content or URL, not both',
+                errorCode: generateMissingCode('url'),
+                errorMsg: 'URL must be provided',
             }));
             return;
         }
@@ -795,12 +763,6 @@ const extractLocationsController = async (req: Request, res: Response) => {
                 statusCode = 403;
             } else if (error === 'NON_NEWS_CONTENT') {
                 errorMsg = message || 'Non-news content detected';
-                statusCode = 400;
-            } else if (error === 'CONTENT_OR_URL_REQUIRED') {
-                errorMsg = 'Either content or URL must be provided';
-                statusCode = 400;
-            } else if (error === 'CONTENT_AND_URL_CONFLICT') {
-                errorMsg = 'Provide either content or URL, not both';
                 statusCode = 400;
             } else if (error === 'SCRAPING_FAILED') {
                 errorMsg = 'Failed to scrape the provided URL';
@@ -1016,12 +978,6 @@ const generateNewsInsightsController = async (req: Request, res: Response) => {
                 statusCode = 403;
             } else if (error === 'NON_NEWS_CONTENT') {
                 errorMsg = message || 'Non-news content detected';
-                statusCode = 400;
-            } else if (error === 'CONTENT_OR_URL_REQUIRED') {
-                errorMsg = 'Either content or URL must be provided';
-                statusCode = 400;
-            } else if (error === 'CONTENT_AND_URL_CONFLICT') {
-                errorMsg = 'Provide either content or URL, not both';
                 statusCode = 400;
             } else if (error === 'SCRAPING_FAILED') {
                 errorMsg = 'Failed to scrape the provided URL';

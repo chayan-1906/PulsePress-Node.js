@@ -34,7 +34,7 @@ export type TViolationType = typeof VIOLATION_TYPES[number];
 export const IMPACT_LEVELS = ['local', 'regional', 'national', 'global'] as const;
 export type TImpactLevel = typeof IMPACT_LEVELS[number];
 
-export const AI_ARTICLE_ENHANCEMENT_TYPES = ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'geoExtraction', 'questions', 'newsInsights'];
+export const AI_ARTICLE_ENHANCEMENT_TYPES = ['summarize', 'tags', 'sentiment', 'keyPoints', 'complexityMeter', 'questions', 'answer', 'geoExtraction', 'caption', 'newsInsights'];
 export type TAIArticleEnhancement = typeof AI_ARTICLE_ENHANCEMENT_TYPES[number];
 export type TBasicEnhancementTypes = 'tags' | 'sentiment' | 'keyPoints' | 'complexityMeter' | 'locations';
 

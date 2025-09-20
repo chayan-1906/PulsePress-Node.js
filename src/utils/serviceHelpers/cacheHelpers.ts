@@ -126,11 +126,11 @@ const saveBasicEnhancements = async (enhancements: IBasicEnhancementsParams): Pr
     try {
         const updateData: Partial<IArticleEnhancement> = {};
 
-        if (enhancements.tags) updateData.tags = enhancements.tags;
-        if (enhancements.sentiment) updateData.sentiment = enhancements.sentiment;
-        if (enhancements.keyPoints) updateData.keyPoints = enhancements.keyPoints;
-        if (enhancements.complexityMeter) updateData.complexityMeter = enhancements.complexityMeter;
-        if (enhancements.locations) updateData.locations = enhancements.locations;
+        if (enhancements.tags && enhancements.tags.length > 0) updateData.tags = enhancements.tags;
+        if (enhancements.sentiment && Object.keys(enhancements.sentiment).length > 0) updateData.sentiment = enhancements.sentiment;
+        if (enhancements.keyPoints && enhancements.keyPoints.length > 0) updateData.keyPoints = enhancements.keyPoints;
+        if (enhancements.complexityMeter && Object.keys(enhancements.complexityMeter).length > 0) updateData.complexityMeter = enhancements.complexityMeter;
+        if (enhancements.locations && enhancements.locations.length > 0) updateData.locations = enhancements.locations;
 
         const savedEnhancements: IArticleEnhancement = await ArticleEnhancementModel.findOneAndUpdate(
             {articleId: enhancements.articleId},
@@ -143,7 +143,7 @@ const saveBasicEnhancements = async (enhancements: IBasicEnhancementsParams): Pr
                     createdAt: new Date(),
                 },
             },
-            {upsert: true, new: true},
+            {upsert: true, new: true, minimize: true},
         );
 
         console.log('Basic enhancements cached successfully'.cyan, {articleId: enhancements.articleId, fieldsUpdated: Object.keys(updateData)});
