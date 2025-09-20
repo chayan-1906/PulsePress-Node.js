@@ -1,13 +1,25 @@
 import {Document, model, Model, Schema} from 'mongoose';
-import {COMPLEXITY_LEVELS, IMPACT_LEVELS, TComplexityLevel, TImpactLevel, TSentimentResult} from "../types/ai";
 import {ARTICLE_COMPLEXITIES, PROCESSING_STATUSES, TArticleComplexities, TProcessingStatus} from "../types/news";
+import {
+    COMPLEXITY_LEVELS,
+    IMPACT_LEVELS,
+    SOCIAL_MEDIA_CAPTION_STYLES,
+    SUMMARIZATION_STYLES,
+    TComplexityLevel,
+    TImpactLevel,
+    TSentimentResult,
+    TSocialMediaCaptionStyle,
+    TSocialMediaPlatform,
+    TSummarizationStyle,
+    TSupportedLanguage,
+} from "../types/ai";
 
 export interface IArticleEnhancement extends Document {
     articleId: string;
     url: string;
     tags?: string[];
     sentiment?: {
-        sentiment: TSentimentResult;
+        type: TSentimentResult;
         confidence: number;
         emoji: string;
         color: string;
@@ -24,6 +36,18 @@ export interface IArticleEnhancement extends Document {
     };
     locations?: string[];
     questions?: string[];
+    summaries?: Map<string, {
+        content: string;
+        style: TSummarizationStyle;
+        language: TSupportedLanguage;
+        createdAt: Date;
+    }>;
+    socialMediaCaptions?: Map<string, {
+        content: string;
+        style: TSocialMediaCaptionStyle;
+        platform?: TSocialMediaPlatform;
+        createdAt: Date;
+    }>;
     newsInsights?: {
         keyThemes: string[];
         impactAssessment: {
@@ -60,7 +84,7 @@ const ArticleEnhancementSchema = new Schema<IArticleEnhancement>({
         type: String,
     }],
     sentiment: {
-        sentiment: String,
+        type: String,
         confidence: Number,
         emoji: String,
         color: String,
@@ -89,6 +113,49 @@ const ArticleEnhancementSchema = new Schema<IArticleEnhancement>({
     questions: [{
         type: String,
     }],
+    summaries: {
+        type: Map,
+        of: {
+            content: {
+                type: String,
+                required: true,
+            },
+            style: {
+                type: String,
+                enum: SUMMARIZATION_STYLES,
+                required: true,
+            },
+            language: {
+                type: String,
+                required: true,
+            },
+            createdAt: {
+                type: Date,
+                default: Date.now,
+            },
+        },
+    },
+    socialMediaCaptions: {
+        type: Map,
+        of: {
+            content: {
+                type: String,
+                required: true,
+            },
+            style: {
+                type: String,
+                enum: SOCIAL_MEDIA_CAPTION_STYLES,
+                required: true,
+            },
+            platform: {
+                type: String,
+            },
+            createdAt: {
+                type: Date,
+                default: Date.now,
+            },
+        },
+    },
     newsInsights: {
         keyThemes: [{
             type: String,

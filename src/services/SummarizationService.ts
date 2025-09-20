@@ -7,12 +7,12 @@ import QuotaService from "./QuotaService";
 import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
 import {GEMINI_API_KEY} from "../config/config";
-import {AI_SUMMARIZATION_MODELS, CONTENT_LIMITS} from "../utils/constants";
+import {generateArticleId} from "../utils/generateArticleId";
 import NewsClassificationService from "./NewsClassificationService";
 import {translateText} from "../utils/serviceHelpers/translationHelpers";
+import {AI_SUMMARIZATION_MODELS, CONTENT_LIMITS} from "../utils/constants";
 import {truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
-import {generateSummarizationContentHash} from "../utils/serviceHelpers/contentHashing";
-import {getCachedSummary, saveSummaryToCache} from "../utils/serviceHelpers/cacheHelpers";
+import {getCachedSummaryVariation, saveSummaryVariation} from "../utils/serviceHelpers/cacheHelpers";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {ISummarizeArticleParams, ISummarizeArticleResponse, ISummarizeContentParams, ISummarizeContentResponse, ISummarizeContentWithModelParams, SUMMARIZATION_STYLES} from "../types/ai";
 
@@ -26,14 +26,9 @@ class SummarizationService {
         console.log('Service: SummarizationService.summarizeArticle called'.cyan.italic, {content, url, language, style});
 
         try {
-            if (!content && !url) {
-                console.warn('Client Error: Both content and URL are invalid'.yellow, {content, url});
-                return {error: 'CONTENT_OR_URL_REQUIRED'};
-            }
-
-            if (content && url) {
-                console.warn('Client Error: Both content and URL provided'.yellow, {content, url});
-                return {error: 'CONTENT_AND_URL_CONFLICT'};
+            if (!url) {
+                console.warn('Client Error: URL is invalid'.yellow, {content, url});
+                return {error: generateMissingCode('url')};
             }
 
             if (style && !SUMMARIZATION_STYLES.includes(style)) {
@@ -67,6 +62,7 @@ class SummarizationService {
             }
 
             const articleContent = content || '';
+            const articleId = generateArticleId({url});
 
             console.log('External API: Validating news content classification'.magenta);
             const classification = await NewsClassificationService.classifyContent(articleContent);
@@ -81,15 +77,10 @@ class SummarizationService {
                 console.log('News content verified, proceeding with summarization'.bgGreen.bold);
             }
 
-            const hash = generateSummarizationContentHash(articleContent, language, style);
-            if (!hash) {
-                return {error: 'HASH_FAILED'};
-            }
-
-            const cached = await getCachedSummary(hash);
+            const cached = await getCachedSummaryVariation({articleId, style, language});
             if (cached) {
                 console.log('Using cached summarization result'.cyan);
-                return {summary: cached.summary, powered_by: 'Cached Result'};
+                return {summary: cached.content, powered_by: 'Cached Result'};
             }
 
             const {summary, powered_by, error} = await this.summarizeContentWithModel({content: articleContent, url, style, modelName: quotaReservation.selectedModel});
@@ -114,7 +105,7 @@ class SummarizationService {
                 finalPoweredBy = `${powered_by} + Translate`;
             }
 
-            await saveSummaryToCache(hash, finalSummary, language, style);
+            await saveSummaryVariation({articleId, summary: finalSummary, url, style, language});
 
             console.log('Article summarization completed successfully'.green.bold, {summary: finalSummary.substring(0, CONTENT_LIMITS.SUMMARY_PREVIEW_LENGTH) + '...', powered_by: finalPoweredBy});
 

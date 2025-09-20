@@ -2,11 +2,24 @@ import "colors";
 import {IArticle} from "../../types/news";
 import {CONTENT_LIMITS} from "../constants";
 import {generateArticleId} from "../generateArticleId";
-import ArticleEnhancementModel from "../../models/ArticleEnhancementSchema";
 import CachedQuestionAnswerModel from "../../models/CachedQuestionAnswerSchema";
-import CachedSummaryModel, {ICachedSummary} from "../../models/CachedSummarySchema";
-import CachedArticleEnhancementModel, {ICachedArticleEnhancement} from "../../models/CachedArticleEnhancementSchema";
-import {IBasicEnhancementsParams, IUpdateArticleIdsProcessingStatusParams, IUpdateArticlesProcessingStatusParams, TBasicEnhancementTypes} from "../../types/ai";
+import ArticleEnhancementModel, {IArticleEnhancement} from "../../models/ArticleEnhancementSchema";
+import {
+    IBasicEnhancementsParams,
+    IGetCachedCaptionVariationParams,
+    IGetCachedCaptionVariationResponse,
+    IGetCachedSummaryVariationParams,
+    IGetCachedSummaryVariationResponse,
+    ISaveCaptionVariationParams,
+    ISaveSummaryVariationParams,
+    IUpdateArticleIdsProcessingStatusParams,
+    IUpdateArticlesProcessingStatusParams,
+    TBasicEnhancementTypes,
+    TSocialMediaCaptionStyle,
+    TSocialMediaPlatform,
+    TSummarizationStyle,
+    TSupportedLanguage,
+} from "../../types/ai";
 
 /**
  * Cache generated questions
@@ -59,57 +72,15 @@ const cacheAnswer = async (contentHash: string, question: string, answer: string
 }
 
 /**
- * Save generated summary to cache with content hash and metadata
- */
-const saveSummaryToCache = async (contentHash: string, summary: string, language: string, style: string): Promise<ICachedSummary | null> => {
-    console.log('Service: saveSummaryToCache called'.cyan.italic, {contentHash, summary: summary.substring(0, CONTENT_LIMITS.SUMMARY_PREVIEW_LENGTH) + '...', language, style});
-
-    try {
-        /*if (NODE_ENV !== 'production') {
-            console.log('Caching disabled in development mode'.cyan);
-            return null;
-        }*/
-
-        const savedContentHash: ICachedSummary | null = await CachedSummaryModel.create({contentHash, summary, language, style});
-        console.log('Saved content hash to cache:'.cyan, savedContentHash);
-        return savedContentHash;
-    } catch (error: any) {
-        console.error('Service Error: saveSummaryToCache failed'.red.bold, error);
-        throw error;
-    }
-}
-
-/**
- * Retrieve cached summary by content hash
- */
-const getCachedSummary = async (contentHash: string): Promise<ICachedSummary | null> => {
-    console.log('Service: getCachedSummary called'.cyan.italic, {contentHash});
-
-    try {
-        /*if (NODE_ENV !== 'production') {
-            console.log('Caching disabled in development mode'.cyan);
-            return null;
-        }*/
-
-        const cachedSummary: ICachedSummary | null = await CachedSummaryModel.findOne({contentHash});
-        console.log('Retrieved cached summary:'.cyan, cachedSummary ? 'Found' : 'Not found');
-        return cachedSummary;
-    } catch (error: any) {
-        console.error('Service Error: getCachedSummary failed'.red.bold, error);
-        return null;
-    }
-}
-
-/**
  * Helper function to update processing status for multiple articles
  */
 const updateArticlesProcessingStatus = async ({articles, status}: IUpdateArticlesProcessingStatusParams): Promise<void> => {
-    const articleIds = articles.map((article: IArticle) => generateArticleId({article}));
+    const articleIds = articles.map((article: IArticle) => generateArticleId({url: article.url}));
     for (const articleId of articleIds) {
         await ArticleEnhancementModel.findOneAndUpdate(
             {articleId},
             {
-                url: articles.find(a => generateArticleId({article: a}) === articleId)?.url,
+                url: articles.find((article: IArticle) => generateArticleId({url: article.url}) === articleId)?.url,
                 processingStatus: status,
             },
             {upsert: true},
@@ -131,13 +102,13 @@ const updateArticleIdsProcessingStatus = async ({articleIds, status}: IUpdateArt
 }
 
 /**
- * Get cached article enhancements by content hash
+ * Get cached article enhancements by article ID
  */
-const getCachedArticleEnhancements = async (contentHash: string): Promise<ICachedArticleEnhancement | null> => {
-    console.log('Service: getCachedArticleEnhancements called'.cyan.italic, {contentHash});
+const getCachedArticleEnhancements = async (articleId: string): Promise<IArticleEnhancement | null> => {
+    console.log('Service: getCachedArticleEnhancements called'.cyan.italic, {articleId});
 
     try {
-        const cachedEnhancements = await CachedArticleEnhancementModel.findOne({contentHash});
+        const cachedEnhancements = await ArticleEnhancementModel.findOne({articleId});
         console.log('Cache lookup result:'.cyan, cachedEnhancements ? 'Found' : 'Not found');
         return cachedEnhancements;
     } catch (error: any) {
@@ -149,11 +120,11 @@ const getCachedArticleEnhancements = async (contentHash: string): Promise<ICache
 /**
  * Save or update basic article enhancements (from /multi-source/enhance)
  */
-const saveBasicEnhancements = async (contentHash: string, enhancements: IBasicEnhancementsParams): Promise<ICachedArticleEnhancement | null> => {
-    console.log('Service: saveBasicEnhancements called'.cyan.italic, {contentHash, enhancementTypes: Object.keys(enhancements)});
+const saveBasicEnhancements = async (enhancements: IBasicEnhancementsParams): Promise<IArticleEnhancement | null> => {
+    console.log('Service: saveBasicEnhancements called'.cyan.italic, {articleId: enhancements.articleId, enhancementTypes: Object.keys(enhancements)});
 
     try {
-        const updateData: Partial<ICachedArticleEnhancement> = {};
+        const updateData: Partial<IArticleEnhancement> = {};
 
         if (enhancements.tags) updateData.tags = enhancements.tags;
         if (enhancements.sentiment) updateData.sentiment = enhancements.sentiment;
@@ -161,19 +132,21 @@ const saveBasicEnhancements = async (contentHash: string, enhancements: IBasicEn
         if (enhancements.complexityMeter) updateData.complexityMeter = enhancements.complexityMeter;
         if (enhancements.locations) updateData.locations = enhancements.locations;
 
-        const savedEnhancements: ICachedArticleEnhancement = await CachedArticleEnhancementModel.findOneAndUpdate(
-            {contentHash},
+        const savedEnhancements: IArticleEnhancement = await ArticleEnhancementModel.findOneAndUpdate(
+            {articleId: enhancements.articleId},
             {
                 $set: updateData,
                 $setOnInsert: {
-                    contentHash,
+                    articleId: enhancements.articleId,
+                    url: enhancements.url,
+                    processingStatus: 'completed',
                     createdAt: new Date(),
                 },
             },
             {upsert: true, new: true},
         );
 
-        console.log('Basic enhancements cached successfully'.cyan, {contentHash, fieldsUpdated: Object.keys(updateData)});
+        console.log('Basic enhancements cached successfully'.cyan, {articleId: enhancements.articleId, fieldsUpdated: Object.keys(updateData)});
 
         return savedEnhancements;
     } catch (error: any) {
@@ -185,11 +158,11 @@ const saveBasicEnhancements = async (contentHash: string, enhancements: IBasicEn
 /**
  * Check if specific enhancement types are already cached
  */
-const hasEnhancementTypes = async (contentHash: string, enhancementTypes: TBasicEnhancementTypes[]): Promise<{ [key: string]: boolean }> => {
-    console.log('Service: hasEnhancementTypes called'.cyan.italic, {contentHash, enhancementTypes});
+const hasEnhancementTypes = async (articleId: string, enhancementTypes: TBasicEnhancementTypes[]): Promise<{ [key: string]: boolean }> => {
+    console.log('Service: hasEnhancementTypes called'.cyan.italic, {articleId, enhancementTypes});
 
     try {
-        const cached = await CachedArticleEnhancementModel.findOne({contentHash});
+        const cached = await ArticleEnhancementModel.findOne({articleId});
 
         if (!cached) {
             return enhancementTypes.reduce((acc, type) => ({...acc, [type]: false}), {});
@@ -208,14 +181,155 @@ const hasEnhancementTypes = async (contentHash: string, enhancementTypes: TBasic
     }
 }
 
+/**
+ * Generate composite key for summary variations (style + language)
+ */
+const generateSummaryKey = (style: TSummarizationStyle, language: TSupportedLanguage): string => `${style}+${language}`;
+
+/**
+ * Save summary variation to nested Map structure
+ */
+const saveSummaryVariation = async ({articleId, summary, url, style, language}: ISaveSummaryVariationParams): Promise<IArticleEnhancement | null> => {
+    console.log('Service: saveSummaryVariation called'.cyan.italic, {articleId, style, language, summary: summary.substring(0, CONTENT_LIMITS.SUMMARY_PREVIEW_LENGTH) + '...'});
+
+    try {
+        const summaryKey = generateSummaryKey(style, language);
+        const summaryData = {
+            content: summary,
+            style,
+            language,
+            createdAt: new Date(),
+        };
+
+        const savedEnhancements: IArticleEnhancement = await ArticleEnhancementModel.findOneAndUpdate(
+            {articleId},
+            {
+                $set: {
+                    [`summaries.${summaryKey}`]: summaryData,
+                },
+                $setOnInsert: {
+                    articleId,
+                    url,
+                    processingStatus: 'completed',
+                    createdAt: new Date(),
+                },
+            },
+            {upsert: true, new: true},
+        );
+
+        console.log('Summary variation cached successfully'.cyan, {articleId, summaryKey});
+        return savedEnhancements;
+    } catch (error: any) {
+        console.error('Service Error: saveSummaryVariation failed'.red.bold, error);
+        return null;
+    }
+}
+
+/**
+ * Get cached summary variation by style and language
+ */
+const getCachedSummaryVariation = async ({articleId, style, language}: IGetCachedSummaryVariationParams): Promise<IGetCachedSummaryVariationResponse | null> => {
+    console.log('Service: getCachedSummaryVariation called'.cyan.italic, {articleId, style, language});
+
+    try {
+        const summaryKey = generateSummaryKey(style, language);
+        const cached = await ArticleEnhancementModel.findOne({articleId});
+
+        if (!cached || !cached.summaries) {
+            console.log('Cache lookup result:'.cyan, 'Not found');
+            return null;
+        }
+
+        const summaryVariation = cached.summaries.get(summaryKey);
+        console.log('Summary variation lookup result:'.cyan, summaryVariation ? 'Found' : 'Not found', {summaryKey});
+
+        return summaryVariation || null;
+    } catch (error: any) {
+        console.error('Service Error: getCachedSummaryVariation failed'.red.bold, error);
+        return null;
+    }
+}
+
+/**
+ * Generate composite key for social media caption variations
+ */
+const generateCaptionKey = (style: TSocialMediaCaptionStyle, platform?: TSocialMediaPlatform): string => platform ? `${style}+${platform}` : style;
+
+/**
+ * Save social media caption variation to nested Map structure
+ */
+const saveCaptionVariation = async ({articleId, caption, url, style, platform}: ISaveCaptionVariationParams): Promise<IArticleEnhancement | null> => {
+    console.log('Service: saveCaptionVariation called'.cyan.italic, {articleId, style, platform, caption: caption.substring(0, 100) + '...'});
+
+    try {
+        const captionKey = generateCaptionKey(style, platform);
+        const captionData = {
+            content: caption,
+            style,
+            platform,
+            createdAt: new Date(),
+        };
+
+        const savedEnhancements: IArticleEnhancement = await ArticleEnhancementModel.findOneAndUpdate(
+            {articleId},
+            {
+                $set: {
+                    [`socialMediaCaptions.${captionKey}`]: captionData,
+                },
+                $setOnInsert: {
+                    articleId,
+                    url,
+                    processingStatus: 'completed',
+                    createdAt: new Date(),
+                },
+            },
+            {upsert: true, new: true},
+        );
+
+        console.log('Caption variation cached successfully'.cyan, {articleId, captionKey});
+        return savedEnhancements;
+    } catch (error: any) {
+        console.error('Service Error: saveCaptionVariation failed'.red.bold, error);
+        return null;
+    }
+}
+
+/**
+ * Get cached social media caption variation by style and platform
+ */
+const getCachedCaptionVariation = async ({articleId, style, platform}: IGetCachedCaptionVariationParams): Promise<IGetCachedCaptionVariationResponse | null> => {
+    console.log('Service: getCachedCaptionVariation called'.cyan.italic, {articleId, style, platform});
+
+    try {
+        const captionKey = generateCaptionKey(style, platform);
+        const cached = await ArticleEnhancementModel.findOne({articleId});
+
+        if (!cached || !cached.socialMediaCaptions) {
+            console.log('Cache lookup result:'.cyan, 'Not found');
+            return null;
+        }
+
+        const captionVariation = cached.socialMediaCaptions.get(captionKey);
+        console.log('Caption variation lookup result:'.cyan, captionVariation ? 'Found' : 'Not found', {captionKey});
+
+        return captionVariation || null;
+    } catch (error: any) {
+        console.error('Service Error: getCachedCaptionVariation failed'.red.bold, error);
+        return null;
+    }
+}
+
 export {
     cacheQuestions,
     cacheAnswer,
-    saveSummaryToCache,
-    getCachedSummary,
     updateArticlesProcessingStatus,
     updateArticleIdsProcessingStatus,
     getCachedArticleEnhancements,
     saveBasicEnhancements,
-    hasEnhancementTypes,
+    generateSummaryKey,
+    generateCaptionKey,
+    saveSummaryVariation,
+    saveCaptionVariation,
+    getCachedSummaryVariation,
+    getCachedCaptionVariation,
 };

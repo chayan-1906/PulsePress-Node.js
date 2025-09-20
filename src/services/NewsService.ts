@@ -81,7 +81,7 @@ class NewsService {
             if (topHeadlinesResponse.articles) {
                 topHeadlinesResponse.articles = topHeadlinesResponse.articles.map((article: IArticle) => ({
                     ...article,
-                    articleId: generateArticleId({article}),
+                    articleId: generateArticleId({url: article.url}),
                 }));
             }
 
@@ -135,7 +135,7 @@ class NewsService {
             if (everything.articles) {
                 everything.articles = everything.articles.map((article: IArticle) => ({
                     ...article,
-                    articleId: generateArticleId({article}),
+                    articleId: generateArticleId({url: article.url}),
                 }));
             }
 

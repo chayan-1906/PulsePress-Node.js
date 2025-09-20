@@ -369,6 +369,20 @@ export interface IGetEnhancementStatusByIdsResponse {
     error?: string;
 }
 
+export interface IGetCachedSummaryVariationResponse {
+    content: string;
+    style: TSummarizationStyle;
+    language: TSupportedLanguage;
+    createdAt: Date;
+}
+
+export interface IGetCachedCaptionVariationResponse {
+    content: string;
+    style: TSocialMediaCaptionStyle;
+    platform?: TSocialMediaPlatform;
+    createdAt: Date;
+}
+
 export interface IGetUserStrikeStatusResponse {
     strikeStatus?: IUserStrikeStatus;
     error?: string;
@@ -408,28 +422,6 @@ export interface ISummarizeContentWithModelParams {
     url?: string;
     style?: TSummarizationStyle;
     modelName: string;
-}
-
-export interface IGenerateContentHashParams {
-    articleContent: string;
-    language?: TSupportedLanguage;
-    style?: TSummarizationStyle;
-}
-
-export interface ISaveSummaryToCacheParams {
-    contentHash: string;
-    summary: string;
-    language?: TSupportedLanguage;
-    style?: TSummarizationStyle;
-}
-
-export interface IGetCachedSummaryParams {
-    contentHash: string;
-}
-
-export interface ITranslateTextParams {
-    text: string;
-    targetLanguage: TSupportedLanguage;
 }
 
 export interface ITagGenerationParams {
@@ -493,16 +485,6 @@ export interface INewsInsightsParams {
     content?: string;
 }
 
-export interface UpdateArticlesProcessingStatusParams {
-    articles: IArticle[];
-    status: 'cancelled' | 'failed';
-}
-
-export interface UpdateArticleIdsProcessingStatusParams {
-    articleIds: string[];
-    status: 'cancelled' | 'failed';
-}
-
 export interface IEnhanceArticlesParams {
     email: string;  // for authMiddleware
     articles: IArticle[];
@@ -545,19 +527,49 @@ export interface IUpdateArticleIdsProcessingStatusParams {
 }
 
 export interface IBasicEnhancementsParams {
+    articleId: string;
+    url: string;
     tags?: string[];
     sentiment?: {
-        type: string;
+        type: TSentimentResult;
         confidence: number;
         emoji: string;
         color: string;
     };
     keyPoints?: string[];
     complexityMeter?: {
-        level: 'easy' | 'medium' | 'hard';
+        level: TComplexityLevel;
         reasoning: string;
     };
     locations?: string[];
+}
+
+export interface ISaveSummaryVariationParams {
+    articleId: string;
+    summary: string;
+    url: string;
+    style: TSummarizationStyle;
+    language: TSupportedLanguage;
+}
+
+export interface ISaveCaptionVariationParams {
+    articleId: string;
+    caption: string;
+    url: string;
+    style: TSocialMediaCaptionStyle;
+    platform?: TSocialMediaPlatform;
+}
+
+export interface IGetCachedSummaryVariationParams {
+    articleId: string;
+    style: TSummarizationStyle;
+    language: TSupportedLanguage;
+}
+
+export interface IGetCachedCaptionVariationParams {
+    articleId: string;
+    style: TSocialMediaCaptionStyle;
+    platform?: TSocialMediaPlatform;
 }
 
 export interface IGetUserStrikeStatusParams {

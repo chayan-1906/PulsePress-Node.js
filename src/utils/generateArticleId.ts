@@ -1,18 +1,12 @@
 import {createHash} from "crypto";
 import {IGenerateArticleIdParams} from "../types/news";
 
-const generateArticleId = ({article, title, url}: IGenerateArticleIdParams): string => {
-    const finalUrl = url || article?.url;
-    const finalTitle = title || article?.title;
-
-    if (!finalUrl) {
+const generateArticleId = ({url}: IGenerateArticleIdParams): string => {
+    if (!url) {
         throw new Error('No valid URL found');
     }
-    if (!finalTitle) {
-        throw new Error('No valid title found');
-    }
 
-    const data = `${finalUrl}-${finalTitle}`;
+    const data = url;
     return createHash('md5').update(data).digest('hex');
 }
 

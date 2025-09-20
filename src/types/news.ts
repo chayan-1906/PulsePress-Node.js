@@ -362,7 +362,5 @@ export interface IExploreTopicParams {
 }
 
 export interface IGenerateArticleIdParams {
-    article?: Partial<IArticle>;
-    title?: string;
-    url?: string;
+    url?: string | null;
 }
