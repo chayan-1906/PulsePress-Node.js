@@ -10,10 +10,10 @@ import {generateArticleId} from "../utils/generateArticleId";
 import {AI_ENHANCEMENT_MODELS, API_CONFIG} from "../utils/constants";
 import ReadingTimeAnalysisService from "./ReadingTimeAnalysisService";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
-import {mergeEnhancementsWithArticles} from "../utils/serviceHelpers/articleConverters";
 import {getSentimentColor, getSentimentEmoji} from "../utils/serviceHelpers/sentimentHelpers";
 import ArticleEnhancementModel, {IArticleEnhancement} from "../models/ArticleEnhancementSchema";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
+import {mergeEnhancementsWithArticles as mergeEnhancementsHelper} from "../utils/serviceHelpers/articleConverters";
 import {getCachedArticleEnhancements, saveBasicEnhancements, updateArticleIdsProcessingStatus, updateArticlesProcessingStatus} from "../utils/serviceHelpers/cacheHelpers";
 import {
     ICombinedAIParams,
@@ -244,11 +244,11 @@ class ArticleEnhancementService {
                 try {
                     const cachedEnhancements = await getCachedArticleEnhancements(articleId);
 
-                    if (cachedEnhancements) {
+                    if (cachedEnhancements && cachedEnhancements.processingStatus === 'completed') {
                         enhancementMap[articleId] = {
                             articleId,
                             url: article.url,
-                            processingStatus: 'completed',
+                            processingStatus: cachedEnhancements.processingStatus,
                             tags: cachedEnhancements.tags,
                             sentiment: cachedEnhancements.sentiment,
                             keyPoints: cachedEnhancements.keyPoints,
@@ -323,7 +323,7 @@ class ArticleEnhancementService {
                     cachedStatus: cachedEnhancements?.processingStatus,
                 });
 
-                if (cachedEnhancements) {
+                if (cachedEnhancements && cachedEnhancements.processingStatus === 'completed') {
                     completedCount++;
                     console.log('Found completed enhancement in unified cache for status check'.cyan, {articleId});
                 }
@@ -398,7 +398,7 @@ class ArticleEnhancementService {
 
             const articles = enhancements
                 .filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'completed')
-                .map(({articleId, url, tags, sentiment, complexity, complexityMeter, keyPoints, locations}) => ({
+                .map(({articleId, url, tags, sentiment, complexity, complexityMeter, keyPoints, locations, processingStatus}) => ({
                     articleId,
                     url,
                     tags,
@@ -407,7 +407,8 @@ class ArticleEnhancementService {
                     complexityMeter,
                     keyPoints,
                     locations,
-                    enhanced: true,
+                    processingStatus,
+                    enhanced: processingStatus === 'completed',
                 }));
 
             let status: TEnhancementStatus = 'processing';
@@ -433,7 +434,7 @@ class ArticleEnhancementService {
      * Merge enhancement data with original articles
      */
     static mergeEnhancementsWithArticles({articles, enhancements}: IMergeEnhancementsWithArticlesParams): IArticle[] {
-        return mergeEnhancementsWithArticles(articles, enhancements);
+        return mergeEnhancementsHelper(articles, enhancements);
     }
 
     /**

@@ -1,4 +1,5 @@
 import {Document, model, Model, Schema} from 'mongoose';
+import {TIME_CONSTANTS} from "../utils/constants";
 import {ARTICLE_COMPLEXITIES, PROCESSING_STATUSES, TArticleComplexities, TProcessingStatus} from "../types/news";
 import {
     COMPLEXITY_LEVELS,
@@ -13,7 +14,6 @@ import {
     TSummarizationStyle,
     TSupportedLanguage,
 } from "../types/ai";
-import {TIME_CONSTANTS} from "../utils/constants";
 
 export interface IArticleEnhancement extends Document {
     articleId: string;

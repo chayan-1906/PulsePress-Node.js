@@ -124,7 +124,8 @@ export const mergeEnhancementsWithArticles = (articles: IArticle[], enhancements
                 complexityMeter: enhancement.complexityMeter,
                 locations: enhancement.locations,
                 complexity: enhancement.complexity,
-                enhanced: true,
+                processingStatus: enhancement.processingStatus,
+                enhanced: enhancement.processingStatus === 'completed',
             };
         }
 
