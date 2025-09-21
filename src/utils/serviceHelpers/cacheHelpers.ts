@@ -5,12 +5,15 @@ import {generateContentHash} from "./contentHashing";
 import {generateArticleId} from "../generateArticleId";
 import ArticleEnhancementModel, {IArticleEnhancement} from "../../models/ArticleEnhancementSchema";
 import {
+    IAINewsInsights,
     IBasicEnhancementsParams,
     IGetCachedCaptionVariationParams,
     IGetCachedCaptionVariationResponse,
     IGetCachedNewsInsightsParams,
     IGetCachedQuestionAnswerParams,
+    IGetCachedQuestionAnswerResponse,
     IGetCachedQuestionsParams,
+    IGetCachedQuestionsResponse,
     IGetCachedSummaryVariationParams,
     IGetCachedSummaryVariationResponse,
     ISaveCaptionVariationParams,
@@ -314,7 +317,7 @@ const saveQuestions = async ({articleId, url, questions}: ISaveQuestionsParams):
 /**
  * Get cached questions
  */
-const getCachedQuestions = async ({articleId}: IGetCachedQuestionsParams): Promise<string[] | null> => {
+const getCachedQuestions = async ({articleId}: IGetCachedQuestionsParams): Promise<IGetCachedQuestionsResponse | null> => {
     console.log('Service: getCachedQuestions called'.cyan.italic, {articleId});
 
     try {
@@ -325,8 +328,9 @@ const getCachedQuestions = async ({articleId}: IGetCachedQuestionsParams): Promi
             return null;
         }
 
-        console.log('Questions lookup result:'.cyan, 'Found', {questionsCount: cached.questions.length});
-        return cached.questions;
+        const cachedQuestions = cached.questions;
+        console.log('Questions lookup result:'.cyan, 'Found', {questionsCount: cachedQuestions.length});
+        return {questions: cachedQuestions, createdAt: cached.createdAt};
     } catch (error: any) {
         console.error('Service Error: getCachedQuestions failed'.red.bold, error);
         return null;
@@ -374,7 +378,7 @@ const saveQuestionAnswer = async ({articleId, url, question, answer}: ISaveQuest
 /**
  * Get cached answer for a specific question
  */
-const getCachedQuestionAnswer = async ({articleId, question}: IGetCachedQuestionAnswerParams): Promise<string | null> => {
+const getCachedQuestionAnswer = async ({articleId, question}: IGetCachedQuestionAnswerParams): Promise<IGetCachedQuestionAnswerResponse | null> => {
     console.log('Service: getCachedQuestionAnswer called'.cyan.italic, {articleId, question: question.substring(0, 50) + '...'});
 
     try {
@@ -393,7 +397,7 @@ const getCachedQuestionAnswer = async ({articleId, question}: IGetCachedQuestion
         }
 
         console.log('Question-answer lookup result:'.cyan, 'Found', {questionKey});
-        return questionAnswer.answer;
+        return {question: questionAnswer.question, answer: questionAnswer.answer, createdAt: cached.createdAt};
     } catch (error: any) {
         console.error('Service Error: getCachedQuestionAnswer failed'.red.bold, error);
         return null;
@@ -434,7 +438,7 @@ const saveNewsInsights = async ({articleId, url, newsInsights}: ISaveNewsInsight
 /**
  * Get cached news insights
  */
-const getCachedNewsInsights = async ({articleId}: IGetCachedNewsInsightsParams): Promise<any | null> => {
+const getCachedNewsInsights = async ({articleId}: IGetCachedNewsInsightsParams): Promise<IAINewsInsights | null> => {
     console.log('Service: getCachedNewsInsights called'.cyan.italic, {articleId});
 
     try {

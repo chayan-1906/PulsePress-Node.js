@@ -28,7 +28,7 @@ class NewsInsightsService {
             console.warn('Client Error: URL is invalid'.yellow, {content, url});
             return {error: generateMissingCode('url')};
         }
-        
+
         const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock({email});
         if (isBlocked) {
             console.warn('Client Error: User is blocked from AI features'.yellow, {email, blockType, blockedUntil});
@@ -122,11 +122,15 @@ class NewsInsightsService {
                     articleId,
                     url,
                     newsInsights: {
-                        keyThemes: result.keyThemes,
-                        impactAssessment: result.impactAssessment,
-                        contextConnections: result.contextConnections,
-                        stakeholderAnalysis: result.stakeholderAnalysis,
-                        timelineContext: result.timelineContext,
+                        keyThemes: result.keyThemes || [],
+                        impactAssessment: result.impactAssessment || {level: 'local', description: ''},
+                        contextConnections: result.contextConnections || [],
+                        stakeholderAnalysis: {
+                            winners: result.stakeholderAnalysis?.winners || [],
+                            losers: result.stakeholderAnalysis?.losers || [],
+                            affected: result.stakeholderAnalysis?.affected || [],
+                        },
+                        timelineContext: result.timelineContext || [],
                     },
                 });
 

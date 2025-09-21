@@ -73,9 +73,9 @@ class QuestionAnswerService {
         }
 
         const cached = await getCachedQuestions({articleId});
-        if (cached && cached.length > 0) {
-            console.log('Questions retrieved from cache'.cyan, {articleId, questionsCount: cached.length});
-            return {questions: cached, powered_by: 'Cached Result'};
+        if (cached && cached.questions.length > 0) {
+            console.log('Questions retrieved from cache'.cyan, {articleId, questionsCount: cached.questions.length});
+            return {questions: cached.questions, powered_by: 'Cached Result'};
         }
 
         // Truncate content to avoid token limits
@@ -182,7 +182,7 @@ class QuestionAnswerService {
 
         if (cached) {
             console.log('Answer retrieved from cache'.cyan, {articleId, question: question.substring(0, 50) + '...'});
-            return {answer: cached, powered_by: 'Cached Result'};
+            return {answer: cached.answer, powered_by: 'Cached Result'};
         }
 
         // Truncate content to avoid token limits

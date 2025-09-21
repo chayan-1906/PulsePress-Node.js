@@ -383,6 +383,33 @@ export interface IGetCachedCaptionVariationResponse {
     createdAt: Date;
 }
 
+export interface IGetCachedQuestionsResponse {
+    questions: string[];
+    createdAt: Date;
+}
+
+export interface IGetCachedQuestionAnswerResponse {
+    question: string;
+    answer: string;
+    createdAt: Date;
+}
+
+export interface IGetCachedNewsInsightsResponse {
+    keyThemes: string[];
+    impactAssessment: {
+        level: TImpactLevel;
+        description: string;
+    };
+    contextConnections: string[];
+    stakeholderAnalysis: {
+        winners: string[];
+        losers: string[];
+        affected: string[];
+    };
+    timelineContext: string[];
+    createdAt: Date;
+}
+
 export interface IGetUserStrikeStatusResponse {
     strikeStatus?: IUserStrikeStatus;
     error?: string;
@@ -591,7 +618,7 @@ export interface IGetCachedQuestionAnswerParams {
 export interface ISaveNewsInsightsParams {
     articleId: string;
     url: string;
-    newsInsights: any;
+    newsInsights: IAINewsInsights;
 }
 
 export interface IGetCachedNewsInsightsParams {
