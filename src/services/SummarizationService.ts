@@ -50,17 +50,6 @@ class SummarizationService {
                 };
             }
 
-            const quotaReservation = await QuotaService.reserveQuotaForModelFallback({primaryModel: AI_SUMMARIZATION_MODELS[0], fallbackModels: AI_SUMMARIZATION_MODELS.slice(1), count: 1});
-
-            if (!quotaReservation.allowed) {
-                console.warn('Rate Limit: Gemini API daily quota reached'.yellow, {
-                    selectedModel: quotaReservation.selectedModel,
-                    quotaReserved: quotaReservation.quotaReserved,
-                    service: quotaReservation.service,
-                });
-                return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
-            }
-
             const articleContent = content || '';
             const articleId = generateArticleId({url});
 
@@ -81,6 +70,17 @@ class SummarizationService {
             if (cached) {
                 console.log('Using cached summarization result'.cyan);
                 return {summary: cached.content, powered_by: 'Cached Result'};
+            }
+
+            const quotaReservation = await QuotaService.reserveQuotaForModelFallback({primaryModel: AI_SUMMARIZATION_MODELS[0], fallbackModels: AI_SUMMARIZATION_MODELS.slice(1), count: 1});
+
+            if (!quotaReservation.allowed) {
+                console.warn('Rate Limit: Gemini API daily quota reached'.yellow, {
+                    selectedModel: quotaReservation.selectedModel,
+                    quotaReserved: quotaReservation.quotaReserved,
+                    service: quotaReservation.service,
+                });
+                return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
             }
 
             const {summary, powered_by, error} = await this.summarizeContentWithModel({content: articleContent, url, style, modelName: quotaReservation.selectedModel});
