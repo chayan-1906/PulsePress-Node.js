@@ -236,7 +236,7 @@ const ArticleEnhancementSchema = new Schema<IArticleEnhancement>({
     createdAt: {
         type: Date,
         default: Date.now,
-        expires: TIME_CONSTANTS.MONTH_IN_MS,
+        expires: TIME_CONSTANTS.MONTH_IN_SECONDS,
     },
 }, {
     timestamps: true,

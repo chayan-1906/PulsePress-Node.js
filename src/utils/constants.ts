@@ -445,6 +445,7 @@ export const TIME_CONSTANTS = {
     DAY_IN_MS: 24 * 60 * 60 * 1000,
     WEEK_IN_MS: 7 * 24 * 60 * 60 * 1000,
     MONTH_IN_MS: 30 * 24 * 60 * 60 * 1000,
+    MONTH_IN_SECONDS: 30 * 24 * 60 * 60,
 };
 
 export {
