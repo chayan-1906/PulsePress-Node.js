@@ -773,7 +773,7 @@ class NewsService {
             'Guardian': 0,
             'NYTimes-Search': 0,
             'NYTimes-TopStories': 0,
-            'RSS': 0
+            'RSS': 0,
         };
 
         sortedResults.forEach(article => {
