@@ -1,13 +1,26 @@
 import {Document, model, Model, Schema} from 'mongoose';
-import {COMPLEXITY_LEVELS, IMPACT_LEVELS, TComplexityLevel, TImpactLevel, TSentimentResult} from "../types/ai";
+import {TIME_CONSTANTS} from "../utils/constants";
 import {ARTICLE_COMPLEXITIES, PROCESSING_STATUSES, TArticleComplexities, TProcessingStatus} from "../types/news";
+import {
+    COMPLEXITY_LEVELS,
+    IMPACT_LEVELS,
+    SOCIAL_MEDIA_CAPTION_STYLES,
+    SUMMARIZATION_STYLES,
+    TComplexityLevel,
+    TImpactLevel,
+    TSentimentResult,
+    TSocialMediaCaptionStyle,
+    TSocialMediaPlatform,
+    TSummarizationStyle,
+    TSupportedLanguage,
+} from "../types/ai";
 
 export interface IArticleEnhancement extends Document {
     articleId: string;
     url: string;
     tags?: string[];
     sentiment?: {
-        sentiment: TSentimentResult;
+        type: TSentimentResult;
         confidence: number;
         emoji: string;
         color: string;
@@ -24,6 +37,23 @@ export interface IArticleEnhancement extends Document {
     };
     locations?: string[];
     questions?: string[];
+    questionAnswers?: Map<string, {
+        question: string;
+        answer: string;
+        createdAt: Date;
+    }>;
+    summaries?: Map<string, {
+        content: string;
+        style: TSummarizationStyle;
+        language: TSupportedLanguage;
+        createdAt: Date;
+    }>;
+    socialMediaCaptions?: Map<string, {
+        content: string;
+        style: TSocialMediaCaptionStyle;
+        platform?: TSocialMediaPlatform;
+        createdAt: Date;
+    }>;
     newsInsights?: {
         keyThemes: string[];
         impactAssessment: {
@@ -56,67 +86,147 @@ const ArticleEnhancementSchema = new Schema<IArticleEnhancement>({
         type: String,
         required: true,
     },
-    tags: [{
-        type: String,
-    }],
+    tags: {
+        type: [String],
+        default: undefined,
+    },
     sentiment: {
-        sentiment: String,
-        confidence: Number,
-        emoji: String,
-        color: String,
+        type: new Schema({
+            type: {type: String},
+            confidence: Number,
+            emoji: String,
+            color: String,
+        }, {_id: false}),
+        default: undefined,
     },
     complexity: {
-        level: {
-            type: String,
-            enum: ARTICLE_COMPLEXITIES,
-        },
-        readingTimeMinutes: Number,
-        wordCount: Number,
-    },
-    keyPoints: [{
-        type: String,
-    }],
-    complexityMeter: {
-        level: {
-            type: String,
-            enum: COMPLEXITY_LEVELS,
-        },
-        reasoning: String,
-    },
-    locations: [{
-        type: String,
-    }],
-    questions: [{
-        type: String,
-    }],
-    newsInsights: {
-        keyThemes: [{
-            type: String,
-        }],
-        impactAssessment: {
+        type: new Schema({
             level: {
                 type: String,
-                enum: IMPACT_LEVELS,
+                enum: ARTICLE_COMPLEXITIES,
             },
-            description: String,
-        },
-        contextConnections: [{
-            type: String,
-        }],
-        stakeholderAnalysis: {
-            winners: [{
+            readingTimeMinutes: Number,
+            wordCount: Number,
+        }, {_id: false}),
+        default: undefined,
+    },
+    keyPoints: {
+        type: [String],
+        default: undefined,
+    },
+    complexityMeter: {
+        type: new Schema({
+            level: {
                 type: String,
-            }],
-            losers: [{
+                enum: COMPLEXITY_LEVELS,
+            },
+            reasoning: String,
+        }, {_id: false}),
+        default: undefined,
+    },
+    locations: {
+        type: [String],
+        default: undefined,
+    },
+    questions: {
+        type: [String],
+        default: undefined,
+    },
+    questionAnswers: {
+        type: Map,
+        of: new Schema({
+            question: {
                 type: String,
-            }],
-            affected: [{
+                required: true,
+            },
+            answer: {
                 type: String,
-            }],
-        },
-        timelineContext: [{
-            type: String,
-        }],
+                required: true,
+            },
+            createdAt: {
+                type: Date,
+                default: Date.now,
+            },
+        }, {_id: false}),
+        default: undefined,
+    },
+    summaries: {
+        type: Map,
+        of: new Schema({
+            content: {
+                type: String,
+                required: true,
+            },
+            style: {
+                type: String,
+                enum: SUMMARIZATION_STYLES,
+                required: true,
+            },
+            language: {
+                type: String,
+                required: true,
+            },
+            createdAt: {
+                type: Date,
+                default: Date.now,
+            },
+        }, {_id: false}),
+        default: undefined,
+    },
+    socialMediaCaptions: {
+        type: Map,
+        of: new Schema({
+            content: {
+                type: String,
+                required: true,
+            },
+            style: {
+                type: String,
+                enum: SOCIAL_MEDIA_CAPTION_STYLES,
+                required: true,
+            },
+            platform: {type: String},
+            createdAt: {
+                type: Date,
+                default: Date.now,
+            },
+        }, {_id: false}),
+        default: undefined,
+    },
+    newsInsights: {
+        type: new Schema({
+            keyThemes: {
+                type: [String],
+                default: undefined,
+            },
+            impactAssessment: {
+                level: {type: String, enum: IMPACT_LEVELS},
+                description: String,
+            },
+            contextConnections: {
+                type: [String],
+                default: undefined,
+            },
+            stakeholderAnalysis: {
+                winners: {
+                    type: [String],
+                    default: undefined,
+                },
+                losers: {
+                    type: [String],
+                    default: undefined,
+                },
+                affected: {
+                    type: [String],
+                    default: undefined,
+                },
+            },
+            timelineContext: {
+                type: [String],
+                default: undefined,
+            },
+        }, {_id: false}),
+        default: undefined,
     },
     processingStatus: {
         type: String,
@@ -126,11 +236,11 @@ const ArticleEnhancementSchema = new Schema<IArticleEnhancement>({
     createdAt: {
         type: Date,
         default: Date.now,
-        expires: 2 * 60 * 60, // 2 hours in seconds
-        // expires: 7 * 24 * 60 * 60, // 7 days in seconds TODO: Uncomment it, for production, news should be deleted after 7 days
+        expires: TIME_CONSTANTS.MONTH_IN_SECONDS,
     },
 }, {
     timestamps: true,
+    minimize: true, // strips empty {}
 });
 
 ArticleEnhancementSchema.index({processingStatus: 1});

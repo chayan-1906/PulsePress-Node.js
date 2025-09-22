@@ -6,12 +6,14 @@ import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
 import StrikeService from "./StrikeService";
 import {GEMINI_API_KEY} from "../config/config";
+import {generateArticleId} from "../utils/generateArticleId";
 import {generateMissingCode} from "../utils/generateErrorCodes";
 import NewsClassificationService from "./NewsClassificationService";
 import {AI_TAG_GENERATION_MODELS, API_CONFIG} from "../utils/constants";
 import {ITagGenerationParams, ITagGenerationResponse} from "../types/ai";
 import {validateAndProcessTags} from "../utils/serviceHelpers/tagHelpers";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
+import {getCachedArticleEnhancements, hasEnhancementTypes, saveBasicEnhancements} from "../utils/serviceHelpers/cacheHelpers";
 
 class TagGenerationService {
     static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
@@ -21,6 +23,11 @@ class TagGenerationService {
      */
     static async generateTags({email, content, url}: ITagGenerationParams): Promise<ITagGenerationResponse> {
         console.log('Service: TagGenerationService.generateTags called'.cyan.italic, {email, content, url});
+
+        if (!url) {
+            console.warn('Client Error: URL is invalid'.yellow, {content, url});
+            return {error: generateMissingCode('url')};
+        }
 
         const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock({email});
         if (isBlocked) {
@@ -32,16 +39,6 @@ class TagGenerationService {
                 blockedUntil,
                 blockType,
             };
-        }
-
-        if (!content && !url) {
-            console.warn('Client Error: Content and url both invalid'.yellow, {content, url});
-            return {error: 'CONTENT_OR_URL_REQUIRED'};
-        }
-
-        if (content && url) {
-            console.warn('Client Error: Content and url both valid'.yellow, {content, url});
-            return {error: 'CONTENT_AND_URL_CONFLICT'};
         }
 
         let articleContent = content || '';
@@ -75,6 +72,18 @@ class TagGenerationService {
             console.log('News content verified, proceeding with tag generation'.bgGreen.bold);
         }
 
+        const articleId = generateArticleId({url});
+
+        const existingTags = await hasEnhancementTypes(articleId, ['tags']);
+        if (existingTags.tags) {
+            console.log('Using cached tag result'.cyan);
+            const cachedEnhancements = await getCachedArticleEnhancements(articleId);
+            return {
+                tags: cachedEnhancements?.tags || [],
+                powered_by: 'Cached Result',
+            };
+        }
+
         // Truncate content to avoid token limits - use title and description primarily
         const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
@@ -100,6 +109,8 @@ class TagGenerationService {
             const result = await this.generateWithGemini(selectedModel, truncatedContent);
 
             if (result.tags && result.tags.length > 0) {
+                await saveBasicEnhancements({articleId, url, tags: result.tags});
+
                 console.log('Tag generation completed successfully'.green.bold, {tags: result.tags, model: selectedModel});
                 return {...result, powered_by: selectedModel};
             }

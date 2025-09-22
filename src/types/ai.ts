@@ -34,11 +34,9 @@ export type TViolationType = typeof VIOLATION_TYPES[number];
 export const IMPACT_LEVELS = ['local', 'regional', 'national', 'global'] as const;
 export type TImpactLevel = typeof IMPACT_LEVELS[number];
 
-export const STAKEHOLDER_TYPES = ['consumers', 'businesses', 'government', 'investors', 'workers', 'environment', 'technology'] as const;
-export type TStakeholderType = typeof STAKEHOLDER_TYPES[number];
-
-export const AI_ARTICLE_ENHANCEMENT_TYPES = ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'geoExtraction', 'questions', 'newsInsights'];
+export const AI_ARTICLE_ENHANCEMENT_TYPES = ['summarize', 'tags', 'sentiment', 'keyPoints', 'complexityMeter', 'questions', 'answer', 'geoExtraction', 'caption', 'newsInsights'];
 export type TAIArticleEnhancement = typeof AI_ARTICLE_ENHANCEMENT_TYPES[number];
+export type TBasicEnhancementTypes = 'tags' | 'sentiment' | 'keyPoints' | 'complexityMeter' | 'locations';
 
 export const LANGUAGE_NAMES: Record<TSupportedLanguage, string> = {
     'en': 'English',
@@ -371,6 +369,47 @@ export interface IGetEnhancementStatusByIdsResponse {
     error?: string;
 }
 
+export interface IGetCachedSummaryVariationResponse {
+    content: string;
+    style: TSummarizationStyle;
+    language: TSupportedLanguage;
+    createdAt: Date;
+}
+
+export interface IGetCachedCaptionVariationResponse {
+    content: string;
+    style: TSocialMediaCaptionStyle;
+    platform?: TSocialMediaPlatform;
+    createdAt: Date;
+}
+
+export interface IGetCachedQuestionsResponse {
+    questions: string[];
+    createdAt: Date;
+}
+
+export interface IGetCachedQuestionAnswerResponse {
+    question: string;
+    answer: string;
+    createdAt: Date;
+}
+
+export interface IGetCachedNewsInsightsResponse {
+    keyThemes: string[];
+    impactAssessment: {
+        level: TImpactLevel;
+        description: string;
+    };
+    contextConnections: string[];
+    stakeholderAnalysis: {
+        winners: string[];
+        losers: string[];
+        affected: string[];
+    };
+    timelineContext: string[];
+    createdAt: Date;
+}
+
 export interface IGetUserStrikeStatusResponse {
     strikeStatus?: IUserStrikeStatus;
     error?: string;
@@ -388,73 +427,45 @@ export interface IGetUserStrikeHistoryResponse {
 export interface INewsClassificationParams {
     email: string;  // for authMiddleware
     text?: string;
-    url?: string;
+    url: string;
 }
 
 export interface ISummarizeArticleParams {
     email: string;  // for authMiddleware
     content?: string;
-    url?: string;
+    url: string;
     language?: TSupportedLanguage;
-    style?: TSummarizationStyle;
-}
-
-export interface ISummarizeContentParams {
-    content?: string;
-    url?: string;
     style?: TSummarizationStyle;
 }
 
 export interface ISummarizeContentWithModelParams {
     content?: string;
-    url?: string;
+    url: string;
     style?: TSummarizationStyle;
     modelName: string;
-}
-
-export interface IGenerateContentHashParams {
-    articleContent: string;
-    language?: TSupportedLanguage;
-    style?: TSummarizationStyle;
-}
-
-export interface ISaveSummaryToCacheParams {
-    contentHash: string;
-    summary: string;
-    language?: TSupportedLanguage;
-    style?: TSummarizationStyle;
-}
-
-export interface IGetCachedSummaryParams {
-    contentHash: string;
-}
-
-export interface ITranslateTextParams {
-    text: string;
-    targetLanguage: TSupportedLanguage;
 }
 
 export interface ITagGenerationParams {
     email: string;  // for authMiddleware
     content?: string;
-    url?: string;
+    url: string;
 }
 
 export interface ISentimentAnalysisParams {
     email: string;  // for authMiddleware
-    url?: string;
+    url: string;
     content?: string;
 }
 
 export interface IKeyPointsExtractionParams {
     email: string;
-    url?: string;
+    url: string;
     content?: string;
 }
 
 export interface IComplexityMeterParams {
     email: string;  // for authMiddleware
-    url?: string;
+    url: string;
     content?: string;
 }
 
@@ -464,26 +475,26 @@ export interface IReadingTimeComplexityParams {
 
 export interface IQuestionGenerationParams {
     email: string;  // for authMiddleware
-    url?: string;
+    url: string;
     content?: string;
 }
 
 export interface IQuestionAnsweringParams {
     email: string;  // for authMiddleware
+    url: string;
     content?: string;
-    url?: string;
     question: string;
 }
 
 export interface IGeographicExtractionParams {
     email: string;  // for authMiddleware
-    url?: string;
+    url: string;
     content?: string;
 }
 
 export interface ISocialMediaCaptionParams {
     email: string;  // for authMiddleware
-    url?: string;
+    url: string;
     content?: string;
     platform?: TSocialMediaPlatform;
     style?: TSocialMediaCaptionStyle;
@@ -491,18 +502,8 @@ export interface ISocialMediaCaptionParams {
 
 export interface INewsInsightsParams {
     email: string;  // for authMiddleware
-    url?: string;
+    url: string;
     content?: string;
-}
-
-export interface UpdateArticlesProcessingStatusParams {
-    articles: IArticle[];
-    status: 'cancelled' | 'failed';
-}
-
-export interface UpdateArticleIdsProcessingStatusParams {
-    articleIds: string[];
-    status: 'cancelled' | 'failed';
 }
 
 export interface IEnhanceArticlesParams {
@@ -534,6 +535,94 @@ export interface ICombinedAIParams {
     content: string;
     tasks: TAIArticleEnhancement[];
     selectedModel?: string;
+}
+
+export interface IUpdateArticlesProcessingStatusParams {
+    articles: IArticle[];
+    status: 'cancelled' | 'failed';
+}
+
+export interface IUpdateArticleIdsProcessingStatusParams {
+    articleIds: string[];
+    status: 'cancelled' | 'failed';
+}
+
+export interface IBasicEnhancementsParams {
+    articleId: string;
+    url: string;
+    tags?: string[];
+    sentiment?: {
+        type: TSentimentResult;
+        confidence: number;
+        emoji: string;
+        color: string;
+    };
+    keyPoints?: string[];
+    complexityMeter?: {
+        level: TComplexityLevel;
+        reasoning: string;
+    };
+    locations?: string[];
+}
+
+export interface ISaveSummaryVariationParams {
+    articleId: string;
+    summary: string;
+    url: string;
+    style: TSummarizationStyle;
+    language: TSupportedLanguage;
+}
+
+export interface IGetCachedSummaryVariationParams {
+    articleId: string;
+    style: TSummarizationStyle;
+    language: TSupportedLanguage;
+}
+
+export interface ISaveCaptionVariationParams {
+    articleId: string;
+    caption: string;
+    url: string;
+    style: TSocialMediaCaptionStyle;
+    platform?: TSocialMediaPlatform;
+}
+
+export interface IGetCachedCaptionVariationParams {
+    articleId: string;
+    style: TSocialMediaCaptionStyle;
+    platform?: TSocialMediaPlatform;
+}
+
+export interface ISaveQuestionsParams {
+    articleId: string;
+    url: string;
+    questions: string[];
+}
+
+export interface IGetCachedQuestionsParams {
+    articleId: string;
+}
+
+export interface ISaveQuestionAnswerParams {
+    articleId: string;
+    url: string;
+    question: string;
+    answer: string;
+}
+
+export interface IGetCachedQuestionAnswerParams {
+    articleId: string;
+    question: string;
+}
+
+export interface ISaveNewsInsightsParams {
+    articleId: string;
+    url: string;
+    newsInsights: IAINewsInsights;
+}
+
+export interface IGetCachedNewsInsightsParams {
+    articleId: string;
 }
 
 export interface IGetUserStrikeStatusParams {

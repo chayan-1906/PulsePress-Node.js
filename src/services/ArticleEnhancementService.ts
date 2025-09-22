@@ -10,11 +10,11 @@ import {generateArticleId} from "../utils/generateArticleId";
 import {AI_ENHANCEMENT_MODELS, API_CONFIG} from "../utils/constants";
 import ReadingTimeAnalysisService from "./ReadingTimeAnalysisService";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
-import {mergeEnhancementsWithArticles} from "../utils/serviceHelpers/articleConverters";
 import {getSentimentColor, getSentimentEmoji} from "../utils/serviceHelpers/sentimentHelpers";
 import ArticleEnhancementModel, {IArticleEnhancement} from "../models/ArticleEnhancementSchema";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
-import {updateArticleIdsProcessingStatus, updateArticlesProcessingStatus} from "../utils/serviceHelpers/articleEnhancementHelpers";
+import {mergeEnhancementsWithArticles as mergeEnhancementsHelper} from "../utils/serviceHelpers/articleConverters";
+import {getCachedArticleEnhancements, saveBasicEnhancements, updateArticleIdsProcessingStatus, updateArticlesProcessingStatus} from "../utils/serviceHelpers/cacheHelpers";
 import {
     ICombinedAIParams,
     ICombinedAIResponse,
@@ -72,8 +72,15 @@ class ArticleEnhancementService {
             console.log(`Quota limiting: Processing ${processableArticles.length}/${articles.length} articles due to quota constraints`.cyan);
         }
 
-        const articleIds = processableArticles.map((article: IArticle) => generateArticleId({article}));
-        articleIds.forEach((id: string) => this.activeJobs.add(id));
+        const articlesNeedingProcessing: string[] = [];
+        for (const article of processableArticles) {
+            const articleId = generateArticleId({url: article.url});
+            const existingEnhancement = await ArticleEnhancementModel.findOne({articleId});
+            if (!existingEnhancement || existingEnhancement.processingStatus !== 'completed') {
+                articlesNeedingProcessing.push(articleId);
+                this.activeJobs.add(articleId);
+            }
+        }
 
         setTimeout(async () => {
             for (const article of processableArticles) {
@@ -83,7 +90,7 @@ class ArticleEnhancementService {
                         continue;
                     }
 
-                    const articleId = generateArticleId({article});
+                    const articleId = generateArticleId({url: article.url});
 
                     const existingEnhancedArticle: IArticleEnhancement | null = await ArticleEnhancementModel.findOne({articleId});
                     if (existingEnhancedArticle && existingEnhancedArticle.processingStatus === 'completed') {
@@ -119,7 +126,6 @@ class ArticleEnhancementService {
                         continue;
                     }
 
-                    // Use the selected model from quota system
                     const selectedModel = quotaResult.selectedModel;
 
                     const aiResult: ICombinedAIResponse = await this.aiEnhanceArticle({
@@ -162,6 +168,25 @@ class ArticleEnhancementService {
                     }
                     console.log('aiResult:'.cyan, aiResult);
 
+                    try {
+                        const enhancementsToCache: any = {
+                            articleId,
+                            url: article.url,
+                        };
+                        if (tags) enhancementsToCache.tags = tags;
+                        if (sentimentData) enhancementsToCache.sentiment = sentimentData;
+                        if (keyPoints) enhancementsToCache.keyPoints = keyPoints;
+                        if (complexityMeter) enhancementsToCache.complexityMeter = complexityMeter;
+                        if (locations) enhancementsToCache.locations = locations;
+
+                        if (Object.keys(enhancementsToCache).filter(key => key !== 'articleId' && key !== 'url').length > 0) {
+                            await saveBasicEnhancements(enhancementsToCache);
+                            console.log('Basic enhancements cached in unified schema'.cyan, {articleId, enhancementTypes: Object.keys(enhancementsToCache)});
+                        }
+                    } catch (cacheError: any) {
+                        console.warn('Cache Warning: Failed to save basic enhancements to unified cache'.yellow, cacheError.message);
+                    }
+
                     const updatedEnhancedArticle = await ArticleEnhancementModel.findOneAndUpdate(
                         {articleId},
                         {
@@ -176,7 +201,7 @@ class ArticleEnhancementService {
                     );
                     console.log(`Successfully enhanced article: ${articleId}`.cyan, updatedEnhancedArticle);
                 } catch (error: any) {
-                    const articleId = generateArticleId({article});
+                    const articleId = generateArticleId({url: article.url});
                     console.error('Service Error: Article enhancement failed'.red.bold, {articleId, error: error.message});
 
                     await ArticleEnhancementModel.findOneAndUpdate(
@@ -189,7 +214,7 @@ class ArticleEnhancementService {
                 }
             }
 
-            articleIds.forEach((id: string) => this.activeJobs.delete(id));
+            articlesNeedingProcessing.forEach((id: string) => this.activeJobs.delete(id));
             console.log('Enhancement processing completed'.green.bold);
         }, 500);
     }
@@ -201,7 +226,7 @@ class ArticleEnhancementService {
         console.log('Service: ArticleEnhancementService.getEnhancementsForArticles called'.cyan.italic, {articleCount: articles.length});
 
         try {
-            const articleIds = articles.map((article: IArticle) => generateArticleId({article}));
+            const articleIds = articles.map((article: IArticle) => generateArticleId({url: article.url}));
 
             const completedEnhancements: IArticleEnhancement[] = await ArticleEnhancementModel.find({
                 articleId: {$in: articleIds},
@@ -210,6 +235,41 @@ class ArticleEnhancementService {
 
             const enhancementMap: { [articleId: string]: IArticleEnhancement } = {};
             completedEnhancements.forEach((enhancement: IArticleEnhancement) => enhancementMap[enhancement.articleId] = enhancement);
+
+            for (const article of articles) {
+                const articleId = generateArticleId({url: article.url});
+
+                if (enhancementMap[articleId]) continue;
+
+                try {
+                    const cachedEnhancements = await getCachedArticleEnhancements(articleId);
+
+                    if (cachedEnhancements && cachedEnhancements.processingStatus === 'completed') {
+                        enhancementMap[articleId] = {
+                            articleId,
+                            url: article.url,
+                            processingStatus: cachedEnhancements.processingStatus,
+                            tags: cachedEnhancements.tags,
+                            sentiment: cachedEnhancements.sentiment,
+                            keyPoints: cachedEnhancements.keyPoints,
+                            complexityMeter: cachedEnhancements.complexityMeter,
+                            locations: cachedEnhancements.locations,
+                            questions: cachedEnhancements.questions,
+                            createdAt: cachedEnhancements.createdAt,
+                        } as IArticleEnhancement;
+                        console.log('Found cached enhancements in unified cache'.cyan, {articleId});
+                    }
+                } catch (cacheError: any) {
+                    console.warn('Cache Warning: Failed to check unified cache for article'.yellow, {articleId, error: cacheError.message});
+                }
+            }
+
+            console.log('Enhancement lookup completed'.cyan, {
+                totalArticles: articles.length,
+                foundEnhancements: Object.keys(enhancementMap).length,
+                oldSchema: completedEnhancements.length,
+                newCache: Object.keys(enhancementMap).length - completedEnhancements.length,
+            });
 
             return enhancementMap;
         } catch (error: any) {
@@ -224,29 +284,78 @@ class ArticleEnhancementService {
     static async getProcessingStatus({articles}: IGetProcessingStatusParams): Promise<IGetProcessingStatusResponse> {
         console.log('Service: ArticleEnhancementService.getProcessingStatus called'.cyan.italic, {articleCount: articles.length});
 
-        const articleIds = articles.map((article: IArticle) => generateArticleId({article}));
+        const articleIds = articles.map((article: IArticle) => generateArticleId({url: article.url}));
+        console.log('🔍 DEBUG: Generated articleIds:'.bgBlue.white, articleIds);
 
         const hasActiveJobs = articleIds.some((id: string) => this.activeJobs.has(id));
+        console.log('🔍 DEBUG: Active jobs check:'.bgBlue.white, {hasActiveJobs, activeJobsSet: Array.from(this.activeJobs)});
 
         const enhancements: IArticleEnhancement[] = await ArticleEnhancementModel.find({
             articleId: {$in: articleIds},
         });
+        console.log('🔍 DEBUG: Found enhancements in DB:'.bgBlue.white, {
+            count: enhancements.length,
+            statuses: enhancements.map(e => ({articleId: e.articleId, status: e.processingStatus}))
+        });
 
-        const completedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'completed').length;
+        let completedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'completed').length;
         const failedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'failed').length;
         const cancelledCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'cancelled').length;
-        const processedCount = completedCount + failedCount + cancelledCount;
 
+        console.log('🔍 DEBUG: Initial counts from DB:'.bgBlue.white, {completedCount, failedCount, cancelledCount});
+
+        for (const article of articles) {
+            const articleId = generateArticleId({url: article.url});
+
+            const existingEnhancement = enhancements.find(e => e.articleId === articleId);
+            console.log('🔍 DEBUG: Checking article:'.bgBlue.white, {articleId, hasExistingEnhancement: !!existingEnhancement});
+
+            if (existingEnhancement) {
+                console.log('🔍 DEBUG: Found existing enhancement:'.bgBlue.white, {articleId, status: existingEnhancement.processingStatus});
+                continue;
+            }
+
+            try {
+                const cachedEnhancements = await getCachedArticleEnhancements(articleId);
+                console.log('🔍 DEBUG: Cache lookup result:'.bgBlue.white, {
+                    articleId,
+                    hasCachedEnhancements: !!cachedEnhancements,
+                    cachedStatus: cachedEnhancements?.processingStatus,
+                });
+
+                if (cachedEnhancements && cachedEnhancements.processingStatus === 'completed') {
+                    completedCount++;
+                    console.log('Found completed enhancement in unified cache for status check'.cyan, {articleId});
+                }
+            } catch (error: any) {
+                console.warn('Cache Warning: Failed to check unified cache in getProcessingStatus'.yellow, {articleId, error: error.message});
+            }
+        }
+
+        const processedCount = completedCount + failedCount + cancelledCount;
         const progress = articles.length > 0 ? Math.round((processedCount / articles.length) * 100) : 0;
+
+        console.log('🔍 DEBUG: Final status calculation:'.bgBlue.white, {
+            completedCount,
+            failedCount,
+            cancelledCount,
+            processedCount,
+            totalArticles: articles.length,
+            progress,
+            hasActiveJobs
+        });
 
         if (hasActiveJobs || processedCount < articles.length) {
             return {status: 'processing', progress};
         } else {
             if (cancelledCount === articles.length) {
+                console.log('🔍 DEBUG: Returning CANCELLED status'.bgGreen.white);
                 return {status: 'cancelled', progress: 100};
             } else if (completedCount > 0) {
+                console.log('🔍 DEBUG: Returning COMPLETE status'.bgGreen.white, {completedCount});
                 return {status: 'complete', progress: processedCount / articles.length * 100};
             } else {
+                console.log('🔍 DEBUG: Returning FAILED status'.bgRed.white);
                 return {status: 'failed', progress: processedCount / articles.length * 100};
             }
         }
@@ -280,16 +389,48 @@ class ArticleEnhancementService {
                 articleId: {$in: articleIds},
             });
 
-            const completedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'completed').length;
+            let completedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'completed').length;
             const failedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'failed').length;
             const cancelledCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'cancelled').length;
-            const processedCount = completedCount + failedCount + cancelledCount;
 
+            const enhancementMap: { [articleId: string]: IArticleEnhancement } = {};
+            enhancements.forEach((enhancement: IArticleEnhancement) => {
+                if (enhancement.processingStatus === 'completed') {
+                    enhancementMap[enhancement.articleId] = enhancement;
+                }
+            });
+
+            for (const articleId of articleIds) {
+                if (enhancementMap[articleId]) continue;
+
+                try {
+                    const cachedEnhancements = await getCachedArticleEnhancements(articleId);
+                    if (cachedEnhancements && cachedEnhancements.processingStatus === 'completed') {
+                        enhancementMap[articleId] = {
+                            articleId,
+                            url: cachedEnhancements.url || '',
+                            processingStatus: cachedEnhancements.processingStatus,
+                            tags: cachedEnhancements.tags,
+                            sentiment: cachedEnhancements.sentiment,
+                            keyPoints: cachedEnhancements.keyPoints,
+                            complexityMeter: cachedEnhancements.complexityMeter,
+                            locations: cachedEnhancements.locations,
+                            questions: cachedEnhancements.questions,
+                            createdAt: cachedEnhancements.createdAt,
+                        } as IArticleEnhancement;
+                        completedCount++; // Increment completed count for unified cache findings
+                        console.log('Found completed enhancement in unified cache for status check'.cyan, {articleId});
+                    }
+                } catch (cacheError: any) {
+                    console.warn('Cache Warning: Failed to check unified cache in getEnhancementStatusByIds'.yellow, {articleId, error: cacheError.message});
+                }
+            }
+
+            const processedCount = completedCount + failedCount + cancelledCount;
             const progress = articleIds.length > 0 ? Math.round((processedCount / articleIds.length) * 100) : 0;
 
-            const articles = enhancements
-                .filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'completed')
-                .map(({articleId, url, tags, sentiment, complexity, complexityMeter, keyPoints, locations}) => ({
+            const articles = Object.values(enhancementMap)
+                .map(({articleId, url, tags, sentiment, complexity, complexityMeter, keyPoints, locations, processingStatus}) => ({
                     articleId,
                     url,
                     tags,
@@ -298,7 +439,8 @@ class ArticleEnhancementService {
                     complexityMeter,
                     keyPoints,
                     locations,
-                    enhanced: true,
+                    processingStatus,
+                    enhanced: processingStatus === 'completed',
                 }));
 
             let status: TEnhancementStatus = 'processing';
@@ -324,7 +466,7 @@ class ArticleEnhancementService {
      * Merge enhancement data with original articles
      */
     static mergeEnhancementsWithArticles({articles, enhancements}: IMergeEnhancementsWithArticlesParams): IArticle[] {
-        return mergeEnhancementsWithArticles(articles, enhancements);
+        return mergeEnhancementsHelper(articles, enhancements);
     }
 
     /**

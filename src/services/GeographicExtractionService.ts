@@ -6,11 +6,13 @@ import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
 import StrikeService from "./StrikeService";
 import {GEMINI_API_KEY} from "../config/config";
+import {generateArticleId} from "../utils/generateArticleId";
 import {generateMissingCode} from "../utils/generateErrorCodes";
 import NewsClassificationService from "./NewsClassificationService";
 import {AI_GEOGRAPHIC_EXTRACTION_MODELS, API_CONFIG} from "../utils/constants";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 import {IAIGeographicExtraction, IGeographicExtractionParams, IGeographicExtractionResponse} from "../types/ai";
+import {getCachedArticleEnhancements, hasEnhancementTypes, saveBasicEnhancements} from "../utils/serviceHelpers/cacheHelpers";
 
 class GeographicExtractionService {
     static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
@@ -20,6 +22,11 @@ class GeographicExtractionService {
      */
     static async extractLocations({email, content, url}: IGeographicExtractionParams): Promise<IGeographicExtractionResponse> {
         console.log('Service: GeographicExtractionService.extractLocations called'.cyan.italic, {email, content, url});
+
+        if (!url) {
+            console.warn('Client Error: URL is invalid'.yellow, {content, url});
+            return {error: generateMissingCode('url')};
+        }
 
         const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock({email});
         if (isBlocked) {
@@ -31,16 +38,6 @@ class GeographicExtractionService {
                 blockedUntil,
                 blockType,
             };
-        }
-
-        if (!content && !url) {
-            console.warn('Client Error: Both content and URL missing'.yellow, {content, url});
-            return {error: 'CONTENT_OR_URL_REQUIRED'};
-        }
-
-        if (content && url) {
-            console.warn('Client Error: Both content and URL provided'.yellow, {content, url});
-            return {error: 'CONTENT_AND_URL_CONFLICT'};
         }
 
         let articleContent = content || '';
@@ -74,6 +71,18 @@ class GeographicExtractionService {
             console.log('News content verified, proceeding with geographic extraction'.bgGreen.bold);
         }
 
+        const articleId = generateArticleId({url});
+
+        const existingLocations = await hasEnhancementTypes(articleId, ['locations']);
+        if (existingLocations.locations) {
+            console.log('Using cached locations result'.cyan);
+            const cachedEnhancements = await getCachedArticleEnhancements(articleId);
+            return {
+                locations: cachedEnhancements?.locations || [],
+                powered_by: 'Cached Result',
+            };
+        }
+
         // Truncate content to avoid token limits
         const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
@@ -99,6 +108,8 @@ class GeographicExtractionService {
             const result = await this.extractWithGemini(selectedModel, truncatedContent);
 
             if (result.locations && result.locations.length > 0) {
+                await saveBasicEnhancements({articleId, url, locations: result.locations});
+
                 console.log('Geographic extraction completed successfully'.green.bold, {locations: result.locations, model: selectedModel});
                 return {...result, powered_by: selectedModel};
             }

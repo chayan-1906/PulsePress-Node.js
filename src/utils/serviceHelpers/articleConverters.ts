@@ -17,7 +17,7 @@ export const convertGuardianToArticle = (guardianArticle: IGuardianArticle): IAr
             name: 'The Guardian',
         },
         author: guardianArticle.fields?.byline || null,
-        articleId: generateArticleId({title, url}),
+        articleId: generateArticleId({url}),
         title,
         description: guardianArticle.fields?.bodyText?.substring(0, 100) + '...' || null,
         url,
@@ -43,7 +43,7 @@ export const convertNewYorkTimesToArticle = (nytArticle: INewYorkTimesArticle): 
             name: 'The New York Times',
         },
         author: nytArticle.byline?.original || null,
-        articleId: generateArticleId({title, url}),
+        articleId: generateArticleId({url}),
         title,
         description: nytArticle.abstract || nytArticle.snippet || null,
         url,
@@ -69,7 +69,7 @@ export const convertNewYorkTimesTopStoryToArticle = (story: INewYorkTimesTopStor
             name: 'The New York Times',
         },
         author: story.byline,
-        articleId: generateArticleId({title, url}),
+        articleId: generateArticleId({url}),
         title,
         description: story.abstract,
         url,
@@ -95,7 +95,7 @@ export const convertRSSFeedToArticle = (rss: IRssFeed): IArticle => {
             name: rss.source?.name || 'RSS Feed',
         },
         author: rss.source?.creator || null,
-        articleId: generateArticleId({title, url}),
+        articleId: generateArticleId({url}),
         title,
         description: rss.contentSnippet || null,
         url,
@@ -112,7 +112,7 @@ export const convertRSSFeedToArticle = (rss: IRssFeed): IArticle => {
  */
 export const mergeEnhancementsWithArticles = (articles: IArticle[], enhancements: { [articleId: string]: IArticleEnhancement }): IArticle[] => {
     return articles.map(article => {
-        const articleId = generateArticleId({article});
+        const articleId = generateArticleId({url: article.url});
         const enhancement = enhancements[articleId];
 
         if (enhancement) {
@@ -124,7 +124,8 @@ export const mergeEnhancementsWithArticles = (articles: IArticle[], enhancements
                 complexityMeter: enhancement.complexityMeter,
                 locations: enhancement.locations,
                 complexity: enhancement.complexity,
-                enhanced: true,
+                processingStatus: enhancement.processingStatus,
+                enhanced: enhancement.processingStatus === 'completed',
             };
         }
 

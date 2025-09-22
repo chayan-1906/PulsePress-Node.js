@@ -81,7 +81,7 @@ class NewsService {
             if (topHeadlinesResponse.articles) {
                 topHeadlinesResponse.articles = topHeadlinesResponse.articles.map((article: IArticle) => ({
                     ...article,
-                    articleId: generateArticleId({article}),
+                    articleId: generateArticleId({url: article.url}),
                 }));
             }
 
@@ -135,7 +135,7 @@ class NewsService {
             if (everything.articles) {
                 everything.articles = everything.articles.map((article: IArticle) => ({
                     ...article,
-                    articleId: generateArticleId({article}),
+                    articleId: generateArticleId({url: article.url}),
                 }));
             }
 
@@ -527,7 +527,7 @@ class NewsService {
 
         const enhancedArticles = ArticleEnhancementService.mergeEnhancementsWithArticles({articles: fastResults.articles, enhancements: existingEnhancements});
 
-        const enhancedCount = enhancedArticles.filter(article => article.enhanced).length;
+        const enhancedCount = enhancedArticles.filter((article: IArticle) => article.enhanced).length;
         const totalTime = Date.now() - startTime;
 
         console.log(`Enhanced multisource news fetch completed successfully: ${enhancedCount}/${enhancedArticles.length} articles have AI enhancements (${totalTime}ms)`.green.bold);

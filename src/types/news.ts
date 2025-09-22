@@ -76,7 +76,7 @@ export interface IQualityScore {
 }
 
 interface ISentimentData {
-    sentiment: TSentimentResult;
+    type: TSentimentResult;
     confidence: number;
     emoji: string;
     color: string;
@@ -362,7 +362,5 @@ export interface IExploreTopicParams {
 }
 
 export interface IGenerateArticleIdParams {
-    article?: Partial<IArticle>;
-    title?: string;
-    url?: string;
+    url?: string | null;
 }

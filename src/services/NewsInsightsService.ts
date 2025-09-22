@@ -6,10 +6,12 @@ import {isListEmpty} from "../utils/list";
 import {AI_PROMPTS} from "../utils/prompts";
 import StrikeService from "./StrikeService";
 import {GEMINI_API_KEY} from "../config/config";
+import {generateArticleId} from "../utils/generateArticleId";
 import {generateMissingCode} from "../utils/generateErrorCodes";
 import NewsClassificationService from "./NewsClassificationService";
 import {AI_NEWS_INSIGHTS_MODELS, API_CONFIG} from "../utils/constants";
 import {cleanArray, cleanStakeholderAnalysis} from "../utils/serviceHelpers/dataCleaners";
+import {getCachedNewsInsights, saveNewsInsights} from "../utils/serviceHelpers/cacheHelpers";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 import {IAINewsInsights, IMPACT_LEVELS, INewsInsightsParams, INewsInsightsResponse, TImpactLevel} from "../types/ai";
 
@@ -17,10 +19,15 @@ class NewsInsightsService {
     static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
 
     /**
-     * Generate comprehensive news insights and analysis using Gemini AI
+     * Generate comprehensive news insights and analysis using Gemini AI with caching
      */
     static async generateInsights({email, content, url}: INewsInsightsParams): Promise<INewsInsightsResponse> {
         console.log('Service: NewsInsightsService.generateInsights called'.cyan.italic, {email, content, url});
+
+        if (!url) {
+            console.warn('Client Error: URL is invalid'.yellow, {content, url});
+            return {error: generateMissingCode('url')};
+        }
 
         const {isBlocked, blockType, blockedUntil, message: blockMessage} = await StrikeService.checkUserBlock({email});
         if (isBlocked) {
@@ -34,23 +41,14 @@ class NewsInsightsService {
             };
         }
 
-        if (!content && !url) {
-            console.warn('Client Error: Both content and URL missing'.yellow, {content, url});
-            return {error: 'CONTENT_OR_URL_REQUIRED'};
-        }
-
-        if (content && url) {
-            console.warn('Client Error: Both content and URL provided'.yellow, {content, url});
-            return {error: 'CONTENT_AND_URL_CONFLICT'};
-        }
-
         let articleContent = content || '';
+        const articleId = generateArticleId({url});
         if (!content && url) {
-            console.log('Content scraping required for URL'.cyan, url);
+            console.log('Scraping URL for news insights:'.cyan, url);
             const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
-                console.error('Service Error: Article scraping failed'.red.bold, scrapedArticles[0]?.error);
+                console.error('Service Error: Scraping failed:'.red.bold, scrapedArticles[0]?.error);
                 return {error: 'SCRAPING_FAILED'};
             }
 
@@ -73,6 +71,19 @@ class NewsInsightsService {
             return {error: 'NON_NEWS_CONTENT', message, strikeCount, isBlocked, blockedUntil};
         } else {
             console.log('News content verified, proceeding with news insights analysis'.bgGreen.bold);
+        }
+
+        const cached = await getCachedNewsInsights({articleId});
+        if (cached) {
+            console.log('News insights retrieved from cache'.cyan, {articleId});
+            return {
+                keyThemes: cached.keyThemes,
+                impactAssessment: cached.impactAssessment,
+                contextConnections: cached.contextConnections,
+                stakeholderAnalysis: cached.stakeholderAnalysis,
+                timelineContext: cached.timelineContext,
+                powered_by: 'Cached Result',
+            };
         }
 
         // Truncate content to avoid token limits
@@ -106,6 +117,23 @@ class NewsInsightsService {
                     stakeholders: Object.keys(result.stakeholderAnalysis || {}).length,
                     model: selectedModel,
                 });
+
+                await saveNewsInsights({
+                    articleId,
+                    url,
+                    newsInsights: {
+                        keyThemes: result.keyThemes || [],
+                        impactAssessment: result.impactAssessment || {level: 'local', description: ''},
+                        contextConnections: result.contextConnections || [],
+                        stakeholderAnalysis: {
+                            winners: result.stakeholderAnalysis?.winners || [],
+                            losers: result.stakeholderAnalysis?.losers || [],
+                            affected: result.stakeholderAnalysis?.affected || [],
+                        },
+                        timelineContext: result.timelineContext || [],
+                    },
+                });
+
                 return {...result, powered_by: selectedModel};
             }
 
