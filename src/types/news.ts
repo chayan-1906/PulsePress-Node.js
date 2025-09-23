@@ -1,5 +1,5 @@
 import {COUNTRY_KEYWORDS, RSS_SOURCES, TOPIC_QUERIES} from "../utils/constants";
-import {TComplexityLevel, TImpactLevel, TSentimentResult, TSocialMediaCaptionStyle, TSocialMediaPlatform, TSummarizationStyle, TSupportedLanguage} from "./ai";
+import {TSentimentResult} from "./ai";
 
 export const SUPPORTED_CATEGORIES = ['business', 'entertainment', 'general', 'health', 'science', 'sports', 'technology', 'country'];
 export type TSupportedCategory = typeof SUPPORTED_CATEGORIES[number];
@@ -267,58 +267,6 @@ export interface INewYorkTimesTopStoriesResponse {
     }>;
 }
 
-export interface IArticleDetailsEnhanceResponse {
-    articleId: string;
-    url: string;
-    processingStatus: TProcessingStatus;
-    enhanced: boolean;
-    enhancements: {
-        summaries?: Map<string, {
-            content: string;
-            style: TSummarizationStyle;
-            language: TSupportedLanguage;
-            createdAt: Date;
-        }>;
-        tags?: string[];
-        sentiment?: {
-            type: TSentimentResult;
-            confidence: number;
-            emoji: string;
-            color: string;
-        };
-        keyPoints?: string[];
-        complexityMeter?: {
-            level: TComplexityLevel;
-            reasoning: string;
-        };
-        questions?: string[];
-        locations?: string[];
-        socialMediaCaptions?: Map<string, {
-            content: string;
-            style: TSocialMediaCaptionStyle;
-            platform?: TSocialMediaPlatform;
-            createdAt: Date;
-        }>;
-        newsInsights?: {
-            keyThemes: string[];
-            impactAssessment: {
-                level: TImpactLevel;
-                description: string;
-            };
-            contextConnections: string[];
-            stakeholderAnalysis: {
-                winners: string[];
-                losers: string[];
-                affected: string[];
-            };
-            timelineContext: string[];
-        };
-    };
-    progress: number;
-    message?: string;
-    error?: string;
-}
-
 
 /** ------------- function params ------------- */
 
@@ -389,7 +337,6 @@ export interface IFetchMultisourceNewsEnhancementStatusParams {
 
 export interface IArticleDetailsEnhanceParams {
     email?: string;   // for authMiddleware
-    articleId: string;
     url: string;
 }
 

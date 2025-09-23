@@ -4,6 +4,7 @@ import {isListEmpty} from "../utils/list";
 import {IAuthRequest} from "../types/auth";
 import {ApiResponse} from "../utils/ApiResponse";
 import NewsService from "../services/NewsService";
+import {generateArticleId} from "../utils/generateArticleId";
 import ArticleEnhancementService from "../services/ArticleEnhancementService";
 import {COUNTRY_KEYWORDS, TOPIC_METADATA, TOPIC_QUERIES} from "../utils/constants";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
@@ -533,17 +534,7 @@ const fetchArticleDetailsEnhancementController = async (req: Request, res: Respo
     console.info('Controller: fetchArticleDetailsEnhancementController started'.bgBlue.white.bold);
 
     try {
-        const {articleId, url}: Partial<IArticleDetailsEnhanceParams> = req.body;
-
-        if (!articleId) {
-            console.warn('Client Error: Missing articleId parameter'.yellow);
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('articleId'),
-                errorMsg: 'ArticleId is required',
-            }));
-            return;
-        }
+        const {url}: Partial<IArticleDetailsEnhanceParams> = req.body;
 
         if (!url) {
             console.warn('Client Error: Missing articleUrl parameter'.yellow);
@@ -556,10 +547,10 @@ const fetchArticleDetailsEnhancementController = async (req: Request, res: Respo
         }
 
         const email = (req as IAuthRequest).email;
-        console.log('Article details enhancement request'.cyan, {articleId, url, email});
+        console.log('Article details enhancement request'.cyan, {email, url});
 
         console.time('Performance: ARTICLE_DETAILS_ENHANCEMENT_TIME'.cyan);
-        const {enhanced, progress, error} = await ArticleEnhancementService.fetchArticleDetailsEnhancement({email, articleId, url});
+        const {enhanced, progress, article, error} = await ArticleEnhancementService.fetchArticleDetailsEnhancement({email, url});
         console.timeEnd('Performance: ARTICLE_DETAILS_ENHANCEMENT_TIME'.cyan);
 
         if (error) {
@@ -589,10 +580,27 @@ const fetchArticleDetailsEnhancementController = async (req: Request, res: Respo
             ? `Article details enhancement completed! Progress: ${progress}% ✨`
             : `Article details retrieved with ${progress}% enhancements available 📖`;
 
+        const articleId = generateArticleId({url});
+
         res.status(200).send(new ApiResponse({
             success: true,
             message,
-            articleDetails: {enhanced, progress},
+            processingStatus: article?.processingStatus || (enhanced ? 'completed' : 'pending'),
+            progress,
+            enhanced,
+            article: {
+                articleId,
+                url,
+                tags: article?.tags,
+                sentiment: article?.sentiment,
+                keyPoints: article?.keyPoints,
+                complexityMeter: article?.complexityMeter,
+                locations: article?.locations,
+                questions: article?.questions,
+                summaries: article?.summaries,
+                socialMediaCaptions: article?.socialMediaCaptions,
+                newsInsights: article?.newsInsights,
+            },
         }));
     } catch (error: any) {
         console.error('Controller Error: fetchArticleDetailsEnhancementController failed'.red.bold, error);

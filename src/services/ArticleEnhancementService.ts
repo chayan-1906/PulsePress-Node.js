@@ -641,13 +641,8 @@ class ArticleEnhancementService {
     /**
      * Fetch article details with progressive enhancement (uses aiEnhanceArticle with missing enhancements)
      */
-    static async fetchArticleDetailsEnhancement({email, articleId, url}: IFetchArticleDetailsEnhancementParams): Promise<IFetchArticleDetailsEnhancementResponse> {
-        console.log('Service: ArticleEnhancementService.fetchArticleDetailsEnhancement called'.cyan.italic, {articleId, email});
-
-        if (!articleId) {
-            console.warn('Client Error: Missing articleId parameter'.yellow);
-            return {enhanced: false, progress: 0, error: generateMissingCode('articleId')};
-        }
+    static async fetchArticleDetailsEnhancement({email, url}: IFetchArticleDetailsEnhancementParams): Promise<IFetchArticleDetailsEnhancementResponse> {
+        console.log('Service: ArticleEnhancementService.fetchArticleDetailsEnhancement called'.cyan.italic, {email, url});
 
         if (!url) {
             console.warn('Client Error: Missing url parameter'.yellow);
@@ -655,22 +650,27 @@ class ArticleEnhancementService {
         }
 
         try {
+            const articleId = generateArticleId({url});
             const cachedEnhancements: IArticleEnhancement | null = await getCachedArticleEnhancements(articleId);
             const currentProgress: number = calculateProgress(cachedEnhancements);
             console.log('Current enhancement progress'.cyan, {articleId, progress: currentProgress});
 
             if (currentProgress === 100) {
                 console.log('Article already fully enhanced for details screen'.cyan, {articleId});
-                return {enhanced: true, progress: 100};
+                return {enhanced: true, progress: 100, article: cachedEnhancements};
             }
 
             const missingEnhancements: TAIArticleEnhancement[] = identifyMissingEnhancements(cachedEnhancements);
             console.log('Missing enhancements identified'.cyan, {articleId, missing: missingEnhancements});
 
             if (email && missingEnhancements.length > 0) {
-                console.log('Starting background enhancement for article details'.cyan, {articleId, tasksToGenerate: missingEnhancements});
+                if (this.activeJobs.has(articleId)) {
+                    console.log('Background processing already active for article'.cyan, {articleId, skipDuplicate: true});
+                } else {
+                    this.activeJobs.add(articleId);
+                    console.log('Starting background enhancement for article details'.cyan, {articleId, tasksToGenerate: missingEnhancements});
 
-                setImmediate(async () => {
+                    setImmediate(async () => {
                     console.log('🚀 BACKGROUND PROCESSING STARTED'.bgMagenta.white, {articleId, email, missingEnhancements});
 
                     try {
@@ -838,8 +838,7 @@ class ArticleEnhancementService {
 
                         console.log('🎉 BACKGROUND PROCESSING COMPLETED SUCCESSFULLY'.bgGreen.white, {
                             articleId,
-                            processedFeatures: Object.keys(aiResult).filter(key => key !== 'error'),
-                            totalSteps: 6
+                            processedFeatures: Object.keys(aiResult).filter(key => key !== 'error' && key != 'powered_by'),
                         });
 
                     } catch (error: any) {
@@ -848,12 +847,16 @@ class ArticleEnhancementService {
                             error: error.message,
                             stack: error.stack
                         });
+                    } finally {
+                        this.activeJobs.delete(articleId);
+                        console.log('🧹 Cleaned up active job'.cyan, {articleId, remainingActiveJobs: this.activeJobs.size});
                     }
-                });
+                    });
+                }
             }
 
             // Return immediate response
-            return {enhanced: currentProgress === 100, progress: currentProgress};
+            return {enhanced: currentProgress === 100, progress: currentProgress, article: cachedEnhancements};
         } catch (error: any) {
             console.error('Service Error: fetchArticleDetailsEnhancement failed'.red.bold, error);
             return {enhanced: false, progress: 0, error: 'ENHANCEMENT_FETCH_FAILED'};

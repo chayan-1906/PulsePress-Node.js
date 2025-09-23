@@ -372,6 +372,7 @@ export interface ICombinedAIResponse {
 export interface IFetchArticleDetailsEnhancementResponse {
     enhanced: boolean;
     progress: number;
+    article?: Partial<IArticleEnhancement> | null;
     error?: string;
 }
 
@@ -546,7 +547,6 @@ export interface ICombinedAIParams {
 
 export interface IFetchArticleDetailsEnhancementParams {
     email?: string;  // for authMiddleware
-    articleId: string;
     url: string;
 }
 
