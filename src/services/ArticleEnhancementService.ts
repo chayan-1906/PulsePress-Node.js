@@ -1,6 +1,8 @@
 import "colors";
 import {GoogleGenerativeAI} from "@google/generative-ai";
 import AuthService from "./AuthService";
+import NewsService from "./NewsService";
+import {isListEmpty} from "../utils/list";
 import QuotaService from "./QuotaService";
 import {AI_PROMPTS} from "../utils/prompts";
 import StrikeService from "./StrikeService";
@@ -12,13 +14,23 @@ import ReadingTimeAnalysisService from "./ReadingTimeAnalysisService";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {getSentimentColor, getSentimentEmoji} from "../utils/serviceHelpers/sentimentHelpers";
 import ArticleEnhancementModel, {IArticleEnhancement} from "../models/ArticleEnhancementSchema";
+import {calculateProgress, identifyMissingEnhancements} from "../utils/serviceHelpers/enhancementHelpers";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 import {mergeEnhancementsWithArticles as mergeEnhancementsHelper} from "../utils/serviceHelpers/articleConverters";
-import {getCachedArticleEnhancements, saveBasicEnhancements, updateArticleIdsProcessingStatus, updateArticlesProcessingStatus} from "../utils/serviceHelpers/cacheHelpers";
+import {
+    getCachedArticleEnhancements,
+    saveBasicEnhancements,
+    saveNewsInsights,
+    saveQuestions,
+    updateArticleIdsProcessingStatus,
+    updateArticlesProcessingStatus,
+} from "../utils/serviceHelpers/cacheHelpers";
 import {
     ICombinedAIParams,
     ICombinedAIResponse,
     IEnhanceArticlesParams,
+    IFetchArticleDetailsEnhancementParams,
+    IFetchArticleDetailsEnhancementResponse,
     IGetEnhancementForArticlesParams,
     IGetEnhancementStatusByIdsParams,
     IGetEnhancementStatusByIdsResponse,
@@ -26,6 +38,7 @@ import {
     IGetProcessingStatusResponse,
     IMergeEnhancementsWithArticlesParams,
     SENTIMENT_TYPES,
+    TAIArticleEnhancement,
 } from "../types/ai";
 
 class ArticleEnhancementService {
@@ -130,7 +143,7 @@ class ArticleEnhancementService {
 
                     const aiResult: ICombinedAIResponse = await this.aiEnhanceArticle({
                         content: article.content || article.description || article.title || '',
-                        tasks: ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'geoExtraction'],
+                        tasks: ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'locations'],
                         selectedModel: selectedModel,
                     });
 
@@ -169,10 +182,7 @@ class ArticleEnhancementService {
                     console.log('aiResult:'.cyan, aiResult);
 
                     try {
-                        const enhancementsToCache: any = {
-                            articleId,
-                            url: article.url,
-                        };
+                        const enhancementsToCache: any = {articleId, url: article.url};
                         if (tags) enhancementsToCache.tags = tags;
                         if (sentimentData) enhancementsToCache.sentiment = sentimentData;
                         if (keyPoints) enhancementsToCache.keyPoints = keyPoints;
@@ -509,7 +519,7 @@ class ArticleEnhancementService {
                 prompt += `COMPLEXITY METER:\n${AI_PROMPTS.COMPLEXITY_METER()}\n\n`;
             }
 
-            if (tasks.includes('geoExtraction')) {
+            if (tasks.includes('locations')) {
                 prompt += `GEOGRAPHIC EXTRACTION:\n${AI_PROMPTS.GEOGRAPHIC_EXTRACTION()}\n\n`;
             }
 
@@ -537,7 +547,7 @@ class ArticleEnhancementService {
             if (tasks.includes('complexityMeter')) {
                 prompt += `  "complexityMeter": {"level": "medium", "reasoning": "Contains technical terms but accessible language"},\n`;
             }
-            if (tasks.includes('geoExtraction')) {
+            if (tasks.includes('locations')) {
                 prompt += `  "locations": ["New York City", "California", "United States"],\n`;
             }
             if (tasks.includes('questions')) {
@@ -595,7 +605,7 @@ class ArticleEnhancementService {
                 }
             }
 
-            if (tasks.includes('geoExtraction') && parsed.locations && Array.isArray(parsed.locations)) {
+            if (tasks.includes('locations') && parsed.locations && Array.isArray(parsed.locations)) {
                 const validLocations = parsed.locations.filter(location => location && location.trim().length > 0);
                 if (validLocations.length > 0) {
                     response.locations = validLocations;
@@ -625,6 +635,140 @@ class ArticleEnhancementService {
         } catch (error: any) {
             console.error('Service Error: AI enhancement failed with selected model'.red.bold, {model: modelName, error: error.message});
             return {error: 'AI_ENHANCEMENT_FAILED'};
+        }
+    }
+
+    /**
+     * Fetch article details with progressive enhancement (uses aiEnhanceArticle with missing enhancements)
+     */
+    static async fetchArticleDetailsEnhancement({email, articleId, url}: IFetchArticleDetailsEnhancementParams): Promise<IFetchArticleDetailsEnhancementResponse> {
+        console.log('Service: ArticleEnhancementService.fetchArticleDetailsEnhancement called'.cyan.italic, {articleId, email});
+
+        if (!articleId) {
+            console.warn('Client Error: Missing articleId parameter'.yellow);
+            return {enhanced: false, progress: 0, error: generateMissingCode('articleId')};
+        }
+
+        if (!url) {
+            console.warn('Client Error: Missing url parameter'.yellow);
+            return {enhanced: false, progress: 0, error: generateMissingCode('url')};
+        }
+
+        try {
+            const cachedEnhancements: IArticleEnhancement | null = await getCachedArticleEnhancements(articleId);
+            const currentProgress: number = calculateProgress(cachedEnhancements);
+            console.log('Current enhancement progress'.cyan, {articleId, progress: currentProgress});
+
+            if (currentProgress === 100) {
+                console.log('Article already fully enhanced for details screen'.cyan, {articleId});
+                return {enhanced: true, progress: 100};
+            }
+
+            const missingEnhancements: TAIArticleEnhancement[] = identifyMissingEnhancements(cachedEnhancements);
+            console.log('Missing enhancements identified'.cyan, {articleId, missing: missingEnhancements});
+
+            if (email && missingEnhancements.length > 0) {
+                console.log('Starting background enhancement for article details'.cyan, {articleId, tasksToGenerate: missingEnhancements});
+
+                setImmediate(async () => {
+                    try {
+                        const {user} = await AuthService.getUserByEmail({email});
+                        const {isBlocked} = await StrikeService.checkUserBlock({email});
+                        if (!user || isBlocked) {
+                            console.warn('Service Warning: User not found or blocked - cancelling article details enhancement'.yellow);
+                            return;
+                        }
+
+                        const quotaResult = await QuotaService.reserveQuotaForModelFallback({
+                            primaryModel: AI_ENHANCEMENT_MODELS[0],
+                            fallbackModels: AI_ENHANCEMENT_MODELS.slice(1),
+                            count: 1,
+                        });
+                        if (!quotaResult.allowed) {
+                            console.warn('Client Error: Quota exhausted for article details enhancement'.yellow, {articleId});
+                            return;
+                        }
+
+                        let articleContent = '';
+                        const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
+                        if (!isListEmpty(scrapedArticles) && !scrapedArticles[0].error) {
+                            articleContent = scrapedArticles[0]?.content || '';
+                        }
+
+                        if (!articleContent) {
+                            console.warn('Service Warning: No content available for AI enhancement'.yellow, {articleId});
+                            return;
+                        }
+
+                        const aiResult: ICombinedAIResponse = await this.aiEnhanceArticle({
+                            content: articleContent,
+                            tasks: missingEnhancements,
+                            selectedModel: quotaResult.selectedModel,
+                        });
+
+                        if (aiResult.error) {
+                            console.error('Service Error: AI enhancement failed for article details'.red.bold, {articleId, error: aiResult.error});
+                            return;
+                        }
+                        console.log('aiResult:'.cyan, aiResult);
+
+                        const enhancementsToCache: any = {articleId, url};
+                        if (aiResult.tags) enhancementsToCache.tags = aiResult.tags;
+                        if (aiResult.sentiment) enhancementsToCache.sentiment = aiResult.sentiment;
+                        if (aiResult.keyPoints) enhancementsToCache.keyPoints = aiResult.keyPoints;
+                        if (aiResult.complexityMeter) enhancementsToCache.complexityMeter = aiResult.complexityMeter;
+                        if (aiResult.locations) enhancementsToCache.locations = aiResult.locations;
+
+                        try {
+                            const basicEnhancementKeys = ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'locations'];
+                            const hasBasicEnhancements = basicEnhancementKeys.some(key => enhancementsToCache[key]);
+                            if (hasBasicEnhancements) {
+                                await saveBasicEnhancements(enhancementsToCache);
+                                console.log('Basic enhancements cached in unified schema'.cyan, {articleId, enhancementTypes: Object.keys(enhancementsToCache)});
+                            }
+
+                            const savePromises = [];
+
+                            if (!isListEmpty(aiResult.questions)) {
+                                savePromises.push(saveQuestions({articleId, url, questions: aiResult.questions}));
+                            }
+
+                            if (aiResult.newsInsights) {
+                                savePromises.push(saveNewsInsights({articleId, url, newsInsights: aiResult.newsInsights}));
+                            }
+
+                            if (savePromises.length > 0) {
+                                await Promise.all(savePromises);
+                            }
+
+                            console.log('About to do final save/update to mark completed'.cyan);
+                            await ArticleEnhancementModel.findOneAndUpdate(
+                                {articleId},
+                                {processingStatus: 'completed'},
+                            );
+                        } catch (saveError: any) {
+                            console.error('Service Error: Failed to save enhancements to database'.red.bold, {articleId, error: saveError.message});
+                            await ArticleEnhancementModel.findOneAndUpdate(
+                                {articleId},
+                                {processingStatus: 'failed'},
+                            ).catch(() => {
+                                // Silent fail for cleanup attempt
+                            });
+                            return;
+                        }
+
+                        console.log('Article details enhancement completed successfully'.green.bold, {articleId});
+                    } catch (error: any) {
+                        console.error('Service Error: Background article details enhancement failed'.red.bold, {articleId, error: error.message});
+                    }
+                });
+            }
+
+            // Return immediate response
+            return {enhanced: currentProgress === 100, progress: currentProgress};
+        } catch (error: any) {
+            console.error('Service Error: fetchArticleDetailsEnhancement failed'.red.bold, error);
+            return {enhanced: false, progress: 0, error: 'ENHANCEMENT_FETCH_FAILED'};
         }
     }
 }

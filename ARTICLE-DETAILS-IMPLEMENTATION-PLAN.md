@@ -7,15 +7,15 @@ Implement `/article-details/enhance/{articleId}` endpoint for progressive enhanc
 **Important Context**: The `articleId`, `articleUrl` parameter will come from articles previously fetched via `/multi-source/enhance` API, The article may or may not exist in the ArticleEnhancement
 schema. If it doesn't exist, then the
 
-## 1. API Endpoint Design
+## 1. API Endpoint Design ✅
 
-### 1.1 Route Definition
+### 1.1 Route Definition ✅
 
-- **Endpoint**: `GET /news/article-details/enhance/:articleId`
+- **Endpoint**: `POST /news/article/enhance`
 - **Route File**: `src/routes/NewsRoutes.ts`
 - **Controller Method**: `fetchArticleDetailsEnhancementController`
 
-### 1.2 Request Parameters
+### 1.2 Request Parameters ✅
 
 ```typescript
 interface IArticleDetailsEnhanceParams {
@@ -25,11 +25,11 @@ interface IArticleDetailsEnhanceParams {
 }
 ```
 
-### 1.3 Response Structure
+### 1.3 Response Structure ✅
 
 ```typescript
-import {TProcessingStatus} from "./news";
 import {TSentimentResult} from "./ai";
+import {TProcessingStatus} from "./news";
 
 interface IArticleDetailsEnhanceResponse {
     articleId: string;
@@ -53,14 +53,14 @@ interface IArticleDetailsEnhanceResponse {
 }
 ```
 
-## 2. Authentication & Authorization Flow
+## 2. Authentication & Authorization Flow ✅
 
-### 2.1 Auth Token Handling
+### 2.1 Auth Token Handling ✅
 
 - **Valid Token + Authenticated User**: Process missing enhancements + return cached data
 - **No Token**/**Blocked User**/**Invalid Token**: Return only cached data (no AI processing)
 
-### 2.2 User Validation Logic
+### 2.2 User Validation Logic ✅
 
 ```typescript
 // Follow same pattern as /multi-source APIs
@@ -75,15 +75,15 @@ if (userEmail) {
 }
 ```
 
-## 3. Progressive Enhancement Logic
+## 3. Progressive Enhancement Logic ✅
 
-### 3.1 Cache-First Response Strategy
+### 3.1 Cache-First Response Strategy ✅
 
 1. **Immediate Response**: Always return cached enhancements first (if any)
 2. **Background Processing**: Start AI enhancement for missing features (if authenticated)
 3. **Non-Blocking**: Don't wait for AI completion before responding
 
-### 3.2 Enhancement Processing Flow
+### 3.2 Enhancement Processing Flow ✅
 
 ```typescript
 async function processArticleDetailsEnhancement(articleId: string, userEmail?: string) {
@@ -105,7 +105,7 @@ async function processArticleDetailsEnhancement(articleId: string, userEmail?: s
 }
 ```
 
-### 3.3 Missing Enhancement Detection
+### 3.3 Missing Enhancement Detection ✅
 
 ```typescript
 function identifyMissingEnhancements(cached: IArticleEnhancement | null): string[] {
@@ -125,15 +125,15 @@ function identifyMissingEnhancements(cached: IArticleEnhancement | null): string
 }
 ```
 
-## 4. Background AI Processing
+## 4. Background AI Processing ✅
 
-### 4.1 Asynchronous Enhancement Processing
+### 4.1 Asynchronous Enhancement Processing ✅
 
 - **Pattern**: Use existing `ArticleEnhancementService.aiEnhanceArticle` method with tasks array for single AI call
 - **Storage**: Update existing ArticleEnhancement document with new data from combined AI response
 - **Error Handling**: Failed AI processing shouldn't affect cached data, partial enhancement results are acceptable
 
-### 4.2 Article Content Resolution
+### 4.2 Article Content Resolution ✅
 
 ```typescript
 import {getCachedArticleEnhancements} from "./cacheHelpers";
@@ -155,7 +155,7 @@ async function getArticleContentForProcessing(articleId: string, articleUrl: str
 }
 ```
 
-### 4.3 Service Integration
+### 4.3 Service Integration ✅
 
 ```typescript
 async function processEnhancementsInBackground(articleId: string, missing: string[], email: string) {
@@ -192,7 +192,7 @@ async function processEnhancementsInBackground(articleId: string, missing: strin
 }
 ```
 
-### 4.4 Batch Enhancement Processing
+### 4.4 Batch Enhancement Processing ✅
 
 ```typescript
 async function saveEnhancementsToCache(articleId: string, url: string, aiResult: ICombinedAIResponse, requestedTasks: string[]) {
@@ -236,9 +236,9 @@ async function saveEnhancementsToCache(articleId: string, url: string, aiResult:
 }
 ```
 
-## 5. Controller Implementation
+## 5. Controller Implementation ✅
 
-### 5.1 Main Controller Method
+### 5.1 Main Controller Method ✅
 
 ```typescript
 async
@@ -292,9 +292,9 @@ Response
 }
 ```
 
-## 6. Helper Functions
+## 6. Helper Functions ✅
 
-### 6.1 Response Builder
+### 6.1 Response Builder ✅
 
 ```typescript
 function buildEnhancementResponse(cached: IArticleEnhancement | null, articleId: string) {
@@ -322,7 +322,7 @@ function buildEnhancementResponse(cached: IArticleEnhancement | null, articleId:
 }
 ```
 
-### 6.2 Progress Calculation
+### 6.2 Progress Calculation ✅
 
 ```typescript
 function calculateProgress(cached: IArticleEnhancement | null): number {
@@ -344,45 +344,45 @@ function calculateProgress(cached: IArticleEnhancement | null): number {
 }
 ```
 
-## 7. Integration Points
+## 7. Integration Points ✅
 
-### 7.1 Route Registration
+### 7.1 Route Registration ✅
 
 ```typescript
 // In src/routes/NewsRoutes.ts
-router.get('/article-details/enhance/:articleId', NewsController.fetchArticleDetailsEnhancementController);
+router.post('/article/enhance', NewsController.fetchArticleDetailsEnhancementController);
 ```
 
-### 7.2 Cache Helper Extensions
+### 7.2 Cache Helper Extensions ✅
 
 - Extend existing `cacheHelpers.ts` functions
 - Add individual enhancement save functions
 - Ensure compatibility with existing ArticleEnhancement schema
 
-### 7.3 Service Method Reuse
+### 7.3 Service Method Reuse ✅
 
 - Leverage existing AI service methods
 - Use same authentication patterns
 - Maintain quota management for background processing
 
-## 8. Error Handling
+## 8. Error Handling ✅
 
-### 8.1 Error Scenarios
+### 8.1 Error Scenarios ✅
 
 - **Invalid articleId**: Return 400 with missing code
 - **Cache read failure**: Log warning, continue with empty cache
 - **Background processing failure**: Log error, don't affect response
 - **Individual enhancement failure**: Skip failed enhancement, continue others
 
-### 8.2 Graceful Degradation
+### 8.2 Graceful Degradation ✅
 
 - Always return cached data when available
 - Partial enhancements are acceptable
 - Individual feature failures don't block entire response
 
-## 9. Testing Strategy
+## 9. Testing Strategy ✅
 
-### 9.1 Test Cases
+### 9.1 Test Cases ✅
 
 - **Authenticated user + no cache**: Background processing starts
 - **Authenticated user + partial cache**: Missing enhancements processed
@@ -391,15 +391,15 @@ router.get('/article-details/enhance/:articleId', NewsController.fetchArticleDet
 - **Blocked user + cache**: Cache-only response
 - **Invalid articleId**: Proper error response
 
-### 9.2 Performance Testing
+### 9.2 Performance Testing ✅
 
 - Response time for cached data (should be < 100ms)
 - Background processing doesn't block response
 - Memory usage with concurrent requests
 
-## 10. File Structure
+## 10. File Structure ✅
 
-### 10.1 New/Modified Files
+### 10.1 New/Modified Files ✅
 
 - `src/controllers/NewsController.ts` - Add new controller method
 - `src/routes/NewsRoutes.ts` - Add new route
@@ -407,7 +407,7 @@ router.get('/article-details/enhance/:articleId', NewsController.fetchArticleDet
 - `src/utils/serviceHelpers/cacheHelpers.ts` - Extend with individual save functions
 - `src/types/news.ts` - Add response interfaces
 
-### 10.2 No New Dependencies
+### 10.2 No New Dependencies ✅
 
 - Reuse existing authentication middleware
 - Reuse existing AI services

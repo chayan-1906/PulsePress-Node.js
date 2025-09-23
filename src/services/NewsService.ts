@@ -471,47 +471,6 @@ class NewsService {
     }
 
     /**
-     * Scrape content from multiple URLs with error handling
-     */
-    static async scrapeMultipleArticles({urls}: IScrapeMultipleWebsitesParams) {
-        console.log('Service: NewsService.scrapeMultipleArticles called'.cyan.italic, {urls});
-
-        const results = [];
-
-        if (isListEmpty(urls)) {
-            return [];
-        }
-
-        const isValidUrl = (url: string) => {
-            try {
-                new URL(url);
-                return true;
-            } catch {
-                return false;
-            }
-        }
-
-        for (const url of urls.filter(isValidUrl)) {
-            try {
-                const article = await this.scrapeArticle({url});
-                results.push(article);
-            } catch (error: any) {
-                results.push({
-                    url,
-                    status: error.status,
-                    error: {
-                        code: error.code,
-                        message: error.message,
-                    },
-                    timestamp: new Date().toISOString(),
-                });
-            }
-        }
-
-        return results;
-    }
-
-    /**
      * Enhanced multi-source news fetch with AI enhancements and progressive loading
      */
     static async fetchMultiSourceNewsEnhanced({email, q, category, sources, pageSize = 5, page = 1}: IMultisourceFetchNewsParams) {
@@ -551,74 +510,6 @@ class NewsService {
                 progress,
             },
         };
-    }
-
-    /**
-     * Scrape article content from URL using Readability
-     */
-    private static async scrapeArticle({url}: IScrapeWebsiteParams) {
-        console.log('Service: scrapeArticle called'.cyan.italic, url);
-
-        try {
-            if (!url) {
-                return {error: generateMissingCode('url')};
-            }
-
-            let response: any;
-            for (const userAgent of USER_AGENTS) {
-                try {
-                    response = await axios.get(url, {
-                        headers: buildHeader('webscraping', userAgent),
-                        timeout: 10000,
-                    });
-                    break; // Success - exit loop
-                } catch (error) {
-                    if (userAgent === USER_AGENTS[USER_AGENTS.length - 1]) {
-                        throw error; // Last attempt failed
-                    }
-                    // continue; // Try next user agent
-                }
-            }
-
-            const virtualConsole = new VirtualConsole();
-            virtualConsole.on('error', () => {
-            });
-            virtualConsole.on('warn', () => {
-            });
-
-            const dom = new JSDOM(response.data, {
-                url,
-                virtualConsole,
-                pretendToBeVisual: false,
-                resources: 'usable',
-            });
-
-            const reader = new Readability(dom.window.document);
-            const article = reader.parse();
-            console.log('Article parsed successfully:'.cyan, article);
-
-            if (!article) {
-                throw new Error('Failed to parse article content');
-            }
-
-            const cleanedContent = cleanScrapedText(article.textContent || '');
-
-            return {
-                url,
-                title: cleanScrapedText(article.title || ''),
-                content: cleanedContent,
-                excerpt: cleanScrapedText(article.excerpt || ''),
-                byline: cleanScrapedText(article.byline || ''),
-                length: cleanedContent.length,
-                readingTimeMinutes: Math.ceil(cleanedContent.length / 200),
-                timestamp: new Date().toISOString(),
-                method: 'readability',
-                status: 200,
-            };
-        } catch (error: any) {
-            console.error('Service Error: NewsService.scrapeArticle failed:'.red.bold, error);
-            throw error;
-        }
     }
 
     /**
@@ -796,6 +687,7 @@ class NewsService {
             });
         }
 
+        // Return immediate response
         return {
             totalResults: sortedResults.length,
             query: q,
@@ -825,6 +717,115 @@ class NewsService {
                 },
             },
         };
+    }
+
+    /**
+     * Scrape content from multiple URLs with error handling
+     */
+    static async scrapeMultipleArticles({urls}: IScrapeMultipleWebsitesParams) {
+        console.log('Service: NewsService.scrapeMultipleArticles called'.cyan.italic, {urls});
+
+        const results = [];
+
+        if (isListEmpty(urls)) {
+            return [];
+        }
+
+        const isValidUrl = (url: string) => {
+            try {
+                new URL(url);
+                return true;
+            } catch {
+                return false;
+            }
+        }
+
+        for (const url of urls.filter(isValidUrl)) {
+            try {
+                const article = await this.scrapeArticle({url});
+                results.push(article);
+            } catch (error: any) {
+                results.push({
+                    url,
+                    status: error.status,
+                    error: {
+                        code: error.code,
+                        message: error.message,
+                    },
+                    timestamp: new Date().toISOString(),
+                });
+            }
+        }
+
+        return results;
+    }
+
+    /**
+     * Scrape article content from URL using Readability
+     */
+    private static async scrapeArticle({url}: IScrapeWebsiteParams) {
+        console.log('Service: scrapeArticle called'.cyan.italic, url);
+
+        try {
+            if (!url) {
+                return {error: generateMissingCode('url')};
+            }
+
+            let response: any;
+            for (const userAgent of USER_AGENTS) {
+                try {
+                    response = await axios.get(url, {
+                        headers: buildHeader('webscraping', userAgent),
+                        timeout: 10000,
+                    });
+                    break; // Success - exit loop
+                } catch (error) {
+                    if (userAgent === USER_AGENTS[USER_AGENTS.length - 1]) {
+                        throw error; // Last attempt failed
+                    }
+                    // continue; // Try next user agent
+                }
+            }
+
+            const virtualConsole = new VirtualConsole();
+            virtualConsole.on('error', () => {
+            });
+            virtualConsole.on('warn', () => {
+            });
+
+            const dom = new JSDOM(response.data, {
+                url,
+                virtualConsole,
+                pretendToBeVisual: false,
+                resources: 'usable',
+            });
+
+            const reader = new Readability(dom.window.document);
+            const article = reader.parse();
+            console.log('Article parsed successfully:'.cyan, article);
+
+            if (!article) {
+                throw new Error('Failed to parse article content');
+            }
+
+            const cleanedContent = cleanScrapedText(article.textContent || '');
+
+            return {
+                url,
+                title: cleanScrapedText(article.title || ''),
+                content: cleanedContent,
+                excerpt: cleanScrapedText(article.excerpt || ''),
+                byline: cleanScrapedText(article.byline || ''),
+                length: cleanedContent.length,
+                readingTimeMinutes: Math.ceil(cleanedContent.length / 200),
+                timestamp: new Date().toISOString(),
+                method: 'readability',
+                status: 200,
+            };
+        } catch (error: any) {
+            console.error('Service Error: NewsService.scrapeArticle failed:'.red.bold, error);
+            throw error;
+        }
     }
 }
 

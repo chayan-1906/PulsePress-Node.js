@@ -8,6 +8,7 @@ import ArticleEnhancementService from "../services/ArticleEnhancementService";
 import {COUNTRY_KEYWORDS, TOPIC_METADATA, TOPIC_QUERIES} from "../utils/constants";
 import {generateInvalidCode, generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {
+    IArticleDetailsEnhanceParams,
     IExploreTopicParams,
     IFetchMultisourceNewsEnhancementStatusParams,
     IGuardianSearchParams,
@@ -300,56 +301,6 @@ const fetchAllRssFeedsController = async (req: Request, res: Response) => {
     }
 }
 
-/*const fetchMultiSourceNewsController = async (req: Request, res: Response) => {
-    console.info('Controller: fetchMultiSourceNewsController started'.bgBlue.white.bold);
-
-    try {
-        const email = (req as IAuthRequest).email;
-        const {q, category, sources, pageSize, page}: Partial<IMultisourceFetchNewsParams> = req.query;
-
-        if (!q && !category && !sources) {
-            res.status(400).send(new ApiResponse({
-                success: false,
-                errorCode: generateMissingCode('q_category_sources'),
-                errorMsg: 'At least one of q (query), category, or sources parameter is required',
-            }));
-            return;
-        }
-
-        let pageSizeNumber, pageNumber;
-        if (pageSize && !isNaN(pageSize)) {
-            pageSizeNumber = Number(pageSize);
-        }
-        if (page && !isNaN(page)) {
-            pageNumber = Number(page);
-        }
-
-        console.time('Performance: MULTISOURCE_FETCH_TIME'.cyan);
-        const multisourceResults = await NewsService.fetchMultiSourceNews({
-            email,
-            q,
-            category,
-            sources,
-            pageSize: pageSizeNumber,
-            page: pageNumber,
-        });
-        console.timeEnd('Performance: MULTISOURCE_FETCH_TIME'.cyan);
-
-        res.status(200).send(new ApiResponse({
-            success: true,
-            message: 'Multisource news search has been completed 🎉',
-            searchResults: multisourceResults,
-        }));
-    } catch (error: any) {
-        console.error('Controller Error: fetchMultiSourceNewsController failed'.red.bold, error);
-        res.status(500).send(new ApiResponse({
-            success: false,
-            error,
-            errorMsg: error.message || 'Something went wrong while loading news from multiple sources',
-        }));
-    }
-}*/
-
 const scrapeWebsiteController = async (req: Request, res: Response) => {
     console.info('Controller: scrapeWebsiteController started'.bgBlue.white.bold);
 
@@ -578,6 +529,81 @@ const fetchMultiSourceNewsEnhancementStatusController = async (req: Request, res
     }
 }
 
+const fetchArticleDetailsEnhancementController = async (req: Request, res: Response) => {
+    console.info('Controller: fetchArticleDetailsEnhancementController started'.bgBlue.white.bold);
+
+    try {
+        const {articleId, url}: Partial<IArticleDetailsEnhanceParams> = req.body;
+
+        if (!articleId) {
+            console.warn('Client Error: Missing articleId parameter'.yellow);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('articleId'),
+                errorMsg: 'ArticleId is required',
+            }));
+            return;
+        }
+
+        if (!url) {
+            console.warn('Client Error: Missing articleUrl parameter'.yellow);
+            res.status(400).send(new ApiResponse({
+                success: false,
+                errorCode: generateMissingCode('url'),
+                errorMsg: 'URL is required',
+            }));
+            return;
+        }
+
+        const email = (req as IAuthRequest).email;
+        console.log('Article details enhancement request'.cyan, {articleId, url, email});
+
+        console.time('Performance: ARTICLE_DETAILS_ENHANCEMENT_TIME'.cyan);
+        const {enhanced, progress, error} = await ArticleEnhancementService.fetchArticleDetailsEnhancement({email, articleId, url});
+        console.timeEnd('Performance: ARTICLE_DETAILS_ENHANCEMENT_TIME'.cyan);
+
+        if (error) {
+            let errorMsg = 'Failed to fetch article details enhancement';
+            let statusCode = 500;
+
+            if (error === generateNotFoundCode('article')) {
+                errorMsg = 'Article not found';
+                statusCode = 404;
+            } else if (error === generateMissingCode('articleId')) {
+                errorMsg = 'ArticleId is missing';
+                statusCode = 400;
+            } else if (error === generateMissingCode('articleUrl')) {
+                errorMsg = 'ArticleUrl is missing';
+                statusCode = 400;
+            }
+
+            res.status(statusCode).send(new ApiResponse({
+                success: false,
+                errorCode: error,
+                errorMsg,
+            }));
+            return;
+        }
+
+        const message = enhanced
+            ? `Article details enhancement completed! Progress: ${progress}% ✨`
+            : `Article details retrieved with ${progress}% enhancements available 📖`;
+
+        res.status(200).send(new ApiResponse({
+            success: true,
+            message,
+            articleDetails: {enhanced, progress},
+        }));
+    } catch (error: any) {
+        console.error('Controller Error: fetchArticleDetailsEnhancementController failed'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: error.message || 'Something went wrong while fetching article details enhancement',
+        }));
+    }
+}
+
 export {
     fetchNewsApiOrgTopHeadlinesController,
     fetchNewsApiOrgEverythingController,
@@ -585,9 +611,9 @@ export {
     fetchNewYorkTimesNewsController,
     fetchNewYorkTimesTopStoriesController,
     fetchAllRssFeedsController,
-    // fetchMultiSourceNewsController,
     fetchMultiSourceNewsEnhancedController,
     fetchMultiSourceNewsEnhancementStatusController,
+    fetchArticleDetailsEnhancementController,
     scrapeWebsiteController,
     exploreTopicController,
 };
