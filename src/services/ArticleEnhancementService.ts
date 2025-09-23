@@ -295,15 +295,15 @@ class ArticleEnhancementService {
         console.log('Service: ArticleEnhancementService.getProcessingStatus called'.cyan.italic, {articleCount: articles.length});
 
         const articleIds = articles.map((article: IArticle) => generateArticleId({url: article.url}));
-        console.log('🔍 DEBUG: Generated articleIds:'.bgBlue.white, articleIds);
+        console.debug('Debug: Generated articleIds:'.gray, articleIds);
 
         const hasActiveJobs = articleIds.some((id: string) => this.activeJobs.has(id));
-        console.log('🔍 DEBUG: Active jobs check:'.bgBlue.white, {hasActiveJobs, activeJobsSet: Array.from(this.activeJobs)});
+        console.debug('Debug: Active jobs check:'.gray, {hasActiveJobs, activeJobsSet: Array.from(this.activeJobs)});
 
         const enhancements: IArticleEnhancement[] = await ArticleEnhancementModel.find({
             articleId: {$in: articleIds},
         });
-        console.log('🔍 DEBUG: Found enhancements in DB:'.bgBlue.white, {
+        console.debug('Debug: Found enhancements in DB:'.gray, {
             count: enhancements.length,
             statuses: enhancements.map(e => ({articleId: e.articleId, status: e.processingStatus}))
         });
@@ -312,22 +312,22 @@ class ArticleEnhancementService {
         const failedCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'failed').length;
         const cancelledCount = enhancements.filter((enhancement: IArticleEnhancement) => enhancement.processingStatus === 'cancelled').length;
 
-        console.log('🔍 DEBUG: Initial counts from DB:'.bgBlue.white, {completedCount, failedCount, cancelledCount});
+        console.debug('Debug: Initial counts from DB:'.gray, {completedCount, failedCount, cancelledCount});
 
         for (const article of articles) {
             const articleId = generateArticleId({url: article.url});
 
             const existingEnhancement = enhancements.find(e => e.articleId === articleId);
-            console.log('🔍 DEBUG: Checking article:'.bgBlue.white, {articleId, hasExistingEnhancement: !!existingEnhancement});
+            console.debug('Debug: Checking article:'.gray, {articleId, hasExistingEnhancement: !!existingEnhancement});
 
             if (existingEnhancement) {
-                console.log('🔍 DEBUG: Found existing enhancement:'.bgBlue.white, {articleId, status: existingEnhancement.processingStatus});
+                console.debug('Debug: Found existing enhancement:'.gray, {articleId, status: existingEnhancement.processingStatus});
                 continue;
             }
 
             try {
                 const cachedEnhancements = await getCachedArticleEnhancements(articleId);
-                console.log('🔍 DEBUG: Cache lookup result:'.bgBlue.white, {
+                console.debug('Debug: Cache lookup result:'.gray, {
                     articleId,
                     hasCachedEnhancements: !!cachedEnhancements,
                     cachedStatus: cachedEnhancements?.processingStatus,
@@ -345,27 +345,27 @@ class ArticleEnhancementService {
         const processedCount = completedCount + failedCount + cancelledCount;
         const progress = articles.length > 0 ? Math.round((processedCount / articles.length) * 100) : 0;
 
-        console.log('🔍 DEBUG: Final status calculation:'.bgBlue.white, {
+        console.debug('Debug: Final status calculation:'.gray, {
             completedCount,
             failedCount,
             cancelledCount,
             processedCount,
             totalArticles: articles.length,
             progress,
-            hasActiveJobs
+            hasActiveJobs,
         });
 
         if (hasActiveJobs || processedCount < articles.length) {
             return {status: 'processing', progress};
         } else {
             if (cancelledCount === articles.length) {
-                console.log('🔍 DEBUG: Returning CANCELLED status'.bgGreen.white);
+                console.debug('Debug: Returning CANCELLED status'.gray);
                 return {status: 'cancelled', progress: 100};
             } else if (completedCount > 0) {
-                console.log('🔍 DEBUG: Returning COMPLETE status'.bgGreen.white, {completedCount});
+                console.debug('Debug: Returning COMPLETE status'.gray, {completedCount});
                 return {status: 'complete', progress: processedCount / articles.length * 100};
             } else {
-                console.log('🔍 DEBUG: Returning FAILED status'.bgRed.white);
+                console.debug('Debug: Returning FAILED status'.gray);
                 return {status: 'failed', progress: processedCount / articles.length * 100};
             }
         }
@@ -629,8 +629,8 @@ class ArticleEnhancementService {
                 };
             }
 
-            console.log(`✅ AI enhancement successful with model:`.green.bold, modelName);
-            console.log('Combined AI enhancement result:'.green.bold, response);
+            console.log(`✅ AI enhancement successful with model:`.cyan, modelName);
+            console.log('Combined AI enhancement result:'.cyan, response);
             return {...response, powered_by: modelName};
         } catch (error: any) {
             console.error('Service Error: AI enhancement failed with selected model'.red.bold, {model: modelName, error: error.message});
@@ -671,186 +671,186 @@ class ArticleEnhancementService {
                     console.log('Starting background enhancement for article details'.cyan, {articleId, tasksToGenerate: missingEnhancements});
 
                     setImmediate(async () => {
-                    console.log('🚀 BACKGROUND PROCESSING STARTED'.bgMagenta.white, {articleId, email, missingEnhancements});
-
-                    try {
-                        console.log('📝 Step 1: Checking user authentication'.cyan, {email});
-                        const {user} = await AuthService.getUserByEmail({email});
-                        const {isBlocked} = await StrikeService.checkUserBlock({email});
-
-                        if (!user) {
-                            console.warn('❌ Background processing cancelled: User not found'.yellow, {email, articleId});
-                            return;
-                        }
-
-                        if (isBlocked) {
-                            console.warn('❌ Background processing cancelled: User is blocked'.yellow, {email, articleId});
-                            return;
-                        }
-
-                        console.log('✅ Step 1 PASSED: User authenticated'.green, {userId: user.userExternalId});
-
-                        console.log('📝 Step 2: Reserving AI quota'.cyan, {articleId});
-                        const quotaResult = await QuotaService.reserveQuotaForModelFallback({
-                            primaryModel: AI_ENHANCEMENT_MODELS[0],
-                            fallbackModels: AI_ENHANCEMENT_MODELS.slice(1),
-                            count: 1,
-                        });
-
-                        if (!quotaResult.allowed) {
-                            console.warn('❌ Background processing cancelled: Quota exhausted'.yellow, {articleId, quotaResult});
-                            return;
-                        }
-
-                        console.log('✅ Step 2 PASSED: Quota reserved'.green, {selectedModel: quotaResult.selectedModel});
-
-                        console.log('📝 Step 3: Scraping article content'.cyan, {url, articleId});
-                        let articleContent = '';
-                        const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
-
-                        console.log('🔍 Scraping result:'.cyan, {
-                            scrapedCount: scrapedArticles?.length,
-                            isEmpty: isListEmpty(scrapedArticles),
-                            firstArticleError: scrapedArticles?.[0]?.error,
-                            firstArticleContentLength: scrapedArticles?.[0] && 'content' in scrapedArticles[0] ? scrapedArticles[0].content?.length : 'N/A',
-                        });
-
-                        if (!isListEmpty(scrapedArticles) && !scrapedArticles[0].error) {
-                            articleContent = scrapedArticles[0]?.content || '';
-                        }
-
-                        if (!articleContent) {
-                            console.warn('❌ Background processing cancelled: No content available for AI enhancement'.yellow, {
-                                articleId,
-                                url,
-                                scrapedArticles: scrapedArticles?.map(a => ({error: a.error, contentLength: 'content' in a ? a.content?.length : 'N/A'})),
-                            });
-                            return;
-                        }
-
-                        console.log('✅ Step 3 PASSED: Article content scraped'.green, {
-                            contentLength: articleContent.length,
-                            contentPreview: articleContent.substring(0, 100) + '...'
-                        });
-
-                        console.log('📝 Step 4: Processing AI enhancement'.cyan, {articleId, tasks: missingEnhancements});
-                        const aiResult: ICombinedAIResponse = await this.aiEnhanceArticle({
-                            content: articleContent,
-                            tasks: missingEnhancements,
-                            selectedModel: quotaResult.selectedModel,
-                        });
-
-                        if (aiResult.error) {
-                            console.error('❌ Background processing failed: AI enhancement error'.red.bold, {articleId, error: aiResult.error});
-                            return;
-                        }
-
-                        console.log('✅ Step 4 PASSED: AI enhancement completed'.green, {
-                            articleId,
-                            generatedFeatures: Object.keys(aiResult).filter(key => key !== 'error')
-                        });
-                        console.log('🔍 AI Result details:'.cyan, aiResult);
-
-                        console.log('📝 Step 5: Preparing enhancement data for database'.cyan, {articleId});
-                        const enhancementsToCache: any = {articleId, url};
-                        if (aiResult.tags) enhancementsToCache.tags = aiResult.tags;
-                        if (aiResult.sentiment) enhancementsToCache.sentiment = aiResult.sentiment;
-                        if (aiResult.keyPoints) enhancementsToCache.keyPoints = aiResult.keyPoints;
-                        if (aiResult.complexityMeter) enhancementsToCache.complexityMeter = aiResult.complexityMeter;
-                        if (aiResult.locations) enhancementsToCache.locations = aiResult.locations;
-
-                        console.log('🔍 Enhancements to cache:'.cyan, {
-                            articleId,
-                            enhancementTypes: Object.keys(enhancementsToCache)
-                        });
+                        console.log('🚀 BACKGROUND PROCESSING STARTED'.bgMagenta.white, {articleId, email, missingEnhancements});
 
                         try {
-                            console.log('📝 Step 6: Saving enhancements to database'.cyan, {articleId});
+                            console.log('📝 Step 1: Checking user authentication'.cyan, {email});
+                            const {user} = await AuthService.getUserByEmail({email});
+                            const {isBlocked} = await StrikeService.checkUserBlock({email});
 
-                            // Save basic enhancements
-                            const basicEnhancementKeys = ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'locations'];
-                            const hasBasicEnhancements = basicEnhancementKeys.some(key => enhancementsToCache[key]);
-
-                            if (hasBasicEnhancements) {
-                                console.log('💾 Saving basic enhancements'.cyan, {articleId, types: Object.keys(enhancementsToCache)});
-                                await saveBasicEnhancements(enhancementsToCache);
-                                console.log('✅ Basic enhancements saved'.green, {articleId});
-                            } else {
-                                console.warn('⚠️ No basic enhancements to save'.yellow, {articleId});
+                            if (!user) {
+                                console.warn('❌ Background processing cancelled: User not found'.yellow, {email, articleId});
+                                return;
                             }
 
-                            // Save additional enhancements
-                            const savePromises = [];
-
-                            if (!isListEmpty(aiResult.questions)) {
-                                console.log('💾 Saving questions'.cyan, {articleId, questionsCount: aiResult.questions.length});
-                                savePromises.push(saveQuestions({articleId, url, questions: aiResult.questions}));
+                            if (isBlocked) {
+                                console.warn('❌ Background processing cancelled: User is blocked'.yellow, {email, articleId});
+                                return;
                             }
 
-                            if (aiResult.newsInsights) {
-                                console.log('💾 Saving news insights'.cyan, {articleId});
-                                savePromises.push(saveNewsInsights({articleId, url, newsInsights: aiResult.newsInsights}));
-                            }
+                            console.log('✅ Step 1 PASSED: User authenticated'.cyan, {userId: user.userExternalId});
 
-                            if (savePromises.length > 0) {
-                                await Promise.all(savePromises);
-                                console.log('✅ Additional enhancements saved'.green, {articleId, count: savePromises.length});
-                            }
-
-                            console.log('📝 Final step: Marking enhancement as completed'.cyan, {articleId});
-                            const updateResult = await ArticleEnhancementModel.findOneAndUpdate(
-                                {articleId},
-                                {
-                                    articleId,
-                                    url,
-                                    processingStatus: 'completed',
-                                    updatedAt: new Date(),
-                                },
-                                {upsert: true, new: true, setDefaultsOnInsert: true}
-                            );
-
-                            console.log('✅ Step 6 PASSED: Final status update completed'.green, {
-                                articleId,
-                                documentId: updateResult._id,
-                                processingStatus: updateResult.processingStatus
+                            console.log('📝 Step 2: Reserving AI quota'.cyan, {articleId});
+                            const quotaResult = await QuotaService.reserveQuotaForModelFallback({
+                                primaryModel: AI_ENHANCEMENT_MODELS[0],
+                                fallbackModels: AI_ENHANCEMENT_MODELS.slice(1),
+                                count: 1,
                             });
 
-                        } catch (saveError: any) {
-                            console.error('❌ Step 6 FAILED: Database save error'.red.bold, {articleId, error: saveError.message, stack: saveError.stack});
+                            if (!quotaResult.allowed) {
+                                console.warn('❌ Background processing cancelled: Quota exhausted'.yellow, {articleId, quotaResult});
+                                return;
+                            }
+
+                            console.log('✅ Step 2 PASSED: Quota reserved'.cyan, {selectedModel: quotaResult.selectedModel});
+
+                            console.log('📝 Step 3: Scraping article content'.cyan, {url, articleId});
+                            let articleContent = '';
+                            const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
+
+                            console.log('🔍 Scraping result:'.cyan, {
+                                scrapedCount: scrapedArticles?.length,
+                                isEmpty: isListEmpty(scrapedArticles),
+                                firstArticleError: scrapedArticles?.[0]?.error,
+                                firstArticleContentLength: scrapedArticles?.[0] && 'content' in scrapedArticles[0] ? scrapedArticles[0].content?.length : 'N/A',
+                            });
+
+                            if (!isListEmpty(scrapedArticles) && !scrapedArticles[0].error) {
+                                articleContent = scrapedArticles[0]?.content || '';
+                            }
+
+                            if (!articleContent) {
+                                console.warn('❌ Background processing cancelled: No content available for AI enhancement'.yellow, {
+                                    articleId,
+                                    url,
+                                    scrapedArticles: scrapedArticles?.map(a => ({error: a.error, contentLength: 'content' in a ? a.content?.length : 'N/A'})),
+                                });
+                                return;
+                            }
+
+                            console.log('✅ Step 3 PASSED: Article content scraped'.cyan, {
+                                contentLength: articleContent.length,
+                                contentPreview: articleContent.substring(0, 100) + '...'
+                            });
+
+                            console.log('📝 Step 4: Processing AI enhancement'.cyan, {articleId, tasks: missingEnhancements});
+                            const aiResult: ICombinedAIResponse = await this.aiEnhanceArticle({
+                                content: articleContent,
+                                tasks: missingEnhancements,
+                                selectedModel: quotaResult.selectedModel,
+                            });
+
+                            if (aiResult.error) {
+                                console.error('❌ Background processing failed: AI enhancement error'.red.bold, {articleId, error: aiResult.error});
+                                return;
+                            }
+
+                            console.log('✅ Step 4 PASSED: AI enhancement completed'.cyan, {
+                                articleId,
+                                generatedFeatures: Object.keys(aiResult).filter(key => key !== 'error')
+                            });
+                            console.log('🔍 AI Result details:'.cyan, aiResult);
+
+                            console.log('📝 Step 5: Preparing enhancement data for database'.cyan, {articleId});
+                            const enhancementsToCache: any = {articleId, url};
+                            if (aiResult.tags) enhancementsToCache.tags = aiResult.tags;
+                            if (aiResult.sentiment) enhancementsToCache.sentiment = aiResult.sentiment;
+                            if (aiResult.keyPoints) enhancementsToCache.keyPoints = aiResult.keyPoints;
+                            if (aiResult.complexityMeter) enhancementsToCache.complexityMeter = aiResult.complexityMeter;
+                            if (aiResult.locations) enhancementsToCache.locations = aiResult.locations;
+
+                            console.log('🔍 Enhancements to cache:'.cyan, {
+                                articleId,
+                                enhancementTypes: Object.keys(enhancementsToCache)
+                            });
 
                             try {
-                                await ArticleEnhancementModel.findOneAndUpdate(
+                                console.log('📝 Step 6: Saving enhancements to database'.cyan, {articleId});
+
+                                // Save basic enhancements
+                                const basicEnhancementKeys = ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'locations'];
+                                const hasBasicEnhancements = basicEnhancementKeys.some(key => enhancementsToCache[key]);
+
+                                if (hasBasicEnhancements) {
+                                    console.log('💾 Saving basic enhancements'.cyan, {articleId, types: Object.keys(enhancementsToCache)});
+                                    await saveBasicEnhancements(enhancementsToCache);
+                                    console.log('✅ Basic enhancements saved'.cyan, {articleId});
+                                } else {
+                                    console.warn('⚠️ No basic enhancements to save'.yellow, {articleId});
+                                }
+
+                                // Save additional enhancements
+                                const savePromises = [];
+
+                                if (!isListEmpty(aiResult.questions)) {
+                                    console.log('💾 Saving questions'.cyan, {articleId, questionsCount: aiResult.questions.length});
+                                    savePromises.push(saveQuestions({articleId, url, questions: aiResult.questions}));
+                                }
+
+                                if (aiResult.newsInsights) {
+                                    console.log('💾 Saving news insights'.cyan, {articleId});
+                                    savePromises.push(saveNewsInsights({articleId, url, newsInsights: aiResult.newsInsights}));
+                                }
+
+                                if (savePromises.length > 0) {
+                                    await Promise.all(savePromises);
+                                    console.log('✅ Additional enhancements saved'.cyan, {articleId, count: savePromises.length});
+                                }
+
+                                console.log('📝 Final step: Marking enhancement as completed'.cyan, {articleId});
+                                const updateResult = await ArticleEnhancementModel.findOneAndUpdate(
                                     {articleId},
                                     {
                                         articleId,
                                         url,
-                                        processingStatus: 'failed',
+                                        processingStatus: 'completed',
                                         updatedAt: new Date(),
                                     },
-                                    {upsert: true},
+                                    {upsert: true, new: true, setDefaultsOnInsert: true}
                                 );
-                                console.log('🔄 Marked article as failed'.yellow, {articleId});
-                            } catch (failError: any) {
-                                console.error('💥 Could not even mark as failed'.red.bold, {articleId, error: failError.message});
+
+                                console.log('✅ Step 6 PASSED: Final status update completed'.cyan, {
+                                    articleId,
+                                    documentId: updateResult._id,
+                                    processingStatus: updateResult.processingStatus
+                                });
+
+                            } catch (saveError: any) {
+                                console.error('❌ Step 6 FAILED: Database save error'.red.bold, {articleId, error: saveError.message, stack: saveError.stack});
+
+                                try {
+                                    await ArticleEnhancementModel.findOneAndUpdate(
+                                        {articleId},
+                                        {
+                                            articleId,
+                                            url,
+                                            processingStatus: 'failed',
+                                            updatedAt: new Date(),
+                                        },
+                                        {upsert: true},
+                                    );
+                                    console.log('🔄 Marked article as failed'.yellow, {articleId});
+                                } catch (failError: any) {
+                                    console.error('💥 Could not even mark as failed'.red.bold, {articleId, error: failError.message});
+                                }
+                                return;
                             }
-                            return;
+
+                            console.log('🎉 BACKGROUND PROCESSING COMPLETED SUCCESSFULLY'.cyan, {
+                                articleId,
+                                processedFeatures: Object.keys(aiResult).filter(key => key !== 'error' && key != 'powered_by'),
+                            });
+
+                        } catch (error: any) {
+                            console.error('💥 BACKGROUND PROCESSING FATAL ERROR'.red.bold, {
+                                articleId,
+                                error: error.message,
+                                stack: error.stack
+                            });
+                        } finally {
+                            this.activeJobs.delete(articleId);
+                            console.log('🧹 Cleaned up active job'.cyan, {articleId, remainingActiveJobs: this.activeJobs.size});
                         }
-
-                        console.log('🎉 BACKGROUND PROCESSING COMPLETED SUCCESSFULLY'.bgGreen.white, {
-                            articleId,
-                            processedFeatures: Object.keys(aiResult).filter(key => key !== 'error' && key != 'powered_by'),
-                        });
-
-                    } catch (error: any) {
-                        console.error('💥 BACKGROUND PROCESSING FATAL ERROR'.bgRed.white, {
-                            articleId,
-                            error: error.message,
-                            stack: error.stack
-                        });
-                    } finally {
-                        this.activeJobs.delete(articleId);
-                        console.log('🧹 Cleaned up active job'.cyan, {articleId, remainingActiveJobs: this.activeJobs.size});
-                    }
                     });
                 }
             }
