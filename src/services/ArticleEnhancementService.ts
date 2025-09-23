@@ -671,35 +671,69 @@ class ArticleEnhancementService {
                 console.log('Starting background enhancement for article details'.cyan, {articleId, tasksToGenerate: missingEnhancements});
 
                 setImmediate(async () => {
+                    console.log('🚀 BACKGROUND PROCESSING STARTED'.bgMagenta.white, {articleId, email, missingEnhancements});
+
                     try {
+                        console.log('📝 Step 1: Checking user authentication'.cyan, {email});
                         const {user} = await AuthService.getUserByEmail({email});
                         const {isBlocked} = await StrikeService.checkUserBlock({email});
-                        if (!user || isBlocked) {
-                            console.warn('Service Warning: User not found or blocked - cancelling article details enhancement'.yellow);
+
+                        if (!user) {
+                            console.warn('❌ Background processing cancelled: User not found'.yellow, {email, articleId});
                             return;
                         }
 
+                        if (isBlocked) {
+                            console.warn('❌ Background processing cancelled: User is blocked'.yellow, {email, articleId});
+                            return;
+                        }
+
+                        console.log('✅ Step 1 PASSED: User authenticated'.green, {userId: user.userExternalId});
+
+                        console.log('📝 Step 2: Reserving AI quota'.cyan, {articleId});
                         const quotaResult = await QuotaService.reserveQuotaForModelFallback({
                             primaryModel: AI_ENHANCEMENT_MODELS[0],
                             fallbackModels: AI_ENHANCEMENT_MODELS.slice(1),
                             count: 1,
                         });
+
                         if (!quotaResult.allowed) {
-                            console.warn('Client Error: Quota exhausted for article details enhancement'.yellow, {articleId});
+                            console.warn('❌ Background processing cancelled: Quota exhausted'.yellow, {articleId, quotaResult});
                             return;
                         }
 
+                        console.log('✅ Step 2 PASSED: Quota reserved'.green, {selectedModel: quotaResult.selectedModel});
+
+                        console.log('📝 Step 3: Scraping article content'.cyan, {url, articleId});
                         let articleContent = '';
                         const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
+
+                        console.log('🔍 Scraping result:'.cyan, {
+                            scrapedCount: scrapedArticles?.length,
+                            isEmpty: isListEmpty(scrapedArticles),
+                            firstArticleError: scrapedArticles?.[0]?.error,
+                            firstArticleContentLength: scrapedArticles?.[0] && 'content' in scrapedArticles[0] ? scrapedArticles[0].content?.length : 'N/A',
+                        });
+
                         if (!isListEmpty(scrapedArticles) && !scrapedArticles[0].error) {
                             articleContent = scrapedArticles[0]?.content || '';
                         }
 
                         if (!articleContent) {
-                            console.warn('Service Warning: No content available for AI enhancement'.yellow, {articleId});
+                            console.warn('❌ Background processing cancelled: No content available for AI enhancement'.yellow, {
+                                articleId,
+                                url,
+                                scrapedArticles: scrapedArticles?.map(a => ({error: a.error, contentLength: 'content' in a ? a.content?.length : 'N/A'})),
+                            });
                             return;
                         }
 
+                        console.log('✅ Step 3 PASSED: Article content scraped'.green, {
+                            contentLength: articleContent.length,
+                            contentPreview: articleContent.substring(0, 100) + '...'
+                        });
+
+                        console.log('📝 Step 4: Processing AI enhancement'.cyan, {articleId, tasks: missingEnhancements});
                         const aiResult: ICombinedAIResponse = await this.aiEnhanceArticle({
                             content: articleContent,
                             tasks: missingEnhancements,
@@ -707,11 +741,17 @@ class ArticleEnhancementService {
                         });
 
                         if (aiResult.error) {
-                            console.error('Service Error: AI enhancement failed for article details'.red.bold, {articleId, error: aiResult.error});
+                            console.error('❌ Background processing failed: AI enhancement error'.red.bold, {articleId, error: aiResult.error});
                             return;
                         }
-                        console.log('aiResult:'.cyan, aiResult);
 
+                        console.log('✅ Step 4 PASSED: AI enhancement completed'.green, {
+                            articleId,
+                            generatedFeatures: Object.keys(aiResult).filter(key => key !== 'error')
+                        });
+                        console.log('🔍 AI Result details:'.cyan, aiResult);
+
+                        console.log('📝 Step 5: Preparing enhancement data for database'.cyan, {articleId});
                         const enhancementsToCache: any = {articleId, url};
                         if (aiResult.tags) enhancementsToCache.tags = aiResult.tags;
                         if (aiResult.sentiment) enhancementsToCache.sentiment = aiResult.sentiment;
@@ -719,47 +759,95 @@ class ArticleEnhancementService {
                         if (aiResult.complexityMeter) enhancementsToCache.complexityMeter = aiResult.complexityMeter;
                         if (aiResult.locations) enhancementsToCache.locations = aiResult.locations;
 
+                        console.log('🔍 Enhancements to cache:'.cyan, {
+                            articleId,
+                            enhancementTypes: Object.keys(enhancementsToCache)
+                        });
+
                         try {
+                            console.log('📝 Step 6: Saving enhancements to database'.cyan, {articleId});
+
+                            // Save basic enhancements
                             const basicEnhancementKeys = ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'locations'];
                             const hasBasicEnhancements = basicEnhancementKeys.some(key => enhancementsToCache[key]);
+
                             if (hasBasicEnhancements) {
+                                console.log('💾 Saving basic enhancements'.cyan, {articleId, types: Object.keys(enhancementsToCache)});
                                 await saveBasicEnhancements(enhancementsToCache);
-                                console.log('Basic enhancements cached in unified schema'.cyan, {articleId, enhancementTypes: Object.keys(enhancementsToCache)});
+                                console.log('✅ Basic enhancements saved'.green, {articleId});
+                            } else {
+                                console.warn('⚠️ No basic enhancements to save'.yellow, {articleId});
                             }
 
+                            // Save additional enhancements
                             const savePromises = [];
 
                             if (!isListEmpty(aiResult.questions)) {
+                                console.log('💾 Saving questions'.cyan, {articleId, questionsCount: aiResult.questions.length});
                                 savePromises.push(saveQuestions({articleId, url, questions: aiResult.questions}));
                             }
 
                             if (aiResult.newsInsights) {
+                                console.log('💾 Saving news insights'.cyan, {articleId});
                                 savePromises.push(saveNewsInsights({articleId, url, newsInsights: aiResult.newsInsights}));
                             }
 
                             if (savePromises.length > 0) {
                                 await Promise.all(savePromises);
+                                console.log('✅ Additional enhancements saved'.green, {articleId, count: savePromises.length});
                             }
 
-                            console.log('About to do final save/update to mark completed'.cyan);
-                            await ArticleEnhancementModel.findOneAndUpdate(
+                            console.log('📝 Final step: Marking enhancement as completed'.cyan, {articleId});
+                            const updateResult = await ArticleEnhancementModel.findOneAndUpdate(
                                 {articleId},
-                                {processingStatus: 'completed'},
+                                {
+                                    articleId,
+                                    url,
+                                    processingStatus: 'completed',
+                                    updatedAt: new Date(),
+                                },
+                                {upsert: true, new: true, setDefaultsOnInsert: true}
                             );
-                        } catch (saveError: any) {
-                            console.error('Service Error: Failed to save enhancements to database'.red.bold, {articleId, error: saveError.message});
-                            await ArticleEnhancementModel.findOneAndUpdate(
-                                {articleId},
-                                {processingStatus: 'failed'},
-                            ).catch(() => {
-                                // Silent fail for cleanup attempt
+
+                            console.log('✅ Step 6 PASSED: Final status update completed'.green, {
+                                articleId,
+                                documentId: updateResult._id,
+                                processingStatus: updateResult.processingStatus
                             });
+
+                        } catch (saveError: any) {
+                            console.error('❌ Step 6 FAILED: Database save error'.red.bold, {articleId, error: saveError.message, stack: saveError.stack});
+
+                            try {
+                                await ArticleEnhancementModel.findOneAndUpdate(
+                                    {articleId},
+                                    {
+                                        articleId,
+                                        url,
+                                        processingStatus: 'failed',
+                                        updatedAt: new Date(),
+                                    },
+                                    {upsert: true},
+                                );
+                                console.log('🔄 Marked article as failed'.yellow, {articleId});
+                            } catch (failError: any) {
+                                console.error('💥 Could not even mark as failed'.red.bold, {articleId, error: failError.message});
+                            }
                             return;
                         }
 
-                        console.log('Article details enhancement completed successfully'.green.bold, {articleId});
+                        console.log('🎉 BACKGROUND PROCESSING COMPLETED SUCCESSFULLY'.bgGreen.white, {
+                            articleId,
+                            processedFeatures: Object.keys(aiResult).filter(key => key !== 'error'),
+                            totalSteps: 6
+                        });
+
                     } catch (error: any) {
-                        console.error('Service Error: Background article details enhancement failed'.red.bold, {articleId, error: error.message});
+                        console.error('💥 BACKGROUND PROCESSING FATAL ERROR'.bgRed.white, {
+                            articleId,
+                            error: error.message,
+                            stack: error.stack
+                        });
                     }
                 });
             }

@@ -535,3 +535,112 @@ router.post('/article/enhance', NewsController.fetchArticleDetailsEnhancementCon
 
 The API is **functionally sound but has critical bugs**. The progressive enhancement strategy and caching work perfectly, but new article processing is completely broken and the response structure
 doesn't match the plan. These issues must be resolved before production deployment.
+
+---
+
+## 🚨 CRITICAL SYSTEM-WIDE AI MODEL FALLBACK ISSUE
+
+### ISSUE DISCOVERED ⚠️
+
+A critical system-wide vulnerability affects **ALL AI services** in the application. When QuotaService selects an AI model that subsequently fails at the AI call level (e.g., model not found, model
+deprecated), the services fail completely without attempting fallback models.
+
+### REPRODUCTION TEST ❌
+
+**Deliberate Test**: User intentionally modified AI model name from `gemini-2.5-flash` to `gemini-2.5-flash-li` (invalid)
+
+**Error Result**:
+
+```
+selectedModel: 'gemini-2.5-flash-li'
+[GoogleGenerativeAI Error]: [404 Not Found] models/gemini-2.5-flash-li is not found
+❌ Background processing failed: AI enhancement error
+```
+
+**Expected Behavior**: Should automatically try the next model in the fallback list
+**Actual Behavior**: Complete failure, no retry mechanism
+
+### AFFECTED SERVICES 🔴
+
+1. **ArticleEnhancementService.ts** - Article details processing
+2. **SentimentAnalysisService.ts** - Sentiment analysis
+3. **SocialMediaCaptionService.ts** - Caption generation
+4. **All other AI services using QuotaService.reserveQuotaForModelFallback()**
+
+### ROOT CAUSE ANALYSIS 🔍
+
+The issue occurs in this flow:
+
+1. `QuotaService.reserveQuotaForModelFallback()` successfully reserves quota for a model
+2. Service proceeds with the selected model (e.g., `gemini-2.5-flash-li`)
+3. GoogleGenerativeAI throws 404 error during actual AI call
+4. **No retry mechanism** exists to try fallback models when the AI call itself fails
+5. Service returns error, wasting reserved quota
+
+### CURRENT FALLBACK PATTERN ❌
+
+```typescript
+// Quota reservation works fine
+const quotaReservation = await QuotaService.reserveQuotaForModelFallback({
+    primaryModel: AI_MODELS[0],
+    fallbackModels: AI_MODELS.slice(1),
+    count: 1,
+});
+
+const selectedModel = quotaReservation.selectedModel;
+
+try {
+    // This is where failure occurs - no retry mechanism
+    const result = await this.generateWithGemini(selectedModel, content);
+    return result;
+} catch (error) {
+    // ERROR: No fallback attempt, just return failure
+    return {error: 'AI_GENERATION_FAILED'};
+}
+```
+
+### PROPOSED SOLUTIONS 💡
+
+#### Option 1: Enhanced QuotaService (RECOMMENDED)
+
+- Add `QuotaService.executeWithModelFallback()` method
+- Handle both quota management AND AI call retries centrally
+- Automatically try fallback models when AI calls fail
+
+#### Option 2: AI Service Wrapper
+
+- Create centralized `AIServiceWrapper` class
+- Wrap all AI calls with automatic retry logic
+- Maintain existing QuotaService pattern
+
+#### Option 3: Individual Service Updates
+
+- Update each AI service to implement retry logic
+- Most labor-intensive, error-prone approach
+- Not recommended for maintainability
+
+### IMPACT ASSESSMENT 📊
+
+**Severity**: CRITICAL - Affects all AI functionality
+**Frequency**: Occurs whenever AI models are deprecated/unavailable
+**User Impact**: Complete AI feature failure instead of graceful fallback
+**Production Risk**: HIGH - Could cause widespread AI service outages
+
+### RECOMMENDED IMMEDIATE ACTION 🚀
+
+1. **Document Issue** ✅ (This section)
+2. **Choose Solution Approach** - User preference for centralized vs distributed fix
+3. **Implement Fix** - Based on chosen approach
+4. **Test All AI Services** - Verify fallback works across all services
+5. **Deploy Fix** - Ensure production stability
+
+### TECHNICAL REQUIREMENTS 📋
+
+Any solution must:
+
+- Preserve existing QuotaService quota management
+- Maintain current service interfaces
+- Handle AI call failures gracefully
+- Support automatic model fallback
+- Log fallback attempts for debugging
+- Preserve error handling for non-AI failures
