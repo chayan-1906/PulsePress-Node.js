@@ -1,5 +1,5 @@
 import {IArticleEnhancement} from "../models/ArticleEnhancementSchema";
-import {IArticle, TArticleComplexities, TEnhancementStatus} from "./news";
+import {IArticle, TArticleComplexities, TEnhancementStatus, TProcessingStatus} from "./news";
 
 /*export const SUMMARIZATION_STYLES: SummarizationStyle[] = ['concise', 'standard', 'detailed'];
 export type SummarizationStyle = 'concise' | 'standard' | 'detailed';*/
@@ -34,7 +34,7 @@ export type TViolationType = typeof VIOLATION_TYPES[number];
 export const IMPACT_LEVELS = ['local', 'regional', 'national', 'global'] as const;
 export type TImpactLevel = typeof IMPACT_LEVELS[number];
 
-export const AI_ARTICLE_ENHANCEMENT_TYPES = ['summarize', 'tags', 'sentiment', 'keyPoints', 'complexityMeter', 'questions', 'answer', 'geoExtraction', 'caption', 'newsInsights'];
+export const AI_ARTICLE_ENHANCEMENT_TYPES = ['summarize', 'tags', 'sentiment', 'keyPoints', 'complexityMeter', 'questions', 'answer', 'locations', 'caption', 'newsInsights'] as const;
 export type TAIArticleEnhancement = typeof AI_ARTICLE_ENHANCEMENT_TYPES[number];
 export type TBasicEnhancementTypes = 'tags' | 'sentiment' | 'keyPoints' | 'complexityMeter' | 'locations';
 
@@ -114,13 +114,13 @@ export interface IUserStrikeHistory {
 
 /** ------------- AI Service JSON Parse Interfaces ------------- */
 
+export interface IAIClassification {
+    classification: TClassificationResult;
+}
+
 export interface IAISentiment {
     sentiment: TSentimentResult;
     confidence?: number;
-}
-
-export interface IAIClassification {
-    classification: TClassificationResult;
 }
 
 export interface IAIKeyPoints {
@@ -324,6 +324,18 @@ export interface INewsInsightsResponse {
     blockType?: TUserStrikeBlock;
 }
 
+export interface IGetProcessingStatusResponse {
+    status: TEnhancementStatus;
+    progress: number;
+}
+
+export interface IGetEnhancementStatusByIdsResponse {
+    status?: TEnhancementStatus;
+    progress?: number;
+    articles?: Partial<IArticle>[];
+    error?: string;
+}
+
 export interface ICombinedAIResponse {
     tags?: string[],
     sentiment?: {
@@ -357,15 +369,10 @@ export interface ICombinedAIResponse {
     error?: string;
 }
 
-export interface IGetProcessingStatusResponse {
-    status: TEnhancementStatus;
+export interface IFetchArticleDetailsEnhancementResponse {
+    enhanced: boolean;
     progress: number;
-}
-
-export interface IGetEnhancementStatusByIdsResponse {
-    status?: TEnhancementStatus;
-    progress?: number;
-    articles?: Partial<IArticle>[];
+    article?: Partial<IArticleEnhancement> | null;
     error?: string;
 }
 
@@ -394,6 +401,7 @@ export interface IGetCachedQuestionAnswerResponse {
     createdAt: Date;
 }
 
+// TODO: Use in getCachedNewsInsights()
 export interface IGetCachedNewsInsightsResponse {
     keyThemes: string[];
     impactAssessment: {
@@ -537,6 +545,11 @@ export interface ICombinedAIParams {
     selectedModel?: string;
 }
 
+export interface IFetchArticleDetailsEnhancementParams {
+    email?: string;  // for authMiddleware
+    url: string;
+}
+
 export interface IUpdateArticlesProcessingStatusParams {
     articles: IArticle[];
     status: 'cancelled' | 'failed';
@@ -544,7 +557,8 @@ export interface IUpdateArticlesProcessingStatusParams {
 
 export interface IUpdateArticleIdsProcessingStatusParams {
     articleIds: string[];
-    status: 'cancelled' | 'failed';
+    // status: 'pending' | 'completed' | 'cancelled' | 'failed';
+    status: TProcessingStatus;
 }
 
 export interface IBasicEnhancementsParams {

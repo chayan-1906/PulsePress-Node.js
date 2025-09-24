@@ -1,5 +1,5 @@
-import {TSentimentResult} from "./ai";
 import {COUNTRY_KEYWORDS, RSS_SOURCES, TOPIC_QUERIES} from "../utils/constants";
+import {TSentimentResult} from "./ai";
 
 export const SUPPORTED_CATEGORIES = ['business', 'entertainment', 'general', 'health', 'science', 'sports', 'technology', 'country'];
 export type TSupportedCategory = typeof SUPPORTED_CATEGORIES[number];
@@ -21,13 +21,13 @@ export type TValidNewYorkTimesSection = typeof VALID_NYTIMES_SECTIONS[number];
 export type TTopic = keyof typeof TOPIC_QUERIES;
 export type TCountry = keyof typeof COUNTRY_KEYWORDS;
 
-export const ARTICLE_COMPLEXITIES = ['easy', 'medium', 'hard'];
+export const ARTICLE_COMPLEXITIES = ['easy', 'medium', 'hard'] as const;
 export type TArticleComplexities = typeof ARTICLE_COMPLEXITIES[number];
 
-export const PROCESSING_STATUSES = ['pending', 'completed', 'failed', 'cancelled'];
+export const PROCESSING_STATUSES = ['pending', 'completed', 'failed', 'cancelled'] as const;
 export type TProcessingStatus = typeof PROCESSING_STATUSES[number];
 
-export const ENHANCEMENT_STATUSES = ['processing', 'complete', 'failed', 'cancelled'];
+export const ENHANCEMENT_STATUSES = ['processing', 'complete', 'failed', 'cancelled'] as const;
 export type TEnhancementStatus = typeof ENHANCEMENT_STATUSES[number];
 
 
@@ -93,7 +93,7 @@ export interface IArticle {
     description: string | null;
     url: string | null;
     urlToImage: string | null;
-    publishedAt: string | null;
+    publishedAt?: string | null;
     content: string | null;
     qualityScore?: IQualityScore;
     sentimentData?: ISentimentData;
@@ -322,13 +322,6 @@ export interface IRssFeedParams {
     page?: number;
 }
 
-export interface ISmartFetchWithVariationsParams {
-    apiFunction: Function;
-    query: string;
-    params: any;
-    minQualityResults?: number;
-}
-
 export interface IMultisourceFetchNewsParams {
     email?: string;  // for authMiddleware
     q?: string;
@@ -342,8 +335,9 @@ export interface IFetchMultisourceNewsEnhancementStatusParams {
     articleIds: string;
 }
 
-export interface IFetchArticleDetailsEnhancementStatusParams {
-    articleId: string;
+export interface IArticleDetailsEnhanceParams {
+    email?: string;   // for authMiddleware
+    url: string;
 }
 
 export interface IScrapeWebsiteParams {
