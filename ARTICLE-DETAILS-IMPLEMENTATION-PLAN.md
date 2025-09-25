@@ -481,9 +481,9 @@ Replace old 2-step pattern with new 1-step pattern in these services:
 
 1. **SentimentAnalysisService** ✅
 2. **TagGenerationService.ts** ✅
-3. **SummarizationService.ts**
-4. **SocialMediaCaptionService.ts**
-5. **QuestionAnswerService.ts**
+3. **SummarizationService.ts** ✅
+4. **SocialMediaCaptionService.ts** ✅
+5. **QuestionAnswerService.ts** ✅
 6. **NewsInsightsService.ts**
 7. **NewsClassificationService.ts**
 8. **KeyPointsExtractionService.ts**

@@ -60,7 +60,7 @@ class SocialMediaCaptionService {
 
         let articleContent = content || '';
         if (!content && url) {
-            console.log('Scraping URL for caption generation:'.cyan, url);
+            console.log('External API: Scraping URL for caption generation'.magenta, {url});
             const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
@@ -86,7 +86,7 @@ class SocialMediaCaptionService {
             const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike({email, violationType: 'ai_enhancement', content: articleContent});
             return {error: 'NON_NEWS_CONTENT', message, strikeCount, isBlocked, blockedUntil};
         } else {
-            console.log('News content verified, proceeding with caption generation'.bgGreen.bold);
+            console.log('News content verified, proceeding with caption generation'.cyan);
         }
 
         const articleId = generateArticleId({url});
@@ -107,47 +107,44 @@ class SocialMediaCaptionService {
         // Truncate content to avoid token limits
         const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
-        const quotaReservation = await QuotaService.reserveQuotaForModelFallback({
+        const fallbackResult = await QuotaService.executeWithModelFallback({
             primaryModel: AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS[0],
             fallbackModels: AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS.slice(1),
+            executeAICall: (modelName: string) => this.generateWithGemini(modelName, truncatedContent, platform, style),
             count: 1,
         });
 
-        if (!quotaReservation.allowed) {
-            console.warn('Rate Limit: Gemini API daily quota reached for social media caption generation'.yellow, {
-                selectedModel: quotaReservation.selectedModel,
-                quotaReserved: quotaReservation.quotaReserved,
-                service: quotaReservation.service,
-            });
-            return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
-        }
+        if (!fallbackResult.success) {
+            console.error('Service Error: All social media caption models failed'.red.bold, {error: fallbackResult.error, attemptedModels: fallbackResult.attemptedModels});
 
-        const selectedModel = quotaReservation.selectedModel;
-        console.log('Quota reserved for social media caption generation'.cyan, {selectedModel, quotaReserved: quotaReservation.quotaReserved});
-
-        try {
-            const result = await this.generateWithGemini(selectedModel, truncatedContent, platform, style);
-
-            if (result.caption && result.caption.length > 0) {
-                await saveCaptionVariation({articleId, caption: result.caption, url: url || '', style: style || 'engaging', platform});
-
-                console.log('Social media caption generation completed successfully'.green.bold, {caption: result.caption, model: selectedModel});
-                return {...result, powered_by: selectedModel};
+            if (fallbackResult.error === 'QUOTA_EXHAUSTED') {
+                return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
+            } else if (fallbackResult.error === 'ALL_AI_CALLS_FAILED') {
+                return {error: 'CAPTION_GENERATION_FAILED'};
+            } else {
+                return {error: 'CAPTION_GENERATION_FAILED'};
             }
-
-            console.error('Service Error: Social media caption generation failed with quota-reserved model'.red.bold, {model: selectedModel, error: result.error});
-            return {error: 'CAPTION_GENERATION_FAILED'};
-        } catch (error: any) {
-            console.error('Service Error: Social media caption generation failed with quota-reserved model'.red.bold, {model: selectedModel, error: error.message});
-            return {error: 'CAPTION_GENERATION_FAILED'};
         }
+
+        const result = fallbackResult.result!;
+        const selectedModel = fallbackResult.selectedModel;
+
+        if (result.caption && result.caption.length > 0) {
+            await saveCaptionVariation({articleId, caption: result.caption, url: url || '', style: style || 'engaging', platform});
+
+            console.log('Social media caption generation completed successfully'.green.bold, {caption: result.caption, model: selectedModel, attemptedModels: fallbackResult.attemptedModels.length});
+            return {...result, powered_by: selectedModel};
+        }
+
+        console.error('Service Error: Invalid social media caption result'.red.bold, {model: selectedModel, error: result.error, result});
+        return {error: 'CAPTION_GENERATION_FAILED'};
     }
 
     /**
      * Generate social media caption using Gemini AI
      */
     private static async generateWithGemini(modelName: string, content: string, platform?: TSocialMediaPlatform, style?: TSocialMediaCaptionStyle): Promise<ISocialMediaCaptionResponse> {
-        console.log('Service: SentimentAnalysisService.generateWithGemini called'.cyan.italic, {modelName, content, platform, style});
+        console.log('Service: SocialMediaCaptionService.generateWithGemini called'.cyan.italic, {modelName, content, platform, style});
 
         if (!GEMINI_API_KEY) {
             console.warn('Config Warning: Gemini API key not configured'.yellow.italic);
@@ -169,7 +166,7 @@ class SocialMediaCaptionService {
 
         if (!parsed.caption) {
             console.error('Service Error: Invalid caption in response:'.red.bold, parsed.caption);
-            return {error: 'CAPTION_PARSE_ERROR'};
+            throw new Error('CAPTION_PARSE_ERROR');
         }
 
         let hashtags = parsed.hashtags || [];
