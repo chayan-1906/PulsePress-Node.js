@@ -12,6 +12,7 @@ import {GEMINI_API_KEY, HUGGINGFACE_API_TOKEN} from "../config/config";
 import {truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 import {processHuggingFaceResponse} from "../utils/serviceHelpers/externalApiHelpers";
 import {IAIClassification, INewsClassificationParams, INewsClassificationResponse, TClassificationResult} from "../types/ai";
+import {generateMissingCode} from "../utils/generateErrorCodes";
 
 class NewsClassificationService {
     static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
@@ -170,7 +171,7 @@ class NewsClassificationService {
 
         if (!GEMINI_API_KEY) {
             console.warn('Config Warning: Gemini API key not configured'.yellow.italic);
-            throw new Error('Gemini API key not configured');
+            throw new Error(generateMissingCode('gemini_api_key'));
         }
 
         // Truncate text for Gemini
