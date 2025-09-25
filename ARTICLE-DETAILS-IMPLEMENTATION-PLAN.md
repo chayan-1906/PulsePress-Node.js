@@ -489,7 +489,7 @@ Replace old 2-step pattern with new 1-step pattern in these services:
 8. **KeyPointsExtractionService.ts**
 9. **GeographicExtractionService.ts**
 10. **ComplexityMeterService.ts**
-11. **ArticleEnhancementService.ts** (2 locations)
+11. **ArticleEnhancementService.ts** (2 locations) ✅
 
 **Migration Pattern** (follow SentimentAnalysisService example):
 
