@@ -97,33 +97,28 @@ class NewsClassificationService {
         } catch (error: any) {
             console.warn('External API: HuggingFace classification failed, trying Gemini fallback'.yellow, error.message);
 
-            const quotaReservation = await QuotaService.reserveQuotaForModelFallback({
+            const fallbackResult = await QuotaService.executeWithModelFallback({
                 primaryModel: AI_SUMMARIZATION_MODELS[0],
                 fallbackModels: AI_SUMMARIZATION_MODELS.slice(1),
+                executeAICall: (modelName: string) => this.classifyWithGemini(text, modelName),
                 count: 1,
             });
 
-            if (!quotaReservation.allowed) {
-                console.warn('Rate Limit: Gemini API daily quota reached for news classification'.yellow, {
-                    selectedModel: quotaReservation.selectedModel,
-                    quotaReserved: quotaReservation.quotaReserved,
-                    service: quotaReservation.service,
-                });
+            if (!fallbackResult.success) {
+                console.error('Service Error: All classification models failed after HuggingFace failure'.red.bold, {error: fallbackResult.error, attemptedModels: fallbackResult.attemptedModels});
                 return 'error';
             }
 
-            const selectedModel = quotaReservation.selectedModel;
-            console.log('Quota reserved for news classification'.cyan, {selectedModel, quotaReserved: quotaReservation.quotaReserved});
+            const result = fallbackResult.result!;
+            const selectedModel = fallbackResult.selectedModel;
 
-            try {
-                const result = await this.classifyWithGemini(text, selectedModel);
-                console.log('Classification with Gemini successful'.cyan, result);
-                console.log('Content classification completed successfully'.green.bold);
-                return result;
-            } catch (geminiError: any) {
-                console.error('Service Error: Gemini classification failed with quota-reserved model'.red.bold, {model: selectedModel, error: geminiError.message});
-                return 'error';
-            }
+            console.log('Classification with Gemini successful'.cyan, {
+                result,
+                model: selectedModel,
+                attemptedModels: fallbackResult.attemptedModels.length
+            });
+            console.log('Content classification completed successfully'.green.bold);
+            return result;
         }
     }
 
@@ -196,13 +191,15 @@ class NewsClassificationService {
             if (parsed.classification === 'news' || parsed.classification === 'non_news') {
                 console.log('Gemini JSON response parsed successfully'.cyan, parsed.classification);
                 return parsed.classification;
+            } else {
+                console.warn('Service Warning: Invalid classification value from Gemini JSON'.yellow, parsed.classification);
+                throw new Error('INVALID_CLASSIFICATION_VALUE');
             }
         } catch (error) {
-            console.warn('Service Warning: Failed to parse JSON response from Gemini'.yellow, error);
+            console.log('Using fallback text parsing for Gemini response'.cyan, error);
         }
 
         // Fallback parsing for non-JSON responses
-        console.log('Using fallback text parsing for Gemini response'.cyan);
         const lowerText = responseText.toLowerCase();
         if (lowerText.includes('news') && !lowerText.includes('non_news')) {
             return 'news';
@@ -210,8 +207,8 @@ class NewsClassificationService {
             return 'non_news';
         } else {
             console.warn('Service Warning: Unexpected Gemini response format'.yellow, responseText);
-            console.warn('Service Warning: Using fallback - assuming news for unclear cases'.yellow);
-            return 'news';
+            console.warn('Service Warning: Classification failed - throwing error for fallback'.yellow);
+            throw new Error('CLASSIFICATION_PARSE_ERROR');
         }
     }
 }
