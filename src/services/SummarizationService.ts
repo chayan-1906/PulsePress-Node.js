@@ -63,7 +63,7 @@ class SummarizationService {
                 const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike({email, violationType: 'article_summary', content: articleContent});
                 return {error: 'NON_NEWS_CONTENT', message, strikeCount, isBlocked, blockedUntil};
             } else {
-                console.log('News content verified, proceeding with summarization'.bgGreen.bold);
+                console.log('News content verified, proceeding with summarization'.cyan);
             }
 
             const cached = await getCachedSummaryVariation({articleId, style, language});
@@ -72,42 +72,52 @@ class SummarizationService {
                 return {summary: cached.content, powered_by: 'Cached Result'};
             }
 
-            const quotaReservation = await QuotaService.reserveQuotaForModelFallback({primaryModel: AI_SUMMARIZATION_MODELS[0], fallbackModels: AI_SUMMARIZATION_MODELS.slice(1), count: 1});
+            const fallbackResult = await QuotaService.executeWithModelFallback({
+                primaryModel: AI_SUMMARIZATION_MODELS[0],
+                fallbackModels: AI_SUMMARIZATION_MODELS.slice(1),
+                executeAICall: (modelName: string) => this.summarizeContentWithModel({content: articleContent, url, style, modelName}),
+                count: 1,
+            });
 
-            if (!quotaReservation.allowed) {
-                console.warn('Rate Limit: Gemini API daily quota reached'.yellow, {
-                    selectedModel: quotaReservation.selectedModel,
-                    quotaReserved: quotaReservation.quotaReserved,
-                    service: quotaReservation.service,
-                });
-                return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
+            if (!fallbackResult.success) {
+                console.error('Service Error: All summarization models failed'.red.bold, {error: fallbackResult.error, attemptedModels: fallbackResult.attemptedModels});
+
+                if (fallbackResult.error === 'QUOTA_EXHAUSTED') {
+                    return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
+                } else if (fallbackResult.error === 'ALL_AI_CALLS_FAILED') {
+                    return {error: 'SUMMARIZATION_FAILED'};
+                } else {
+                    return {error: 'SUMMARIZATION_FAILED'};
+                }
             }
 
-            const {summary, powered_by, error} = await this.summarizeContentWithModel({content: articleContent, url, style, modelName: quotaReservation.selectedModel});
+            const result = fallbackResult.result!;
+            const selectedModel = fallbackResult.selectedModel;
 
-            if (error) {
-                console.error('Service Error: Core summarization failed'.red.bold, {error});
-                return {error};
-            }
-
-            if (!summary) {
+            if (!result.summary) {
+                console.error('Service Error: Invalid summarization result'.red.bold, {model: selectedModel, error: result.error, result});
                 return {error: 'SUMMARIZATION_FAILED'};
             }
 
-            console.log(`Gemini API request (quota reserved):`.cyan, {model: quotaReservation.selectedModel, quotaReserved: quotaReservation.quotaReserved});
+            const {summary, powered_by} = result;
 
             let finalSummary = summary;
             let finalPoweredBy = powered_by;
 
             if (language !== 'en') {
-                console.log('Translating summary to target language:'.cyan, language);
+                console.log('External API: Translating summary to target language'.magenta, {language});
                 finalSummary = await translateText(summary, language);
                 finalPoweredBy = `${powered_by} + Translate`;
             }
 
             await saveSummaryVariation({articleId, summary: finalSummary, url, style, language});
 
-            console.log('Article summarization completed successfully'.green.bold, {summary: finalSummary.substring(0, CONTENT_LIMITS.SUMMARY_PREVIEW_LENGTH) + '...', powered_by: finalPoweredBy});
+            console.log('Article summarization completed successfully'.green.bold, {
+                summary: finalSummary.substring(0, CONTENT_LIMITS.SUMMARY_PREVIEW_LENGTH) + '...',
+                model: selectedModel,
+                powered_by: finalPoweredBy,
+                attemptedModels: fallbackResult.attemptedModels.length,
+            });
 
             return {summary: finalSummary, powered_by: finalPoweredBy};
         } catch (error: any) {
@@ -145,7 +155,7 @@ class SummarizationService {
 
         if (!responseText || responseText.length === 0) {
             console.error('Service Error: Empty response from Gemini:'.red.bold, responseText);
-            return {error: 'SUMMARIZATION_PARSE_ERROR'};
+            throw new Error('SUMMARIZATION_PARSE_ERROR');
         }
 
         return {summary: responseText};
@@ -159,7 +169,7 @@ class SummarizationService {
 
         let articleContent = content || '';
         if (!content && url) {
-            console.log('Scraping URL for summarization:'.cyan, url);
+            console.log('External API: Scraping URL for summarization'.magenta, {url});
             const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
@@ -177,25 +187,19 @@ class SummarizationService {
 
         const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
-        try {
-            console.log(`Using quota-reserved model:`.cyan, modelName);
-            const result = await this.summarizeWithGemini(modelName, truncatedContent, style);
+        console.log(`Using model:`.cyan, modelName);
+        const result = await this.summarizeWithGemini(modelName, truncatedContent, style);
 
-            if (result.summary) {
-                console.log('Content summarization completed successfully with reserved model'.green.bold, {
-                    summary: result.summary.substring(0, CONTENT_LIMITS.SUMMARY_PREVIEW_LENGTH) + '...',
-                    model: modelName,
-                });
-                return {...result, powered_by: modelName};
-            }
-
-            console.error(`Service Error: Quota-reserved model failed:`.red.bold, modelName, 'Error:', result.error);
-            return {error: 'SUMMARIZATION_FAILED'};
-
-        } catch (error: any) {
-            console.error(`Service Error: Quota-reserved model failed:`.red.bold, modelName, 'Error:', error.message);
-            return {error: 'SUMMARIZATION_FAILED'};
+        if (result.summary) {
+            console.log('Content summarization completed with model'.cyan, {
+                summary: result.summary.substring(0, CONTENT_LIMITS.SUMMARY_PREVIEW_LENGTH) + '...',
+                model: modelName,
+            });
+            return {...result, powered_by: modelName};
         }
+
+        console.error(`Service Error: Summarization model failed:`.red.bold, modelName, 'Error:', result.error);
+        throw new Error(result.error || 'SUMMARIZATION_FAILED');
     }
 }
 
