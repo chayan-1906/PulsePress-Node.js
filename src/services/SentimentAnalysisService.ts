@@ -84,50 +84,51 @@ class SentimentAnalysisService {
             };
         }
 
-        // Truncate content to avoid token limits
         const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
-        const quotaReservation = await QuotaService.reserveQuotaForModelFallback({
+        const fallbackResult = await QuotaService.executeWithModelFallback({
             primaryModel: AI_SENTIMENT_ANALYSIS_MODELS[0],
             fallbackModels: AI_SENTIMENT_ANALYSIS_MODELS.slice(1),
+            executeAICall: (modelName: string) => this.analyzeWithGemini(modelName, truncatedContent),
             count: 1,
         });
 
-        if (!quotaReservation.allowed) {
-            console.warn('Rate Limit: Gemini API daily quota reached for sentiment analysis'.yellow, {
-                selectedModel: quotaReservation.selectedModel,
-                quotaReserved: quotaReservation.quotaReserved,
-                service: quotaReservation.service,
-            });
-            return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
-        }
+        if (!fallbackResult.success) {
+            console.error('Service Error: All sentiment analysis models failed'.red.bold, {error: fallbackResult.error, attemptedModels: fallbackResult.attemptedModels});
 
-        const selectedModel = quotaReservation.selectedModel;
-        console.log('Quota reserved for sentiment analysis'.cyan, {selectedModel, quotaReserved: quotaReservation.quotaReserved});
-
-        try {
-            const result = await this.analyzeWithGemini(selectedModel, truncatedContent);
-
-            if (result.sentiment && result.confidence) {
-                const sentimentData = {
-                    type: result.sentiment,
-                    confidence: result.confidence,
-                    emoji: this.getSentimentEmoji(result.sentiment),
-                    color: this.getSentimentColor(result.sentiment),
-                };
-
-                await saveBasicEnhancements({articleId, url, sentiment: sentimentData});
-
-                console.log('Sentiment analysis completed successfully'.green.bold, {sentiment: result.sentiment, confidence: result.confidence, model: selectedModel});
-                return {...result, powered_by: selectedModel};
+            if (fallbackResult.error === 'QUOTA_EXHAUSTED') {
+                return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
+            } else if (fallbackResult.error === 'ALL_AI_CALLS_FAILED') {
+                return {error: 'SENTIMENT_ANALYSIS_FAILED'};
+            } else {
+                return {error: 'SENTIMENT_ANALYSIS_FAILED'};
             }
-
-            console.error('Service Error: Sentiment analysis failed with quota-reserved model'.red.bold, {model: selectedModel, error: result.error});
-            return {error: 'SENTIMENT_ANALYSIS_FAILED'};
-        } catch (error: any) {
-            console.error('Service Error: Sentiment analysis failed with quota-reserved model'.red.bold, {model: selectedModel, error: error.message});
-            return {error: 'SENTIMENT_ANALYSIS_FAILED'};
         }
+
+        const result = fallbackResult.result!;
+        const selectedModel = fallbackResult.selectedModel;
+
+        if (result.sentiment && result.confidence) {
+            const sentimentData = {
+                type: result.sentiment,
+                confidence: result.confidence,
+                emoji: this.getSentimentEmoji(result.sentiment),
+                color: this.getSentimentColor(result.sentiment),
+            };
+
+            await saveBasicEnhancements({articleId, url, sentiment: sentimentData});
+
+            console.log('Sentiment analysis completed successfully'.green.bold, {
+                sentiment: result.sentiment,
+                confidence: result.confidence,
+                model: selectedModel,
+                attemptedModels: fallbackResult.attemptedModels.length
+            });
+            return {...result, powered_by: selectedModel};
+        }
+
+        console.error('Service Error: Invalid sentiment analysis result'.red.bold, {model: selectedModel, error: result.error, result});
+        return {error: 'SENTIMENT_ANALYSIS_FAILED'};
     }
 
     /**

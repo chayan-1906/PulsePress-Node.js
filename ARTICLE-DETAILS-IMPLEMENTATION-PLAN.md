@@ -471,87 +471,46 @@ selectedModel: 'gemini-2.5-flash-li'
 **Expected Behavior**: Should automatically try the next model in the fallback list
 **Actual Behavior**: Complete failure, no retry mechanism
 
-### AFFECTED SERVICES 🔴
+### ✅ SOLUTION IMPLEMENTED
 
-1. **ArticleEnhancementService.ts** - Article details processing
-2. **SentimentAnalysisService.ts** - Sentiment analysis
-3. **SocialMediaCaptionService.ts** - Caption generation
-4. **All other AI services using QuotaService.reserveQuotaForModelFallback()**
+**Centralized AI fallback system implemented in QuotaService with SentimentAnalysisService migrated as demonstration.**
 
-### ROOT CAUSE ANALYSIS 🔍
+#### REMAINING SERVICES TO MIGRATE (12+ services)
 
-The issue occurs in this flow:
+Replace old 2-step pattern with new 1-step pattern in these services:
 
-1. `QuotaService.reserveQuotaForModelFallback()` successfully reserves quota for a model
-2. Service proceeds with the selected model (e.g., `gemini-2.5-flash-li`)
-3. GoogleGenerativeAI throws 404 error during actual AI call
-4. **No retry mechanism** exists to try fallback models when the AI call itself fails
-5. Service returns error, wasting reserved quota
+1. **SentimentAnalysisService** ✅
+2. **TagGenerationService.ts**
+3. **SummarizationService.ts**
+4. **SocialMediaCaptionService.ts**
+5. **QuestionAnswerService.ts**
+6. **NewsInsightsService.ts**
+7. **NewsClassificationService.ts**
+8. **KeyPointsExtractionService.ts**
+9. **GeographicExtractionService.ts**
+10. **ComplexityMeterService.ts**
+11. **ArticleEnhancementService.ts** (2 locations)
 
-### CURRENT FALLBACK PATTERN ❌
+**Migration Pattern** (follow SentimentAnalysisService example):
 
 ```typescript
-// Quota reservation works fine
-const quotaReservation = await QuotaService.reserveQuotaForModelFallback({
-    primaryModel: AI_MODELS[0],
-    fallbackModels: AI_MODELS.slice(1),
+// OLD (remove)
+const quotaReservation = await QuotaService.reserveQuotaForModelFallback({...});
+const result = await this.methodWithGemini(quotaReservation.selectedModel, content);
+
+// NEW (replace with)
+const fallbackResult = await QuotaService.executeWithModelFallback({
+    primaryModel: SERVICE_MODELS[0],
+    fallbackModels: SERVICE_MODELS.slice(1),
+    executeAICall: (modelName: string) => this.methodWithGemini(modelName, content),
     count: 1,
 });
 
-const selectedModel = quotaReservation.selectedModel;
-
-try {
-    // This is where failure occurs - no retry mechanism
-    const result = await this.generateWithGemini(selectedModel, content);
-    return result;
-} catch (error) {
-    // ERROR: No fallback attempt, just return failure
-    return {error: 'AI_GENERATION_FAILED'};
+if (!fallbackResult.success) {
+    if (fallbackResult.error === 'QUOTA_EXHAUSTED') {
+        return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
+    }
+    return {error: 'SERVICE_SPECIFIC_FAILED'};
 }
+const result = fallbackResult.result!;
 ```
-
-### PROPOSED SOLUTIONS 💡
-
-#### Option 1: Enhanced QuotaService (RECOMMENDED)
-
-- Add `QuotaService.executeWithModelFallback()` method
-- Handle both quota management AND AI call retries centrally
-- Automatically try fallback models when AI calls fail
-
-#### Option 2: AI Service Wrapper
-
-- Create centralized `AIServiceWrapper` class
-- Wrap all AI calls with automatic retry logic
-- Maintain existing QuotaService pattern
-
-#### Option 3: Individual Service Updates
-
-- Update each AI service to implement retry logic
-- Most labor-intensive, error-prone approach
-- Not recommended for maintainability
-
-### IMPACT ASSESSMENT 📊
-
-**Severity**: CRITICAL - Affects all AI functionality
-**Frequency**: Occurs whenever AI models are deprecated/unavailable
-**User Impact**: Complete AI feature failure instead of graceful fallback
-**Production Risk**: HIGH - Could cause widespread AI service outages
-
-### RECOMMENDED IMMEDIATE ACTION 🚀
-
-1. **Document Issue** ✅ (This section)
-2. **Choose Solution Approach** - User preference for centralized vs distributed fix
-3. **Implement Fix** - Based on chosen approach
-4. **Test All AI Services** - Verify fallback works across all services
-5. **Deploy Fix** - Ensure production stability
-
-### TECHNICAL REQUIREMENTS 📋
-
-Any solution must:
-
-- Preserve existing QuotaService quota management
-- Maintain current service interfaces
-- Handle AI call failures gracefully
-- Support automatic model fallback
-- Log fallback attempts for debugging
-- Preserve error handling for non-AI failures

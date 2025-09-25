@@ -54,14 +54,21 @@ export interface IReserveQuotaForModelFallbackParams {
     count?: number;
 }
 
-export interface IRollbackQuotaReservationParams {
-    service: TApiService;
-    count: number;
+export interface IExecuteWithModelFallbackParams<T> {
+    primaryModel: string;
+    fallbackModels: string[];
+    executeAICall: (modelName: string) => Promise<T>;
+    count?: number;
 }
 
 export interface ICheckQuotaAvailabilityForBatchOperationParams {
     service: TApiService;
     requestCount: number;
+}
+
+export interface IRollbackQuotaReservationParams {
+    service: TApiService;
+    count: number;
 }
 
 
@@ -81,6 +88,14 @@ export interface IModelFallbackResponse {
     quotaReserved: number;
     service: TApiService;
     date: string;
+}
+
+export interface IExecuteWithModelFallbackResponse<T> {
+    success: boolean;
+    result?: T;
+    error?: string;
+    selectedModel: string;
+    attemptedModels: string[];
 }
 
 export interface IBatchQuotaCheckResponse {

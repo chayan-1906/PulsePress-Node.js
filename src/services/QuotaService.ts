@@ -1,11 +1,13 @@
 import "colors";
-import ApiQuotaModel, {IApiQuota} from "../models/ApiQuotaSchema";
 import {API_QUOTA_LIMITS} from "../utils/constants";
+import ApiQuotaModel, {IApiQuota} from "../models/ApiQuotaSchema";
 import {
     API_SERVICES,
     GEMINI_MODELS,
     IBatchQuotaCheckResponse,
     ICheckQuotaAvailabilityForBatchOperationParams,
+    IExecuteWithModelFallbackParams,
+    IExecuteWithModelFallbackResponse,
     IGetCurrentCountParams,
     IHasQuotaAvailableParams,
     IModelFallbackResponse,
@@ -291,6 +293,64 @@ class QuotaService {
 
         console.error('Service Error: All Gemini models exhausted'.red.bold, {primaryModel, fallbackModels});
         return {allowed: false, selectedModel: '', quotaReserved: 0, service: 'gemini-total', date: this.getCurrentDatePacific()};
+    }
+
+    /**
+     * Execute AI call with automatic model fallback and quota management
+     * Handles both quota reservation AND AI call retries centrally
+     *
+     * This solves the critical system-wide issue where quota reservation succeeds but AI calls fail (e.g., model not found), with no retry mechanism.
+     */
+    static async executeWithModelFallback<T>({primaryModel, fallbackModels, executeAICall, count = 1}: IExecuteWithModelFallbackParams<T>): Promise<IExecuteWithModelFallbackResponse<T>> {
+        console.log('Service: QuotaService.executeWithModelFallback called'.cyan.italic, {primaryModel, fallbackModels, count});
+
+        const modelsToTry: string[] = [primaryModel, ...fallbackModels];
+        const attemptedModels: string[] = [];
+        let quotaReservationAttempted = false;
+        let aiCallAttempted = false;
+
+        for (const modelName of modelsToTry) {
+            attemptedModels.push(modelName);
+
+            if (!GEMINI_MODELS.includes(modelName as TGeminiModel)) {
+                console.warn('Config Warning: Unknown Gemini model, skipping'.yellow.italic, {modelName});
+                continue;
+            }
+
+            console.log('Model fallback: Attempting quota reservation'.cyan, {modelName, attempt: attemptedModels.length});
+
+            const quotaResult = await this.reserveQuotaForGeminiModel({modelName: modelName as TGeminiModel, count});
+            if (!quotaResult.allowed) {
+                console.log('Model fallback: Quota unavailable, trying next model'.cyan, {modelName, reason: quotaResult.service});
+                continue;
+            }
+
+            quotaReservationAttempted = true;
+            console.log('Model fallback: Quota reserved, attempting AI call'.cyan, {modelName, quotaReserved: quotaResult.quotaReserved});
+
+            try {
+                const result = await executeAICall(modelName);
+                console.log('Model fallback: AI call successful'.green.bold, {selectedModel: modelName, attempt: attemptedModels.length});
+                return {success: true, result, selectedModel: modelName, attemptedModels};
+            } catch (error: any) {
+                aiCallAttempted = true;
+                console.warn('Model fallback: AI call failed, trying next model'.yellow, {modelName, error: error.message, attempt: attemptedModels.length});
+            }
+        }
+
+        let errorCode: string;
+        if (!quotaReservationAttempted) {
+            errorCode = 'QUOTA_EXHAUSTED';
+            console.error('Service Error: All AI models quota exhausted'.red.bold, {primaryModel, fallbackModels, attemptedModels, totalAttempts: attemptedModels.length});
+        } else if (aiCallAttempted) {
+            errorCode = 'ALL_AI_CALLS_FAILED';
+            console.error('Service Error: All AI calls failed despite quota availability'.red.bold, {primaryModel, fallbackModels, attemptedModels, totalAttempts: attemptedModels.length});
+        } else {
+            errorCode = 'ALL_AI_MODELS_FAILED';
+            console.error('Service Error: All AI models exhausted in executeWithModelFallback'.red.bold, {primaryModel, fallbackModels, attemptedModels, totalAttempts: attemptedModels.length});
+        }
+
+        return {success: false, error: errorCode, selectedModel: '', attemptedModels};
     }
 
     /**
