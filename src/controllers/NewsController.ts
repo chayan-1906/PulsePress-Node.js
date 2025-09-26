@@ -22,7 +22,6 @@ import {
     IScrapeMultipleWebsitesParams,
     SUPPORTED_NEWS_LANGUAGES,
     TCountry,
-    TTopic,
     VALID_NYTIMES_SECTIONS,
 } from "../types/news";
 
@@ -343,12 +342,11 @@ const scrapeWebsiteController = async (req: Request, res: Response) => {
     }
 }
 
-// TODO: Call the Progressive service function - fetchMultiSourceNewsEnhanced()
 const exploreTopicController = async (req: Request, res: Response) => {
     console.info('Controller: exploreTopicController started'.bgBlue.white.bold);
 
     try {
-        const {topic}: { topic?: TTopic } = req.params;
+        const {topic}: Partial<IExploreTopicParams> = req.params;
         const {country, pageSize, page}: Partial<IExploreTopicParams> = req.query;
 
         if (!topic || !TOPIC_QUERIES[topic]) {
@@ -381,20 +379,23 @@ const exploreTopicController = async (req: Request, res: Response) => {
             predefinedQuery = `${predefinedQuery} ${countryTerms}`;
         }
 
+        const email = (req as IAuthRequest).email;
+
         console.time('Performance: TOPIC_EXPLORATION_TIME'.cyan);
-        /*const topicResults = await NewsService.fetchMultiSourceNews({
+        const topicResults = await NewsService.fetchMultiSourceNewsEnhanced({
+            email,
             q: predefinedQuery,
             category: topic,
             pageSize: pageSizeNumber,
             page: pageNumber,
-        });*/
+        });
         console.timeEnd('Performance: TOPIC_EXPLORATION_TIME'.cyan);
 
         res.status(200).send(new ApiResponse({
             success: true,
             message: `${TOPIC_METADATA[topic].name} news have been found 🎉`,
             topic: TOPIC_METADATA[topic],
-            /*searchResults: topicResults,*/
+            searchResults: topicResults,
         }));
     } catch (error: any) {
         console.error('Controller Error: exploreTopicController failed'.red.bold, error);
