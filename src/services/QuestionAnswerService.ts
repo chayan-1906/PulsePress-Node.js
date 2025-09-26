@@ -43,7 +43,7 @@ class QuestionAnswerService {
         let articleContent = content || '';
         const articleId = generateArticleId({url});
         if (!content && url) {
-            console.log('Scraping URL for question generation:'.cyan, url);
+            console.log('External API: Scraping URL for question generation'.magenta, {url});
             const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
@@ -69,7 +69,7 @@ class QuestionAnswerService {
             const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike({email, violationType: 'ai_enhancement', content: articleContent});
             return {error: 'NON_NEWS_CONTENT', message, strikeCount, isBlocked, blockedUntil};
         } else {
-            console.log('News content verified, proceeding with question generation'.bgGreen.bold);
+            console.log('News content verified, proceeding with question generation'.cyan);
         }
 
         const cached = await getCachedQuestions({articleId});
@@ -81,41 +81,42 @@ class QuestionAnswerService {
         // Truncate content to avoid token limits
         const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
-        const quotaReservation = await QuotaService.reserveQuotaForModelFallback({
+        const fallbackResult = await QuotaService.executeWithModelFallback({
             primaryModel: QUESTION_ANSWER_MODELS[0],
             fallbackModels: QUESTION_ANSWER_MODELS.slice(1),
+            executeAICall: (modelName: string) => this.generateQuestionsWithGemini(modelName, truncatedContent),
             count: 1,
         });
 
-        if (!quotaReservation.allowed) {
-            console.warn('Rate Limit: Gemini API daily quota reached for question generation'.yellow, {
-                selectedModel: quotaReservation.selectedModel,
-                quotaReserved: quotaReservation.quotaReserved,
-                service: quotaReservation.service,
-            });
-            return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
-        }
+        if (!fallbackResult.success) {
+            console.error('Service Error: All question generation models failed'.red.bold, {error: fallbackResult.error, attemptedModels: fallbackResult.attemptedModels});
 
-        const selectedModel = quotaReservation.selectedModel;
-        console.log('Quota reserved for question generation'.cyan, {selectedModel, quotaReserved: quotaReservation.quotaReserved});
-
-        try {
-            const result = await this.generateQuestionsWithGemini(selectedModel, truncatedContent);
-
-            if (result.questions && result.questions.length > 0) {
-                console.log('Question generation completed successfully'.green.bold, {questions: result.questions, model: selectedModel});
-
-                await saveQuestions({articleId, url, questions: result.questions});
-
-                return {...result, powered_by: selectedModel};
+            if (fallbackResult.error === 'QUOTA_EXHAUSTED') {
+                return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
+            } else if (fallbackResult.error === 'ALL_AI_CALLS_FAILED') {
+                return {error: 'QUESTION_GENERATION_FAILED'};
+            } else {
+                return {error: 'QUESTION_GENERATION_FAILED'};
             }
-
-            console.error('Service Error: Question generation failed with quota-reserved model'.red.bold, {model: selectedModel, error: result.error});
-            return {error: 'QUESTION_GENERATION_FAILED'};
-        } catch (error: any) {
-            console.error('Service Error: Question generation failed with quota-reserved model'.red.bold, {model: selectedModel, error: error.message});
-            return {error: 'QUESTION_GENERATION_FAILED'};
         }
+
+        const result = fallbackResult.result!;
+        const selectedModel = fallbackResult.selectedModel;
+
+        if (result.questions && result.questions.length > 0) {
+            console.log('Question generation completed successfully'.green.bold, {
+                questions: result.questions,
+                model: selectedModel,
+                attemptedModels: fallbackResult.attemptedModels.length
+            });
+
+            await saveQuestions({articleId, url, questions: result.questions});
+
+            return {...result, powered_by: selectedModel};
+        }
+
+        console.error('Service Error: Invalid question generation result'.red.bold, {model: selectedModel, error: result.error, result});
+        return {error: 'QUESTION_GENERATION_FAILED'};
     }
 
     /**
@@ -143,7 +144,7 @@ class QuestionAnswerService {
 
         let articleContent = content || '';
         if (!content && url) {
-            console.log('Scraping URL for question answering:'.cyan, url);
+            console.log('External API: Scraping URL for question answering'.magenta, {url});
             const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
@@ -174,7 +175,7 @@ class QuestionAnswerService {
             const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike({email, violationType: 'ai_enhancement', content: articleContent});
             return {error: 'NON_NEWS_CONTENT', message, strikeCount, isBlocked, blockedUntil};
         } else {
-            console.log('News content verified, proceeding with question answering'.bgGreen.bold);
+            console.log('News content verified, proceeding with question answering'.cyan);
         }
 
         const articleId = generateArticleId({url});
@@ -188,41 +189,42 @@ class QuestionAnswerService {
         // Truncate content to avoid token limits
         const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
-        const quotaReservation = await QuotaService.reserveQuotaForModelFallback({
+        const fallbackResult = await QuotaService.executeWithModelFallback({
             primaryModel: QUESTION_ANSWER_MODELS[0],
             fallbackModels: QUESTION_ANSWER_MODELS.slice(1),
+            executeAICall: (modelName: string) => this.answerQuestionWithGemini(modelName, truncatedContent, question),
             count: 1,
         });
 
-        if (!quotaReservation.allowed) {
-            console.warn('Rate Limit: Gemini API daily quota reached for question answering'.yellow, {
-                selectedModel: quotaReservation.selectedModel,
-                quotaReserved: quotaReservation.quotaReserved,
-                service: quotaReservation.service,
-            });
-            return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
-        }
+        if (!fallbackResult.success) {
+            console.error('Service Error: All question answering models failed'.red.bold, {error: fallbackResult.error, attemptedModels: fallbackResult.attemptedModels});
 
-        const selectedModel = quotaReservation.selectedModel;
-        console.log('Quota reserved for question answering'.cyan, {selectedModel, quotaReserved: quotaReservation.quotaReserved});
-
-        try {
-            const result = await this.answerQuestionWithGemini(selectedModel, truncatedContent, question);
-
-            if (result.answer && result.answer.trim().length > 0) {
-                console.log('Question answering completed successfully'.green.bold, {answer: result.answer, model: selectedModel});
-
-                await saveQuestionAnswer({articleId, url, question, answer: result.answer});
-
-                return {...result, powered_by: selectedModel};
+            if (fallbackResult.error === 'QUOTA_EXHAUSTED') {
+                return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
+            } else if (fallbackResult.error === 'ALL_AI_CALLS_FAILED') {
+                return {error: 'QUESTION_ANSWERING_FAILED'};
+            } else {
+                return {error: 'QUESTION_ANSWERING_FAILED'};
             }
-
-            console.error('Service Error: Question answering failed with quota-reserved model'.red.bold, {model: selectedModel, error: result.error});
-            return {error: 'QUESTION_ANSWERING_FAILED'};
-        } catch (error: any) {
-            console.error('Service Error: Question answering failed with quota-reserved model'.red.bold, {model: selectedModel, error: error.message});
-            return {error: 'QUESTION_ANSWERING_FAILED'};
         }
+
+        const result = fallbackResult.result!;
+        const selectedModel = fallbackResult.selectedModel;
+
+        if (result.answer && result.answer.trim().length > 0) {
+            console.log('Question answering completed successfully'.green.bold, {
+                answer: result.answer,
+                model: selectedModel,
+                attemptedModels: fallbackResult.attemptedModels.length
+            });
+
+            await saveQuestionAnswer({articleId, url, question, answer: result.answer});
+
+            return {...result, powered_by: selectedModel};
+        }
+
+        console.error('Service Error: Invalid question answering result'.red.bold, {model: selectedModel, error: result.error, result});
+        return {error: 'QUESTION_ANSWERING_FAILED'};
     }
 
     /**
@@ -251,14 +253,14 @@ class QuestionAnswerService {
 
         if (!parsed.questions || !Array.isArray(parsed.questions) || parsed.questions.length === 0) {
             console.error('Service Error: Invalid questions array in response:'.red.bold, parsed.questions);
-            return {error: 'QUESTION_PARSE_ERROR'};
+            throw new Error('QUESTION_PARSE_ERROR');
         }
 
         const validQuestions = parsed.questions.filter(q => q && q.trim().length > 0);
 
         if (validQuestions.length === 0) {
             console.error('Service Error: No valid questions found in response'.red.bold);
-            return {error: 'NO_VALID_QUESTIONS'};
+            throw new Error('NO_VALID_QUESTIONS');
         }
 
         return {questions: validQuestions};
@@ -290,7 +292,7 @@ class QuestionAnswerService {
 
         if (!parsed.answer || parsed.answer.trim().length === 0) {
             console.error('Service Error: Invalid answer in response:'.red.bold, parsed.answer);
-            return {error: 'ANSWER_PARSE_ERROR'};
+            throw new Error('ANSWER_PARSE_ERROR');
         }
 
         return {answer: parsed.answer};

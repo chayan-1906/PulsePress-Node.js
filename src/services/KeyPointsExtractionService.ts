@@ -42,7 +42,7 @@ class KeyPointsExtractionService {
 
         let articleContent = content || '';
         if (!content && url) {
-            console.log('Scraping URL for key points extraction:'.cyan, url);
+            console.log('External API: Scraping URL for key points extraction'.magenta, {url});
             const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
@@ -68,7 +68,7 @@ class KeyPointsExtractionService {
             const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike({email, violationType: 'ai_enhancement', content: articleContent});
             return {error: 'NON_NEWS_CONTENT', message, strikeCount, isBlocked, blockedUntil};
         } else {
-            console.log('News content verified, proceeding with key points extraction'.bgGreen.bold);
+            console.log('News content verified, proceeding with key points extraction'.cyan);
         }
 
         const articleId = generateArticleId({url: url || ''});
@@ -86,40 +86,38 @@ class KeyPointsExtractionService {
         // Truncate content to avoid token limits
         const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
-        const quotaReservation = await QuotaService.reserveQuotaForModelFallback({
+        const fallbackResult = await QuotaService.executeWithModelFallback({
             primaryModel: AI_KEY_POINTS_EXTRACTOR_MODELS[0],
             fallbackModels: AI_KEY_POINTS_EXTRACTOR_MODELS.slice(1),
+            executeAICall: (modelName: string) => this.extractWithGemini(modelName, truncatedContent),
             count: 1,
         });
 
-        if (!quotaReservation.allowed) {
-            console.warn('Rate Limit: Gemini API daily quota reached for key points extraction'.yellow, {
-                selectedModel: quotaReservation.selectedModel,
-                quotaReserved: quotaReservation.quotaReserved,
-                service: quotaReservation.service,
-            });
-            return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
-        }
+        if (!fallbackResult.success) {
+            console.error('Service Error: All key points extraction models failed'.red.bold, {error: fallbackResult.error, attemptedModels: fallbackResult.attemptedModels});
 
-        const selectedModel = quotaReservation.selectedModel;
-        console.log('Quota reserved for key points extraction'.cyan, {selectedModel, quotaReserved: quotaReservation.quotaReserved});
-
-        try {
-            const result = await this.extractWithGemini(selectedModel, truncatedContent);
-
-            if (result.keyPoints && result.keyPoints.length > 0) {
-                await saveBasicEnhancements({articleId, url, keyPoints: result.keyPoints});
-
-                console.log('Key points extraction completed successfully'.green.bold, {keyPoints: result.keyPoints, model: selectedModel});
-                return {...result, powered_by: selectedModel};
+            if (fallbackResult.error === 'QUOTA_EXHAUSTED') {
+                return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
+            } else if (fallbackResult.error === 'ALL_AI_CALLS_FAILED') {
+                return {error: 'KEY_POINTS_EXTRACTION_FAILED'};
+            } else {
+                return {error: 'KEY_POINTS_EXTRACTION_FAILED'};
             }
-
-            console.error('Service Error: Key points extraction failed with quota-reserved model'.red.bold, {model: selectedModel, error: result.error});
-            return {error: 'KEY_POINTS_EXTRACTION_FAILED'};
-        } catch (error: any) {
-            console.error('Service Error: Key points extraction failed with quota-reserved model'.red.bold, {model: selectedModel, error: error.message});
-            return {error: 'KEY_POINTS_EXTRACTION_FAILED'};
         }
+
+        const result = fallbackResult.result!;
+        const selectedModel = fallbackResult.selectedModel;
+
+        if (result.keyPoints && result.keyPoints.length > 0) {
+            console.log('Key points extraction completed successfully'.green.bold, {keyPoints: result.keyPoints, model: selectedModel, attemptedModels: fallbackResult.attemptedModels.length});
+
+            await saveBasicEnhancements({articleId, url, keyPoints: result.keyPoints});
+
+            return {...result, powered_by: selectedModel};
+        }
+
+        console.error('Service Error: Invalid key points extraction result'.red.bold, {model: selectedModel, error: result.error, result});
+        return {error: 'KEY_POINTS_EXTRACTION_FAILED'};
     }
 
     /**
@@ -130,7 +128,7 @@ class KeyPointsExtractionService {
 
         if (!GEMINI_API_KEY) {
             console.warn('Config Warning: Gemini API key not configured'.yellow.italic);
-            return {error: generateMissingCode('gemini_api_key')};
+            throw new Error(generateMissingCode('gemini_api_key'));
         }
 
         console.log('External API: Generating key points extraction with Gemini'.magenta, {model: modelName});
@@ -149,7 +147,7 @@ class KeyPointsExtractionService {
 
         if (!parsed.keyPoints || !Array.isArray(parsed.keyPoints) || parsed.keyPoints.length === 0) {
             console.error('Service Error: Invalid key points array in response'.red.bold, parsed.keyPoints);
-            return {error: 'KEY_POINTS_PARSE_ERROR'};
+            throw new Error('KEY_POINTS_PARSE_ERROR');
         }
 
         console.log('Key points parsed successfully'.cyan, parsed.keyPoints);

@@ -44,7 +44,7 @@ class NewsInsightsService {
         let articleContent = content || '';
         const articleId = generateArticleId({url});
         if (!content && url) {
-            console.log('Scraping URL for news insights:'.cyan, url);
+            console.log('External API: Scraping URL for news insights'.magenta, {url});
             const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
@@ -70,7 +70,7 @@ class NewsInsightsService {
             const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike({email, violationType: 'ai_enhancement', content: articleContent});
             return {error: 'NON_NEWS_CONTENT', message, strikeCount, isBlocked, blockedUntil};
         } else {
-            console.log('News content verified, proceeding with news insights analysis'.bgGreen.bold);
+            console.log('News content verified, proceeding with news insights analysis'.cyan);
         }
 
         const cached = await getCachedNewsInsights({articleId});
@@ -89,60 +89,58 @@ class NewsInsightsService {
         // Truncate content to avoid token limits
         const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
-        const quotaReservation = await QuotaService.reserveQuotaForModelFallback({
+        const fallbackResult = await QuotaService.executeWithModelFallback({
             primaryModel: AI_NEWS_INSIGHTS_MODELS[0],
             fallbackModels: AI_NEWS_INSIGHTS_MODELS.slice(1),
+            executeAICall: (modelName: string) => this.generateWithGemini(modelName, truncatedContent),
             count: 1,
         });
 
-        if (!quotaReservation.allowed) {
-            console.warn('Rate Limit: Gemini API daily quota reached for news insights analysis'.yellow, {
-                selectedModel: quotaReservation.selectedModel,
-                quotaReserved: quotaReservation.quotaReserved,
-                service: quotaReservation.service,
-            });
-            return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
-        }
+        if (!fallbackResult.success) {
+            console.error('Service Error: All news insights models failed'.red.bold, {error: fallbackResult.error, attemptedModels: fallbackResult.attemptedModels});
 
-        const selectedModel = quotaReservation.selectedModel;
-        console.log('Quota reserved for news insights analysis'.cyan, {selectedModel, quotaReserved: quotaReservation.quotaReserved});
-
-        try {
-            const result = await this.generateWithGemini(selectedModel, truncatedContent);
-
-            if (result.keyThemes && result.keyThemes.length > 0) {
-                console.log('News insights analysis completed successfully'.green.bold, {
-                    themes: result.keyThemes,
-                    impact: result.impactAssessment?.level,
-                    stakeholders: Object.keys(result.stakeholderAnalysis || {}).length,
-                    model: selectedModel,
-                });
-
-                await saveNewsInsights({
-                    articleId,
-                    url,
-                    newsInsights: {
-                        keyThemes: result.keyThemes || [],
-                        impactAssessment: result.impactAssessment || {level: 'local', description: ''},
-                        contextConnections: result.contextConnections || [],
-                        stakeholderAnalysis: {
-                            winners: result.stakeholderAnalysis?.winners || [],
-                            losers: result.stakeholderAnalysis?.losers || [],
-                            affected: result.stakeholderAnalysis?.affected || [],
-                        },
-                        timelineContext: result.timelineContext || [],
-                    },
-                });
-
-                return {...result, powered_by: selectedModel};
+            if (fallbackResult.error === 'QUOTA_EXHAUSTED') {
+                return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
+            } else if (fallbackResult.error === 'ALL_AI_CALLS_FAILED') {
+                return {error: 'NEWS_INSIGHTS_ANALYSIS_FAILED'};
+            } else {
+                return {error: 'NEWS_INSIGHTS_ANALYSIS_FAILED'};
             }
-
-            console.error('Service Error: News insights analysis failed with quota-reserved model'.red.bold, {model: selectedModel, error: result.error});
-            return {error: 'NEWS_INSIGHTS_ANALYSIS_FAILED'};
-        } catch (error: any) {
-            console.error('Service Error: News insights analysis failed with quota-reserved model'.red.bold, {model: selectedModel, error: error.message});
-            return {error: 'NEWS_INSIGHTS_ANALYSIS_FAILED'};
         }
+
+        const result = fallbackResult.result!;
+        const selectedModel = fallbackResult.selectedModel;
+
+        if (result.keyThemes && result.keyThemes.length > 0) {
+            console.log('News insights analysis completed successfully'.green.bold, {
+                themes: result.keyThemes,
+                impact: result.impactAssessment?.level,
+                stakeholders: Object.keys(result.stakeholderAnalysis || {}).length,
+                model: selectedModel,
+                attemptedModels: fallbackResult.attemptedModels.length,
+            });
+
+            await saveNewsInsights({
+                articleId,
+                url,
+                newsInsights: {
+                    keyThemes: result.keyThemes || [],
+                    impactAssessment: result.impactAssessment || {level: 'local', description: ''},
+                    contextConnections: result.contextConnections || [],
+                    stakeholderAnalysis: {
+                        winners: result.stakeholderAnalysis?.winners || [],
+                        losers: result.stakeholderAnalysis?.losers || [],
+                        affected: result.stakeholderAnalysis?.affected || [],
+                    },
+                    timelineContext: result.timelineContext || [],
+                },
+            });
+
+            return {...result, powered_by: selectedModel};
+        }
+
+        console.error('Service Error: Invalid news insights analysis result'.red.bold, {model: selectedModel, error: result.error, result});
+        return {error: 'NEWS_INSIGHTS_ANALYSIS_FAILED'};
     }
 
     /**
@@ -172,13 +170,13 @@ class NewsInsightsService {
 
         if (!parsed.keyThemes || !Array.isArray(parsed.keyThemes) || parsed.keyThemes.length === 0) {
             console.error('Service Error: Invalid keyThemes array in response'.red.bold, parsed.keyThemes);
-            return {error: 'NEWS_INSIGHTS_PARSE_ERROR'};
+            throw new Error('NEWS_INSIGHTS_PARSE_ERROR');
         }
 
         const normalizedLevel = parsed.impactAssessment?.level?.toLowerCase() as TImpactLevel;
         if (!parsed.impactAssessment || !normalizedLevel || !IMPACT_LEVELS.includes(normalizedLevel as TImpactLevel)) {
             console.error('Service Error: Invalid impactAssessment in response'.red.bold, parsed.impactAssessment);
-            return {error: 'NEWS_INSIGHTS_PARSE_ERROR'};
+            throw new Error('NEWS_INSIGHTS_PARSE_ERROR');
         }
 
         console.log('Processing and cleaning insights data'.cyan);
@@ -190,7 +188,7 @@ class NewsInsightsService {
 
         if (keyThemes.length === 0) {
             console.error('Service Error: No valid themes found in response'.red.bold);
-            return {error: 'NO_VALID_THEMES'};
+            throw new Error('NO_VALID_THEMES');
         }
 
         console.log('News insights processed successfully'.cyan, {themes: keyThemes.length, impact: normalizedLevel});
@@ -203,7 +201,6 @@ class NewsInsightsService {
             contextConnections,
             stakeholderAnalysis: cleanedStakeholderAnalysis,
             timelineContext,
-            powered_by: modelName,
         };
     }
 }

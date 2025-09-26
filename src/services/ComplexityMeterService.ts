@@ -42,7 +42,7 @@ class ComplexityMeterService {
 
         let articleContent = content || '';
         if (!content && url) {
-            console.log('Scraping URL for complexity analysis:'.cyan, url);
+            console.log('External API: Scraping URL for complexity analysis'.magenta, {url});
             const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
@@ -68,7 +68,7 @@ class ComplexityMeterService {
             const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike({email, violationType: 'ai_enhancement', content: articleContent});
             return {error: 'NON_NEWS_CONTENT', message, strikeCount, isBlocked, blockedUntil};
         } else {
-            console.log('News content verified, proceeding with complexity analysis'.bgGreen.bold);
+            console.log('News content verified, proceeding with complexity analysis'.cyan);
         }
 
         const articleId = generateArticleId({url});
@@ -86,51 +86,53 @@ class ComplexityMeterService {
         // Truncate content to avoid token limits
         const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
-        const quotaReservation = await QuotaService.reserveQuotaForModelFallback({
+        const fallbackResult = await QuotaService.executeWithModelFallback({
             primaryModel: AI_COMPLEXITY_METER__MODELS[0],
             fallbackModels: AI_COMPLEXITY_METER__MODELS.slice(1),
+            executeAICall: (modelName: string) => this.analyzeWithGemini(modelName, truncatedContent),
             count: 1,
         });
 
-        if (!quotaReservation.allowed) {
-            console.warn('Rate Limit: Gemini API daily quota reached for complexity analysis'.yellow, {
-                selectedModel: quotaReservation.selectedModel,
-                quotaReserved: quotaReservation.quotaReserved,
-                service: quotaReservation.service,
-            });
-            return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
-        }
+        if (!fallbackResult.success) {
+            console.error('Service Error: All complexity analysis models failed'.red.bold, {error: fallbackResult.error, attemptedModels: fallbackResult.attemptedModels});
 
-        const selectedModel = quotaReservation.selectedModel;
-        console.log('Quota reserved for complexity analysis'.cyan, {selectedModel, quotaReserved: quotaReservation.quotaReserved});
-
-        try {
-            const result = await this.analyzeWithGemini(selectedModel, truncatedContent);
-
-            if (result.complexityMeter) {
-                await saveBasicEnhancements({articleId, url, complexityMeter: result.complexityMeter});
-
-                console.log('Complexity analysis completed successfully'.green.bold, {complexityMeter: result.complexityMeter, model: selectedModel});
-                return {...result, powered_by: selectedModel};
+            if (fallbackResult.error === 'QUOTA_EXHAUSTED') {
+                return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
+            } else if (fallbackResult.error === 'ALL_AI_CALLS_FAILED') {
+                return {error: 'COMPLEXITY_METER_GENERATION_FAILED'};
+            } else {
+                return {error: 'COMPLEXITY_METER_GENERATION_FAILED'};
             }
-
-            console.error('Service Error: Complexity analysis failed with quota-reserved model'.red.bold, {model: selectedModel, error: result.error});
-            return {error: 'COMPLEXITY_METER_GENERATION_FAILED'};
-        } catch (error: any) {
-            console.error('Service Error: Complexity analysis failed with quota-reserved model'.red.bold, {model: selectedModel, error: error.message});
-            return {error: 'COMPLEXITY_METER_GENERATION_FAILED'};
         }
+
+        const result = fallbackResult.result!;
+        const selectedModel = fallbackResult.selectedModel;
+
+        if (result.complexityMeter) {
+            console.log('Complexity analysis completed successfully'.green.bold, {
+                complexityMeter: result.complexityMeter,
+                model: selectedModel,
+                attemptedModels: fallbackResult.attemptedModels.length,
+            });
+
+            await saveBasicEnhancements({articleId, url, complexityMeter: result.complexityMeter});
+
+            return {...result, powered_by: selectedModel};
+        }
+
+        console.error('Service Error: Invalid complexity analysis result'.red.bold, {model: selectedModel, error: result.error, result});
+        return {error: 'COMPLEXITY_METER_GENERATION_FAILED'};
     }
 
     /**
      * Analyze complexity using Gemini AI
      */
     private static async analyzeWithGemini(modelName: string, content: string): Promise<IComplexityMeterResponse> {
-        console.log('Service: ComplexityMeterService.analyzeWithGemini called'.cyan.italic, {modelName, content,});
+        console.log('Service: ComplexityMeterService.analyzeWithGemini called'.cyan.italic, {modelName, content});
 
         if (!GEMINI_API_KEY) {
             console.warn('Config Warning: Gemini API key not configured'.yellow.italic);
-            return {error: generateMissingCode('gemini_api_key')};
+            throw new Error(generateMissingCode('gemini_api_key'));
         }
 
         console.log('External API: Generating complexity analysis with Gemini'.magenta, {model: modelName});
@@ -149,12 +151,12 @@ class ComplexityMeterService {
 
         if (!parsed.complexityMeter || !parsed.complexityMeter.level) {
             console.error('Service Error: Invalid complexity meter in response'.red.bold, parsed.complexityMeter);
-            return {error: 'COMPLEXITY_PARSE_ERROR'};
+            throw new Error('COMPLEXITY_PARSE_ERROR');
         }
 
         if (!COMPLEXITY_LEVELS.includes(parsed.complexityMeter.level)) {
             console.error('Service Error: Invalid complexity level'.red.bold, parsed.complexityMeter.level);
-            return {error: 'INVALID_COMPLEXITY_LEVEL'};
+            throw new Error('INVALID_COMPLEXITY_LEVEL');
         }
 
         console.log('Complexity analysis parsed successfully'.cyan, parsed.complexityMeter);

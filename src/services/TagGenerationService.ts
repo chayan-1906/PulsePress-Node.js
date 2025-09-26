@@ -43,7 +43,7 @@ class TagGenerationService {
 
         let articleContent = content || '';
         if (!content && url) {
-            console.log('Scraping URL for tag generation:'.cyan, url);
+            console.log('External API: Scraping URL for tag generation'.magenta, {url});
             const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
             if (isListEmpty(scrapedArticles) || scrapedArticles[0].error) {
@@ -69,7 +69,7 @@ class TagGenerationService {
             const {message, newStrikeCount: strikeCount, isBlocked, blockedUntil} = await StrikeService.applyStrike({email, violationType: 'ai_enhancement', content: articleContent});
             return {error: 'NON_NEWS_CONTENT', message, strikeCount, isBlocked, blockedUntil};
         } else {
-            console.log('News content verified, proceeding with tag generation'.bgGreen.bold);
+            console.log('News content verified, proceeding with tag generation'.cyan);
         }
 
         const articleId = generateArticleId({url});
@@ -87,40 +87,37 @@ class TagGenerationService {
         // Truncate content to avoid token limits - use title and description primarily
         const truncatedContent = truncateContentForAI(articleContent, API_CONFIG.NEWS_API.MAX_CONTENT_LENGTH);
 
-        const quotaReservation = await QuotaService.reserveQuotaForModelFallback({
+        const fallbackResult = await QuotaService.executeWithModelFallback({
             primaryModel: AI_TAG_GENERATION_MODELS[0],
             fallbackModels: AI_TAG_GENERATION_MODELS.slice(1),
+            executeAICall: (modelName: string) => this.generateWithGemini(modelName, truncatedContent),
             count: 1,
         });
 
-        if (!quotaReservation.allowed) {
-            console.warn('Rate Limit: Gemini API daily quota reached for tag generation'.yellow, {
-                selectedModel: quotaReservation.selectedModel,
-                quotaReserved: quotaReservation.quotaReserved,
-                service: quotaReservation.service,
-            });
-            return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
-        }
+        if (!fallbackResult.success) {
+            console.error('Service Error: All tag generation models failed'.red.bold, {error: fallbackResult.error, attemptedModels: fallbackResult.attemptedModels});
 
-        const selectedModel = quotaReservation.selectedModel;
-        console.log('Quota reserved for tag generation'.cyan, {selectedModel, quotaReserved: quotaReservation.quotaReserved});
-
-        try {
-            const result = await this.generateWithGemini(selectedModel, truncatedContent);
-
-            if (result.tags && result.tags.length > 0) {
-                await saveBasicEnhancements({articleId, url, tags: result.tags});
-
-                console.log('Tag generation completed successfully'.green.bold, {tags: result.tags, model: selectedModel});
-                return {...result, powered_by: selectedModel};
+            if (fallbackResult.error === 'QUOTA_EXHAUSTED') {
+                return {error: 'GEMINI_DAILY_LIMIT_REACHED'};
+            } else if (fallbackResult.error === 'ALL_AI_CALLS_FAILED') {
+                return {error: 'TAG_GENERATION_FAILED'};
+            } else {
+                return {error: 'TAG_GENERATION_FAILED'};
             }
-
-            console.error('Service Error: Tag generation failed with quota-reserved model'.red.bold, {model: selectedModel, error: result.error});
-            return {error: 'TAG_GENERATION_FAILED'};
-        } catch (error: any) {
-            console.error('Service Error: Tag generation failed with quota-reserved model'.red.bold, {model: selectedModel, error: error.message});
-            return {error: 'TAG_GENERATION_FAILED'};
         }
+
+        const result = fallbackResult.result!;
+        const selectedModel = fallbackResult.selectedModel;
+
+        if (result.tags && result.tags.length > 0) {
+            await saveBasicEnhancements({articleId, url, tags: result.tags});
+
+            console.log('Tag generation completed successfully'.green.bold, {tags: result.tags, model: selectedModel, attemptedModels: fallbackResult.attemptedModels.length});
+            return {...result, powered_by: selectedModel};
+        }
+
+        console.error('Service Error: Invalid tag generation result'.red.bold, {model: selectedModel, error: result.error, result});
+        return {error: 'TAG_GENERATION_FAILED'};
     }
 
     /**
@@ -145,20 +142,15 @@ class TagGenerationService {
 
         responseText = cleanJsonResponseMarkdown(responseText);
 
-        try {
-            const parsed: string[] = JSON.parse(responseText);
+        const parsed: string[] = JSON.parse(responseText);
 
-            const validTags = validateAndProcessTags(parsed, 5);
+        const validTags = validateAndProcessTags(parsed, 5);
 
-            if (validTags.length === 0) {
-                return {error: 'NO_VALID_TAGS'};
-            }
-
-            return {tags: validTags, powered_by: modelName};
-        } catch (error: any) {
-            console.error('Service Error: Tag generation parsing failed:'.red.bold, error.message);
-            return {error: 'TAG_PARSE_ERROR'};
+        if (validTags.length === 0) {
+            throw new Error('NO_VALID_TAGS');
         }
+
+        return {tags: validTags};
     }
 }
 

@@ -124,13 +124,26 @@ class ArticleEnhancementService {
 
                     const complexity = ReadingTimeAnalysisService.calculateReadingTimeComplexity({article});
 
-                    const quotaResult = await QuotaService.reserveQuotaForModelFallback({
+                    const fallbackResult = await QuotaService.executeWithModelFallback({
                         primaryModel: AI_ENHANCEMENT_MODELS[0],
                         fallbackModels: AI_ENHANCEMENT_MODELS.slice(1),
+                        executeAICall: (modelName: string) => this.aiEnhanceArticle({
+                            content: article.content || article.description || article.title || '',
+                            tasks: ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'locations'],
+                            selectedModel: modelName,
+                        }),
                         count: 1,
                     });
-                    if (!quotaResult.allowed) {
-                        console.warn(`Client Error: Quota exhausted - marking article ${articleId} as failed`.yellow);
+
+                    if (!fallbackResult.success) {
+                        console.error('Service Error: All article enhancement models failed'.red.bold, {error: fallbackResult.error, attemptedModels: fallbackResult.attemptedModels, articleId});
+
+                        if (fallbackResult.error === 'QUOTA_EXHAUSTED') {
+                            console.warn(`Client Error: Quota exhausted - marking article ${articleId} as failed`.yellow);
+                        } else {
+                            console.warn(`Service Error: AI enhancement failed - marking article ${articleId} as failed`.yellow);
+                        }
+
                         await ArticleEnhancementModel.findOneAndUpdate(
                             {articleId},
                             {processingStatus: 'failed'},
@@ -139,13 +152,8 @@ class ArticleEnhancementService {
                         continue;
                     }
 
-                    const selectedModel = quotaResult.selectedModel;
-
-                    const aiResult: ICombinedAIResponse = await this.aiEnhanceArticle({
-                        content: article.content || article.description || article.title || '',
-                        tasks: ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'locations'],
-                        selectedModel: selectedModel,
-                    });
+                    const aiResult: ICombinedAIResponse = fallbackResult.result!;
+                    const selectedModel = fallbackResult.selectedModel;
 
                     let tags = undefined;
                     let sentimentData = undefined;
@@ -634,7 +642,7 @@ class ArticleEnhancementService {
             return {...response, powered_by: modelName};
         } catch (error: any) {
             console.error('Service Error: AI enhancement failed with selected model'.red.bold, {model: modelName, error: error.message});
-            return {error: 'AI_ENHANCEMENT_FAILED'};
+            throw error;
         }
     }
 
@@ -674,7 +682,7 @@ class ArticleEnhancementService {
                         console.log('🚀 BACKGROUND PROCESSING STARTED'.bgMagenta.white, {articleId, email, missingEnhancements});
 
                         try {
-                            console.log('📝 Step 1: Checking user authentication'.cyan, {email});
+                            console.log('Checking user authentication'.cyan, {email});
                             const {user} = await AuthService.getUserByEmail({email});
                             const {isBlocked} = await StrikeService.checkUserBlock({email});
 
@@ -688,23 +696,9 @@ class ArticleEnhancementService {
                                 return;
                             }
 
-                            console.log('✅ Step 1 PASSED: User authenticated'.cyan, {userId: user.userExternalId});
+                            console.log('User authenticated'.cyan, {userId: user.userExternalId});
 
-                            console.log('📝 Step 2: Reserving AI quota'.cyan, {articleId});
-                            const quotaResult = await QuotaService.reserveQuotaForModelFallback({
-                                primaryModel: AI_ENHANCEMENT_MODELS[0],
-                                fallbackModels: AI_ENHANCEMENT_MODELS.slice(1),
-                                count: 1,
-                            });
-
-                            if (!quotaResult.allowed) {
-                                console.warn('❌ Background processing cancelled: Quota exhausted'.yellow, {articleId, quotaResult});
-                                return;
-                            }
-
-                            console.log('✅ Step 2 PASSED: Quota reserved'.cyan, {selectedModel: quotaResult.selectedModel});
-
-                            console.log('📝 Step 3: Scraping article content'.cyan, {url, articleId});
+                            console.log('Scraping article content'.cyan, {url, articleId});
                             let articleContent = '';
                             const scrapedArticles = await NewsService.scrapeMultipleArticles({urls: [url]});
 
@@ -728,30 +722,34 @@ class ArticleEnhancementService {
                                 return;
                             }
 
-                            console.log('✅ Step 3 PASSED: Article content scraped'.cyan, {
-                                contentLength: articleContent.length,
-                                contentPreview: articleContent.substring(0, 100) + '...'
+                            const fallbackResult = await QuotaService.executeWithModelFallback({
+                                primaryModel: AI_ENHANCEMENT_MODELS[0],
+                                fallbackModels: AI_ENHANCEMENT_MODELS.slice(1),
+                                executeAICall: (modelName: string) => this.aiEnhanceArticle({content: articleContent, tasks: missingEnhancements, selectedModel: modelName}),
+                                count: 1,
                             });
 
-                            console.log('📝 Step 4: Processing AI enhancement'.cyan, {articleId, tasks: missingEnhancements});
-                            const aiResult: ICombinedAIResponse = await this.aiEnhanceArticle({
-                                content: articleContent,
-                                tasks: missingEnhancements,
-                                selectedModel: quotaResult.selectedModel,
-                            });
+                            if (!fallbackResult.success) {
+                                console.error('❌ Background processing failed: All article enhancement models failed'.red.bold, {
+                                    error: fallbackResult.error,
+                                    attemptedModels: fallbackResult.attemptedModels,
+                                    articleId,
+                                });
 
-                            if (aiResult.error) {
-                                console.error('❌ Background processing failed: AI enhancement error'.red.bold, {articleId, error: aiResult.error});
+                                if (fallbackResult.error === 'QUOTA_EXHAUSTED') {
+                                    console.warn('❌ Background processing cancelled: Quota exhausted'.yellow, {articleId});
+                                } else {
+                                    console.warn('❌ Background processing cancelled: AI enhancement failed'.yellow, {articleId});
+                                }
                                 return;
                             }
 
-                            console.log('✅ Step 4 PASSED: AI enhancement completed'.cyan, {
-                                articleId,
-                                generatedFeatures: Object.keys(aiResult).filter(key => key !== 'error')
-                            });
+                            const aiResult: ICombinedAIResponse = fallbackResult.result!;
+                            const selectedModel = fallbackResult.selectedModel;
+
+                            console.log('AI enhancement completed'.cyan, {articleId, generatedFeatures: Object.keys(aiResult).filter(key => key !== 'error')});
                             console.log('🔍 AI Result details:'.cyan, aiResult);
 
-                            console.log('📝 Step 5: Preparing enhancement data for database'.cyan, {articleId});
                             const enhancementsToCache: any = {articleId, url};
                             if (aiResult.tags) enhancementsToCache.tags = aiResult.tags;
                             if (aiResult.sentiment) enhancementsToCache.sentiment = aiResult.sentiment;
@@ -765,7 +763,7 @@ class ArticleEnhancementService {
                             });
 
                             try {
-                                console.log('📝 Step 6: Saving enhancements to database'.cyan, {articleId});
+                                console.log('Saving enhancements to database'.cyan, {articleId});
 
                                 // Save basic enhancements
                                 const basicEnhancementKeys = ['tags', 'sentiment', 'keyPoints', 'complexityMeter', 'locations'];
@@ -806,17 +804,16 @@ class ArticleEnhancementService {
                                         processingStatus: 'completed',
                                         updatedAt: new Date(),
                                     },
-                                    {upsert: true, new: true, setDefaultsOnInsert: true}
+                                    {upsert: true, new: true, setDefaultsOnInsert: true},
                                 );
 
-                                console.log('✅ Step 6 PASSED: Final status update completed'.cyan, {
+                                console.log('Final status update completed'.cyan, {
                                     articleId,
                                     documentId: updateResult._id,
                                     processingStatus: updateResult.processingStatus
                                 });
-
                             } catch (saveError: any) {
-                                console.error('❌ Step 6 FAILED: Database save error'.red.bold, {articleId, error: saveError.message, stack: saveError.stack});
+                                console.error('Database save error'.red.bold, {articleId, error: saveError.message, stack: saveError.stack});
 
                                 try {
                                     await ArticleEnhancementModel.findOneAndUpdate(
@@ -840,7 +837,6 @@ class ArticleEnhancementService {
                                 articleId,
                                 processedFeatures: Object.keys(aiResult).filter(key => key !== 'error' && key != 'powered_by'),
                             });
-
                         } catch (error: any) {
                             console.error('💥 BACKGROUND PROCESSING FATAL ERROR'.red.bold, {
                                 articleId,
