@@ -2,6 +2,7 @@ import {Router} from "express";
 import {authMiddlewareOptional} from "../middlewares/AuthMiddleware";
 import {newsScrapingRateLimiter} from "../middlewares/RateLimiterMiddleware";
 import {
+    exploreTopicController,
     fetchAllRssFeedsController,
     fetchArticleDetailsEnhancementController,
     fetchGuardianNewsController,
@@ -22,12 +23,10 @@ router.get('/guardian/search', fetchGuardianNewsController);           // /api/v
 router.get('/nytimes/search', fetchNewYorkTimesNewsController);      // /api/v1/news/nytimes/search?q=artificial intelligence&section=technology&sort=newest
 router.get('/nytimes/top-stories', fetchNewYorkTimesTopStoriesController); // /api/v1/news/nytimes/top-stories?section=technology
 router.get('/rss', fetchAllRssFeedsController);                   // /api/v1/news/rss?sources=prothom_alo,zeenews_bengali&language=bengali&pageSize=12&page=2
+router.get('/explore/:topic', authMiddlewareOptional, exploreTopicController); // /api/v1/news/explore/:topic
 router.get('/multi-source/enhance', authMiddlewareOptional, fetchMultiSourceNewsEnhancedController);    // /api/v1/news/multi-source/enhanced?q=tesla&category=technology&sources=techcrunch&pageSize=10&page=1 (RECOMMENDED FOR HOME SCREEN)
 router.get('/multi-source/enhancement-status', authMiddlewareOptional, fetchMultiSourceNewsEnhancementStatusController);    // /api/v1/news/multi-source/enhancement-status?articleIds=id1,id2,id3 (FOR POLLING)
 router.post('/article/enhance', authMiddlewareOptional, newsScrapingRateLimiter, fetchArticleDetailsEnhancementController);    // /api/v1/news/article/enhance (FOR ARTICLE DETAILS SCREEN)
 router.post('/scrape', newsScrapingRateLimiter, scrapeWebsiteController); // /api/v1/news/scrape
-
-// TODO: Call the Progressive service function - fetchMultiSourceNewsEnhanced()
-// router.get('/explore/:topic', exploreTopicController); // /api/v1/news/explore/:topic
 
 export default router;

@@ -350,6 +350,7 @@ export interface IScrapeMultipleWebsitesParams {
 
 export interface IExploreTopicParams {
     email?: string;  // for authMiddleware
+    topic?: TTopic;
     country?: TCountry;
     page?: number;
     pageSize?: number;
