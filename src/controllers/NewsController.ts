@@ -243,7 +243,7 @@ const fetchAllRssFeedsController = async (req: Request, res: Response) => {
     console.info('Controller: fetchAllRssFeedsController started'.bgBlue.white.bold);
 
     try {
-        const {q, sources, languages, pageSize, page}: Partial<IRssFeedParams> = req.query;
+        const {q, sources, languages, category, pageSize, page}: Partial<IRssFeedParams> = req.query;
 
         const sourceList = sources ? sources.split(',').map((source: string) => source.trim().toLowerCase()).filter(Boolean) : [];
         if (!isListEmpty(sourceList) && sourceList.every(lang => !SUPPORTED_NEWS_LANGUAGES.includes(lang))) {
@@ -276,7 +276,7 @@ const fetchAllRssFeedsController = async (req: Request, res: Response) => {
         }
 
         console.time('Performance: RSS_FETCH_TIME'.cyan);
-        const rssFeeds = await NewsService.fetchAllRssFeeds({q, sources, languages, pageSize: pageSizeNumber, page: pageNumber});
+        const rssFeeds = await NewsService.fetchAllRssFeeds({q, sources, languages, category, pageSize: pageSizeNumber, page: pageNumber});
         console.timeEnd('Performance: RSS_FETCH_TIME'.cyan);
         console.log('SUCCESS: RSS feeds fetched'.bgGreen.bold, {count: rssFeeds.length});
 

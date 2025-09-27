@@ -348,14 +348,14 @@ class NewsService {
     /**
      * Fetch and search RSS feeds from multiple sources with fuzzy matching
      */
-    static async fetchAllRssFeeds({q, sources, languages = 'english', pageSize = 5, page = 1}: IRssFeedParams) {
-        console.log('Service: NewsService.fetchAllRssFeeds called'.cyan.italic, {q, sources, languages, pageSize, page});
+    static async fetchAllRssFeeds({q, sources, languages = 'english', category, pageSize = 5, page = 1}: IRssFeedParams) {
+        console.log('Service: NewsService.fetchAllRssFeeds called'.cyan.italic, {q, sources, languages, category, pageSize, page});
 
         try {
-            const cacheKey = `${q}-${sources}-${languages}-${pageSize}-${page}`;
+            const cacheKey = `${q}-${sources}-${languages}-${category}-${pageSize}-${page}`;
             const cached = this.RSS_CACHE.get(cacheKey);
 
-            if (/*NODE_ENV === 'production' && */cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
+            if (cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 return cached.data;
             }
 
@@ -393,10 +393,29 @@ class NewsService {
             });
 
             const results = await Promise.allSettled(promises);
-            const allItems = results
+            let allItems = results
                 .filter(r => r.status === 'fulfilled' && r.value)
                 .flatMap(r => (r as PromiseFulfilledResult<IRssFeed[]>).value)
                 .sort((a: IRssFeed, b: IRssFeed) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
+
+            if (category && category.trim()) {
+                console.log(`Service: fetchAllRSSFeeds filtering by category: "${category}"`.cyan);
+
+                const categoryKeywords = category.toLowerCase().split(',').map(c => c.trim()).filter(Boolean);
+
+                allItems = allItems.filter((item: IRssFeed) => {
+                    if (!item.categories || item.categories.length === 0) {
+                        return false;
+                    }
+
+                    const itemCategories = item.categories.map(cat => cat.toLowerCase());
+                    return categoryKeywords.some(keyword =>
+                        itemCategories.some(itemCat => itemCat.includes(keyword)),
+                    );
+                });
+
+                console.log(`Category filtering completed: ${allItems.length} articles match category "${category}"`.cyan);
+            }
 
             if (q && q.trim()) {
                 console.log(`Service: fetchAllRSSFeeds searching for: "${q}"`.cyan);
@@ -459,9 +478,7 @@ class NewsService {
             const startIndex = (page - 1) * pageSize;
             const paginatedResults = allItems.slice(startIndex, startIndex + pageSize);
 
-            // if (NODE_ENV === 'production') {
             this.RSS_CACHE.set(cacheKey, {data: paginatedResults, timestamp: Date.now()});
-            // }
 
             return paginatedResults;
         } catch (error: any) {
