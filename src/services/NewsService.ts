@@ -468,9 +468,7 @@ class NewsService {
 
                 console.log(`RSS search completed: found ${searchResults.length} results for "${q}"`.green.bold);
 
-                // if (NODE_ENV === 'production') {
                 this.RSS_CACHE.set(cacheKey, {data: finalResults, timestamp: Date.now()});
-                // }
 
                 return finalResults;
             }
