@@ -35,6 +35,38 @@ const checkNewsApiOrgHealthController = async (req: Request, res: Response) => {
     }
 }
 
+const checkGuardianApiHealthController = async (req: Request, res: Response) => {
+    console.info('Controller: checkGuardianApiHealthController started'.bgBlue.white.bold);
+
+    try {
+        const healthCheck = await HealthService.checkGuardianApiHealth();
+
+        if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
+            console.log('SUCCESS: Guardian API health check completed'.bgGreen.bold, {status: healthCheck.status});
+            res.status(200).send(new ApiResponse({
+                success: true,
+                message: healthCheck.status === 'healthy' ? 'Guardian API health check has been passed 🎉' : 'Guardian API is partially healthy ⚠️',
+                health: healthCheck,
+            }));
+        } else {
+            console.warn('Health Warning: Guardian API health check failed'.yellow, {status: healthCheck.status});
+            res.status(503).send(new ApiResponse({
+                success: false,
+                errorCode: 'GUARDIAN_API_UNHEALTHY',
+                errorMsg: 'Guardian API health check has been failed',
+                health: healthCheck,
+            }));
+        }
+    } catch (error: any) {
+        console.error('Controller Error: checkGuardianApiHealthController failed'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: error.message || 'Something went wrong during Guardian API health check!',
+        }));
+    }
+}
+
 const checkRssFeedsHealthController = async (req: Request, res: Response) => {
     console.info('Controller: checkRssFeedsHealthController started'.bgBlue.white.bold);
 
@@ -200,6 +232,7 @@ const checkOverallSystemHealthController = async (req: Request, res: Response) =
 
 export {
     checkNewsApiOrgHealthController,
+    checkGuardianApiHealthController,
     checkRssFeedsHealthController,
     checkGoogleServicesHealthController,
     checkGeminiAiHealthController,

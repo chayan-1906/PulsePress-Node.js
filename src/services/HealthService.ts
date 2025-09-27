@@ -7,10 +7,10 @@ import {apis} from "../utils/apis";
 import {parseRSS} from "../utils/parseRSS";
 import {getOAuth2Client} from "../utils/OAuth";
 import {buildHeader} from "../utils/buildHeader";
-import {IHealthCheckResponse} from "../types/health-check";
-import {GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY} from "../config/config";
 import {getDatabaseHealth} from "../utils/databaseHealth";
+import {IHealthCheckResponse} from "../types/health-check";
 import {AI_SUMMARIZATION_MODELS, RSS_SOURCES} from "../utils/constants";
+import {GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY, GUARDIAN_API_KEY} from "../config/config";
 
 class HealthService {
     static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
@@ -34,6 +34,30 @@ class HealthService {
             return {status: 'healthy', responseTime: `${responseTime}ms`, data: topHeadlines};
         } catch (error: any) {
             console.error('Service Error: HealthService.checkNewsApiOrgHealth failed'.red.bold, error);
+            return {status: 'unhealthy', error: {message: error.message}};
+        }
+    }
+
+    /**
+     * Check health status of Guardian API service
+     */
+    static async checkGuardianApiHealth(): Promise<IHealthCheckResponse> {
+        console.log('Service: HealthService.checkGuardianApiHealth called'.cyan.italic);
+
+        try {
+            const start = Date.now();
+            console.log('External API: Testing Guardian API health'.magenta);
+            const url = apis.guardianSearchApi({q: 'test', pageSize: 1}) + `&api-key=${GUARDIAN_API_KEY}`;
+            const {data: guardianResponse} = await axios.get(url, {
+                headers: buildHeader('guardian'),
+                timeout: 5000,
+            });
+            const responseTime = Date.now() - start;
+            console.log('External API: Guardian API health check successful'.magenta, {responseTime});
+            console.log('Guardian API health check completed successfully'.green.bold);
+            return {status: 'healthy', responseTime: `${responseTime}ms`, data: guardianResponse};
+        } catch (error: any) {
+            console.error('Service Error: HealthService.checkGuardianApiHealth failed'.red.bold, error);
             return {status: 'unhealthy', error: {message: error.message}};
         }
     }
@@ -196,8 +220,9 @@ class HealthService {
             const start = Date.now();
             console.log('Running comprehensive system health checks'.cyan);
 
-            const [newsHealth, rssHealth, googleHealth, aiHealth, dbHealth] = await Promise.allSettled([
+            const [newsHealth, guardianHealth, rssHealth, googleHealth, aiHealth, dbHealth] = await Promise.allSettled([
                 this.checkNewsApiOrgHealth(),
+                this.checkGuardianApiHealth(),
                 this.checkRssFeedsHealth(),
                 this.checkGoogleServicesHealth(),
                 this.checkGeminiAiHealth(),
@@ -206,6 +231,7 @@ class HealthService {
 
             const results = {
                 newsAPI: newsHealth.status === 'fulfilled' ? newsHealth.value : {status: 'failed'},
+                guardianAPI: guardianHealth.status === 'fulfilled' ? guardianHealth.value : {status: 'failed'},
                 geminiAI: aiHealth.status === 'fulfilled' ? aiHealth.value : {status: 'failed'},
                 database: dbHealth.status === 'fulfilled' ? dbHealth.value : {status: 'failed'},
                 googleServices: googleHealth.status === 'fulfilled' ? googleHealth.value : {status: 'failed'},
