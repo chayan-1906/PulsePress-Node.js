@@ -198,6 +198,38 @@ const checkNyTimesApiHealthController = async (req: Request, res: Response) => {
     }
 }
 
+const checkEmailServiceHealthController = async (req: Request, res: Response) => {
+    console.info('Controller: checkEmailServiceHealthController started'.bgBlue.white.bold);
+
+    try {
+        const healthCheck = await HealthService.checkEmailServiceHealth();
+
+        if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
+            console.log('SUCCESS: Email Service health check completed'.bgGreen.bold, {status: healthCheck.status});
+            res.status(200).send(new ApiResponse({
+                success: true,
+                message: healthCheck.status === 'healthy' ? 'Email Service health check has been passed 🎉' : 'Email Service is partially healthy ⚠️',
+                health: healthCheck,
+            }));
+        } else {
+            console.warn('Health Warning: Email Service health check failed'.yellow, {status: healthCheck.status});
+            res.status(503).send(new ApiResponse({
+                success: false,
+                errorCode: 'EMAIL_SERVICE_UNHEALTHY',
+                errorMsg: 'Email Service health check has been failed',
+                health: healthCheck,
+            }));
+        }
+    } catch (error: any) {
+        console.error('Controller Error: checkEmailServiceHealthController failed'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: error.message || 'Something went wrong during Email Service health check!',
+        }));
+    }
+}
+
 const checkDatabaseHealthController = async (req: Request, res: Response) => {
     console.info('Controller: checkDatabaseHealthController started'.bgBlue.white.bold);
 
@@ -266,6 +298,7 @@ export {
     checkNewsApiOrgHealthController,
     checkGuardianApiHealthController,
     checkNyTimesApiHealthController,
+    checkEmailServiceHealthController,
     checkRssFeedsHealthController,
     checkGoogleServicesHealthController,
     checkGeminiAiHealthController,

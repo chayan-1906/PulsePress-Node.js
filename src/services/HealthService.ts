@@ -1,6 +1,7 @@
 import "colors";
 import axios from "axios";
 import mongoose from "mongoose";
+import nodemailer from 'nodemailer';
 import {GoogleGenerativeAI} from "@google/generative-ai";
 import {Translate} from "@google-cloud/translate/build/src/v2";
 import {apis} from "../utils/apis";
@@ -10,7 +11,7 @@ import {buildHeader} from "../utils/buildHeader";
 import {getDatabaseHealth} from "../utils/databaseHealth";
 import {IHealthCheckResponse} from "../types/health-check";
 import {AI_SUMMARIZATION_MODELS, RSS_SOURCES} from "../utils/constants";
-import {GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY, GUARDIAN_API_KEY, NYTIMES_API_KEY} from "../config/config";
+import {EMAIL_PASS, EMAIL_USER, GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY, GUARDIAN_API_KEY, NYTIMES_API_KEY} from "../config/config";
 
 class HealthService {
     static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
@@ -139,6 +140,35 @@ class HealthService {
     }
 
     /**
+     * Check health status of Email Service (Gmail SMTP)
+     */
+    static async checkEmailServiceHealth(): Promise<IHealthCheckResponse> {
+        console.log('Service: HealthService.checkEmailServiceHealth called'.cyan.italic);
+
+        try {
+            const start = Date.now();
+            console.log('External API: Testing Email Service health'.magenta);
+
+            const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: {
+                    user: EMAIL_USER,
+                    pass: EMAIL_PASS,
+                },
+            });
+
+            await transporter.verify();
+            const responseTime = Date.now() - start;
+            console.log('External API: Email Service health check successful'.magenta, {responseTime});
+            console.log('Email Service health check completed successfully'.green.bold);
+            return {status: 'healthy', responseTime: `${responseTime}ms`};
+        } catch (error: any) {
+            console.error('Service Error: HealthService.checkEmailServiceHealth failed'.red.bold, error);
+            return {status: 'unhealthy', error: {message: error.message}};
+        }
+    }
+
+    /**
      * Check health status of Google services (OAuth and Translate API)
      */
     static async checkGoogleServicesHealth(): Promise<IHealthCheckResponse> {
@@ -244,11 +274,12 @@ class HealthService {
             const start = Date.now();
             console.log('Running comprehensive system health checks'.cyan);
 
-            const [newsHealth, guardianHealth, nyTimesHealth, rssHealth, googleHealth, aiHealth, dbHealth] = await Promise.allSettled([
+            const [newsHealth, guardianHealth, nyTimesHealth, rssHealth, emailHealth, googleHealth, aiHealth, dbHealth] = await Promise.allSettled([
                 this.checkNewsApiOrgHealth(),
                 this.checkGuardianApiHealth(),
                 this.checkNyTimesApiHealth(),
                 this.checkRssFeedsHealth(),
+                this.checkEmailServiceHealth(),
                 this.checkGoogleServicesHealth(),
                 this.checkGeminiAiHealth(),
                 this.checkDatabaseHealth(),
@@ -259,6 +290,7 @@ class HealthService {
                 guardianAPI: guardianHealth.status === 'fulfilled' ? guardianHealth.value : {status: 'failed'},
                 nyTimesAPI: nyTimesHealth.status === 'fulfilled' ? nyTimesHealth.value : {status: 'failed'},
                 geminiAI: aiHealth.status === 'fulfilled' ? aiHealth.value : {status: 'failed'},
+                emailService: emailHealth.status === 'fulfilled' ? emailHealth.value : {status: 'failed'},
                 database: dbHealth.status === 'fulfilled' ? dbHealth.value : {status: 'failed'},
                 googleServices: googleHealth.status === 'fulfilled' ? googleHealth.value : {status: 'failed'},
                 rssFeeds: rssHealth.status === 'fulfilled' ? rssHealth.value : {status: 'failed'},
