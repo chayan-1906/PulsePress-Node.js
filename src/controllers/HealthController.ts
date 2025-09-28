@@ -262,6 +262,38 @@ const checkGeminiAiHealthController = async (req: Request, res: Response) => {
     }
 }
 
+const checkHuggingFaceApiHealthController = async (req: Request, res: Response) => {
+    console.info('Controller: checkHuggingFaceApiHealthController started'.bgBlue.white.bold);
+
+    try {
+        const healthCheck = await HealthService.checkHuggingFaceApiHealth();
+
+        if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
+            console.log('SUCCESS: HuggingFace API health check completed'.bgGreen.bold, {status: healthCheck.status});
+            res.status(200).send(new ApiResponse({
+                success: true,
+                message: healthCheck.status === 'healthy' ? 'HuggingFace API health check has been passed 🎉' : 'HuggingFace API is partially healthy ⚠️',
+                health: healthCheck,
+            }));
+        } else {
+            console.warn('Health Warning: HuggingFace API health check failed'.yellow, {status: healthCheck.status});
+            res.status(503).send(new ApiResponse({
+                success: false,
+                errorCode: 'HUGGINGFACE_API_UNHEALTHY',
+                errorMsg: 'HuggingFace API health check has been failed',
+                health: healthCheck,
+            }));
+        }
+    } catch (error: any) {
+        console.error('Controller Error: checkHuggingFaceApiHealthController failed'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: error.message || 'Something went wrong during HuggingFace API health check!',
+        }));
+    }
+}
+
 const checkDatabaseHealthController = async (req: Request, res: Response) => {
     console.info('Controller: checkDatabaseHealthController started'.bgBlue.white.bold);
 
@@ -335,6 +367,7 @@ export {
     checkWebScrapingServiceHealthController,
     checkGoogleServicesHealthController,
     checkGeminiAiHealthController,
+    checkHuggingFaceApiHealthController,
     checkDatabaseHealthController,
     checkOverallSystemHealthController,
 };

@@ -13,7 +13,7 @@ import {buildHeader} from "../utils/buildHeader";
 import {getDatabaseHealth} from "../utils/databaseHealth";
 import {IHealthCheckResponse} from "../types/health-check";
 import {AI_SUMMARIZATION_MODELS, RSS_SOURCES, USER_AGENTS} from "../utils/constants";
-import {EMAIL_PASS, EMAIL_USER, GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY, GUARDIAN_API_KEY, NYTIMES_API_KEY} from "../config/config";
+import {EMAIL_PASS, EMAIL_USER, GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY, GUARDIAN_API_KEY, HUGGINGFACE_API_TOKEN, NYTIMES_API_KEY} from "../config/config";
 
 class HealthService {
     static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
@@ -180,15 +180,17 @@ class HealthService {
             const start = Date.now();
             console.log('External API: Testing Web Scraping Service health'.magenta);
 
-            const testUrl = 'https://www.indianhealthyrecipes.com/masala-pasta/';
+            const testUrl = 'https://www.news18.com/cricket/pakistan-vs-bangladesh-live-score-asia-cup-2025-super-four-pakistan-national-cricket-team-vs-bangladesh-national-cricket-team-t20-match-today-latest-cricket-scorecard-liveblog-9596118.html?utm_source=jionews&utm_medium=Referral&utm_campaign=jionews&comscorekw=jionews';
             const response = await axios.get(testUrl, {
                 headers: buildHeader('webscraping', USER_AGENTS[0]),
                 timeout: 10000,
             });
 
             const virtualConsole = new VirtualConsole();
-            virtualConsole.on('error', () => {});
-            virtualConsole.on('warn', () => {});
+            virtualConsole.on('error', () => {
+            });
+            virtualConsole.on('warn', () => {
+            });
 
             const dom = new JSDOM(response.data, {
                 url: testUrl,
@@ -233,8 +235,8 @@ class HealthService {
             console.log('External API: Testing Google services health'.magenta);
             const translate = new Translate({key: GOOGLE_TRANSLATE_API_KEY});
             const results = await Promise.allSettled([
-                getOAuth2Client(),  // Test OAuth
-                translate.translate('test', {to: 'es'}),    // Test Translate API with a simple translation
+                getOAuth2Client(),
+                translate.translate('test', {to: 'es'}),
             ]);
 
             const failures = results.filter(r => r.status === 'rejected');
@@ -268,6 +270,53 @@ class HealthService {
             return {status: 'healthy', responseTime: `${Date.now() - start}ms`};
         } catch (error: any) {
             console.error('Service Error: HealthService.checkGeminiAiHealth failed'.red.bold, error);
+            return {status: 'unhealthy', error: {message: error.message}};
+        }
+    }
+
+    /**
+     * Check health status of HuggingFace API service
+     */
+    static async checkHuggingFaceApiHealth(): Promise<IHealthCheckResponse> {
+        console.log('Service: HealthService.checkHuggingFaceApiHealth called'.cyan.italic);
+
+        try {
+            const start = Date.now();
+            console.log('External API: Testing HuggingFace API health'.magenta);
+
+            if (!HUGGINGFACE_API_TOKEN) {
+                console.warn('Config Warning: HuggingFace API token not configured'.yellow.italic);
+                return {status: 'unhealthy', error: {message: 'HuggingFace API token not configured'}};
+            }
+
+            const payload = {
+                inputs: 'test content for health check',
+                parameters: {
+                    candidate_labels: ['news', 'non-news'],
+                },
+            };
+
+            const {data: hfResponse} = await axios.post('https://api-inference.huggingface.co/models/facebook/bart-large-mnli',
+                payload, {
+                    headers: buildHeader('huggingface'),
+                    timeout: 10000,
+                },
+            );
+
+            const responseTime = Date.now() - start;
+            console.log('External API: HuggingFace API health check successful'.magenta, {responseTime});
+            console.log('HuggingFace API health check completed successfully'.green.bold);
+            return {
+                status: 'healthy',
+                responseTime: `${responseTime}ms`,
+                data: {
+                    model: 'facebook/bart-large-mnli',
+                    labels: hfResponse.labels,
+                    scores: hfResponse.scores,
+                },
+            };
+        } catch (error: any) {
+            console.error('Service Error: HealthService.checkHuggingFaceApiHealth failed'.red.bold, error);
             return {status: 'unhealthy', error: {message: error.message}};
         }
     }
@@ -328,7 +377,7 @@ class HealthService {
             const start = Date.now();
             console.log('Running comprehensive system health checks'.cyan);
 
-            const [newsHealth, guardianHealth, nyTimesHealth, rssHealth, emailHealth, webScrapingHealth, googleHealth, aiHealth, dbHealth] = await Promise.allSettled([
+            const [newsHealth, guardianHealth, nyTimesHealth, rssHealth, emailHealth, webScrapingHealth, googleHealth, aiHealth, hfHealth, dbHealth] = await Promise.allSettled([
                 this.checkNewsApiOrgHealth(),
                 this.checkGuardianApiHealth(),
                 this.checkNyTimesApiHealth(),
@@ -337,6 +386,7 @@ class HealthService {
                 this.checkWebScrapingServiceHealth(),
                 this.checkGoogleServicesHealth(),
                 this.checkGeminiAiHealth(),
+                this.checkHuggingFaceApiHealth(),
                 this.checkDatabaseHealth(),
             ]);
 
@@ -349,6 +399,7 @@ class HealthService {
                 webScrapingService: webScrapingHealth.status === 'fulfilled' ? webScrapingHealth.value : {status: 'failed'},
                 googleServices: googleHealth.status === 'fulfilled' ? googleHealth.value : {status: 'failed'},
                 geminiAI: aiHealth.status === 'fulfilled' ? aiHealth.value : {status: 'failed'},
+                huggingFaceAPI: hfHealth.status === 'fulfilled' ? hfHealth.value : {status: 'failed'},
                 database: dbHealth.status === 'fulfilled' ? dbHealth.value : {status: 'failed'},
             };
 
