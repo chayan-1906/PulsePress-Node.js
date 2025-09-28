@@ -3,7 +3,7 @@ import {
     checkDatabaseHealthController,
     checkEmailServiceHealthController,
     checkWebScrapingServiceHealthController,
-    checkGeminiAiHealthController,
+    checkAISummarizationHealthController,
     checkHuggingFaceApiHealthController,
     checkGoogleServicesHealthController,
     checkGuardianApiHealthController,
@@ -22,7 +22,7 @@ router.get('/rss', checkRssFeedsHealthController);                      // /heal
 router.get('/email', checkEmailServiceHealthController);                // /health/email
 router.get('/webscraping', checkWebScrapingServiceHealthController);    // /health/webscraping
 router.get('/google-service', checkGoogleServicesHealthController);     // /health/google-service
-router.get('/gemini-ai', checkGeminiAiHealthController);                // /health/gemini-ai
+router.get('/ai-summarization', checkAISummarizationHealthController);  // /health/ai-summarization
 router.get('/huggingface-ai', checkHuggingFaceApiHealthController);     // /health/huggingface-ai
 router.get('/database', checkDatabaseHealthController);                 // /health/database
 router.get('/', checkOverallSystemHealthController);                    // /

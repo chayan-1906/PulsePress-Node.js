@@ -11,8 +11,9 @@ import {parseRSS} from "../utils/parseRSS";
 import {getOAuth2Client} from "../utils/OAuth";
 import {buildHeader} from "../utils/buildHeader";
 import {getDatabaseHealth} from "../utils/databaseHealth";
+import {testAIModelsWithFallback} from "../utils/serviceHelpers/healthCheckHelpers";
 import {IHealthCheckResponse} from "../types/health-check";
-import {AI_SUMMARIZATION_MODELS, RSS_SOURCES, USER_AGENTS} from "../utils/constants";
+import {AI_SUMMARIZATION_MODELS, RSS_SOURCES, USER_AGENTS,} from "../utils/constants";
 import {EMAIL_PASS, EMAIL_USER, GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY, GUARDIAN_API_KEY, HUGGINGFACE_API_TOKEN, NYTIMES_API_KEY} from "../config/config";
 
 class HealthService {
@@ -255,21 +256,48 @@ class HealthService {
     }
 
     /**
-     * Check health status of Gemini AI service
+     * Check health status of AI Summarization Service with cascading model fallback
      */
-    static async checkGeminiAiHealth(): Promise<IHealthCheckResponse> {
-        console.log('Service: HealthService.checkGeminiAiHealth called'.cyan.italic);
+    static async checkAISummarizationHealth(): Promise<IHealthCheckResponse> {
+        console.log('Service: HealthService.checkAISummarizationHealth called'.cyan.italic);
 
         try {
             const start = Date.now();
-            console.log('External API: Testing Gemini AI health'.magenta, {model: AI_SUMMARIZATION_MODELS[0]});
-            const model = this.genAI.getGenerativeModel({model: AI_SUMMARIZATION_MODELS[0]});
-            await model.generateContent('test');
-            console.log('External API: Gemini AI health check successful'.magenta);
-            console.log('Gemini AI health check completed successfully'.green.bold);
-            return {status: 'healthy', responseTime: `${Date.now() - start}ms`};
+            const {success, workingModel, responseTime, error, attemptedModels, totalAttempts} = await testAIModelsWithFallback({
+                models: AI_SUMMARIZATION_MODELS,
+                serviceName: 'AI Summarization Service',
+                testPrompt: 'Summarize this text: This is a test article for health checking',
+            });
+
+            if (success) {
+                console.log('AI Summarization Service health check completed successfully'.green.bold);
+                return {
+                    status: 'healthy',
+                    responseTime: `${Date.now() - start}ms`,
+                    data: {
+                        serviceName: 'AI Summarization Service',
+                        workingModel,
+                        availableModels: AI_SUMMARIZATION_MODELS,
+                        attemptedModels,
+                        totalAttempts,
+                        modelResponseTime: `${responseTime}ms`,
+                    },
+                };
+            } else {
+                console.error('Service Error: AI Summarization Service health check failed'.red.bold, error);
+                return {
+                    status: 'unhealthy',
+                    error: {message: error || 'All AI models failed'},
+                    data: {
+                        serviceName: 'AI Summarization Service',
+                        availableModels: AI_SUMMARIZATION_MODELS,
+                        attemptedModels,
+                        totalAttempts,
+                    },
+                };
+            }
         } catch (error: any) {
-            console.error('Service Error: HealthService.checkGeminiAiHealth failed'.red.bold, error);
+            console.error('Service Error: HealthService.checkAISummarizationHealth failed'.red.bold, error);
             return {status: 'unhealthy', error: {message: error.message}};
         }
     }
@@ -377,7 +405,7 @@ class HealthService {
             const start = Date.now();
             console.log('Running comprehensive system health checks'.cyan);
 
-            const [newsHealth, guardianHealth, nyTimesHealth, rssHealth, emailHealth, webScrapingHealth, googleHealth, aiHealth, hfHealth, dbHealth] = await Promise.allSettled([
+            const [newsHealth, guardianHealth, nyTimesHealth, rssHealth, emailHealth, webScrapingHealth, googleHealth, aiSummarizationHealth, hfHealth, dbHealth] = await Promise.allSettled([
                 this.checkNewsApiOrgHealth(),
                 this.checkGuardianApiHealth(),
                 this.checkNyTimesApiHealth(),
@@ -385,7 +413,7 @@ class HealthService {
                 this.checkEmailServiceHealth(),
                 this.checkWebScrapingServiceHealth(),
                 this.checkGoogleServicesHealth(),
-                this.checkGeminiAiHealth(),
+                this.checkAISummarizationHealth(),
                 this.checkHuggingFaceApiHealth(),
                 this.checkDatabaseHealth(),
             ]);
@@ -398,7 +426,7 @@ class HealthService {
                 emailService: emailHealth.status === 'fulfilled' ? emailHealth.value : {status: 'failed'},
                 webScrapingService: webScrapingHealth.status === 'fulfilled' ? webScrapingHealth.value : {status: 'failed'},
                 googleServices: googleHealth.status === 'fulfilled' ? googleHealth.value : {status: 'failed'},
-                geminiAI: aiHealth.status === 'fulfilled' ? aiHealth.value : {status: 'failed'},
+                aiSummarization: aiSummarizationHealth.status === 'fulfilled' ? aiSummarizationHealth.value : {status: 'failed'},
                 huggingFaceAPI: hfHealth.status === 'fulfilled' ? hfHealth.value : {status: 'failed'},
                 database: dbHealth.status === 'fulfilled' ? dbHealth.value : {status: 'failed'},
             };

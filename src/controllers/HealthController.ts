@@ -230,34 +230,34 @@ const checkGoogleServicesHealthController = async (req: Request, res: Response) 
     }
 }
 
-const checkGeminiAiHealthController = async (req: Request, res: Response) => {
-    console.info('Controller: checkGeminiAiHealthController started'.bgBlue.white.bold);
+const checkAISummarizationHealthController = async (req: Request, res: Response) => {
+    console.info('Controller: checkAISummarizationHealthController started'.bgBlue.white.bold);
 
     try {
-        const healthCheck = await HealthService.checkGeminiAiHealth();
+        const healthCheck = await HealthService.checkAISummarizationHealth();
 
         if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
-            console.log('SUCCESS: Gemini AI health check completed'.bgGreen.bold, {status: healthCheck.status});
+            console.log('SUCCESS: AI Summarization Service health check completed'.bgGreen.bold, {status: healthCheck.status});
             res.status(200).send(new ApiResponse({
                 success: true,
-                message: healthCheck.status === 'healthy' ? 'Gemini AI health check has been passed 🎉' : 'Gemini AI is partially healthy ⚠️',
+                message: healthCheck.status === 'healthy' ? 'AI Summarization Service health check has been passed 🎉' : 'AI Summarization Service is partially healthy ⚠️',
                 health: healthCheck,
             }));
         } else {
-            console.warn('Health Warning: Gemini AI health check failed'.yellow, {status: healthCheck.status});
+            console.warn('Health Warning: AI Summarization Service health check failed'.yellow, {status: healthCheck.status});
             res.status(503).send(new ApiResponse({
                 success: false,
-                errorCode: 'GEMINI_API_UNHEALTHY',
-                errorMsg: 'Gemini AI health check has been failed',
+                errorCode: 'AI_SUMMARIZATION_UNHEALTHY',
+                errorMsg: 'AI Summarization Service health check has been failed',
                 health: healthCheck,
             }));
         }
     } catch (error: any) {
-        console.error('Controller Error: checkGeminiAiHealthController failed'.red.bold, error);
+        console.error('Controller Error: checkAISummarizationHealthController failed'.red.bold, error);
         res.status(500).send(new ApiResponse({
             success: false,
             error,
-            errorMsg: error.message || 'Something went wrong during gemini ai\'s health check!',
+            errorMsg: error.message || 'Something went wrong during AI Summarization Service health check!',
         }));
     }
 }
@@ -366,7 +366,7 @@ export {
     checkEmailServiceHealthController,
     checkWebScrapingServiceHealthController,
     checkGoogleServicesHealthController,
-    checkGeminiAiHealthController,
+    checkAISummarizationHealthController,
     checkHuggingFaceApiHealthController,
     checkDatabaseHealthController,
     checkOverallSystemHealthController,

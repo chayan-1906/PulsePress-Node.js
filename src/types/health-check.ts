@@ -10,6 +10,15 @@ export interface IDatabaseHealth {
 
 /** ------------- API response types ------------- */
 
+export interface IAIModelsWithFallbackResponse {
+    success: boolean;
+    workingModel?: string;
+    responseTime?: number;
+    error?: string;
+    attemptedModels: string[];
+    totalAttempts: number;
+}
+
 export interface IHealthCheckResponse {
     status: 'healthy' | 'unhealthy' | 'degraded';
     responseTime?: string;
@@ -27,3 +36,9 @@ export interface IHealthCheckResponse {
 
 
 /** ------------- function params ------------- */
+
+export interface IAIModelTestParams {
+    models: string[];
+    serviceName: string;
+    testPrompt?: string;
+}
