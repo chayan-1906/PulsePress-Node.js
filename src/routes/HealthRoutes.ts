@@ -2,6 +2,7 @@ import {Router} from "express";
 import {
     checkDatabaseHealthController,
     checkEmailServiceHealthController,
+    checkWebScrapingServiceHealthController,
     checkGeminiAiHealthController,
     checkGoogleServicesHealthController,
     checkGuardianApiHealthController,
@@ -18,6 +19,7 @@ router.get('/guardian', checkGuardianApiHealthController);          // /health/g
 router.get('/nytimes', checkNyTimesApiHealthController);            // /health/nytimes
 router.get('/rss', checkRssFeedsHealthController);                  // /health/rss
 router.get('/email', checkEmailServiceHealthController);            // /health/email
+router.get('/webscraping', checkWebScrapingServiceHealthController); // /health/webscraping
 router.get('/google-service', checkGoogleServicesHealthController); // /health/google-service
 router.get('/database', checkDatabaseHealthController);             // /health/database
 router.get('/ai', checkGeminiAiHealthController);                   // /health/ai

@@ -67,6 +67,38 @@ const checkGuardianApiHealthController = async (req: Request, res: Response) => 
     }
 }
 
+const checkNyTimesApiHealthController = async (req: Request, res: Response) => {
+    console.info('Controller: checkNyTimesApiHealthController started'.bgBlue.white.bold);
+
+    try {
+        const healthCheck = await HealthService.checkNyTimesApiHealth();
+
+        if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
+            console.log('SUCCESS: NYTimes API health check completed'.bgGreen.bold, {status: healthCheck.status});
+            res.status(200).send(new ApiResponse({
+                success: true,
+                message: healthCheck.status === 'healthy' ? 'NYTimes API health check has been passed 🎉' : 'NYTimes API is partially healthy ⚠️',
+                health: healthCheck,
+            }));
+        } else {
+            console.warn('Health Warning: NYTimes API health check failed'.yellow, {status: healthCheck.status});
+            res.status(503).send(new ApiResponse({
+                success: false,
+                errorCode: 'NYTIMES_API_UNHEALTHY',
+                errorMsg: 'NYTimes API health check has been failed',
+                health: healthCheck,
+            }));
+        }
+    } catch (error: any) {
+        console.error('Controller Error: checkNyTimesApiHealthController failed'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: error.message || 'Something went wrong during NYTimes API health check!',
+        }));
+    }
+}
+
 const checkRssFeedsHealthController = async (req: Request, res: Response) => {
     console.info('Controller: checkRssFeedsHealthController started'.bgBlue.white.bold);
 
@@ -98,6 +130,70 @@ const checkRssFeedsHealthController = async (req: Request, res: Response) => {
             success: false,
             error,
             errorMsg: error.message || 'Something went wrong during rss feeds health check!',
+        }));
+    }
+}
+
+const checkEmailServiceHealthController = async (req: Request, res: Response) => {
+    console.info('Controller: checkEmailServiceHealthController started'.bgBlue.white.bold);
+
+    try {
+        const healthCheck = await HealthService.checkEmailServiceHealth();
+
+        if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
+            console.log('SUCCESS: Email Service health check completed'.bgGreen.bold, {status: healthCheck.status});
+            res.status(200).send(new ApiResponse({
+                success: true,
+                message: healthCheck.status === 'healthy' ? 'Email Service health check has been passed 🎉' : 'Email Service is partially healthy ⚠️',
+                health: healthCheck,
+            }));
+        } else {
+            console.warn('Health Warning: Email Service health check failed'.yellow, {status: healthCheck.status});
+            res.status(503).send(new ApiResponse({
+                success: false,
+                errorCode: 'EMAIL_SERVICE_UNHEALTHY',
+                errorMsg: 'Email Service health check has been failed',
+                health: healthCheck,
+            }));
+        }
+    } catch (error: any) {
+        console.error('Controller Error: checkEmailServiceHealthController failed'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: error.message || 'Something went wrong during Email Service health check!',
+        }));
+    }
+}
+
+const checkWebScrapingServiceHealthController = async (req: Request, res: Response) => {
+    console.info('Controller: checkWebScrapingServiceHealthController started'.bgBlue.white.bold);
+
+    try {
+        const healthCheck = await HealthService.checkWebScrapingServiceHealth();
+
+        if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
+            console.log('SUCCESS: Web Scraping Service health check completed'.bgGreen.bold, {status: healthCheck.status});
+            res.status(200).send(new ApiResponse({
+                success: true,
+                message: healthCheck.status === 'healthy' ? 'Web Scraping Service health check has been passed 🎉' : 'Web Scraping Service is partially healthy ⚠️',
+                health: healthCheck,
+            }));
+        } else {
+            console.warn('Health Warning: Web Scraping Service health check failed'.yellow, {status: healthCheck.status});
+            res.status(503).send(new ApiResponse({
+                success: false,
+                errorCode: 'WEB_SCRAPING_SERVICE_UNHEALTHY',
+                errorMsg: 'Web Scraping Service health check has been failed',
+                health: healthCheck,
+            }));
+        }
+    } catch (error: any) {
+        console.error('Controller Error: checkWebScrapingServiceHealthController failed'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: error.message || 'Something went wrong during Web Scraping Service health check!',
         }));
     }
 }
@@ -162,70 +258,6 @@ const checkGeminiAiHealthController = async (req: Request, res: Response) => {
             success: false,
             error,
             errorMsg: error.message || 'Something went wrong during gemini ai\'s health check!',
-        }));
-    }
-}
-
-const checkNyTimesApiHealthController = async (req: Request, res: Response) => {
-    console.info('Controller: checkNyTimesApiHealthController started'.bgBlue.white.bold);
-
-    try {
-        const healthCheck = await HealthService.checkNyTimesApiHealth();
-
-        if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
-            console.log('SUCCESS: NYTimes API health check completed'.bgGreen.bold, {status: healthCheck.status});
-            res.status(200).send(new ApiResponse({
-                success: true,
-                message: healthCheck.status === 'healthy' ? 'NYTimes API health check has been passed 🎉' : 'NYTimes API is partially healthy ⚠️',
-                health: healthCheck,
-            }));
-        } else {
-            console.warn('Health Warning: NYTimes API health check failed'.yellow, {status: healthCheck.status});
-            res.status(503).send(new ApiResponse({
-                success: false,
-                errorCode: 'NYTIMES_API_UNHEALTHY',
-                errorMsg: 'NYTimes API health check has been failed',
-                health: healthCheck,
-            }));
-        }
-    } catch (error: any) {
-        console.error('Controller Error: checkNyTimesApiHealthController failed'.red.bold, error);
-        res.status(500).send(new ApiResponse({
-            success: false,
-            error,
-            errorMsg: error.message || 'Something went wrong during NYTimes API health check!',
-        }));
-    }
-}
-
-const checkEmailServiceHealthController = async (req: Request, res: Response) => {
-    console.info('Controller: checkEmailServiceHealthController started'.bgBlue.white.bold);
-
-    try {
-        const healthCheck = await HealthService.checkEmailServiceHealth();
-
-        if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
-            console.log('SUCCESS: Email Service health check completed'.bgGreen.bold, {status: healthCheck.status});
-            res.status(200).send(new ApiResponse({
-                success: true,
-                message: healthCheck.status === 'healthy' ? 'Email Service health check has been passed 🎉' : 'Email Service is partially healthy ⚠️',
-                health: healthCheck,
-            }));
-        } else {
-            console.warn('Health Warning: Email Service health check failed'.yellow, {status: healthCheck.status});
-            res.status(503).send(new ApiResponse({
-                success: false,
-                errorCode: 'EMAIL_SERVICE_UNHEALTHY',
-                errorMsg: 'Email Service health check has been failed',
-                health: healthCheck,
-            }));
-        }
-    } catch (error: any) {
-        console.error('Controller Error: checkEmailServiceHealthController failed'.red.bold, error);
-        res.status(500).send(new ApiResponse({
-            success: false,
-            error,
-            errorMsg: error.message || 'Something went wrong during Email Service health check!',
         }));
     }
 }
@@ -298,8 +330,9 @@ export {
     checkNewsApiOrgHealthController,
     checkGuardianApiHealthController,
     checkNyTimesApiHealthController,
-    checkEmailServiceHealthController,
     checkRssFeedsHealthController,
+    checkEmailServiceHealthController,
+    checkWebScrapingServiceHealthController,
     checkGoogleServicesHealthController,
     checkGeminiAiHealthController,
     checkDatabaseHealthController,

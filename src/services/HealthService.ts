@@ -2,6 +2,8 @@ import "colors";
 import axios from "axios";
 import mongoose from "mongoose";
 import nodemailer from 'nodemailer';
+import {JSDOM, VirtualConsole} from 'jsdom';
+import {Readability} from "@mozilla/readability";
 import {GoogleGenerativeAI} from "@google/generative-ai";
 import {Translate} from "@google-cloud/translate/build/src/v2";
 import {apis} from "../utils/apis";
@@ -10,7 +12,7 @@ import {getOAuth2Client} from "../utils/OAuth";
 import {buildHeader} from "../utils/buildHeader";
 import {getDatabaseHealth} from "../utils/databaseHealth";
 import {IHealthCheckResponse} from "../types/health-check";
-import {AI_SUMMARIZATION_MODELS, RSS_SOURCES} from "../utils/constants";
+import {AI_SUMMARIZATION_MODELS, RSS_SOURCES, USER_AGENTS} from "../utils/constants";
 import {EMAIL_PASS, EMAIL_USER, GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY, GUARDIAN_API_KEY, NYTIMES_API_KEY} from "../config/config";
 
 class HealthService {
@@ -169,6 +171,58 @@ class HealthService {
     }
 
     /**
+     * Check health status of Web Scraping Service (Readability + JSDOM)
+     */
+    static async checkWebScrapingServiceHealth(): Promise<IHealthCheckResponse> {
+        console.log('Service: HealthService.checkWebScrapingServiceHealth called'.cyan.italic);
+
+        try {
+            const start = Date.now();
+            console.log('External API: Testing Web Scraping Service health'.magenta);
+
+            const testUrl = 'https://www.indianhealthyrecipes.com/masala-pasta/';
+            const response = await axios.get(testUrl, {
+                headers: buildHeader('webscraping', USER_AGENTS[0]),
+                timeout: 10000,
+            });
+
+            const virtualConsole = new VirtualConsole();
+            virtualConsole.on('error', () => {});
+            virtualConsole.on('warn', () => {});
+
+            const dom = new JSDOM(response.data, {
+                url: testUrl,
+                virtualConsole,
+                pretendToBeVisual: false,
+                resources: 'usable',
+            });
+
+            const reader = new Readability(dom.window.document);
+            const article = reader.parse();
+
+            if (!article || !article.title) {
+                throw new Error('Failed to parse test webpage content');
+            }
+
+            const responseTime = Date.now() - start;
+            console.log('External API: Web Scraping Service health check successful'.magenta, {responseTime});
+            console.log('Web Scraping Service health check completed successfully'.green.bold);
+            return {
+                status: 'healthy',
+                responseTime: `${responseTime}ms`,
+                data: {
+                    testUrl,
+                    parsedTitle: article.title,
+                    contentLength: article.textContent?.length || 0,
+                },
+            };
+        } catch (error: any) {
+            console.error('Service Error: HealthService.checkWebScrapingServiceHealth failed'.red.bold, error);
+            return {status: 'unhealthy', error: {message: error.message}};
+        }
+    }
+
+    /**
      * Check health status of Google services (OAuth and Translate API)
      */
     static async checkGoogleServicesHealth(): Promise<IHealthCheckResponse> {
@@ -274,12 +328,13 @@ class HealthService {
             const start = Date.now();
             console.log('Running comprehensive system health checks'.cyan);
 
-            const [newsHealth, guardianHealth, nyTimesHealth, rssHealth, emailHealth, googleHealth, aiHealth, dbHealth] = await Promise.allSettled([
+            const [newsHealth, guardianHealth, nyTimesHealth, rssHealth, emailHealth, webScrapingHealth, googleHealth, aiHealth, dbHealth] = await Promise.allSettled([
                 this.checkNewsApiOrgHealth(),
                 this.checkGuardianApiHealth(),
                 this.checkNyTimesApiHealth(),
                 this.checkRssFeedsHealth(),
                 this.checkEmailServiceHealth(),
+                this.checkWebScrapingServiceHealth(),
                 this.checkGoogleServicesHealth(),
                 this.checkGeminiAiHealth(),
                 this.checkDatabaseHealth(),
@@ -289,11 +344,12 @@ class HealthService {
                 newsAPI: newsHealth.status === 'fulfilled' ? newsHealth.value : {status: 'failed'},
                 guardianAPI: guardianHealth.status === 'fulfilled' ? guardianHealth.value : {status: 'failed'},
                 nyTimesAPI: nyTimesHealth.status === 'fulfilled' ? nyTimesHealth.value : {status: 'failed'},
-                geminiAI: aiHealth.status === 'fulfilled' ? aiHealth.value : {status: 'failed'},
-                emailService: emailHealth.status === 'fulfilled' ? emailHealth.value : {status: 'failed'},
-                database: dbHealth.status === 'fulfilled' ? dbHealth.value : {status: 'failed'},
-                googleServices: googleHealth.status === 'fulfilled' ? googleHealth.value : {status: 'failed'},
                 rssFeeds: rssHealth.status === 'fulfilled' ? rssHealth.value : {status: 'failed'},
+                emailService: emailHealth.status === 'fulfilled' ? emailHealth.value : {status: 'failed'},
+                webScrapingService: webScrapingHealth.status === 'fulfilled' ? webScrapingHealth.value : {status: 'failed'},
+                googleServices: googleHealth.status === 'fulfilled' ? googleHealth.value : {status: 'failed'},
+                geminiAI: aiHealth.status === 'fulfilled' ? aiHealth.value : {status: 'failed'},
+                database: dbHealth.status === 'fulfilled' ? dbHealth.value : {status: 'failed'},
             };
 
             const healthyServices = Object.values(results).filter(r => r.status === 'healthy').length;
