@@ -1,19 +1,21 @@
 import {Router} from "express";
 import {
-    checkDatabaseHealthController,
-    checkEmailServiceHealthController,
-    checkWebScrapingServiceHealthController,
-    checkAISummarizationHealthController,
-    checkAITagGenerationHealthController,
     checkAIComplexityMeterHealthController,
     checkAIGeographicExtractionHealthController,
-    checkHuggingFaceApiHealthController,
+    checkAIKeyPointsExtractionHealthController,
+    checkAISentimentAnalysisHealthController,
+    checkAISummarizationHealthController,
+    checkAITagGenerationHealthController,
+    checkDatabaseHealthController,
+    checkEmailServiceHealthController,
     checkGoogleServicesHealthController,
     checkGuardianApiHealthController,
+    checkHuggingFaceApiHealthController,
     checkNewsApiOrgHealthController,
     checkNyTimesApiHealthController,
     checkOverallSystemHealthController,
     checkRssFeedsHealthController,
+    checkWebScrapingServiceHealthController,
 } from "../controllers/HealthController";
 
 const router = Router();
@@ -27,6 +29,8 @@ router.get('/webscraping', checkWebScrapingServiceHealthController);    // /heal
 router.get('/google-service', checkGoogleServicesHealthController);     // /health/google-service
 router.get('/ai-summarization', checkAISummarizationHealthController);  // /health/ai-summarization
 router.get('/ai-tag-generation', checkAITagGenerationHealthController); // /health/ai-tag-generation
+router.get('/ai-sentiment-analysis', checkAISentimentAnalysisHealthController); // /health/ai-sentiment-analysis
+router.get('/ai-key-points-extraction', checkAIKeyPointsExtractionHealthController); // /health/ai-key-points-extraction
 router.get('/ai-complexity-meter', checkAIComplexityMeterHealthController); // /health/ai-complexity-meter
 router.get('/ai-geographic-extraction', checkAIGeographicExtractionHealthController); // /health/ai-geographic-extraction
 router.get('/huggingface-ai', checkHuggingFaceApiHealthController);     // /health/huggingface-ai

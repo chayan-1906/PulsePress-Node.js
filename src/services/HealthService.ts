@@ -14,7 +14,16 @@ import {getDatabaseHealth} from "../utils/databaseHealth";
 import {IHealthCheckResponse} from "../types/health-check";
 import {testAIModelsWithFallback} from "../utils/serviceHelpers/healthCheckHelpers";
 import {EMAIL_PASS, EMAIL_USER, GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY, GUARDIAN_API_KEY, HUGGINGFACE_API_TOKEN, NYTIMES_API_KEY} from "../config/config";
-import {AI_COMPLEXITY_METER__MODELS, AI_GEOGRAPHIC_EXTRACTION_MODELS, AI_SUMMARIZATION_MODELS, AI_TAG_GENERATION_MODELS, RSS_SOURCES, USER_AGENTS,} from "../utils/constants";
+import {
+    AI_COMPLEXITY_METER__MODELS,
+    AI_GEOGRAPHIC_EXTRACTION_MODELS,
+    AI_KEY_POINTS_EXTRACTOR_MODELS,
+    AI_SENTIMENT_ANALYSIS_MODELS,
+    AI_SUMMARIZATION_MODELS,
+    AI_TAG_GENERATION_MODELS,
+    RSS_SOURCES,
+    USER_AGENTS,
+} from "../utils/constants";
 
 class HealthService {
     static readonly genAI = new GoogleGenerativeAI(GEMINI_API_KEY!);
@@ -30,7 +39,7 @@ class HealthService {
             console.log('External API: Testing NewsAPI health'.magenta);
             const {data: topHeadlines} = await axios.get(apis.topHeadlinesApi({country: 'us', pageSize: 1}), {
                 headers: buildHeader(),
-                timeout: 5000,
+                timeout: 10000,
             });
             const responseTime = Date.now() - start;
             console.log('External API: NewsAPI health check successful'.magenta, {responseTime});
@@ -78,7 +87,7 @@ class HealthService {
             const url = apis.nytimesSearchApi({q: 'test', pageSize: 1}) + `&api-key=${NYTIMES_API_KEY}`;
             const {data: nytimesResponse} = await axios.get(url, {
                 headers: buildHeader('nytimes'),
-                timeout: 5000,
+                timeout: 10000,
             });
             const responseTime = Date.now() - start;
             console.log('External API: NYTimes API health check successful'.magenta, {responseTime});
@@ -349,6 +358,101 @@ class HealthService {
         }
     }
 
+
+    /**
+     * Check health status of AI Sentiment Analysis Service with cascading model fallback
+     */
+    static async checkAISentimentAnalysisHealth(): Promise<IHealthCheckResponse> {
+        console.log('Service: HealthService.checkAISentimentAnalysisHealth called'.cyan.italic);
+
+        try {
+            const start = Date.now();
+            const {success, workingModel, responseTime, error, attemptedModels, totalAttempts} = await testAIModelsWithFallback({
+                models: AI_SENTIMENT_ANALYSIS_MODELS,
+                serviceName: 'AI Sentiment Analysis Service',
+                testPrompt: 'Analyze the sentiment of this text: This is a wonderful and positive test article for health checking',
+            });
+
+            if (success) {
+                console.log('AI Sentiment Analysis Service health check completed successfully'.green.bold);
+                return {
+                    status: 'healthy',
+                    responseTime: `${Date.now() - start}ms`,
+                    data: {
+                        serviceName: 'AI Sentiment Analysis Service',
+                        workingModel,
+                        availableModels: AI_SENTIMENT_ANALYSIS_MODELS,
+                        attemptedModels,
+                        totalAttempts,
+                        modelResponseTime: `${responseTime}ms`,
+                    },
+                };
+            } else {
+                console.error('Service Error: AI Sentiment Analysis Service health check failed'.red.bold, error);
+                return {
+                    status: 'unhealthy',
+                    error: {message: error || 'All AI models failed'},
+                    data: {
+                        serviceName: 'AI Sentiment Analysis Service',
+                        availableModels: AI_SENTIMENT_ANALYSIS_MODELS,
+                        attemptedModels,
+                        totalAttempts,
+                    },
+                };
+            }
+        } catch (error: any) {
+            console.error('Service Error: HealthService.checkAISentimentAnalysisHealth failed'.red.bold, error);
+            return {status: 'unhealthy', error: {message: error.message}};
+        }
+    }
+
+    /**
+     * Check health status of AI Key Points Extraction Service with cascading model fallback
+     */
+    static async checkAIKeyPointsExtractionHealth(): Promise<IHealthCheckResponse> {
+        console.log('Service: HealthService.checkAIKeyPointsExtractionHealth called'.cyan.italic);
+
+        try {
+            const start = Date.now();
+            const {success, workingModel, responseTime, error, attemptedModels, totalAttempts} = await testAIModelsWithFallback({
+                models: AI_KEY_POINTS_EXTRACTOR_MODELS,
+                serviceName: 'AI Key Points Extraction Service',
+                testPrompt: 'Extract key points from this text: This is a test article about technology and artificial intelligence that discusses machine learning algorithms, data processing, and automated systems for health checking purposes',
+            });
+
+            if (success) {
+                console.log('AI Key Points Extraction Service health check completed successfully'.green.bold);
+                return {
+                    status: 'healthy',
+                    responseTime: `${Date.now() - start}ms`,
+                    data: {
+                        serviceName: 'AI Key Points Extraction Service',
+                        workingModel,
+                        availableModels: AI_KEY_POINTS_EXTRACTOR_MODELS,
+                        attemptedModels,
+                        totalAttempts,
+                        modelResponseTime: `${responseTime}ms`,
+                    },
+                };
+            } else {
+                console.error('Service Error: AI Key Points Extraction Service health check failed'.red.bold, error);
+                return {
+                    status: 'unhealthy',
+                    error: {message: error || 'All AI models failed'},
+                    data: {
+                        serviceName: 'AI Key Points Extraction Service',
+                        availableModels: AI_KEY_POINTS_EXTRACTOR_MODELS,
+                        attemptedModels,
+                        totalAttempts,
+                    },
+                };
+            }
+        } catch (error: any) {
+            console.error('Service Error: HealthService.checkAIKeyPointsExtractionHealth failed'.red.bold, error);
+            return {status: 'unhealthy', error: {message: error.message}};
+        }
+    }
+
     /**
      * Check health status of AI Complexity Meter Service with cascading model fallback
      */
@@ -546,7 +650,7 @@ class HealthService {
             const start = Date.now();
             console.log('Running comprehensive system health checks'.cyan);
 
-            const [newsHealth, guardianHealth, nyTimesHealth, rssHealth, emailHealth, webScrapingHealth, googleHealth, aiSummarizationHealth, aiTagGenerationHealth, aiComplexityMeterHealth, aiGeographicExtractionHealth, hfHealth, dbHealth] = await Promise.allSettled([
+            const [newsHealth, guardianHealth, nyTimesHealth, rssHealth, emailHealth, webScrapingHealth, googleHealth, aiSummarizationHealth, aiTagGenerationHealth, aiSentimentAnalysisHealth, aiKeyPointsExtractionHealth, aiComplexityMeterHealth, aiGeographicExtractionHealth, hfHealth, dbHealth] = await Promise.allSettled([
                 this.checkNewsApiOrgHealth(),
                 this.checkGuardianApiHealth(),
                 this.checkNyTimesApiHealth(),
@@ -556,6 +660,8 @@ class HealthService {
                 this.checkGoogleServicesHealth(),
                 this.checkAISummarizationHealth(),
                 this.checkAITagGenerationHealth(),
+                this.checkAISentimentAnalysisHealth(),
+                this.checkAIKeyPointsExtractionHealth(),
                 this.checkAIComplexityMeterHealth(),
                 this.checkAIGeographicExtractionHealth(),
                 this.checkHuggingFaceApiHealth(),
@@ -572,6 +678,8 @@ class HealthService {
                 googleServices: googleHealth.status === 'fulfilled' ? googleHealth.value : {status: 'failed'},
                 aiSummarization: aiSummarizationHealth.status === 'fulfilled' ? aiSummarizationHealth.value : {status: 'failed'},
                 aiTagGeneration: aiTagGenerationHealth.status === 'fulfilled' ? aiTagGenerationHealth.value : {status: 'failed'},
+                aiSentimentAnalysis: aiSentimentAnalysisHealth.status === 'fulfilled' ? aiSentimentAnalysisHealth.value : {status: 'failed'},
+                aiKeyPointsExtraction: aiKeyPointsExtractionHealth.status === 'fulfilled' ? aiKeyPointsExtractionHealth.value : {status: 'failed'},
                 aiComplexityMeter: aiComplexityMeterHealth.status === 'fulfilled' ? aiComplexityMeterHealth.value : {status: 'failed'},
                 aiGeographicExtraction: aiGeographicExtractionHealth.status === 'fulfilled' ? aiGeographicExtractionHealth.value : {status: 'failed'},
                 huggingFaceAPI: hfHealth.status === 'fulfilled' ? hfHealth.value : {status: 'failed'},

@@ -294,6 +294,70 @@ const checkAITagGenerationHealthController = async (req: Request, res: Response)
     }
 }
 
+const checkAISentimentAnalysisHealthController = async (req: Request, res: Response) => {
+    console.info('Controller: checkAISentimentAnalysisHealthController started'.bgBlue.white.bold);
+
+    try {
+        const healthCheck = await HealthService.checkAISentimentAnalysisHealth();
+
+        if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
+            console.log('SUCCESS: AI Sentiment Analysis Service health check completed'.bgGreen.bold, {status: healthCheck.status});
+            res.status(200).send(new ApiResponse({
+                success: true,
+                message: healthCheck.status === 'healthy' ? 'AI Sentiment Analysis Service health check has been passed 🎉' : 'AI Sentiment Analysis Service is partially healthy ⚠️',
+                health: healthCheck,
+            }));
+        } else {
+            console.warn('Health Warning: AI Sentiment Analysis Service health check failed'.yellow, {status: healthCheck.status});
+            res.status(503).send(new ApiResponse({
+                success: false,
+                errorCode: 'AI_SENTIMENT_ANALYSIS_UNHEALTHY',
+                errorMsg: 'AI Sentiment Analysis Service health check has been failed',
+                health: healthCheck,
+            }));
+        }
+    } catch (error: any) {
+        console.error('Controller Error: checkAISentimentAnalysisHealthController failed'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: error.message || 'Something went wrong during AI Sentiment Analysis Service health check!',
+        }));
+    }
+}
+
+const checkAIKeyPointsExtractionHealthController = async (req: Request, res: Response) => {
+    console.info('Controller: checkAIKeyPointsExtractionHealthController started'.bgBlue.white.bold);
+
+    try {
+        const healthCheck = await HealthService.checkAIKeyPointsExtractionHealth();
+
+        if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
+            console.log('SUCCESS: AI Key Points Extraction Service health check completed'.bgGreen.bold, {status: healthCheck.status});
+            res.status(200).send(new ApiResponse({
+                success: true,
+                message: healthCheck.status === 'healthy' ? 'AI Key Points Extraction Service health check has been passed 🎉' : 'AI Key Points Extraction Service is partially healthy ⚠️',
+                health: healthCheck,
+            }));
+        } else {
+            console.warn('Health Warning: AI Key Points Extraction Service health check failed'.yellow, {status: healthCheck.status});
+            res.status(503).send(new ApiResponse({
+                success: false,
+                errorCode: 'AI_KEY_POINTS_EXTRACTION_UNHEALTHY',
+                errorMsg: 'AI Key Points Extraction Service health check has been failed',
+                health: healthCheck,
+            }));
+        }
+    } catch (error: any) {
+        console.error('Controller Error: checkAIKeyPointsExtractionHealthController failed'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: error.message || 'Something went wrong during AI Key Points Extraction Service health check!',
+        }));
+    }
+}
+
 const checkAIComplexityMeterHealthController = async (req: Request, res: Response) => {
     console.info('Controller: checkAIComplexityMeterHealthController started'.bgBlue.white.bold);
 
@@ -464,6 +528,8 @@ export {
     checkGoogleServicesHealthController,
     checkAISummarizationHealthController,
     checkAITagGenerationHealthController,
+    checkAISentimentAnalysisHealthController,
+    checkAIKeyPointsExtractionHealthController,
     checkAIComplexityMeterHealthController,
     checkAIGeographicExtractionHealthController,
     checkHuggingFaceApiHealthController,
