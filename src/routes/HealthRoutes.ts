@@ -1,6 +1,7 @@
 import {Router} from "express";
 import {
     checkAIComplexityMeterHealthController,
+    checkAIQuestionAnswerHealthController,
     checkAIGeographicExtractionHealthController,
     checkAIKeyPointsExtractionHealthController,
     checkAISentimentAnalysisHealthController,
@@ -32,6 +33,7 @@ router.get('/ai-tag-generation', checkAITagGenerationHealthController); // /heal
 router.get('/ai-sentiment-analysis', checkAISentimentAnalysisHealthController); // /health/ai-sentiment-analysis
 router.get('/ai-key-points-extraction', checkAIKeyPointsExtractionHealthController); // /health/ai-key-points-extraction
 router.get('/ai-complexity-meter', checkAIComplexityMeterHealthController); // /health/ai-complexity-meter
+router.get('/ai-question-answer', checkAIQuestionAnswerHealthController); // /health/ai-question-answer
 router.get('/ai-geographic-extraction', checkAIGeographicExtractionHealthController); // /health/ai-geographic-extraction
 router.get('/huggingface-ai', checkHuggingFaceApiHealthController);     // /health/huggingface-ai
 router.get('/database', checkDatabaseHealthController);                 // /health/database

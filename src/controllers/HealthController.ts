@@ -390,6 +390,38 @@ const checkAIComplexityMeterHealthController = async (req: Request, res: Respons
     }
 }
 
+const checkAIQuestionAnswerHealthController = async (req: Request, res: Response) => {
+    console.info('Controller: checkAIQuestionAnswerHealthController started'.bgBlue.white.bold);
+
+    try {
+        const healthCheck = await HealthService.checkAIQuestionAnswerHealth();
+
+        if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
+            console.log('SUCCESS: AI Question Answer Service health check completed'.bgGreen.bold, {status: healthCheck.status});
+            res.status(200).send(new ApiResponse({
+                success: true,
+                message: healthCheck.status === 'healthy' ? 'AI Question Answer Service health check has been passed 🎉' : 'AI Question Answer Service is partially healthy ⚠️',
+                health: healthCheck,
+            }));
+        } else {
+            console.warn('Health Warning: AI Question Answer Service health check failed'.yellow, {status: healthCheck.status});
+            res.status(503).send(new ApiResponse({
+                success: false,
+                errorCode: 'AI_QUESTION_ANSWER_UNHEALTHY',
+                errorMsg: 'AI Question Answer Service health check has been failed',
+                health: healthCheck,
+            }));
+        }
+    } catch (error: any) {
+        console.error('Controller Error: checkAIQuestionAnswerHealthController failed'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: error.message || 'Something went wrong during AI Question Answer Service health check!',
+        }));
+    }
+}
+
 const checkAIGeographicExtractionHealthController = async (req: Request, res: Response) => {
     console.info('Controller: checkAIGeographicExtractionHealthController started'.bgBlue.white.bold);
 
@@ -531,6 +563,7 @@ export {
     checkAISentimentAnalysisHealthController,
     checkAIKeyPointsExtractionHealthController,
     checkAIComplexityMeterHealthController,
+    checkAIQuestionAnswerHealthController,
     checkAIGeographicExtractionHealthController,
     checkHuggingFaceApiHealthController,
     checkDatabaseHealthController,

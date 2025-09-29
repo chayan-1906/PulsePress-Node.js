@@ -21,6 +21,7 @@ import {
     AI_SENTIMENT_ANALYSIS_MODELS,
     AI_SUMMARIZATION_MODELS,
     AI_TAG_GENERATION_MODELS,
+    QUESTION_ANSWER_MODELS,
     RSS_SOURCES,
     USER_AGENTS,
 } from "../utils/constants";
@@ -358,7 +359,6 @@ class HealthService {
         }
     }
 
-
     /**
      * Check health status of AI Sentiment Analysis Service with cascading model fallback
      */
@@ -496,6 +496,98 @@ class HealthService {
             }
         } catch (error: any) {
             console.error('Service Error: HealthService.checkAIComplexityMeterHealth failed'.red.bold, error);
+            return {status: 'unhealthy', error: {message: error.message}};
+        }
+    }
+
+    /**
+     * Check health status of AI Question Answer Service with cascading model fallback
+     * Tests both question generation and parallel question answering capabilities
+     */
+    static async checkAIQuestionAnswerHealth(): Promise<IHealthCheckResponse> {
+        console.log('Service: HealthService.checkAIQuestionAnswerHealth called'.cyan.italic);
+
+        try {
+            const start = Date.now();
+            const sampleArticle = 'Artificial intelligence is transforming healthcare through machine learning algorithms that can analyze medical data, assist in diagnosis, and predict patient outcomes. AI systems are being integrated into hospitals to improve efficiency and accuracy in medical decision-making.';
+
+            // Step 1: Test question generation
+            console.log('Testing AI question generation capability'.cyan);
+            const questionGenResult = await testAIModelsWithFallback({
+                models: QUESTION_ANSWER_MODELS,
+                serviceName: 'AI Question Generation',
+                testPrompt: `Generate 3 relevant questions based on this text: ${sampleArticle}`,
+            });
+
+            if (!questionGenResult.success) {
+                console.error('Service Error: Question generation failed'.red.bold, questionGenResult.error);
+                return {
+                    status: 'unhealthy',
+                    error: {message: `Question generation failed: ${questionGenResult.error}`},
+                    data: {
+                        serviceName: 'AI Question Answer Service',
+                        availableModels: QUESTION_ANSWER_MODELS,
+                        attemptedModels: questionGenResult.attemptedModels,
+                        totalAttempts: questionGenResult.totalAttempts,
+                        failedAt: 'question_generation',
+                    },
+                };
+            }
+
+            console.log('Question generation successful, testing question answering'.cyan);
+
+            const testQuestions = [
+                'What is artificial intelligence transforming?',
+                'How do AI systems help in medical decision-making?',
+                'What can machine learning algorithms analyze?'
+            ];
+
+            const answerPromises = testQuestions.map(question =>
+                testAIModelsWithFallback({
+                    models: QUESTION_ANSWER_MODELS,
+                    serviceName: 'AI Question Answering',
+                    testPrompt: `Answer this question based on the text: ${question}\n\nText: ${sampleArticle}`,
+                }),
+            );
+
+            const answerResults = await Promise.allSettled(answerPromises);
+            const successfulAnswers = answerResults.filter(result => result.status === 'fulfilled' && result.value.success).length;
+
+            const totalAnswerTime = Date.now() - start;
+
+            if (successfulAnswers === testQuestions.length) {
+                console.log('AI Question Answer Service health check completed successfully'.green.bold);
+                return {
+                    status: 'healthy',
+                    responseTime: `${totalAnswerTime}ms`,
+                    data: {
+                        serviceName: 'AI Question Answer Service',
+                        workingModel: questionGenResult.workingModel,
+                        availableModels: QUESTION_ANSWER_MODELS,
+                        attemptedModels: questionGenResult.attemptedModels,
+                        totalAttempts: questionGenResult.totalAttempts,
+                        questionGenerationTime: `${questionGenResult.responseTime}ms`,
+                        questionsAnswered: `${successfulAnswers}/${testQuestions.length}`,
+                        testQuestions: testQuestions,
+                    },
+                };
+            } else {
+                console.error('Service Error: Question answering partially failed'.red.bold, {successful: successfulAnswers, total: testQuestions.length});
+                return {
+                    status: 'unhealthy',
+                    error: {message: `Question answering failed: ${successfulAnswers}/${testQuestions.length} successful`},
+                    data: {
+                        serviceName: 'AI Question Answer Service',
+                        availableModels: QUESTION_ANSWER_MODELS,
+                        attemptedModels: questionGenResult.attemptedModels,
+                        totalAttempts: questionGenResult.totalAttempts,
+                        questionsAnswered: `${successfulAnswers}/${testQuestions.length}`,
+                        failedAt: 'question_answering',
+                    },
+                };
+            }
+        } catch (error: any) {
+            console.error('Service Error: HealthService.checkAIQuestionAnswerHealth failed'.red.bold, error);
             return {status: 'unhealthy', error: {message: error.message}};
         }
     }
@@ -650,7 +742,7 @@ class HealthService {
             const start = Date.now();
             console.log('Running comprehensive system health checks'.cyan);
 
-            const [newsHealth, guardianHealth, nyTimesHealth, rssHealth, emailHealth, webScrapingHealth, googleHealth, aiSummarizationHealth, aiTagGenerationHealth, aiSentimentAnalysisHealth, aiKeyPointsExtractionHealth, aiComplexityMeterHealth, aiGeographicExtractionHealth, hfHealth, dbHealth] = await Promise.allSettled([
+            const [newsHealth, guardianHealth, nyTimesHealth, rssHealth, emailHealth, webScrapingHealth, googleHealth, aiSummarizationHealth, aiTagGenerationHealth, aiSentimentAnalysisHealth, aiKeyPointsExtractionHealth, aiComplexityMeterHealth, aiQuestionAnswerHealth, aiGeographicExtractionHealth, hfHealth, dbHealth] = await Promise.allSettled([
                 this.checkNewsApiOrgHealth(),
                 this.checkGuardianApiHealth(),
                 this.checkNyTimesApiHealth(),
@@ -663,6 +755,7 @@ class HealthService {
                 this.checkAISentimentAnalysisHealth(),
                 this.checkAIKeyPointsExtractionHealth(),
                 this.checkAIComplexityMeterHealth(),
+                this.checkAIQuestionAnswerHealth(),
                 this.checkAIGeographicExtractionHealth(),
                 this.checkHuggingFaceApiHealth(),
                 this.checkDatabaseHealth(),
@@ -681,6 +774,7 @@ class HealthService {
                 aiSentimentAnalysis: aiSentimentAnalysisHealth.status === 'fulfilled' ? aiSentimentAnalysisHealth.value : {status: 'failed'},
                 aiKeyPointsExtraction: aiKeyPointsExtractionHealth.status === 'fulfilled' ? aiKeyPointsExtractionHealth.value : {status: 'failed'},
                 aiComplexityMeter: aiComplexityMeterHealth.status === 'fulfilled' ? aiComplexityMeterHealth.value : {status: 'failed'},
+                aiQuestionAnswer: aiQuestionAnswerHealth.status === 'fulfilled' ? aiQuestionAnswerHealth.value : {status: 'failed'},
                 aiGeographicExtraction: aiGeographicExtractionHealth.status === 'fulfilled' ? aiGeographicExtractionHealth.value : {status: 'failed'},
                 huggingFaceAPI: hfHealth.status === 'fulfilled' ? hfHealth.value : {status: 'failed'},
                 database: dbHealth.status === 'fulfilled' ? dbHealth.value : {status: 'failed'},
