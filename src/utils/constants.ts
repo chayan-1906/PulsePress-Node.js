@@ -133,7 +133,7 @@ const RSS_SOURCES = {
 export const AI_MODELS = {
     GEMINI_25_FLASH_LITE: 'gemini-2.5-flash-lit',
     GEMINI_25_FLASH: 'gemini-2.5-flas',
-    GEMINI_20_FLASH: 'gemini-2.0-flas',
+    GEMINI_20_FLASH: 'gemini-2.0-flash',
     GEMINI_20_FLASH_LITE: 'gemini-2.0-flash-lite',
     GEMINI_15_FLASH: 'gemini-1.5-flash',
 } as const;

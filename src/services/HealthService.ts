@@ -18,7 +18,9 @@ import {
     AI_COMPLEXITY_METER__MODELS,
     AI_GEOGRAPHIC_EXTRACTION_MODELS,
     AI_KEY_POINTS_EXTRACTOR_MODELS,
+    AI_NEWS_INSIGHTS_MODELS,
     AI_SENTIMENT_ANALYSIS_MODELS,
+    AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS,
     AI_SUMMARIZATION_MODELS,
     AI_TAG_GENERATION_MODELS,
     QUESTION_ANSWER_MODELS,
@@ -640,6 +642,100 @@ class HealthService {
     }
 
     /**
+     * Check health status of AI Social Media Caption Service with cascading model fallback
+     */
+    static async checkAISocialMediaCaptionHealth(): Promise<IHealthCheckResponse> {
+        console.log('Service: HealthService.checkAISocialMediaCaptionHealth called'.cyan.italic);
+
+        try {
+            const start = Date.now();
+            const {success, workingModel, responseTime, error, attemptedModels, totalAttempts} = await testAIModelsWithFallback({
+                models: AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS,
+                serviceName: 'AI Social Media Caption Service',
+                testPrompt: 'Generate an engaging social media caption for this news: Artificial intelligence breakthroughs in healthcare are helping doctors diagnose diseases faster and more accurately than ever before',
+            });
+
+            if (success) {
+                console.log('AI Social Media Caption Service health check completed successfully'.green.bold);
+                return {
+                    status: 'healthy',
+                    responseTime: `${Date.now() - start}ms`,
+                    data: {
+                        serviceName: 'AI Social Media Caption Service',
+                        workingModel,
+                        availableModels: AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS,
+                        attemptedModels,
+                        totalAttempts,
+                        modelResponseTime: `${responseTime}ms`,
+                    },
+                };
+            } else {
+                console.error('Service Error: AI Social Media Caption Service health check failed'.red.bold, error);
+                return {
+                    status: 'unhealthy',
+                    error: {message: error || 'All AI models failed'},
+                    data: {
+                        serviceName: 'AI Social Media Caption Service',
+                        availableModels: AI_SOCIAL_MEDIA_CAPTION_GENERATE_MODELS,
+                        attemptedModels,
+                        totalAttempts,
+                    },
+                };
+            }
+        } catch (error: any) {
+            console.error('Service Error: HealthService.checkAISocialMediaCaptionHealth failed'.red.bold, error);
+            return {status: 'unhealthy', error: {message: error.message}};
+        }
+    }
+
+    /**
+     * Check health status of AI News Insights Service with cascading model fallback
+     */
+    static async checkAINewsInsightsHealth(): Promise<IHealthCheckResponse> {
+        console.log('Service: HealthService.checkAINewsInsightsHealth called'.cyan.italic);
+
+        try {
+            const start = Date.now();
+            const {success, workingModel, responseTime, error, attemptedModels, totalAttempts} = await testAIModelsWithFallback({
+                models: AI_NEWS_INSIGHTS_MODELS,
+                serviceName: 'AI News Insights Service',
+                testPrompt: 'Generate insightful analysis for this news article: Artificial intelligence technologies are revolutionizing healthcare with new diagnostic tools that can detect early signs of disease in medical imaging',
+            });
+
+            if (success) {
+                console.log('AI News Insights Service health check completed successfully'.green.bold);
+                return {
+                    status: 'healthy',
+                    responseTime: `${Date.now() - start}ms`,
+                    data: {
+                        serviceName: 'AI News Insights Service',
+                        workingModel,
+                        availableModels: AI_NEWS_INSIGHTS_MODELS,
+                        attemptedModels,
+                        totalAttempts,
+                        modelResponseTime: `${responseTime}ms`,
+                    },
+                };
+            } else {
+                console.error('Service Error: AI News Insights Service health check failed'.red.bold, error);
+                return {
+                    status: 'unhealthy',
+                    error: {message: error || 'All AI models failed'},
+                    data: {
+                        serviceName: 'AI News Insights Service',
+                        availableModels: AI_NEWS_INSIGHTS_MODELS,
+                        attemptedModels,
+                        totalAttempts,
+                    },
+                };
+            }
+        } catch (error: any) {
+            console.error('Service Error: HealthService.checkAINewsInsightsHealth failed'.red.bold, error);
+            return {status: 'unhealthy', error: {message: error.message}};
+        }
+    }
+
+    /**
      * Check health status of HuggingFace API service
      */
     static async checkHuggingFaceApiHealth(): Promise<IHealthCheckResponse> {
@@ -742,7 +838,7 @@ class HealthService {
             const start = Date.now();
             console.log('Running comprehensive system health checks'.cyan);
 
-            const [newsHealth, guardianHealth, nyTimesHealth, rssHealth, emailHealth, webScrapingHealth, googleHealth, aiSummarizationHealth, aiTagGenerationHealth, aiSentimentAnalysisHealth, aiKeyPointsExtractionHealth, aiComplexityMeterHealth, aiQuestionAnswerHealth, aiGeographicExtractionHealth, hfHealth, dbHealth] = await Promise.allSettled([
+            const [newsHealth, guardianHealth, nyTimesHealth, rssHealth, emailHealth, webScrapingHealth, googleHealth, aiSummarizationHealth, aiTagGenerationHealth, aiSentimentAnalysisHealth, aiKeyPointsExtractionHealth, aiComplexityMeterHealth, aiQuestionAnswerHealth, aiGeographicExtractionHealth, aiSocialMediaCaptionHealth, aiNewsInsightsHealth, hfHealth, dbHealth] = await Promise.allSettled([
                 this.checkNewsApiOrgHealth(),
                 this.checkGuardianApiHealth(),
                 this.checkNyTimesApiHealth(),
@@ -757,6 +853,8 @@ class HealthService {
                 this.checkAIComplexityMeterHealth(),
                 this.checkAIQuestionAnswerHealth(),
                 this.checkAIGeographicExtractionHealth(),
+                this.checkAISocialMediaCaptionHealth(),
+                this.checkAINewsInsightsHealth(),
                 this.checkHuggingFaceApiHealth(),
                 this.checkDatabaseHealth(),
             ]);
@@ -776,6 +874,8 @@ class HealthService {
                 aiComplexityMeter: aiComplexityMeterHealth.status === 'fulfilled' ? aiComplexityMeterHealth.value : {status: 'failed'},
                 aiQuestionAnswer: aiQuestionAnswerHealth.status === 'fulfilled' ? aiQuestionAnswerHealth.value : {status: 'failed'},
                 aiGeographicExtraction: aiGeographicExtractionHealth.status === 'fulfilled' ? aiGeographicExtractionHealth.value : {status: 'failed'},
+                aiSocialMediaCaption: aiSocialMediaCaptionHealth.status === 'fulfilled' ? aiSocialMediaCaptionHealth.value : {status: 'failed'},
+                aiNewsInsights: aiNewsInsightsHealth.status === 'fulfilled' ? aiNewsInsightsHealth.value : {status: 'failed'},
                 huggingFaceAPI: hfHealth.status === 'fulfilled' ? hfHealth.value : {status: 'failed'},
                 database: dbHealth.status === 'fulfilled' ? dbHealth.value : {status: 'failed'},
             };

@@ -454,6 +454,70 @@ const checkAIGeographicExtractionHealthController = async (req: Request, res: Re
     }
 }
 
+const checkAISocialMediaCaptionHealthController = async (req: Request, res: Response) => {
+    console.info('Controller: checkAISocialMediaCaptionHealthController started'.bgBlue.white.bold);
+
+    try {
+        const healthCheck = await HealthService.checkAISocialMediaCaptionHealth();
+
+        if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
+            console.log('SUCCESS: AI Social Media Caption Service health check completed'.bgGreen.bold, {status: healthCheck.status});
+            res.status(200).send(new ApiResponse({
+                success: true,
+                message: healthCheck.status === 'healthy' ? 'AI Social Media Caption Service health check has been passed 🎉' : 'AI Social Media Caption Service is partially healthy ⚠️',
+                health: healthCheck,
+            }));
+        } else {
+            console.warn('Health Warning: AI Social Media Caption Service health check failed'.yellow, {status: healthCheck.status});
+            res.status(503).send(new ApiResponse({
+                success: false,
+                errorCode: 'AI_SOCIAL_MEDIA_CAPTION_UNHEALTHY',
+                errorMsg: 'AI Social Media Caption Service health check has been failed',
+                health: healthCheck,
+            }));
+        }
+    } catch (error: any) {
+        console.error('Controller Error: checkAISocialMediaCaptionHealthController failed'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: error.message || 'Something went wrong during AI Social Media Caption Service health check!',
+        }));
+    }
+}
+
+const checkAINewsInsightsHealthController = async (req: Request, res: Response) => {
+    console.info('Controller: checkAINewsInsightsHealthController started'.bgBlue.white.bold);
+
+    try {
+        const healthCheck = await HealthService.checkAINewsInsightsHealth();
+
+        if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
+            console.log('SUCCESS: AI News Insights Service health check completed'.bgGreen.bold, {status: healthCheck.status});
+            res.status(200).send(new ApiResponse({
+                success: true,
+                message: healthCheck.status === 'healthy' ? 'AI News Insights Service health check has been passed 🎉' : 'AI News Insights Service is partially healthy ⚠️',
+                health: healthCheck,
+            }));
+        } else {
+            console.warn('Health Warning: AI News Insights Service health check failed'.yellow, {status: healthCheck.status});
+            res.status(503).send(new ApiResponse({
+                success: false,
+                errorCode: 'AI_NEWS_INSIGHTS_UNHEALTHY',
+                errorMsg: 'AI News Insights Service health check has been failed',
+                health: healthCheck,
+            }));
+        }
+    } catch (error: any) {
+        console.error('Controller Error: checkAINewsInsightsHealthController failed'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: error.message || 'Something went wrong during AI News Insights Service health check!',
+        }));
+    }
+}
+
 const checkHuggingFaceApiHealthController = async (req: Request, res: Response) => {
     console.info('Controller: checkHuggingFaceApiHealthController started'.bgBlue.white.bold);
 
@@ -565,6 +629,8 @@ export {
     checkAIComplexityMeterHealthController,
     checkAIQuestionAnswerHealthController,
     checkAIGeographicExtractionHealthController,
+    checkAISocialMediaCaptionHealthController,
+    checkAINewsInsightsHealthController,
     checkHuggingFaceApiHealthController,
     checkDatabaseHealthController,
     checkOverallSystemHealthController,

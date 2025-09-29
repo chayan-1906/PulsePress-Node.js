@@ -4,6 +4,8 @@ import {
     checkAIQuestionAnswerHealthController,
     checkAIGeographicExtractionHealthController,
     checkAIKeyPointsExtractionHealthController,
+    checkAINewsInsightsHealthController,
+    checkAISocialMediaCaptionHealthController,
     checkAISentimentAnalysisHealthController,
     checkAISummarizationHealthController,
     checkAITagGenerationHealthController,
@@ -35,6 +37,8 @@ router.get('/ai-key-points-extraction', checkAIKeyPointsExtractionHealthControll
 router.get('/ai-complexity-meter', checkAIComplexityMeterHealthController); // /health/ai-complexity-meter
 router.get('/ai-question-answer', checkAIQuestionAnswerHealthController); // /health/ai-question-answer
 router.get('/ai-geographic-extraction', checkAIGeographicExtractionHealthController); // /health/ai-geographic-extraction
+router.get('/ai-social-media-caption', checkAISocialMediaCaptionHealthController); // /health/ai-social-media-caption
+router.get('/ai-news-insights', checkAINewsInsightsHealthController); // /health/ai-news-insights
 router.get('/huggingface-ai', checkHuggingFaceApiHealthController);     // /health/huggingface-ai
 router.get('/database', checkDatabaseHealthController);                 // /health/database
 router.get('/', checkOverallSystemHealthController);                    // /
