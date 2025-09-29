@@ -268,6 +268,104 @@ class HealthService {
     }
 
     /**
+     * Check health status of AI News Classification Service with HuggingFace primary and Gemini fallback
+     */
+    static async checkAINewsClassificationHealth(): Promise<IHealthCheckResponse> {
+        console.log('Service: HealthService.checkAINewsClassificationHealth called'.cyan.italic);
+
+        try {
+            const start = Date.now();
+            let huggingFaceSuccess = false;
+            let geminiSuccess = false;
+            let workingMethod = '';
+            let errorDetails = '';
+
+            console.log('Testing HuggingFace classification capability'.cyan);
+            try {
+                if (HUGGINGFACE_API_TOKEN) {
+                    const payload = {
+                        inputs: 'This is a test article about artificial intelligence breakthroughs in healthcare technology for classification health checking',
+                        parameters: {
+                            candidate_labels: ['technology', 'healthcare', 'artificial intelligence', 'other'],
+                        },
+                    };
+
+                    const response = await axios.post('https://api-inference.huggingface.co/models/facebook/bart-large-mnli',
+                        payload, {
+                            headers: buildHeader('huggingface'),
+                            timeout: 10000,
+                        },
+                    );
+
+                    if (response.data) {
+                        huggingFaceSuccess = true;
+                        workingMethod = 'HuggingFace (primary)';
+                        console.log('HuggingFace classification test successful'.cyan);
+                    }
+                } else {
+                    console.warn('HuggingFace API token not configured, skipping primary test'.yellow);
+                }
+            } catch (error: any) {
+                console.warn('HuggingFace classification test failed, trying Gemini fallback'.yellow, error.message);
+                errorDetails = `HuggingFace failed: ${error.message}`;
+            }
+
+            // Step 2: Test Gemini classification (fallback method)
+            if (!huggingFaceSuccess) {
+                console.log('Testing Gemini classification capability'.cyan);
+                const geminiResult = await testAIModelsWithFallback({
+                    models: AI_SUMMARIZATION_MODELS,
+                    serviceName: 'AI News Classification (Gemini Fallback)',
+                    testPrompt: 'Classify this news article into appropriate categories: This is a test article about artificial intelligence breakthroughs in healthcare technology for classification health checking',
+                });
+
+                if (geminiResult.success) {
+                    geminiSuccess = true;
+                    workingMethod = `Gemini fallback (${geminiResult.workingModel})`;
+                    console.log('Gemini classification test successful'.cyan);
+                } else {
+                    errorDetails += geminiResult.error ? `, Gemini failed: ${geminiResult.error}` : ', Gemini failed';
+                }
+            }
+
+            const totalTime = Date.now() - start;
+
+            if (huggingFaceSuccess || geminiSuccess) {
+                console.log('AI News Classification Service health check completed successfully'.green.bold);
+                return {
+                    status: 'healthy',
+                    responseTime: `${totalTime}ms`,
+                    data: {
+                        serviceName: 'AI News Classification Service',
+                        workingMethod,
+                        huggingFaceAvailable: !!HUGGINGFACE_API_TOKEN,
+                        huggingFaceWorking: huggingFaceSuccess,
+                        geminiWorking: geminiSuccess,
+                        primaryMethod: 'HuggingFace',
+                        fallbackMethod: 'Gemini AI models',
+                    },
+                };
+            } else {
+                console.error('Service Error: AI News Classification Service health check failed'.red.bold, errorDetails);
+                return {
+                    status: 'unhealthy',
+                    error: {message: `Both classification methods failed: ${errorDetails}`},
+                    data: {
+                        serviceName: 'AI News Classification Service',
+                        huggingFaceAvailable: !!HUGGINGFACE_API_TOKEN,
+                        huggingFaceWorking: false,
+                        geminiWorking: false,
+                        failedAt: 'both_methods',
+                    },
+                };
+            }
+        } catch (error: any) {
+            console.error('Service Error: HealthService.checkAINewsClassificationHealth failed'.red.bold, error);
+            return {status: 'unhealthy', error: {message: error.message}};
+        }
+    }
+
+    /**
      * Check health status of AI Summarization Service with cascading model fallback
      */
     static async checkAISummarizationHealth(): Promise<IHealthCheckResponse> {
@@ -838,7 +936,7 @@ class HealthService {
             const start = Date.now();
             console.log('Running comprehensive system health checks'.cyan);
 
-            const [newsHealth, guardianHealth, nyTimesHealth, rssHealth, emailHealth, webScrapingHealth, googleHealth, aiSummarizationHealth, aiTagGenerationHealth, aiSentimentAnalysisHealth, aiKeyPointsExtractionHealth, aiComplexityMeterHealth, aiQuestionAnswerHealth, aiGeographicExtractionHealth, aiSocialMediaCaptionHealth, aiNewsInsightsHealth, hfHealth, dbHealth] = await Promise.allSettled([
+            const [newsHealth, guardianHealth, nyTimesHealth, rssHealth, emailHealth, webScrapingHealth, googleHealth, aiNewsClassificationHealth, aiSummarizationHealth, aiTagGenerationHealth, aiSentimentAnalysisHealth, aiKeyPointsExtractionHealth, aiComplexityMeterHealth, aiQuestionAnswerHealth, aiGeographicExtractionHealth, aiSocialMediaCaptionHealth, aiNewsInsightsHealth, hfHealth, dbHealth] = await Promise.allSettled([
                 this.checkNewsApiOrgHealth(),
                 this.checkGuardianApiHealth(),
                 this.checkNyTimesApiHealth(),
@@ -846,6 +944,7 @@ class HealthService {
                 this.checkEmailServiceHealth(),
                 this.checkWebScrapingServiceHealth(),
                 this.checkGoogleServicesHealth(),
+                this.checkAINewsClassificationHealth(),
                 this.checkAISummarizationHealth(),
                 this.checkAITagGenerationHealth(),
                 this.checkAISentimentAnalysisHealth(),
@@ -867,6 +966,7 @@ class HealthService {
                 emailService: emailHealth.status === 'fulfilled' ? emailHealth.value : {status: 'failed'},
                 webScrapingService: webScrapingHealth.status === 'fulfilled' ? webScrapingHealth.value : {status: 'failed'},
                 googleServices: googleHealth.status === 'fulfilled' ? googleHealth.value : {status: 'failed'},
+                aiNewsClassification: aiNewsClassificationHealth.status === 'fulfilled' ? aiNewsClassificationHealth.value : {status: 'failed'},
                 aiSummarization: aiSummarizationHealth.status === 'fulfilled' ? aiSummarizationHealth.value : {status: 'failed'},
                 aiTagGeneration: aiTagGenerationHealth.status === 'fulfilled' ? aiTagGenerationHealth.value : {status: 'failed'},
                 aiSentimentAnalysis: aiSentimentAnalysisHealth.status === 'fulfilled' ? aiSentimentAnalysisHealth.value : {status: 'failed'},

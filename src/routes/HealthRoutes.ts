@@ -4,6 +4,7 @@ import {
     checkAIQuestionAnswerHealthController,
     checkAIGeographicExtractionHealthController,
     checkAIKeyPointsExtractionHealthController,
+    checkAINewsClassificationHealthController,
     checkAINewsInsightsHealthController,
     checkAISocialMediaCaptionHealthController,
     checkAISentimentAnalysisHealthController,
@@ -30,6 +31,7 @@ router.get('/rss', checkRssFeedsHealthController);                      // /heal
 router.get('/email', checkEmailServiceHealthController);                // /health/email
 router.get('/webscraping', checkWebScrapingServiceHealthController);    // /health/webscraping
 router.get('/google-service', checkGoogleServicesHealthController);     // /health/google-service
+router.get('/ai-news-classification', checkAINewsClassificationHealthController); // /health/ai-news-classification
 router.get('/ai-summarization', checkAISummarizationHealthController);  // /health/ai-summarization
 router.get('/ai-tag-generation', checkAITagGenerationHealthController); // /health/ai-tag-generation
 router.get('/ai-sentiment-analysis', checkAISentimentAnalysisHealthController); // /health/ai-sentiment-analysis
