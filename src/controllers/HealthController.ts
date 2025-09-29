@@ -262,6 +262,38 @@ const checkAISummarizationHealthController = async (req: Request, res: Response)
     }
 }
 
+const checkAIComplexityMeterHealthController = async (req: Request, res: Response) => {
+    console.info('Controller: checkAIComplexityMeterHealthController started'.bgBlue.white.bold);
+
+    try {
+        const healthCheck = await HealthService.checkAIComplexityMeterHealth();
+
+        if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
+            console.log('SUCCESS: AI Complexity Meter Service health check completed'.bgGreen.bold, {status: healthCheck.status});
+            res.status(200).send(new ApiResponse({
+                success: true,
+                message: healthCheck.status === 'healthy' ? 'AI Complexity Meter Service health check has been passed 🎉' : 'AI Complexity Meter Service is partially healthy ⚠️',
+                health: healthCheck,
+            }));
+        } else {
+            console.warn('Health Warning: AI Complexity Meter Service health check failed'.yellow, {status: healthCheck.status});
+            res.status(503).send(new ApiResponse({
+                success: false,
+                errorCode: 'AI_COMPLEXITY_METER_UNHEALTHY',
+                errorMsg: 'AI Complexity Meter Service health check has been failed',
+                health: healthCheck,
+            }));
+        }
+    } catch (error: any) {
+        console.error('Controller Error: checkAIComplexityMeterHealthController failed'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: error.message || 'Something went wrong during AI Complexity Meter Service health check!',
+        }));
+    }
+}
+
 const checkHuggingFaceApiHealthController = async (req: Request, res: Response) => {
     console.info('Controller: checkHuggingFaceApiHealthController started'.bgBlue.white.bold);
 
@@ -367,6 +399,7 @@ export {
     checkWebScrapingServiceHealthController,
     checkGoogleServicesHealthController,
     checkAISummarizationHealthController,
+    checkAIComplexityMeterHealthController,
     checkHuggingFaceApiHealthController,
     checkDatabaseHealthController,
     checkOverallSystemHealthController,
