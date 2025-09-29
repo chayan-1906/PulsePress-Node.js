@@ -4,7 +4,9 @@ import {
     checkEmailServiceHealthController,
     checkWebScrapingServiceHealthController,
     checkAISummarizationHealthController,
+    checkAITagGenerationHealthController,
     checkAIComplexityMeterHealthController,
+    checkAIGeographicExtractionHealthController,
     checkHuggingFaceApiHealthController,
     checkGoogleServicesHealthController,
     checkGuardianApiHealthController,
@@ -24,7 +26,9 @@ router.get('/email', checkEmailServiceHealthController);                // /heal
 router.get('/webscraping', checkWebScrapingServiceHealthController);    // /health/webscraping
 router.get('/google-service', checkGoogleServicesHealthController);     // /health/google-service
 router.get('/ai-summarization', checkAISummarizationHealthController);  // /health/ai-summarization
+router.get('/ai-tag-generation', checkAITagGenerationHealthController); // /health/ai-tag-generation
 router.get('/ai-complexity-meter', checkAIComplexityMeterHealthController); // /health/ai-complexity-meter
+router.get('/ai-geographic-extraction', checkAIGeographicExtractionHealthController); // /health/ai-geographic-extraction
 router.get('/huggingface-ai', checkHuggingFaceApiHealthController);     // /health/huggingface-ai
 router.get('/database', checkDatabaseHealthController);                 // /health/database
 router.get('/', checkOverallSystemHealthController);                    // /

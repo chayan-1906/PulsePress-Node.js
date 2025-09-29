@@ -262,6 +262,38 @@ const checkAISummarizationHealthController = async (req: Request, res: Response)
     }
 }
 
+const checkAITagGenerationHealthController = async (req: Request, res: Response) => {
+    console.info('Controller: checkAITagGenerationHealthController started'.bgBlue.white.bold);
+
+    try {
+        const healthCheck = await HealthService.checkAITagGenerationHealth();
+
+        if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
+            console.log('SUCCESS: AI Tag Generation Service health check completed'.bgGreen.bold, {status: healthCheck.status});
+            res.status(200).send(new ApiResponse({
+                success: true,
+                message: healthCheck.status === 'healthy' ? 'AI Tag Generation Service health check has been passed 🎉' : 'AI Tag Generation Service is partially healthy ⚠️',
+                health: healthCheck,
+            }));
+        } else {
+            console.warn('Health Warning: AI Tag Generation Service health check failed'.yellow, {status: healthCheck.status});
+            res.status(503).send(new ApiResponse({
+                success: false,
+                errorCode: 'AI_TAG_GENERATION_UNHEALTHY',
+                errorMsg: 'AI Tag Generation Service health check has been failed',
+                health: healthCheck,
+            }));
+        }
+    } catch (error: any) {
+        console.error('Controller Error: checkAITagGenerationHealthController failed'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: error.message || 'Something went wrong during AI Tag Generation Service health check!',
+        }));
+    }
+}
+
 const checkAIComplexityMeterHealthController = async (req: Request, res: Response) => {
     console.info('Controller: checkAIComplexityMeterHealthController started'.bgBlue.white.bold);
 
@@ -290,6 +322,38 @@ const checkAIComplexityMeterHealthController = async (req: Request, res: Respons
             success: false,
             error,
             errorMsg: error.message || 'Something went wrong during AI Complexity Meter Service health check!',
+        }));
+    }
+}
+
+const checkAIGeographicExtractionHealthController = async (req: Request, res: Response) => {
+    console.info('Controller: checkAIGeographicExtractionHealthController started'.bgBlue.white.bold);
+
+    try {
+        const healthCheck = await HealthService.checkAIGeographicExtractionHealth();
+
+        if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
+            console.log('SUCCESS: AI Geographic Extraction Service health check completed'.bgGreen.bold, {status: healthCheck.status});
+            res.status(200).send(new ApiResponse({
+                success: true,
+                message: healthCheck.status === 'healthy' ? 'AI Geographic Extraction Service health check has been passed 🎉' : 'AI Geographic Extraction Service is partially healthy ⚠️',
+                health: healthCheck,
+            }));
+        } else {
+            console.warn('Health Warning: AI Geographic Extraction Service health check failed'.yellow, {status: healthCheck.status});
+            res.status(503).send(new ApiResponse({
+                success: false,
+                errorCode: 'AI_GEOGRAPHIC_EXTRACTION_UNHEALTHY',
+                errorMsg: 'AI Geographic Extraction Service health check has been failed',
+                health: healthCheck,
+            }));
+        }
+    } catch (error: any) {
+        console.error('Controller Error: checkAIGeographicExtractionHealthController failed'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: error.message || 'Something went wrong during AI Geographic Extraction Service health check!',
         }));
     }
 }
@@ -399,7 +463,9 @@ export {
     checkWebScrapingServiceHealthController,
     checkGoogleServicesHealthController,
     checkAISummarizationHealthController,
+    checkAITagGenerationHealthController,
     checkAIComplexityMeterHealthController,
+    checkAIGeographicExtractionHealthController,
     checkHuggingFaceApiHealthController,
     checkDatabaseHealthController,
     checkOverallSystemHealthController,
