@@ -16,6 +16,7 @@ import {testAIModelsWithFallback} from "../utils/serviceHelpers/healthCheckHelpe
 import {EMAIL_PASS, EMAIL_USER, GEMINI_API_KEY, GOOGLE_TRANSLATE_API_KEY, GUARDIAN_API_KEY, HUGGINGFACE_API_TOKEN, NYTIMES_API_KEY} from "../config/config";
 import {
     AI_COMPLEXITY_METER__MODELS,
+    AI_ENHANCEMENT_MODELS,
     AI_GEOGRAPHIC_EXTRACTION_MODELS,
     AI_KEY_POINTS_EXTRACTOR_MODELS,
     AI_NEWS_INSIGHTS_MODELS,
@@ -834,6 +835,53 @@ class HealthService {
     }
 
     /**
+     * Check health status of AI Article Enhancement Service with cascading model fallback
+     */
+    static async checkAIArticleEnhancementHealth(): Promise<IHealthCheckResponse> {
+        console.log('Service: HealthService.checkAIArticleEnhancementHealth called'.cyan.italic);
+
+        try {
+            const start = Date.now();
+            const {success, workingModel, responseTime, error, attemptedModels, totalAttempts} = await testAIModelsWithFallback({
+                models: AI_ENHANCEMENT_MODELS,
+                serviceName: 'AI Article Enhancement Service',
+                testPrompt: 'Enhance and provide comprehensive analysis for this article: Breakthrough discoveries in renewable energy technology are leading to more efficient solar panels that could revolutionize the global energy industry',
+            });
+
+            if (success) {
+                console.log('AI Article Enhancement Service health check completed successfully'.green.bold);
+                return {
+                    status: 'healthy',
+                    responseTime: `${Date.now() - start}ms`,
+                    data: {
+                        serviceName: 'AI Article Enhancement Service',
+                        workingModel,
+                        availableModels: AI_ENHANCEMENT_MODELS,
+                        attemptedModels,
+                        totalAttempts,
+                        modelResponseTime: `${responseTime}ms`,
+                    },
+                };
+            } else {
+                console.error('Service Error: AI Article Enhancement Service health check failed'.red.bold, error);
+                return {
+                    status: 'unhealthy',
+                    error: {message: error || 'All AI models failed'},
+                    data: {
+                        serviceName: 'AI Article Enhancement Service',
+                        availableModels: AI_ENHANCEMENT_MODELS,
+                        attemptedModels,
+                        totalAttempts,
+                    },
+                };
+            }
+        } catch (error: any) {
+            console.error('Service Error: HealthService.checkAIArticleEnhancementHealth failed'.red.bold, error);
+            return {status: 'unhealthy', error: {message: error.message}};
+        }
+    }
+
+    /**
      * Check health status of HuggingFace API service
      */
     static async checkHuggingFaceApiHealth(): Promise<IHealthCheckResponse> {
@@ -936,7 +984,7 @@ class HealthService {
             const start = Date.now();
             console.log('Running comprehensive system health checks'.cyan);
 
-            const [newsHealth, guardianHealth, nyTimesHealth, rssHealth, emailHealth, webScrapingHealth, googleHealth, aiNewsClassificationHealth, aiSummarizationHealth, aiTagGenerationHealth, aiSentimentAnalysisHealth, aiKeyPointsExtractionHealth, aiComplexityMeterHealth, aiQuestionAnswerHealth, aiGeographicExtractionHealth, aiSocialMediaCaptionHealth, aiNewsInsightsHealth, hfHealth, dbHealth] = await Promise.allSettled([
+            const [newsHealth, guardianHealth, nyTimesHealth, rssHealth, emailHealth, webScrapingHealth, googleHealth, aiNewsClassificationHealth, aiSummarizationHealth, aiTagGenerationHealth, aiSentimentAnalysisHealth, aiKeyPointsExtractionHealth, aiComplexityMeterHealth, aiQuestionAnswerHealth, aiGeographicExtractionHealth, aiSocialMediaCaptionHealth, aiNewsInsightsHealth, aiArticleEnhancementHealth, hfHealth, dbHealth] = await Promise.allSettled([
                 this.checkNewsApiOrgHealth(),
                 this.checkGuardianApiHealth(),
                 this.checkNyTimesApiHealth(),
@@ -954,6 +1002,7 @@ class HealthService {
                 this.checkAIGeographicExtractionHealth(),
                 this.checkAISocialMediaCaptionHealth(),
                 this.checkAINewsInsightsHealth(),
+                this.checkAIArticleEnhancementHealth(),
                 this.checkHuggingFaceApiHealth(),
                 this.checkDatabaseHealth(),
             ]);
@@ -976,6 +1025,7 @@ class HealthService {
                 aiGeographicExtraction: aiGeographicExtractionHealth.status === 'fulfilled' ? aiGeographicExtractionHealth.value : {status: 'failed'},
                 aiSocialMediaCaption: aiSocialMediaCaptionHealth.status === 'fulfilled' ? aiSocialMediaCaptionHealth.value : {status: 'failed'},
                 aiNewsInsights: aiNewsInsightsHealth.status === 'fulfilled' ? aiNewsInsightsHealth.value : {status: 'failed'},
+                aiArticleEnhancement: aiArticleEnhancementHealth.status === 'fulfilled' ? aiArticleEnhancementHealth.value : {status: 'failed'},
                 huggingFaceAPI: hfHealth.status === 'fulfilled' ? hfHealth.value : {status: 'failed'},
                 database: dbHealth.status === 'fulfilled' ? dbHealth.value : {status: 'failed'},
             };

@@ -550,6 +550,38 @@ const checkAINewsInsightsHealthController = async (req: Request, res: Response) 
     }
 }
 
+const checkAIArticleEnhancementHealthController = async (req: Request, res: Response) => {
+    console.info('Controller: checkAIArticleEnhancementHealthController started'.bgBlue.white.bold);
+
+    try {
+        const healthCheck = await HealthService.checkAIArticleEnhancementHealth();
+
+        if (healthCheck.status === 'healthy' || healthCheck.status === 'degraded') {
+            console.log('SUCCESS: AI Article Enhancement Service health check completed'.bgGreen.bold, {status: healthCheck.status});
+            res.status(200).send(new ApiResponse({
+                success: true,
+                message: healthCheck.status === 'healthy' ? 'AI Article Enhancement Service health check has been passed 🎉' : 'AI Article Enhancement Service is partially healthy ⚠️',
+                health: healthCheck,
+            }));
+        } else {
+            console.warn('Health Warning: AI Article Enhancement Service health check failed'.yellow, {status: healthCheck.status});
+            res.status(503).send(new ApiResponse({
+                success: false,
+                errorCode: 'AI_ARTICLE_ENHANCEMENT_UNHEALTHY',
+                errorMsg: 'AI Article Enhancement Service health check has been failed',
+                health: healthCheck,
+            }));
+        }
+    } catch (error: any) {
+        console.error('Controller Error: checkAIArticleEnhancementHealthController failed'.red.bold, error);
+        res.status(500).send(new ApiResponse({
+            success: false,
+            error,
+            errorMsg: error.message || 'Something went wrong during AI Article Enhancement Service health check!',
+        }));
+    }
+}
+
 const checkHuggingFaceApiHealthController = async (req: Request, res: Response) => {
     console.info('Controller: checkHuggingFaceApiHealthController started'.bgBlue.white.bold);
 
@@ -664,6 +696,7 @@ export {
     checkAIGeographicExtractionHealthController,
     checkAISocialMediaCaptionHealthController,
     checkAINewsInsightsHealthController,
+    checkAIArticleEnhancementHealthController,
     checkHuggingFaceApiHealthController,
     checkDatabaseHealthController,
     checkOverallSystemHealthController,
