@@ -697,8 +697,8 @@ class NewsService {
         console.log(`Target ratios: NewsAPI(10%), Guardian(30%), NYTimes(20%), RSS(40%)`.green.bold);
 
         // Start background enhancement (fire and forget)
-        if (sortedResults.length > 0) {
-            ArticleEnhancementService.enhanceArticles({email: email || '', articles: sortedResults}).then(() => {
+        if (email && sortedResults.length > 0) {
+            ArticleEnhancementService.enhanceArticles({email, articles: sortedResults}).then(() => {
             });
         }
 
