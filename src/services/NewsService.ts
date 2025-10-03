@@ -245,7 +245,7 @@ class NewsService {
 
             const cacheKey = `nytimes-${processedQuery}-${section}-${sort}-${fromDate}-${toDate}-${pageSize}-${page}`;
             const cached = this.NYTIMES_CACHE.get(cacheKey);
-            if (/*NODE_ENV === 'production' && */cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
+            if (cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 console.log('Cache: returning cached NYTimes data'.cyan);
                 return cached.data;
             }
@@ -279,9 +279,7 @@ class NewsService {
                 pages: Math.ceil(totalHits / pageSize),
             };
 
-            // if (NODE_ENV === 'production') {
             this.NYTIMES_CACHE.set(cacheKey, {data: result, timestamp: Date.now()});
-            // }
 
             return result;
         } catch (error: any) {
@@ -314,7 +312,7 @@ class NewsService {
 
             const cacheKey = `nytimes-top-${section}`;
             const cached = this.NYTIMES_CACHE.get(cacheKey);
-            if (/*NODE_ENV === 'production' && */cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
+            if (cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 console.log('Cache: returning cached NYTimes top stories'.cyan);
                 return cached.data;
             }
@@ -334,9 +332,7 @@ class NewsService {
                 lastUpdated: nytResponse.last_updated,
             };
 
-            // if (NODE_ENV === 'production') {
             this.NYTIMES_CACHE.set(cacheKey, {data: result, timestamp: Date.now()});
-            // }
 
             return result;
         } catch (error: any) {
@@ -423,11 +419,14 @@ class NewsService {
                 const simplifiedQuery = simplifySearchQuery(q.trim());
                 const expandedTerms = simplifiedQuery.split(' ').filter(term => term.length > 2);
 
+                console.log('🔎 FUZZY SEARCH SETUP:'.yellow.bold);
+                console.log('  Total RSS items to search:'.cyan, allItems.length);
+
                 const fuse = new Fuse(allItems, {
                     keys: [
-                        {name: 'title', weight: 0.7},
-                        {name: 'contentSnippet', weight: 0.3},
-                        {name: 'categories', weight: 0.2},
+                        {name: 'title', weight: 0.7},           // 70% importance
+                        {name: 'contentSnippet', weight: 0.3},  // 30% importance
+                        {name: 'categories', weight: 0.2},      // 20% importance
                     ],
                     threshold: API_CONFIG.SEARCH.FUSE_THRESHOLD,
                     includeScore: true,

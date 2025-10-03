@@ -28,6 +28,5 @@ router.post('/answer-question', authMiddleware, aiRateLimiter, newsScrapingRateL
 router.post('/extract-locations', authMiddleware, aiRateLimiter, newsScrapingRateLimiter, extractLocationsController);  // /api/v1/ai/extract-locations
 router.post('/social-media-caption', authMiddleware, aiRateLimiter, newsScrapingRateLimiter, generateSocialMediaCaptionController);  // /api/v1/ai/social-media-caption
 router.post('/news-insights', authMiddleware, aiRateLimiter, newsScrapingRateLimiter, generateNewsInsightsController);  // /api/v1/ai/news-insights
-// TODO Implement: A progressive API for news article details screen, similar to /multi-source/enhanced
 
 export default router;
