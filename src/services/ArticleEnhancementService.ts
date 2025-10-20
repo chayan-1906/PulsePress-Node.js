@@ -14,9 +14,9 @@ import ReadingTimeAnalysisService from "./ReadingTimeAnalysisService";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {getSentimentColor, getSentimentEmoji} from "../utils/serviceHelpers/sentimentHelpers";
 import ArticleEnhancementModel, {IArticleEnhancement} from "../models/ArticleEnhancementSchema";
-import {calculateProgress, identifyMissingEnhancements} from "../utils/serviceHelpers/enhancementHelpers";
 import {cleanJsonResponseMarkdown, truncateContentForAI} from "../utils/serviceHelpers/aiResponseFormatters";
 import {mergeEnhancementsWithArticles as mergeEnhancementsHelper} from "../utils/serviceHelpers/articleConverters";
+import {calculateProgress, filterCompletedArticleIds, filterCompletedArticles, identifyMissingEnhancements} from "../utils/serviceHelpers/enhancementHelpers";
 import {
     getCachedArticleEnhancements,
     saveBasicEnhancements,
@@ -51,38 +51,50 @@ class ArticleEnhancementService {
     static async enhanceArticles({email, articles}: IEnhanceArticlesParams): Promise<void> {
         console.log('Service: ArticleEnhancementService.enhanceArticles called'.cyan.italic, {email, articleCount: articles.length});
 
+        const articlesNeedingEnhancement = await filterCompletedArticles(articles);
+
+        if (articlesNeedingEnhancement.length === 0) {
+            console.log('All articles already completed - skipping enhancement'.cyan);
+            return;
+        }
+
+        console.log('Articles requiring enhancement'.cyan, {
+            total: articles.length,
+            needEnhancement: articlesNeedingEnhancement.length,
+            alreadyCompleted: articles.length - articlesNeedingEnhancement.length,
+        });
+
         if (email) {
             try {
                 const {user} = await AuthService.getUserByEmail({email});
                 const {isBlocked} = await StrikeService.checkUserBlock({email});
                 if (!user || isBlocked) {
                     console.warn('Service Warning: User not found or blocked - cancelling enhancements'.yellow);
-                    await updateArticlesProcessingStatus({articles, status: 'cancelled'});
+                    await updateArticlesProcessingStatus({articles: articlesNeedingEnhancement, status: 'cancelled'});
                     return;
                 }
             } catch (error: any) {
                 console.error('Service Error: User verification failed'.red.bold, error);
-                await updateArticlesProcessingStatus({articles, status: 'failed'});
+                await updateArticlesProcessingStatus({articles: articlesNeedingEnhancement, status: 'failed'});
                 return;
             }
         } else {
-            console.warn('Service Warning: No user email provided - cancelling enhancements'.yellow);
-            await updateArticlesProcessingStatus({articles, status: 'cancelled'});
+            console.warn('Service Warning: No user email provided - skipping enhancements'.yellow);
             return;
         }
 
-        const batchInfo = await QuotaService.checkQuotaAvailabilityForBatchOperation({service: 'gemini-total', requestCount: articles.length});
+        const batchInfo = await QuotaService.checkQuotaAvailabilityForBatchOperation({service: 'gemini-total', requestCount: articlesNeedingEnhancement.length});
 
         if (batchInfo.maxProcessable === 0) {
             console.warn('Client Error: Insufficient quota for article enhancement - 0 articles can be processed'.yellow);
-            await updateArticlesProcessingStatus({articles, status: 'failed'});
+            await updateArticlesProcessingStatus({articles: articlesNeedingEnhancement, status: 'failed'});
             return;
         }
 
-        const processableArticles = articles.slice(0, batchInfo.maxProcessable);
+        const processableArticles = articlesNeedingEnhancement.slice(0, batchInfo.maxProcessable);
 
-        if (processableArticles.length < articles.length) {
-            console.log(`Quota limiting: Processing ${processableArticles.length}/${articles.length} articles due to quota constraints`.cyan);
+        if (processableArticles.length < articlesNeedingEnhancement.length) {
+            console.log(`Quota limiting: Processing ${processableArticles.length}/${articlesNeedingEnhancement.length} articles due to quota constraints`.cyan);
         }
 
         const articlesNeedingProcessing: string[] = [];
@@ -386,6 +398,8 @@ class ArticleEnhancementService {
         console.log('Service: ArticleEnhancementService.getEnhancementStatusByIds called'.cyan.italic, {email, articleCount: articleIds.length});
 
         try {
+            const incompleteArticleIds = await filterCompletedArticleIds(articleIds);
+
             if (email) {
                 const {user} = await AuthService.getUserByEmail({email});
                 const {isBlocked} = await StrikeService.checkUserBlock({email});
@@ -393,12 +407,14 @@ class ArticleEnhancementService {
                     return {error: generateNotFoundCode('user')};
                 }
                 if (isBlocked) {
-                    await updateArticleIdsProcessingStatus({articleIds, status: 'cancelled'});
-                    return {status: 'cancelled', progress: 100, articles: []};
+                    if (incompleteArticleIds.length > 0) {
+                        await updateArticleIdsProcessingStatus({articleIds: incompleteArticleIds, status: 'cancelled'});
+                    }
                 }
             } else {
-                await updateArticleIdsProcessingStatus({articleIds, status: 'cancelled'});
-                return {status: 'cancelled', progress: 100, articles: []};
+                if (incompleteArticleIds.length > 0) {
+                    await updateArticleIdsProcessingStatus({articleIds: incompleteArticleIds, status: 'cancelled'});
+                }
             }
 
             const hasActiveJobs = articleIds.some((id: string) => this.activeJobs.has(id));

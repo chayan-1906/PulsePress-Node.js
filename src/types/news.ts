@@ -318,6 +318,7 @@ export interface IRssFeedParams {
     q?: string;
     sources?: string;
     languages?: TSupportedNewsLanguage;
+    category?: string;
     pageSize?: number;
     page?: number;
 }

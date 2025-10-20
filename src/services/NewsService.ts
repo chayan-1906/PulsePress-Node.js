@@ -245,7 +245,7 @@ class NewsService {
 
             const cacheKey = `nytimes-${processedQuery}-${section}-${sort}-${fromDate}-${toDate}-${pageSize}-${page}`;
             const cached = this.NYTIMES_CACHE.get(cacheKey);
-            if (/*NODE_ENV === 'production' && */cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
+            if (cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 console.log('Cache: returning cached NYTimes data'.cyan);
                 return cached.data;
             }
@@ -279,9 +279,7 @@ class NewsService {
                 pages: Math.ceil(totalHits / pageSize),
             };
 
-            // if (NODE_ENV === 'production') {
             this.NYTIMES_CACHE.set(cacheKey, {data: result, timestamp: Date.now()});
-            // }
 
             return result;
         } catch (error: any) {
@@ -314,7 +312,7 @@ class NewsService {
 
             const cacheKey = `nytimes-top-${section}`;
             const cached = this.NYTIMES_CACHE.get(cacheKey);
-            if (/*NODE_ENV === 'production' && */cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
+            if (cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 console.log('Cache: returning cached NYTimes top stories'.cyan);
                 return cached.data;
             }
@@ -334,9 +332,7 @@ class NewsService {
                 lastUpdated: nytResponse.last_updated,
             };
 
-            // if (NODE_ENV === 'production') {
             this.NYTIMES_CACHE.set(cacheKey, {data: result, timestamp: Date.now()});
-            // }
 
             return result;
         } catch (error: any) {
@@ -348,14 +344,14 @@ class NewsService {
     /**
      * Fetch and search RSS feeds from multiple sources with fuzzy matching
      */
-    static async fetchAllRssFeeds({q, sources, languages = 'english', pageSize = 5, page = 1}: IRssFeedParams) {
-        console.log('Service: NewsService.fetchAllRssFeeds called'.cyan.italic, {q, sources, languages, pageSize, page});
+    static async fetchAllRssFeeds({q, sources, languages = 'english', category, pageSize = 5, page = 1}: IRssFeedParams) {
+        console.log('Service: NewsService.fetchAllRssFeeds called'.cyan.italic, {q, sources, languages, category, pageSize, page});
 
         try {
-            const cacheKey = `${q}-${sources}-${languages}-${pageSize}-${page}`;
+            const cacheKey = `${q}-${sources}-${languages}-${category}-${pageSize}-${page}`;
             const cached = this.RSS_CACHE.get(cacheKey);
 
-            if (/*NODE_ENV === 'production' && */cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
+            if (cached && Date.now() - cached.timestamp < API_CONFIG.SEARCH.CACHE_TTL_MS) {
                 return cached.data;
             }
 
@@ -393,10 +389,29 @@ class NewsService {
             });
 
             const results = await Promise.allSettled(promises);
-            const allItems = results
+            let allItems = results
                 .filter(r => r.status === 'fulfilled' && r.value)
                 .flatMap(r => (r as PromiseFulfilledResult<IRssFeed[]>).value)
                 .sort((a: IRssFeed, b: IRssFeed) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
+
+            if (category && category.trim()) {
+                console.log(`Service: fetchAllRSSFeeds filtering by category: "${category}"`.cyan);
+
+                const categoryKeywords = category.toLowerCase().split(',').map(c => c.trim()).filter(Boolean);
+
+                allItems = allItems.filter((item: IRssFeed) => {
+                    if (!item.categories || item.categories.length === 0) {
+                        return false;
+                    }
+
+                    const itemCategories = item.categories.map(cat => cat.toLowerCase());
+                    return categoryKeywords.some(keyword =>
+                        itemCategories.some(itemCat => itemCat.includes(keyword)),
+                    );
+                });
+
+                console.log(`Category filtering completed: ${allItems.length} articles match category "${category}"`.cyan);
+            }
 
             if (q && q.trim()) {
                 console.log(`Service: fetchAllRSSFeeds searching for: "${q}"`.cyan);
@@ -404,11 +419,14 @@ class NewsService {
                 const simplifiedQuery = simplifySearchQuery(q.trim());
                 const expandedTerms = simplifiedQuery.split(' ').filter(term => term.length > 2);
 
+                console.log('🔎 FUZZY SEARCH SETUP:'.yellow.bold);
+                console.log('  Total RSS items to search:'.cyan, allItems.length);
+
                 const fuse = new Fuse(allItems, {
                     keys: [
-                        {name: 'title', weight: 0.7},
-                        {name: 'contentSnippet', weight: 0.3},
-                        {name: 'categories', weight: 0.2},
+                        {name: 'title', weight: 0.7},           // 70% importance
+                        {name: 'contentSnippet', weight: 0.3},  // 30% importance
+                        {name: 'categories', weight: 0.2},      // 20% importance
                     ],
                     threshold: API_CONFIG.SEARCH.FUSE_THRESHOLD,
                     includeScore: true,
@@ -449,9 +467,7 @@ class NewsService {
 
                 console.log(`RSS search completed: found ${searchResults.length} results for "${q}"`.green.bold);
 
-                // if (NODE_ENV === 'production') {
                 this.RSS_CACHE.set(cacheKey, {data: finalResults, timestamp: Date.now()});
-                // }
 
                 return finalResults;
             }
@@ -459,9 +475,7 @@ class NewsService {
             const startIndex = (page - 1) * pageSize;
             const paginatedResults = allItems.slice(startIndex, startIndex + pageSize);
 
-            // if (NODE_ENV === 'production') {
             this.RSS_CACHE.set(cacheKey, {data: paginatedResults, timestamp: Date.now()});
-            // }
 
             return paginatedResults;
         } catch (error: any) {
@@ -682,8 +696,8 @@ class NewsService {
         console.log(`Target ratios: NewsAPI(10%), Guardian(30%), NYTimes(20%), RSS(40%)`.green.bold);
 
         // Start background enhancement (fire and forget)
-        if (sortedResults.length > 0) {
-            ArticleEnhancementService.enhanceArticles({email: email || '', articles: sortedResults}).then(() => {
+        if (email && sortedResults.length > 0) {
+            ArticleEnhancementService.enhanceArticles({email, articles: sortedResults}).then(() => {
             });
         }
 
