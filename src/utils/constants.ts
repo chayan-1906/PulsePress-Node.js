@@ -131,7 +131,7 @@ const RSS_SOURCES = {
 };
 
 export const AI_MODELS = {
-    GEMINI_25_FLASH_PREVIEW: 'gemini-2.5-flash-preview-09-202',
+    GEMINI_25_FLASH_PREVIEW: 'gemini-2.5-flash-preview-09-2025',
     GEMINI_25_FLASH_LITE_PREVIEW: 'gemini-2.5-flash-lite-preview-09-2025',
     GEMINI_25_FLASH_LITE: 'gemini-2.5-flash-lite',
     GEMINI_25_FLASH: 'gemini-2.5-flash',
