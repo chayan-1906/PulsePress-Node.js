@@ -1,6 +1,6 @@
 import "colors";
 import AuthService from "./AuthService";
-import {clearRecommendationCache} from "./ContentRecommendationService";
+// import {clearRecommendationCache} from "./ContentRecommendationService";
 import UserPreferenceModel, {IUserPreference} from "../models/UserPreferenceSchema";
 import {generateMissingCode, generateNotFoundCode} from "../utils/generateErrorCodes";
 import {buildUserPreferenceDbOptions, buildUserPreferenceUpdateFields, validateUserPreferenceArrays} from "../utils/serviceHelpers/userPreferenceHelpers";
@@ -55,7 +55,8 @@ class UserPreferenceService {
                 return {error: 'MODIFY_USER_PREFERENCE_FAILED'};
             }
 
-            clearRecommendationCache(targetUser.userExternalId);
+            // TODO: Uncomment
+            // clearRecommendationCache(targetUser.userExternalId);
 
             console.log('User preference modification completed successfully'.green.bold, {userPreference: modifiedUserPreference});
             return {userPreference: modifiedUserPreference};
