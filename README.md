@@ -1304,6 +1304,7 @@ This project is licensed under the ISC License.
   <a href="https://github.com/chayan-1906/PulsePress-Node.js/stargazers">
     <img src="https://img.shields.io/github/stars/chayan-1906/PulsePress-Node.js?style=social" alt="GitHub stars">
   </a>
+  &nbsp;
   <a href="https://github.com/chayan-1906/PulsePress-Node.js/network/members">
     <img src="https://img.shields.io/github/forks/chayan-1906/PulsePress-Node.js?style=social" alt="GitHub forks">
   </a>
