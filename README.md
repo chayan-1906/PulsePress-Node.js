@@ -1,4 +1,4 @@
-# 🌟 PulsePress AI-Powered News Aggregation Platform
+# 🌟 PulsePress — AI-Powered News Aggregation Platform
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/chayan-1906/PulsePress-Node.js)
 [![Node.js](https://img.shields.io/badge/node.js-18.x+-green.svg)](https://nodejs.org/)
