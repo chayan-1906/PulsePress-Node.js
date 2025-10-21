@@ -1,5 +1,6 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 .idea/
+pulsepress.iml
 
 # dependencies
 node_modules/
@@ -17,7 +18,7 @@ yarn-error.*
 *.pem
 
 # local env files
-.env*
+.env
 
 # typescript
 *.tsbuildinfo
@@ -26,7 +27,3 @@ yarn-error.*
 android-credentials.json
 ios-credentials.plist
 web-credentials.json
-
-# claude
-.claude
-CLAUDE.md
