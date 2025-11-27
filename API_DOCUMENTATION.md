@@ -26,13 +26,13 @@
 
 ## Quick Reference
 
-| Method | Endpoint | Auth Required | Description |
-|--------|----------|---------------|-------------|
-| POST | `/auth/register` | ❌ | Create new account |
-| POST | `/auth/login` | ❌ | Email/password login |
-| GET | `/news/multi-source/enhance` | ❌ | Fetch enhanced news from all sources |
-| POST | `/ai/summarize` | ✅ | Generate article summary |
-| GET | `/recommendation` | ✅ | Get personalized recommendations |
+| Method | Endpoint                     | Auth Required | Description                          |
+|--------|------------------------------|---------------|--------------------------------------|
+| POST   | `/auth/register`             | ❌             | Create new account                   |
+| POST   | `/auth/login`                | ❌             | Email/password login                 |
+| GET    | `/news/multi-source/enhance` | ❌             | Fetch enhanced news from all sources |
+| POST   | `/ai/summarize`              | ✅             | Generate article summary             |
+| GET    | `/recommendation`            | ✅             | Get personalized recommendations     |
 
 ---
 
@@ -47,6 +47,7 @@ All authentication endpoints are under `/api/v1/auth`
 Create a new user account with email and password.
 
 **Request Body:**
+
 ```json
 {
   "name": "John Doe",
@@ -57,6 +58,7 @@ Create a new user account with email and password.
 ```
 
 **Response (201):**
+
 ```json
 {
   "success": true,
@@ -65,6 +67,7 @@ Create a new user account with email and password.
 ```
 
 **Validation Rules:**
+
 - Name: 2-50 characters
 - Email: Valid format
 - Password: Min 6 chars, 1 uppercase, 1 lowercase, 1 special character
@@ -79,6 +82,7 @@ Create a new user account with email and password.
 Authenticate user and receive JWT tokens.
 
 **Request Body:**
+
 ```json
 {
   "email": "john@example.com",
@@ -87,6 +91,7 @@ Authenticate user and receive JWT tokens.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -102,6 +107,7 @@ Authenticate user and receive JWT tokens.
 ```
 
 **Error Responses:**
+
 - `404`: User not found
 - `400`: User not verified
 - `400`: Invalid credentials
@@ -119,11 +125,13 @@ Authenticate user and receive JWT tokens.
 Reset user password (requires current password).
 
 **Headers:**
+
 ```
 Authorization: Bearer <access_token>
 ```
 
 **Request Body:**
+
 ```json
 {
   "currentPassword": "OldPass123!",
@@ -132,6 +140,7 @@ Authorization: Bearer <access_token>
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -148,6 +157,7 @@ Authorization: Bearer <access_token>
 Get new access token using refresh token.
 
 **Request Body:**
+
 ```json
 {
   "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
@@ -155,6 +165,7 @@ Get new access token using refresh token.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -172,6 +183,7 @@ Get new access token using refresh token.
 Redirect to Google OAuth consent screen.
 
 **Query Parameters:**
+
 - `platform` (optional): `web` | `mobile` | `desktop` (default: `web`)
 
 **Redirects to:** Google OAuth consent page
@@ -193,6 +205,7 @@ OAuth callback endpoint (handled automatically by Google).
 Send passwordless login link via email.
 
 **Request Body:**
+
 ```json
 {
   "email": "john@example.com"
@@ -200,6 +213,7 @@ Send passwordless login link via email.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -217,6 +231,7 @@ Send passwordless login link via email.
 Verify magic link token (opens in browser).
 
 **Query Parameters:**
+
 - `token` (required): Magic link token from email
 
 **Redirects to:** Success/error page with tokens in URL
@@ -230,6 +245,7 @@ Verify magic link token (opens in browser).
 Check if user session is valid.
 
 **Request Body:**
+
 ```json
 {
   "accessToken": "eyJhbGciOiJIUzI1NiIs..."
@@ -237,6 +253,7 @@ Check if user session is valid.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -260,11 +277,13 @@ Check if user session is valid.
 Get authenticated user's profile.
 
 **Headers:**
+
 ```
 Authorization: Bearer <access_token>
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -290,6 +309,7 @@ Authorization: Bearer <access_token>
 Update user profile information.
 
 **Request Body:**
+
 ```json
 {
   "name": "John Smith"
@@ -297,6 +317,7 @@ Update user profile information.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -320,6 +341,7 @@ Update user profile information.
 Permanently delete user account.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -340,6 +362,7 @@ All news endpoints are under `/api/v1/news`
 Fetch breaking news and top headlines from NewsAPI.org.
 
 **Query Parameters:**
+
 - `country` (optional): 2-letter country code (e.g., `us`, `in`)
 - `category` (optional): `business`, `entertainment`, `general`, `health`, `science`, `sports`, `technology`
 - `sources` (optional): Comma-separated source IDs (e.g., `techcrunch,bbc-news`)
@@ -348,11 +371,13 @@ Fetch breaking news and top headlines from NewsAPI.org.
 - `page` (optional): Page number (default: `1`)
 
 **Example:**
+
 ```
 GET /newsapiorg/top-headlines?country=us&category=technology&pageSize=10
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -387,6 +412,7 @@ GET /newsapiorg/top-headlines?country=us&category=technology&pageSize=10
 Advanced search across all NewsAPI.org articles.
 
 **Query Parameters:**
+
 - `sources` (optional): Comma-separated source IDs
 - `q` (optional): Search query
 - `from` (optional): Start date (YYYY-MM-DD)
@@ -399,11 +425,13 @@ Advanced search across all NewsAPI.org articles.
 **Note:** Either `sources` or `q` parameter is required.
 
 **Example:**
+
 ```
 GET /newsapiorg/search?q=tesla&from=2025-01-01&sortBy=publishedAt
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -424,6 +452,7 @@ GET /newsapiorg/search?q=tesla&from=2025-01-01&sortBy=publishedAt
 Search articles from The Guardian.
 
 **Query Parameters:**
+
 - `q` (optional): Search query
 - `section` (optional): Guardian section (e.g., `environment`, `technology`)
 - `fromDate` (optional): Start date (YYYY-MM-DD)
@@ -433,11 +462,13 @@ Search articles from The Guardian.
 - `page` (optional): Page number
 
 **Example:**
+
 ```
 GET /guardian/search?q=climate%20change&section=environment&pageSize=10
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -458,6 +489,7 @@ GET /guardian/search?q=climate%20change&section=environment&pageSize=10
 Search articles from The New York Times.
 
 **Query Parameters:**
+
 - `q` (optional): Search query
 - `section` (optional): NYTimes section (see valid sections below)
 - `sort` (optional): `newest`, `oldest`, `relevance`
@@ -467,14 +499,17 @@ Search articles from The New York Times.
 - `page` (optional): Page number
 
 **Valid NYTimes Sections:**
-`arts`, `automobiles`, `books`, `business`, `fashion`, `food`, `health`, `home`, `insider`, `magazine`, `movies`, `nyregion`, `obituaries`, `opinion`, `politics`, `realestate`, `science`, `sports`, `sundayreview`, `technology`, `theater`, `t-magazine`, `travel`, `upshot`, `us`, `world`
+`arts`, `automobiles`, `books`, `business`, `fashion`, `food`, `health`, `home`, `insider`, `magazine`, `movies`, `nyregion`, `obituaries`, `opinion`, `politics`, `realestate`, `science`, `sports`,
+`sundayreview`, `technology`, `theater`, `t-magazine`, `travel`, `upshot`, `us`, `world`
 
 **Example:**
+
 ```
 GET /nytimes/search?q=artificial%20intelligence&section=technology&sort=newest
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -495,14 +530,17 @@ GET /nytimes/search?q=artificial%20intelligence&section=technology&sort=newest
 Get top stories from The New York Times.
 
 **Query Parameters:**
+
 - `section` (optional): NYTimes section (default: `home`)
 
 **Example:**
+
 ```
 GET /nytimes/top-stories?section=technology
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -523,17 +561,20 @@ GET /nytimes/top-stories?section=technology
 Fetch news from RSS feed sources.
 
 **Query Parameters:**
+
 - `sources` (optional): Comma-separated RSS source names (e.g., `prothom_alo,zeenews_bengali`)
 - `language` (optional): Feed language filter (e.g., `bengali`, `hindi`)
 - `pageSize` (optional): Results per page
 - `page` (optional): Page number
 
 **Example:**
+
 ```
 GET /rss?sources=prothom_alo,zeenews_bengali&language=bengali&pageSize=12&page=2
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -556,14 +597,17 @@ GET /rss?sources=prothom_alo,zeenews_bengali&language=bengali&pageSize=12&page=2
 Explore curated news by topic with intelligent query expansion.
 
 **Path Parameters:**
+
 - `topic` (required): Topic to explore (e.g., `technology`, `sports`, `business`)
 
 **Example:**
+
 ```
 GET /explore/technology
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -589,6 +633,7 @@ GET /explore/technology
 **RECOMMENDED FOR HOME SCREEN** - Fetch news from multiple sources with AI enhancements.
 
 **Query Parameters:**
+
 - `q` (optional): Search query
 - `category` (optional): News category
 - `sources` (optional): Comma-separated source names
@@ -596,11 +641,13 @@ GET /explore/technology
 - `page` (optional): Page number (default: `1`)
 
 **Example:**
+
 ```
 GET /multi-source/enhance?q=tesla&category=technology&sources=techcrunch&pageSize=10&page=1
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -640,14 +687,17 @@ GET /multi-source/enhance?q=tesla&category=technology&sources=techcrunch&pageSiz
 **FOR POLLING** - Check if article AI enhancements are complete.
 
 **Query Parameters:**
+
 - `articleIds` (required): Comma-separated article IDs
 
 **Example:**
+
 ```
 GET /multi-source/enhancement-status?articleIds=abc123,def456,ghi789
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -695,6 +745,7 @@ GET /multi-source/enhancement-status?articleIds=abc123,def456,ghi789
 **FOR ARTICLE DETAILS SCREEN** - Get comprehensive AI enhancements for a specific article.
 
 **Request Body:**
+
 ```json
 {
   "url": "https://example.com/article",
@@ -703,6 +754,7 @@ GET /multi-source/enhancement-status?articleIds=abc123,def456,ghi789
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -733,6 +785,7 @@ GET /multi-source/enhancement-status?articleIds=abc123,def456,ghi789
 Extract full article content from multiple URLs.
 
 **Request Body:**
+
 ```json
 {
   "urls": [
@@ -743,6 +796,7 @@ Extract full article content from multiple URLs.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -790,6 +844,7 @@ All AI endpoints are under `/api/v1/ai`
 **Auth Required:** ✅ (All AI endpoints require authentication)
 
 **Strike System:** AI endpoints enforce a strike system for non-news content:
+
 - 1 strike: Warning
 - 2 strikes: 15-minute AI cooldown
 - 3+ strikes: 2-hour AI block
@@ -803,6 +858,7 @@ All AI endpoints are under `/api/v1/ai`
 Determine if content is news and classify category.
 
 **Request Body:**
+
 ```json
 {
   "text": "Article text content...",
@@ -813,6 +869,7 @@ Determine if content is news and classify category.
 **Note:** Provide either `text` or `url`, not both.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -827,6 +884,7 @@ Determine if content is news and classify category.
 ```
 
 **Error Response (400 - Non-news content):**
+
 ```json
 {
   "success": false,
@@ -851,6 +909,7 @@ Determine if content is news and classify category.
 Generate AI-powered article summary.
 
 **Request Body:**
+
 ```json
 {
   "url": "https://example.com/article",
@@ -861,12 +920,14 @@ Generate AI-powered article summary.
 ```
 
 **Parameters:**
+
 - `url` (required): Article URL
 - `content` (optional): Pre-scraped content (if not provided, will be scraped)
 - `style` (optional): `concise`, `detailed`, `bullet-points` (default: `concise`)
 - `language` (optional): Output language code (default: `en`)
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -887,6 +948,7 @@ Generate AI-powered article summary.
 Auto-generate relevant tags for article.
 
 **Request Body:**
+
 ```json
 {
   "url": "https://example.com/article",
@@ -896,6 +958,7 @@ Auto-generate relevant tags for article.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -919,6 +982,7 @@ Auto-generate relevant tags for article.
 Detect sentiment and emotion in article.
 
 **Request Body:**
+
 ```json
 {
   "url": "https://example.com/article",
@@ -927,6 +991,7 @@ Detect sentiment and emotion in article.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -950,6 +1015,7 @@ Detect sentiment and emotion in article.
 ```
 
 **Sentiment Types:**
+
 - `positive`: Good news, optimistic tone
 - `negative`: Bad news, pessimistic tone
 - `neutral`: Balanced, factual reporting
@@ -964,6 +1030,7 @@ Detect sentiment and emotion in article.
 Extract main points from article.
 
 **Request Body:**
+
 ```json
 {
   "url": "https://example.com/article",
@@ -973,6 +1040,7 @@ Extract main points from article.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -997,6 +1065,7 @@ Extract main points from article.
 Assess reading difficulty level.
 
 **Request Body:**
+
 ```json
 {
   "url": "https://example.com/article",
@@ -1005,6 +1074,7 @@ Assess reading difficulty level.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1026,6 +1096,7 @@ Assess reading difficulty level.
 ```
 
 **Complexity Levels:**
+
 - `elementary`: Grade 1-6 (score 0-6)
 - `intermediate`: Grade 7-12 (score 6-12)
 - `advanced`: College level (score 12-16)
@@ -1040,6 +1111,7 @@ Assess reading difficulty level.
 Create comprehension questions from article.
 
 **Request Body:**
+
 ```json
 {
   "url": "https://example.com/article",
@@ -1050,9 +1122,11 @@ Create comprehension questions from article.
 ```
 
 **Parameters:**
+
 - `difficulty`: `easy`, `medium`, `hard`
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1087,6 +1161,7 @@ Create comprehension questions from article.
 Get AI-powered answer to question about article.
 
 **Request Body:**
+
 ```json
 {
   "url": "https://example.com/article",
@@ -1096,6 +1171,7 @@ Get AI-powered answer to question about article.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1115,6 +1191,7 @@ Get AI-powered answer to question about article.
 Identify locations, organizations, and entities.
 
 **Request Body:**
+
 ```json
 {
   "url": "https://example.com/article",
@@ -1123,6 +1200,7 @@ Identify locations, organizations, and entities.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1150,6 +1228,7 @@ Identify locations, organizations, and entities.
 Create platform-specific social media captions.
 
 **Request Body:**
+
 ```json
 {
   "url": "https://example.com/article",
@@ -1160,10 +1239,12 @@ Create platform-specific social media captions.
 ```
 
 **Parameters:**
+
 - `platform`: `twitter`, `facebook`, `linkedin`, `instagram`
 - `style`: `professional`, `casual`, `enthusiastic`, `informative`
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1189,6 +1270,7 @@ Create platform-specific social media captions.
 Extract deeper implications, trends, and connections.
 
 **Request Body:**
+
 ```json
 {
   "url": "https://example.com/article",
@@ -1197,6 +1279,7 @@ Extract deeper implications, trends, and connections.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1231,6 +1314,7 @@ All preference endpoints are under `/api/v1/preferences`
 Retrieve current user preferences.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1258,6 +1342,7 @@ Retrieve current user preferences.
 Update user preferences (replaces all preferences).
 
 **Request Body:**
+
 ```json
 {
   "favoriteCategories": ["technology", "business"],
@@ -1268,6 +1353,7 @@ Update user preferences (replaces all preferences).
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1290,6 +1376,7 @@ Update user preferences (replaces all preferences).
 Reset preferences to default values.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1320,6 +1407,7 @@ All bookmark endpoints are under `/api/v1/bookmark`
 Add or remove a bookmark (toggle).
 
 **Request Body:**
+
 ```json
 {
   "articleId": "abc123def456",
@@ -1334,6 +1422,7 @@ Add or remove a bookmark (toggle).
 ```
 
 **Response (200 - Bookmark added):**
+
 ```json
 {
   "success": true,
@@ -1348,6 +1437,7 @@ Add or remove a bookmark (toggle).
 ```
 
 **Response (200 - Bookmark removed):**
+
 ```json
 {
   "success": true,
@@ -1365,14 +1455,17 @@ Add or remove a bookmark (toggle).
 Check if article is bookmarked.
 
 **Query Parameters:**
+
 - `articleId` (required): Article ID to check
 
 **Example:**
+
 ```
 GET /status?articleId=abc123def456
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1390,17 +1483,20 @@ GET /status?articleId=abc123def456
 Retrieve user's saved articles.
 
 **Query Parameters:**
+
 - `page` (optional): Page number (default: `1`)
 - `limit` (optional): Results per page (default: `20`)
 - `sortBy` (optional): `createdAt`, `title`, `source` (default: `createdAt`)
 - `sortOrder` (optional): `asc`, `desc` (default: `desc`)
 
 **Example:**
+
 ```
 GET /?page=1&limit=20&sortBy=createdAt&sortOrder=desc
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1432,6 +1528,7 @@ GET /?page=1&limit=20&sortBy=createdAt&sortOrder=desc
 Get total number of bookmarks.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1448,17 +1545,20 @@ Get total number of bookmarks.
 Search through saved articles.
 
 **Query Parameters:**
+
 - `q` (optional): Search query (searches in title and description)
 - `sources` (optional): Comma-separated source names to filter
 - `sortBy` (optional): `createdAt`, `title`, `readDuration`
 - `sortOrder` (optional): `asc`, `desc`
 
 **Example:**
+
 ```
 GET /search?q=AI&sources=techcrunch,bbc-news&sortBy=createdAt&sortOrder=desc
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1482,6 +1582,7 @@ All reading history endpoints are under `/api/v1/reading-history`
 Record that user started reading an article.
 
 **Request Body:**
+
 ```json
 {
   "articleId": "abc123def456",
@@ -1495,6 +1596,7 @@ Record that user started reading an article.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1517,6 +1619,7 @@ Record that user started reading an article.
 Mark article as fully read.
 
 **Request Body:**
+
 ```json
 {
   "articleId": "abc123def456",
@@ -1526,10 +1629,12 @@ Mark article as fully read.
 ```
 
 **Parameters:**
+
 - `timeSpent`: Seconds spent reading
 - `percentRead`: 0-100 percentage
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1553,6 +1658,7 @@ Mark article as fully read.
 Retrieve user's reading history.
 
 **Query Parameters:**
+
 - `page` (optional): Page number
 - `limit` (optional): Results per page (default: `20`)
 - `from` (optional): Start date (YYYY-MM-DD)
@@ -1561,6 +1667,7 @@ Retrieve user's reading history.
 - `sortOrder` (optional): `asc`, `desc`
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1591,6 +1698,7 @@ Retrieve user's reading history.
 Get reading statistics and analytics.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1617,17 +1725,20 @@ Get reading statistics and analytics.
 Search through reading history.
 
 **Query Parameters:**
+
 - `q` (optional): Search query
 - `sources` (optional): Comma-separated source names
 - `sortBy` (optional): `readAt`, `readDuration`, `title`
 - `sortOrder` (optional): `asc`, `desc`
 
 **Example:**
+
 ```
 GET /search?q=AI&sources=techcrunch&sortBy=readDuration&sortOrder=desc
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1645,6 +1756,7 @@ GET /search?q=AI&sources=techcrunch&sortBy=readDuration&sortOrder=desc
 Remove specific article from reading history.
 
 **Request Body:**
+
 ```json
 {
   "articleId": "abc123def456"
@@ -1652,6 +1764,7 @@ Remove specific article from reading history.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1668,6 +1781,7 @@ Remove specific article from reading history.
 Remove all reading history.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1690,15 +1804,18 @@ All recommendation endpoints are under `/api/v1/recommendation`
 Get AI-powered article recommendations based on reading history and preferences.
 
 **Query Parameters:**
+
 - `limit` (optional): Number of articles (default: `20`, max: `50`)
 - `excludeRead` (optional): `true` | `false` (default: `true`)
 
 **Example:**
+
 ```
 GET /?limit=20&excludeRead=true
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1725,6 +1842,7 @@ GET /?limit=20&excludeRead=true
 ```
 
 **Score Explanation:**
+
 - `0.9-1.0`: Highly relevant (perfect match with preferences)
 - `0.7-0.9`: Relevant (good match)
 - `0.5-0.7`: Somewhat relevant (partial match)
@@ -1746,16 +1864,19 @@ All analytics endpoints are under `/api/v1/analytics`
 Get engagement analytics for news sources.
 
 **Query Parameters:**
+
 - `limit` (optional): Number of sources to return (default: `10`)
 - `sortBy` (optional): `engagementScore`, `totalViews`, `avgReadTime` (default: `engagementScore`)
 - `sortOrder` (optional): `asc`, `desc` (default: `desc`)
 
 **Example:**
+
 ```
 GET /source?limit=10&sortBy=engagementScore&sortOrder=desc
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1776,6 +1897,7 @@ GET /source?limit=10&sortBy=engagementScore&sortOrder=desc
 ```
 
 **Engagement Score Calculation:**
+
 ```
 engagementScore = (completionRate * 0.4) + (bookmarkRate * 0.3) + (timeSpentNormalized * 0.3)
 ```
@@ -1789,15 +1911,18 @@ engagementScore = (completionRate * 0.4) + (bookmarkRate * 0.3) + (timeSpentNorm
 Get top performing news sources.
 
 **Query Parameters:**
+
 - `limit` (optional): Number of sources (default: `5`)
 - `minViews` (optional): Minimum views required (default: `10`)
 
 **Example:**
+
 ```
 GET /top-performer?limit=5&minViews=100
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1832,6 +1957,7 @@ All strike endpoints are under `/api/v1/strikes`
 Check current strike count and restrictions.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1855,12 +1981,14 @@ Check current strike count and restrictions.
 ```
 
 **Strike Levels:**
+
 - **0 strikes**: Normal access to all features
 - **1 strike**: Warning - can still use AI
 - **2 strikes**: 15-minute AI cooldown
 - **3+ strikes**: 2-hour AI block
 
 **Auto-Recovery:**
+
 - Strikes automatically reset after 7 days of no violations
 
 ---
@@ -1872,6 +2000,7 @@ Check current strike count and restrictions.
 View all past violations.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1907,6 +2036,7 @@ All health endpoints are under `/api/v1/health`
 Comprehensive system health check.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1929,6 +2059,7 @@ Comprehensive system health check.
 ```
 
 **Status Values:**
+
 - `healthy`: Service operational
 - `degraded`: Service slow but working
 - `unhealthy`: Service failing
@@ -1943,6 +2074,7 @@ Comprehensive system health check.
 Check database connection status.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1967,6 +2099,7 @@ Check database connection status.
 Check NewsAPI.org service status.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -1990,6 +2123,7 @@ Check NewsAPI.org service status.
 Check The Guardian API status.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -2008,6 +2142,7 @@ Check The Guardian API status.
 Check NYTimes API status.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -2026,6 +2161,7 @@ Check NYTimes API status.
 Check RSS feed parser status.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -2048,6 +2184,7 @@ Check RSS feed parser status.
 Check email service (Gmail SMTP) status.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -2069,6 +2206,7 @@ Check email service (Gmail SMTP) status.
 Check web scraping service (Cheerio) status.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -2090,6 +2228,7 @@ Check web scraping service (Cheerio) status.
 Check Google OAuth service status.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -2111,6 +2250,7 @@ Check Google OAuth service status.
 Check AI content classification service.
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -2131,6 +2271,7 @@ Check AI content classification service.
 **GET** `/ai-summarization`
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -2147,6 +2288,7 @@ Check AI content classification service.
 **GET** `/ai-tag-generation`
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -2163,6 +2305,7 @@ Check AI content classification service.
 **GET** `/ai-sentiment-analysis`
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -2179,6 +2322,7 @@ Check AI content classification service.
 **GET** `/ai-key-points-extraction`
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -2195,6 +2339,7 @@ Check AI content classification service.
 **GET** `/ai-complexity-meter`
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -2211,6 +2356,7 @@ Check AI content classification service.
 **GET** `/ai-question-answer`
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -2227,6 +2373,7 @@ Check AI content classification service.
 **GET** `/ai-geographic-extraction`
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -2243,6 +2390,7 @@ Check AI content classification service.
 **GET** `/ai-social-media-caption`
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -2259,6 +2407,7 @@ Check AI content classification service.
 **GET** `/ai-news-insights`
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -2275,6 +2424,7 @@ Check AI content classification service.
 **GET** `/ai-article-enhancement`
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -2299,6 +2449,7 @@ Check AI content classification service.
 **GET** `/huggingface-ai`
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -2331,6 +2482,7 @@ All error responses follow this structure:
 ### Error Code Categories
 
 **Authentication (AUTH_xxx)**
+
 - `MISSING_name`: Name field is required
 - `MISSING_email`: Email field is required
 - `MISSING_password`: Password field is required
@@ -2347,12 +2499,14 @@ All error responses follow this structure:
 - `INVALID_TOKEN`: JWT token invalid
 
 **News (NEWS_xxx)**
+
 - `INVALID_nytimes_section`: Invalid NYTimes section
 - `MISSING_SEARCH_PARAMS`: Required search parameters missing
 - `SCRAPING_FAILED`: Unable to scrape article content
 - `ARTICLE_NOT_FOUND`: Article not found
 
 **AI (AI_xxx)**
+
 - `NON_NEWS_CONTENT`: Content is not news-related (triggers strike)
 - `USER_BLOCKED`: User temporarily blocked from AI features
 - `USER_BLOCKED_FROM_AI_FEATURES`: User blocked due to strikes
@@ -2366,10 +2520,12 @@ All error responses follow this structure:
 - `INVALID_style`: Invalid summarization style
 
 **Database (DB_xxx)**
+
 - `DB_CONNECTION_FAILED`: Database connection error
 - `DB_QUERY_ERROR`: Database query failed
 
 **Validation (VAL_xxx)**
+
 - `MISSING_<field>`: Required field missing
 - `INVALID_<field>`: Field format invalid
 - `NOT_FOUND_<resource>`: Resource not found
@@ -2390,14 +2546,14 @@ X-RateLimit-Reset: 1642694400
 
 ### Endpoint Rate Limits
 
-| Category | Window | Max Requests |
-|----------|--------|--------------|
-| **AI Features** | 5 minutes | 30 |
-| **News Scraping** | 15 minutes | 50 |
-| **Authentication** | 15 minutes | 10 |
-| **Bookmarks** | 5 minutes | 20 |
-| **Reading History** | 5 minutes | 30 |
-| **User Preferences** | 15 minutes | 10 |
+| Category             | Window     | Max Requests |
+|----------------------|------------|--------------|
+| **AI Features**      | 5 minutes  | 30           |
+| **News Scraping**    | 15 minutes | 50           |
+| **Authentication**   | 15 minutes | 10           |
+| **Bookmarks**        | 5 minutes  | 20           |
+| **Reading History**  | 5 minutes  | 30           |
+| **User Preferences** | 15 minutes | 10           |
 
 ### Rate Limit Exceeded Response
 
@@ -2427,6 +2583,7 @@ Authorization: Bearer <access_token>
 ### Date Formats
 
 All dates use ISO 8601 format:
+
 ```
 2025-01-20T10:30:00Z
 ```
@@ -2434,6 +2591,7 @@ All dates use ISO 8601 format:
 ### Pagination
 
 Paginated endpoints support:
+
 - `page`: Page number (starts at 1)
 - `limit` / `pageSize`: Results per page
 - Default page size: 20
@@ -2442,6 +2600,7 @@ Paginated endpoints support:
 ### Language Codes
 
 Supported languages (ISO 639-1):
+
 - `en`: English
 - `es`: Spanish
 - `fr`: French
@@ -2452,6 +2611,7 @@ Supported languages (ISO 639-1):
 ### News Categories
 
 Supported categories:
+
 - `general`
 - `business`
 - `entertainment`
