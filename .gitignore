@@ -27,3 +27,6 @@ yarn-error.*
 android-credentials.json
 ios-credentials.plist
 web-credentials.json
+
+# documentation
+PULSEPRESS_DOCUMENTATION.md
